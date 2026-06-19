@@ -2,11 +2,13 @@ import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { View } from "react-native";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { AppOverlays } from "@/components/AppOverlays";
 import { C } from "@/theme/colors";
 import { fontMap } from "@/theme/fonts";
 
@@ -26,13 +28,19 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <BottomSheetModalProvider>
           <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: C.bg },
-              animation: "fade",
-            }}
-          />
+          <View style={{ flex: 1, backgroundColor: C.bg }}>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: C.bg },
+                animation: "fade",
+              }}
+            >
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="room" options={{ animation: "slide_from_bottom" }} />
+            </Stack>
+            <AppOverlays />
+          </View>
         </BottomSheetModalProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
