@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -9,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { BlurView } from "expo-blur";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 
@@ -365,22 +367,26 @@ export default function RoomScreen() {
         )}
       </SafeAreaView>
 
-      <Sheet visible={exitModal} onClose={() => setExitModal(false)} contentStyle={{ alignItems: "center" }}>
-        <View style={{ flexDirection: "row", gap: 48, paddingVertical: 6 }}>
-          <Pressable onPress={() => { setExitModal(false); minimize(); }} style={{ alignItems: "center", gap: 11 }}>
-            <View style={styles.bigCircle}>
-              <Icon name="minimize" size={24} sw={2} color="rgba(255,255,255,.92)" />
-            </View>
-            <Txt weight="semibold" size={12.5} color="rgba(255,255,255,.78)">Küçült</Txt>
-          </Pressable>
-          <Pressable onPress={() => { setExitModal(false); exit(); }} style={{ alignItems: "center", gap: 11 }}>
-            <View style={styles.bigCircle}>
-              <Icon name="power" size={24} sw={2} color="rgba(255,255,255,.92)" />
-            </View>
-            <Txt weight="semibold" size={12.5} color="rgba(255,255,255,.78)">Çıkış</Txt>
-          </Pressable>
-        </View>
-      </Sheet>
+      <Modal visible={exitModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setExitModal(false)}>
+        <Pressable style={styles.exitOverlay} onPress={() => setExitModal(false)}>
+          <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.exitDim} />
+          <View style={styles.exitRow}>
+            <Pressable onPress={() => { setExitModal(false); minimize(); }} style={{ alignItems: "center", gap: 11 }}>
+              <View style={styles.bigCircle}>
+                <Icon path="M9 9L4 4M9 9V5M9 9H5M15 9l5-5M15 9V5M15 9h4M9 15l-5 5M9 15v4M9 15H5M15 15l5 5M15 15v4M15 15h4" size={24} sw={2} color="rgba(255,255,255,.92)" />
+              </View>
+              <Txt weight="semibold" size={12.5} color="rgba(255,255,255,.78)">Küçült</Txt>
+            </Pressable>
+            <Pressable onPress={() => { setExitModal(false); exit(); }} style={{ alignItems: "center", gap: 11 }}>
+              <View style={styles.bigCircle}>
+                <Icon name="power" size={24} sw={2} color="rgba(255,255,255,.92)" />
+              </View>
+              <Txt weight="semibold" size={12.5} color="rgba(255,255,255,.78)">Çıkış</Txt>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
       <Sheet visible={userList} onClose={() => setUserList(false)} maxHeightRatio={0.72}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -562,6 +568,9 @@ const styles = StyleSheet.create({
   actionBtn: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", borderRadius: 14, padding: 14, marginTop: 8 },
   userRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 10, borderRadius: 14, backgroundColor: "rgba(255,255,255,.03)" },
   bigCircle: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.08)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
+  exitOverlay: { flex: 1, alignItems: "center", justifyContent: "center" },
+  exitDim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(8,8,12,.55)" },
+  exitRow: { flexDirection: "row", gap: 48, alignItems: "flex-start" },
   reasonRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 13, paddingVertical: 12, paddingHorizontal: 14, marginTop: 8, borderWidth: 1 },
   reasonIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.12)", borderWidth: 1, borderColor: "rgba(251,113,133,.25)" },
   reportDone: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", marginBottom: 14 },

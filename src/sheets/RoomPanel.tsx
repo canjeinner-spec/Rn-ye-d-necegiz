@@ -74,6 +74,7 @@ export function RoomPanel(props: Props) {
   const { room, roomName, setRoomName, roomPhoto, announce, setAnnounce, locked, setLocked, setRoomPass, memberCount, canManage, onReport, onStats, onClose } = props;
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState(0);
+  const [manageOpen, setManageOpen] = useState(false);
   const [lockWarn, setLockWarn] = useState(false);
   const [lockSheet, setLockSheet] = useState(false);
   const [passInput, setPassInput] = useState("");
@@ -111,6 +112,11 @@ export function RoomPanel(props: Props) {
             <Gradient colors={["rgba(22,19,32,0.88)", "rgba(11,10,16,0.94)"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
             <View style={styles.glint} pointerEvents="none" />
             <View style={styles.handle} />
+            {canManage && (
+              <Pressable onPress={() => setManageOpen(true)} style={styles.gearBtn}>
+                <Icon name="gear" size={18} color={C.gold} />
+              </Pressable>
+            )}
 
             <View style={styles.tabbar}>
               {["Profil", "Üyeler"].map((t, i) => (
@@ -173,21 +179,6 @@ export function RoomPanel(props: Props) {
                     </Txt>
                   </View>
 
-                  {canManage && (
-                    <View style={{ marginTop: 10, gap: 8 }}>
-                      <Txt weight="bold" size={11} color={C.dim2} style={{ letterSpacing: 0.5, marginBottom: 4 }}>ODA YÖNETİMİ</Txt>
-                      <ManageRow label="Oda İsmi" value={roomName} onPress={() => openEdit("Oda İsmi", roomName, setRoomName)} />
-                      <ManageRow label="Duyuru" value={announce} onPress={() => openEdit("Duyuru", announce, setAnnounce, true)} />
-                      <Pressable onPress={() => (locked ? (setLocked(false), setRoomPass("")) : setLockWarn(true))} style={[styles.manageRow, locked && { borderColor: C.gold + "44", backgroundColor: C.gold + "0F" }]}>
-                        <Icon name={locked ? "lock" : "unlock"} size={17} color={locked ? C.gold : C.dim} />
-                        <Txt weight="bold" size={13} color={locked ? C.gold : C.text} style={{ marginLeft: 10 }}>{locked ? "Kilitli" : "Odayı Kilitle"}</Txt>
-                        <View style={{ flex: 1 }} />
-                        <View style={[styles.toggle, { backgroundColor: locked ? C.gold : "rgba(255,255,255,.12)", alignItems: locked ? "flex-end" : "flex-start" }]}>
-                          <View style={styles.knob} />
-                        </View>
-                      </Pressable>
-                    </View>
-                  )}
                 </>
               ) : (
                 <>
@@ -247,6 +238,29 @@ export function RoomPanel(props: Props) {
           </Pressable>
         </Animated.View>
       </Pressable>
+
+      {manageOpen && (
+        <Pressable style={styles.centerOverlay} onPress={() => setManageOpen(false)}>
+          <Pressable style={[styles.dialog, { maxWidth: 340, alignItems: "stretch" }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <Icon name="gear" size={18} color={C.gold} />
+              <Txt weight="displayBold" size={16} color="#fff">Oda Yönetimi</Txt>
+            </View>
+            <View style={{ gap: 8 }}>
+              <ManageRow label="Oda İsmi" value={roomName} onPress={() => openEdit("Oda İsmi", roomName, setRoomName)} />
+              <ManageRow label="Duyuru" value={announce} onPress={() => openEdit("Duyuru", announce, setAnnounce, true)} />
+              <Pressable onPress={() => (locked ? (setLocked(false), setRoomPass("")) : setLockWarn(true))} style={[styles.manageRow, locked && { borderColor: C.gold + "44", backgroundColor: C.gold + "0F" }]}>
+                <Icon name={locked ? "lock" : "unlock"} size={17} color={locked ? C.gold : C.dim} />
+                <Txt weight="bold" size={13} color={locked ? C.gold : C.text} style={{ marginLeft: 10 }}>{locked ? "Kilitli" : "Odayı Kilitle"}</Txt>
+                <View style={{ flex: 1 }} />
+                <View style={[styles.toggle, { backgroundColor: locked ? C.gold : "rgba(255,255,255,.12)", alignItems: locked ? "flex-end" : "flex-start" }]}>
+                  <View style={styles.knob} />
+                </View>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      )}
 
       {lockWarn && (
         <Pressable style={styles.centerOverlay} onPress={() => setLockWarn(false)}>
@@ -341,6 +355,7 @@ const styles = StyleSheet.create({
   sheet: { height: "88%", borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: "hidden", borderTopWidth: 1, borderColor: "rgba(255,255,255,.18)", backgroundColor: "rgba(14,12,20,0.6)" },
   glint: { position: "absolute", top: 0, left: 60, right: 60, height: 1, backgroundColor: "rgba(255,255,255,.55)" },
   handle: { width: 38, height: 4, borderRadius: 4, backgroundColor: "rgba(255,255,255,.2)", alignSelf: "center", marginTop: 12 },
+  gearBtn: { position: "absolute", top: 8, right: 14, zIndex: 5, width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "44" },
   tabbar: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.08)", paddingHorizontal: 8, marginTop: 6 },
   tabBtn: { flex: 1, paddingVertical: 14, alignItems: "center" },
   tabUnderline: { position: "absolute", bottom: -1, width: 28, height: 3, borderRadius: 3 },
