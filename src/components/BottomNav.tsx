@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
+import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 import { Txt } from "./Txt";
@@ -33,6 +34,7 @@ export function BottomNav({ state, navigation }: BottomTabBarProps) {
           const on = state.index === i;
           const color = on ? C.gold : C.dim2;
           const onPress = () => {
+            haptic.select();
             const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
             if (!on && !event.defaultPrevented) navigation.navigate(route.name);
           };

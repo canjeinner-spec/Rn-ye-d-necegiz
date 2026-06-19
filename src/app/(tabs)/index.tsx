@@ -12,6 +12,7 @@ import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { ROOMS, type Room } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
+import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
@@ -74,6 +75,7 @@ export default function Home() {
   const [tab, setTab] = useState(0);
 
   const open = (room: Room) => {
+    haptic.light();
     enterRoom(room);
     router.navigate("/room");
   };

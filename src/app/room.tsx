@@ -30,6 +30,7 @@ import { type Gift } from "@/data/gifts";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
+import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
@@ -172,6 +173,7 @@ export default function RoomScreen() {
   const [stub, setStub] = useState<string | null>(null);
 
   const sendGift = (g: Gift, qty: number, recipient: string) => {
+    g.tier === "legendary" ? haptic.heavy() : haptic.success();
     setGiftOpen(false);
     setGiftFx({ ...g, qty });
     const dur = g.tier === "legendary" ? 3600 : g.tier === "epic" ? 3000 : 2400;
@@ -195,6 +197,7 @@ export default function RoomScreen() {
   };
 
   const sitHere = (idx: number) => {
+    haptic.light();
     setSeats((p) => {
       const arr = [...p];
       if (mySeat !== null) arr[mySeat] = null;

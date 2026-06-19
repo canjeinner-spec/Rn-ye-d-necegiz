@@ -10,6 +10,8 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: C.bg },
+        animation: "shift",
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen name="index" />

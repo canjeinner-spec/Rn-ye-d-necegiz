@@ -33,11 +33,16 @@ export default function RootLayout() {
               screenOptions={{
                 headerShown: false,
                 contentStyle: { backgroundColor: C.bg },
-                animation: "fade",
+                animation: "slide_from_right",
+                gestureEnabled: true,
+                fullScreenGestureEnabled: true,
               }}
             >
               <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="room" options={{ animation: "slide_from_bottom" }} />
+              <Stack.Screen
+                name="room"
+                options={{ animation: "slide_from_bottom", gestureEnabled: true, gestureDirection: "vertical", fullScreenGestureEnabled: true }}
+              />
             </Stack>
             <AppOverlays />
           </View>
