@@ -19,8 +19,11 @@ import { RolePill } from "@/components/RolePill";
 import { Scene } from "@/components/Scene";
 import { Sheet } from "@/components/Sheet";
 import { Txt } from "@/components/Txt";
+import { ContributionView } from "@/sheets/ContributionView";
 import { GiftSheet } from "@/sheets/GiftSheet";
+import { ProfileCard, type ProfileCardUser } from "@/sheets/ProfileCard";
 import { RoomPanel } from "@/sheets/RoomPanel";
+import { RoomStats } from "@/sheets/RoomStats";
 import { type Gift } from "@/data/gifts";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
@@ -30,6 +33,14 @@ import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
 const MY_ROLE: "host" | "mod" | "user" = "host";
+
+const ROOM_REPORT: { ic: IconName; t: string }[] = [
+  { ic: "adult", t: "Uygunsuz / 18+ içerik" },
+  { ic: "ban", t: "Nefret söylemi veya taciz" },
+  { ic: "mask", t: "Sahte / yanıltıcı içerik" },
+  { ic: "spam", t: "Spam veya reklam" },
+  { ic: "warn", t: "Diğer" },
+];
 
 function SpeakingRing() {
   const v = useSharedValue(0.94);
@@ -142,7 +153,12 @@ export default function RoomScreen() {
   const [seatToast, setSeatToast] = useState("");
   const [exitModal, setExitModal] = useState(false);
   const [userList, setUserList] = useState(false);
-  const [cardSeat, setCardSeat] = useState<Seat | null>(null);
+  const [cardUser, setCardUser] = useState<ProfileCardUser | null>(null);
+  const [contribOpen, setContribOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<string | null>(null);
+  const [reportDone, setReportDone] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftFx, setGiftFx] = useState<(Gift & { qty: number }) | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -208,9 +224,18 @@ export default function RoomScreen() {
     }
     setSeatSheet(idx);
   };
+  const seatActions = (s: Seat) => ({
+    onMute: () => setSeats((p) => p.map((t) => (t && t.name === s.name ? { ...t, muted: !t.muted } : t))),
+    onKickMic: () => setSeats((p) => p.map((t) => (t && t.name === s.name ? null : t))),
+    onKickRoom: () => setSeats((p) => p.map((t) => (t && t.name === s.name ? null : t))),
+  });
   const tapOccupant = (s: Seat) => {
     if (s.name === "Sen") setSeatSheet(seats.findIndex((t) => t?.name === "Sen"));
-    else setCardSeat(s);
+    else setCardUser({ ...s, viewerRole: MY_ROLE, ...seatActions(s) });
+  };
+  const openByName = (name: string) => {
+    const s = occupants.find((o) => o.name === name);
+    if (s) setCardUser({ ...s, viewerRole: MY_ROLE, ...seatActions(s) });
   };
 
   const minimize = () => router.back();
@@ -262,7 +287,7 @@ export default function RoomScreen() {
             </View>
 
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
-              <Pressable onPress={() => setStub("Katkı Sıralaması — Aşama 3d")} style={styles.trophy}>
+              <Pressable onPress={() => setContribOpen(true)} style={styles.trophy}>
                 <Txt size={14}>🏆</Txt>
                 <Txt weight="extrabold" size={12} color="#FEF3C7">103</Txt>
                 <Icon name="chev" size={12} color="#FEF3C7" />
@@ -403,16 +428,6 @@ export default function RoomScreen() {
         )}
       </Sheet>
 
-      <Sheet visible={!!cardSeat} onClose={() => setCardSeat(null)} contentStyle={{ alignItems: "center" }}>
-        {cardSeat && (
-          <>
-            <Portrait name={cardSeat.name} size={84} ring={cardSeat.host ? C.gold : C.purple2} glow online />
-            <Txt weight="extrabold" size={17} color="#fff" style={{ marginTop: 12 }}>{cardSeat.name}</Txt>
-            <Txt weight="semibold" size={12} color={C.dim} style={{ marginTop: 4 }}>Lv {cardSeat.lv} · ProfileCard — Aşama 3d</Txt>
-          </>
-        )}
-      </Sheet>
-
       <Sheet visible={!!stub} onClose={() => setStub(null)} contentStyle={{ alignItems: "center" }}>
         <Icon name="gift" size={30} color={C.dim} />
         <Txt weight="bold" size={13} color={C.dim} style={{ marginTop: 12, marginBottom: 4 }}>{stub}</Txt>
@@ -433,11 +448,67 @@ export default function RoomScreen() {
           setRoomPass={setRoomPass}
           memberCount={occupants.length}
           canManage={MY_ROLE === "host"}
-          onReport={() => { setPanelOpen(false); setStub("Oda Raporla — Aşama 3d"); }}
-          onStats={() => { setPanelOpen(false); setStub("Oda İstatistikleri — Aşama 3d"); }}
+          onReport={() => { setPanelOpen(false); setReportOpen(true); }}
+          onStats={() => { setPanelOpen(false); setStatsOpen(true); }}
           onClose={() => setPanelOpen(false)}
         />
       )}
+
+      {cardUser && (
+        <ProfileCard user={cardUser} onClose={() => setCardUser(null)} onDM={() => setCardUser(null)} onViewProfile={() => setCardUser(null)} />
+      )}
+
+      {contribOpen && (
+        <ContributionView
+          occupants={occupants}
+          host={room.host}
+          onClose={() => setContribOpen(false)}
+          onOpenUser={(name) => { setContribOpen(false); openByName(name); }}
+        />
+      )}
+
+      {statsOpen && <RoomStats room={room} roomName={roomName} roomPhoto={roomPhoto} onClose={() => setStatsOpen(false)} />}
+
+      <Sheet visible={reportOpen} onClose={() => { setReportOpen(false); setReportReason(null); setReportDone(false); }}>
+        {reportDone ? (
+          <View style={{ alignItems: "center", paddingVertical: 6 }}>
+            <Gradient colors={[C.green, "#059669"]} deg={135} style={styles.reportDone}>
+              <Icon name="check" size={28} sw={3} color="#04231A" />
+            </Gradient>
+            <Txt weight="displayBold" size={16} color="#fff">Rapor gönderildi</Txt>
+            <Txt size={11.5} color={C.dim} style={{ marginTop: 8 }}>Ekibimiz en kısa sürede inceleyecek.</Txt>
+            <Pressable onPress={() => { setReportOpen(false); setReportReason(null); setReportDone(false); }} style={{ alignSelf: "stretch", marginTop: 18, borderRadius: 14, overflow: "hidden" }}>
+              <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 13, alignItems: "center" }}>
+                <Txt weight="extrabold" size={13} color="#241A05">Tamam</Txt>
+              </Gradient>
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <Txt weight="displayBold" size={16} color="#fff">Odayı Raporla</Txt>
+            <Txt size={11.5} color={C.dim} style={{ marginTop: 8, marginBottom: 8 }}>Bu oda neden uygunsuz?</Txt>
+            {ROOM_REPORT.map((r) => {
+              const on = reportReason === r.t;
+              return (
+                <Pressable key={r.t} onPress={() => setReportReason(r.t)} style={[styles.reasonRow, { backgroundColor: on ? C.red + "12" : C.card, borderColor: on ? C.red : C.line }]}>
+                  <View style={styles.reasonIcon}>
+                    <Icon name={r.ic} size={16} color="#FB7185" />
+                  </View>
+                  <Txt weight="bold" size={12.5} color={on ? C.red : C.text} style={{ flex: 1 }}>{r.t}</Txt>
+                  {on && <Icon name="check" size={15} sw={3} color={C.red} />}
+                </Pressable>
+              );
+            })}
+            {reportReason && (
+              <Pressable onPress={() => setReportDone(true)} style={{ borderRadius: 14, overflow: "hidden", marginTop: 12 }}>
+                <Gradient colors={["#DC2626", "#7F1D1D"]} deg={135} style={{ paddingVertical: 14, alignItems: "center" }}>
+                  <Txt weight="extrabold" size={13} color="#FEE2E2">Raporu Gönder</Txt>
+                </Gradient>
+              </Pressable>
+            )}
+          </>
+        )}
+      </Sheet>
 
       {giftFx && <GiftFx gift={giftFx} />}
     </View>
@@ -491,4 +562,7 @@ const styles = StyleSheet.create({
   actionBtn: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", borderRadius: 14, padding: 14, marginTop: 8 },
   userRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 10, borderRadius: 14, backgroundColor: "rgba(255,255,255,.03)" },
   bigCircle: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.08)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
+  reasonRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 13, paddingVertical: 12, paddingHorizontal: 14, marginTop: 8, borderWidth: 1 },
+  reasonIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.12)", borderWidth: 1, borderColor: "rgba(251,113,133,.25)" },
+  reportDone: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", marginBottom: 14 },
 });
