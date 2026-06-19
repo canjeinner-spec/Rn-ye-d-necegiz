@@ -45,11 +45,11 @@ export type DM = {
 };
 
 export const ROOMS: Room[] = [
-  { id: "100000", name: "Aron Karşılama Odası", host: "Aron", online: 342, mic: 8, extra: 318, live: true, scene: "official", official: true, crowd: ["Ardaowski", "Mervee", "Zeno Sv.", "Lunas", "Ender"], friends: 6, badges: [{ type: "crown" }, { type: "lv", n: 29 }, { type: "noble" }, { type: "gem" }, { type: "medal" }] },
-  { id: "145632", name: "EĞLENECEKSEN GEL 🔥", host: "Mervee", online: 126, mic: 8, extra: 73, live: true, scene: "club", crowd: ["Mervee", "Zeno Sv.", "Lunas", "Ender", "Furkan"], friends: 4, badges: [{ type: "hot" }, { type: "lv", n: 18 }, { type: "star" }, { type: "cp" }] },
-  { id: "145901", name: "ERKEKLER GELMESİN 💅", host: "Lunas", online: 94, mic: 6, extra: 56, live: true, scene: "lounge", locked: true, pass: "1234", crowd: ["Lunas", "Melis", "Rüya", "Mervee", "Zeno Sv."], friends: 3, badges: [{ type: "cp" }, { type: "lv", n: 12 }, { type: "star" }] },
-  { id: "146114", name: "UYKUM YOK 🌙", host: "Zeno Sv.", online: 81, mic: 7, extra: 48, live: true, scene: "night", crowd: ["Zeno Sv.", "Furkan", "Ender", "Melis", "Rüya"], friends: 2, badges: [{ type: "lv", n: 9 }, { type: "mic" }, { type: "gem" }] },
-  { id: "146380", name: "YAKINDA ❤️", host: "Rüya", online: 0, mic: 0, extra: 32, live: false, scene: "fire", crowd: ["Rüya", "Melis", "Lunas", "Mervee", "Ender"], friends: 5, badges: [{ type: "hot" }, { type: "medal" }, { type: "lv", n: 21 }] },
+  { id: "100000", name: "Aron Karşılama Odası", host: "Aron", online: 342, mic: 8, extra: 318, live: true, scene: "official", official: true, crowd: ["Ardaowski", "Mervee", "Zeno Sv.", "Lunas", "Ender"], friends: 6, badges: [{ type: "crown" }, { type: "lv", n: 29 }, { type: "trophy" }, { type: "gem" }, { type: "rosette" }] },
+  { id: "145632", name: "EĞLENECEKSEN GEL 🔥", host: "Mervee", online: 126, mic: 8, extra: 73, live: true, scene: "club", crowd: ["Mervee", "Zeno Sv.", "Lunas", "Ender", "Furkan"], friends: 4, badges: [{ type: "fire" }, { type: "lv", n: 18 }, { type: "gstar" }, { type: "party" }, { type: "cp" }] },
+  { id: "145901", name: "ERKEKLER GELMESİN 💅", host: "Lunas", online: 94, mic: 6, extra: 56, live: true, scene: "lounge", locked: true, pass: "1234", crowd: ["Lunas", "Melis", "Rüya", "Mervee", "Zeno Sv."], friends: 3, badges: [{ type: "cp" }, { type: "lv", n: 12 }, { type: "sparkles" }, { type: "heart" }] },
+  { id: "146114", name: "UYKUM YOK 🌙", host: "Zeno Sv.", online: 81, mic: 7, extra: 48, live: true, scene: "night", crowd: ["Zeno Sv.", "Furkan", "Ender", "Melis", "Rüya"], friends: 2, badges: [{ type: "lv", n: 9 }, { type: "music" }, { type: "gem" }, { type: "star" }] },
+  { id: "146380", name: "YAKINDA ❤️", host: "Rüya", online: 0, mic: 0, extra: 32, live: false, scene: "fire", crowd: ["Rüya", "Melis", "Lunas", "Mervee", "Ender"], friends: 5, badges: [{ type: "fire" }, { type: "medal" }, { type: "lv", n: 21 }, { type: "rocket" }] },
 ];
 
 export const SEATS: Seat[] = [
