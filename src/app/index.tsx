@@ -2,16 +2,30 @@ import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { BadgeRow } from "@/components/BadgeRow";
+import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { Eq } from "@/components/Eq";
 import { Pill } from "@/components/Pill";
 import { Portrait } from "@/components/Portrait";
+import { RolePill } from "@/components/RolePill";
+import { Scene } from "@/components/Scene";
 import { SearchBar } from "@/components/SearchBar";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
+import { type BadgeItem } from "@/data/badges";
 import { Icon } from "@/icons/Icon";
 import { C } from "@/theme/colors";
 import { GlassPanel } from "@/theme/GlassPanel";
 import { Gradient } from "@/theme/Gradient";
+
+const DEMO_BADGES: BadgeItem[] = [
+  { type: "developer" },
+  { type: "vip" },
+  { type: "level", lvl: 42 },
+  { type: "streamer" },
+  { type: "member" },
+  { type: "agency", meta: { id: "AJ-001", name: "Aron Stars", owner: "Ardaowski" } },
+];
 
 const PEOPLE_NAMES = ["Mervee", "Zeno Sv.", "Lunas", "Ender", "Furkan", "Sen"];
 
@@ -73,6 +87,43 @@ export default function Index() {
             ))}
           </View>
 
+          <Txt weight="bold" size={13} color={C.dim} style={styles.label}>
+            Rozetler & rol
+          </Txt>
+          <View style={{ paddingHorizontal: 18, gap: 12 }}>
+            <BadgeRow badges={DEMO_BADGES} size={30} />
+            <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+              <RolePill type="host" />
+              <RolePill type="mod" />
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <CoinBadge size={18} />
+                <Txt weight="extrabold" size={12} color={C.gold2}>
+                  12.4K
+                </Txt>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <DiamondBadge size={18} />
+                <Txt weight="extrabold" size={12} color="#67E8F9">
+                  860
+                </Txt>
+              </View>
+            </View>
+          </View>
+
+          <Txt weight="bold" size={13} color={C.dim} style={styles.label}>
+            Scene (oda atmosferi)
+          </Txt>
+          <View style={styles.sceneRow}>
+            {(["official", "club", "lounge", "night", "fire"] as const).map((k) => (
+              <View key={k} style={styles.sceneCard}>
+                <Scene kind={k} />
+                <Txt weight="extrabold" size={10} color="#fff" style={styles.sceneLabel}>
+                  {k}
+                </Txt>
+              </View>
+            ))}
+          </View>
+
           <GlassPanel style={styles.panel} radius={20}>
             <Txt weight="bold" size={14}>
               Liquid Glass panel
@@ -111,4 +162,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   panel: { margin: 18, marginTop: 24, padding: 20 },
+  sceneRow: { flexDirection: "row", gap: 10, paddingHorizontal: 18, flexWrap: "wrap" },
+  sceneCard: { width: 96, height: 64, borderRadius: 14, overflow: "hidden", justifyContent: "flex-end" },
+  sceneLabel: { margin: 8 },
 });
