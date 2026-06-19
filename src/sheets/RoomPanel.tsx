@@ -106,11 +106,10 @@ export function RoomPanel(props: Props) {
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Animated.View entering={SlideInDown.duration(300)} style={styles.sheet}>
-          <Pressable style={{ flex: 1 }}>
+        <Animated.View entering={SlideInDown.duration(300)} style={[styles.sheet, tab === 0 ? styles.sheetFit : styles.sheetFull]}>
+          <Pressable style={tab === 0 ? undefined : { flex: 1 }}>
             <BlurView intensity={32} tint="dark" style={StyleSheet.absoluteFill} />
             <Gradient colors={["rgba(22,19,32,0.88)", "rgba(11,10,16,0.94)"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
-            <View style={styles.glint} pointerEvents="none" />
             <View style={styles.handle} />
             {canManage && (
               <Pressable onPress={() => setManageOpen(true)} style={styles.gearBtn}>
@@ -127,8 +126,8 @@ export function RoomPanel(props: Props) {
               ))}
             </View>
 
-            <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 24 + insets.bottom }}>
-              {tab === 0 ? (
+            {tab === 0 ? (
+              <View style={{ padding: 18, paddingBottom: 14 + insets.bottom }}>
                 <>
                   <View style={styles.idCard}>
                     <View style={styles.idThumb}>
@@ -180,7 +179,9 @@ export function RoomPanel(props: Props) {
                   </View>
 
                 </>
-              ) : (
+              </View>
+            ) : (
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 18, paddingBottom: 24 + insets.bottom }}>
                 <>
                   <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
                     <Txt weight="bold" size={13} color={C.dim}>
@@ -233,8 +234,8 @@ export function RoomPanel(props: Props) {
                     );
                   })}
                 </>
-              )}
-            </ScrollView>
+              </ScrollView>
+            )}
           </Pressable>
         </Animated.View>
       </Pressable>
@@ -352,7 +353,9 @@ export function RoomPanel(props: Props) {
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(3,3,8,.55)" },
-  sheet: { height: "88%", borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: "hidden", borderTopWidth: 1, borderColor: "rgba(255,255,255,.18)", backgroundColor: "rgba(14,12,20,0.6)" },
+  sheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: "hidden", borderTopWidth: 1, borderColor: "rgba(255,255,255,.18)", backgroundColor: "rgba(14,12,20,0.6)" },
+  sheetFit: { maxHeight: "90%" },
+  sheetFull: { height: "86%" },
   glint: { position: "absolute", top: 0, left: 60, right: 60, height: 1, backgroundColor: "rgba(255,255,255,.55)" },
   handle: { width: 38, height: 4, borderRadius: 4, backgroundColor: "rgba(255,255,255,.2)", alignSelf: "center", marginTop: 12 },
   gearBtn: { position: "absolute", top: 8, right: 14, zIndex: 5, width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "44" },

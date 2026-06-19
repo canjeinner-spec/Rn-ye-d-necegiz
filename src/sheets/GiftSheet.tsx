@@ -45,7 +45,6 @@ export function GiftSheet({
           <Pressable>
             <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
             <Gradient colors={["rgba(34,26,52,0.82)", "rgba(12,10,18,0.9)"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
-            <View style={styles.glint} pointerEvents="none" />
 
             <View style={styles.recipientRow}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} style={{ flex: 1 }}>

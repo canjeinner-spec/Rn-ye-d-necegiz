@@ -96,7 +96,6 @@ export function ProfileCard({
           <Pressable>
             <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
             <Gradient colors={["rgba(32,28,44,0.82)", "rgba(14,12,20,0.9)"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
-            <View style={styles.glint} pointerEvents="none" />
             <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 24 + insets.bottom }} keyboardShouldPersistTaps="handled">
               {reportView ? (
                 <View>

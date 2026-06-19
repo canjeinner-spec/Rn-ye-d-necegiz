@@ -25,7 +25,7 @@ export function GlassPanel({
   radius = 24,
   sheet = false,
   intensity = 30,
-  glint = true,
+  glint = false,
 }: GlassPanelProps) {
   const borderRadius = sheet
     ? { borderTopLeftRadius: radius, borderTopRightRadius: radius }
