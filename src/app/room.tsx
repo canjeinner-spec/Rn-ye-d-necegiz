@@ -12,12 +12,15 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 
+import { GiftFx } from "@/components/GiftFx";
 import { Pill } from "@/components/Pill";
 import { Portrait } from "@/components/Portrait";
 import { RolePill } from "@/components/RolePill";
 import { Scene } from "@/components/Scene";
 import { Sheet } from "@/components/Sheet";
 import { Txt } from "@/components/Txt";
+import { GiftSheet } from "@/sheets/GiftSheet";
+import { type Gift } from "@/data/gifts";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
@@ -120,7 +123,7 @@ function ActionRow({ icon, color, label, onPress }: { icon: IconName; color: str
 
 export default function RoomScreen() {
   const router = useRouter();
-  const { currentRoom, userPhoto, leaveRoom } = useApp();
+  const { currentRoom, userPhoto, leaveRoom, fireBroadcast } = useApp();
   const room = currentRoom;
 
   const [seats, setSeats] = useState<(Seat | null)[]>(() => {
@@ -139,7 +142,19 @@ export default function RoomScreen() {
   const [exitModal, setExitModal] = useState(false);
   const [userList, setUserList] = useState(false);
   const [cardSeat, setCardSeat] = useState<Seat | null>(null);
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [giftFx, setGiftFx] = useState<(Gift & { qty: number }) | null>(null);
   const [stub, setStub] = useState<string | null>(null);
+
+  const sendGift = (g: Gift, qty: number, recipient: string) => {
+    setGiftOpen(false);
+    setGiftFx({ ...g, qty });
+    const dur = g.tier === "legendary" ? 3600 : g.tier === "epic" ? 3000 : 2400;
+    setTimeout(() => setGiftFx(null), dur);
+    if (g.tier === "legendary" && room) {
+      fireBroadcast({ sender: "Sen", recipient, qty, room, gift: g });
+    }
+  };
 
   const occupants = useMemo(() => seats.filter(Boolean) as Seat[], [seats]);
 
@@ -303,7 +318,7 @@ export default function RoomScreen() {
                 )}
               </Pressable>
             </View>
-            <Pressable onPress={() => setStub("Hediye Paneli — Aşama 3b")} style={styles.giftBtnWrap}>
+            <Pressable onPress={() => setGiftOpen(true)} style={styles.giftBtnWrap}>
               <Gradient colors={["#EC4899", "#BE185D"]} deg={135} style={styles.giftBtn}>
                 <Icon name="gift" size={24} color="#FBCFE8" />
               </Gradient>
@@ -395,6 +410,10 @@ export default function RoomScreen() {
         <Icon name="gift" size={30} color={C.dim} />
         <Txt weight="bold" size={13} color={C.dim} style={{ marginTop: 12, marginBottom: 4 }}>{stub}</Txt>
       </Sheet>
+
+      <GiftSheet visible={giftOpen} onClose={() => setGiftOpen(false)} recipients={occupants} coins={860} onSend={sendGift} />
+
+      {giftFx && <GiftFx gift={giftFx} />}
     </View>
   );
 }

@@ -2,18 +2,12 @@ import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
+import { TIER_RING } from "@/data/gifts";
 import { type BroadcastData } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 import { Portrait } from "./Portrait";
 import { Txt } from "./Txt";
-
-export const TIER_RING: Record<string, string> = {
-  normal: "rgba(255,255,255,.18)",
-  rare: "#60A5FA",
-  epic: "#A855F7",
-  legendary: "#F5CE6E",
-};
 
 export function GlobalBroadcast({ data, onGo, top = 52 }: { data: BroadcastData; onGo: () => void; top?: number }) {
   const ring = TIER_RING[data.gift.tier] || C.gold;
