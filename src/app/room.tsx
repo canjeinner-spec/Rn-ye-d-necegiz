@@ -20,6 +20,7 @@ import { Scene } from "@/components/Scene";
 import { Sheet } from "@/components/Sheet";
 import { Txt } from "@/components/Txt";
 import { GiftSheet } from "@/sheets/GiftSheet";
+import { RoomPanel } from "@/sheets/RoomPanel";
 import { type Gift } from "@/data/gifts";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
@@ -144,6 +145,12 @@ export default function RoomScreen() {
   const [cardSeat, setCardSeat] = useState<Seat | null>(null);
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftFx, setGiftFx] = useState<(Gift & { qty: number }) | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [roomName, setRoomName] = useState(room?.name ?? "");
+  const [roomPhoto] = useState<string | null>(room?.photo ?? null);
+  const [announce, setAnnounce] = useState("Resmî odaya hoş geldiniz! Lütfen nazik olun, keyifli sohbetler dileriz.");
+  const [locked, setLocked] = useState(false);
+  const [, setRoomPass] = useState("");
   const [stub, setStub] = useState<string | null>(null);
 
   const sendGift = (g: Gift, qty: number, recipient: string) => {
@@ -231,13 +238,13 @@ export default function RoomScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.topbar}>
             <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-              <Pressable onPress={() => setStub("Oda Yönetim Paneli — Aşama 3c")} style={styles.roomChip}>
+              <Pressable onPress={() => setPanelOpen(true)} style={styles.roomChip}>
                 <View style={styles.thumb}>
                   <Scene kind={room.scene} />
                 </View>
                 <View style={{ minWidth: 0, flexShrink: 1 }}>
                   <Txt weight="extrabold" size={12.5} color="#fff" numberOfLines={1}>
-                    {room.name}
+                    {roomName}
                   </Txt>
                   <Txt weight="semibold" size={9.5} color="rgba(255,255,255,.5)">
                     ID: {room.id}
@@ -412,6 +419,25 @@ export default function RoomScreen() {
       </Sheet>
 
       <GiftSheet visible={giftOpen} onClose={() => setGiftOpen(false)} recipients={occupants} coins={860} onSend={sendGift} />
+
+      {panelOpen && (
+        <RoomPanel
+          room={room}
+          roomName={roomName}
+          setRoomName={setRoomName}
+          roomPhoto={roomPhoto}
+          announce={announce}
+          setAnnounce={setAnnounce}
+          locked={locked}
+          setLocked={setLocked}
+          setRoomPass={setRoomPass}
+          memberCount={occupants.length}
+          canManage={MY_ROLE === "host"}
+          onReport={() => { setPanelOpen(false); setStub("Oda Raporla — Aşama 3d"); }}
+          onStats={() => { setPanelOpen(false); setStub("Oda İstatistikleri — Aşama 3d"); }}
+          onClose={() => setPanelOpen(false)}
+        />
+      )}
 
       {giftFx && <GiftFx gift={giftFx} />}
     </View>
