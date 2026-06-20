@@ -16,6 +16,10 @@ import { type BadgeItem } from "@/data/badges";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { haptic } from "@/lib/haptics";
+import { CouponSheet } from "@/sheets/CouponSheet";
+import { EditProfileSheet } from "@/sheets/EditProfileSheet";
+import { ProfileInfoSheet, type InfoMode } from "@/sheets/ProfileInfoSheet";
+import { SecuritySheet } from "@/sheets/SecuritySheet";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
@@ -28,9 +32,15 @@ export default function ProfileTab() {
   const router = useRouter();
   const { userName, userPhoto, setUserPhoto, isStreamer, setStreamer } = useApp();
   const [stub, setStub] = useState<string | null>(null);
+  const [lang, setLang] = useState("Türkçe");
+  const [editOpen, setEditOpen] = useState(false);
+  const [couponOpen, setCouponOpen] = useState(false);
+  const [securityOpen, setSecurityOpen] = useState(false);
+  const [info, setInfo] = useState<InfoMode | null>(null);
 
   const ahead = (label: string) => () => setStub(`${label} — Aşama 5`);
   const goMyRoom = () => { haptic.light(); router.navigate("/my-room"); };
+  const openSheet = (fn: () => void) => () => { haptic.light(); fn(); };
 
   const pickAvatar = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.85 });
@@ -58,16 +68,16 @@ export default function ProfileTab() {
     ...(isStreamer ? [{ ic: "mic" as IconName, g1: "#34D399", g2: "#059669", t: "Yayıncı Paneli", s: "Kazancını ve ajansını yönet", onPress: ahead("Yayıncı Paneli") }] : []),
     { ic: "gift", g1: "#EC4899", g2: "#BE185D", t: "Hediye Geçmişi", s: "Gönderdiğin & aldığın hediyeler", onPress: () => { haptic.light(); router.navigate("/gift-history"); } },
     { ic: "userAdd", g1: "#34D399", g2: "#059669", t: "Arkadaşını Davet Et", s: "Davet et, beraber elmas kazanın", onPress: () => { haptic.light(); router.navigate("/referral"); } },
-    { ic: "flag", g1: "#A855F7", g2: "#7C3AED", t: "Rozetlerim", s: "8 rozet kazandın", onPress: ahead("Rozetlerim") },
+    { ic: "flag", g1: "#A855F7", g2: "#7C3AED", t: "Rozetlerim", s: "8 rozet kazandın", onPress: openSheet(() => setInfo("badges")) },
     { ic: "idcard", g1: "#F5CE6E", g2: "#B45309", t: "Özel ID", s: "Prestijli kısa ID'leri keşfet", onPress: () => { haptic.light(); router.navigate("/special-id"); } },
-    { ic: "ticket", g1: "#06B6D4", g2: "#0891B2", t: "Hediye Kuponu Gir", s: "Kodunu gir, ödülünü al", onPress: ahead("Kupon") },
+    { ic: "ticket", g1: "#06B6D4", g2: "#0891B2", t: "Hediye Kuponu Gir", s: "Kodunu gir, ödülünü al", onPress: openSheet(() => setCouponOpen(true)) },
   ];
 
   const settings: MenuItem[] = [
-    { ic: "gear", g1: "#64748B", g2: "#475569", t: "Dil", r: "Türkçe", onPress: ahead("Dil") },
-    { ic: "ticket", g1: "#64748B", g2: "#475569", t: "Dönüştürme Kodu", onPress: ahead("Kupon") },
-    { ic: "chat", g1: "#64748B", g2: "#475569", t: "Müşteri Hizmetleri & SSS", onPress: ahead("SSS") },
-    { ic: "gear", g1: "#475569", g2: "#334155", t: "Hesap & Güvenlik", r: "⚠️", onPress: ahead("Güvenlik") },
+    { ic: "gear", g1: "#64748B", g2: "#475569", t: "Dil", r: lang, onPress: openSheet(() => setInfo("lang")) },
+    { ic: "ticket", g1: "#64748B", g2: "#475569", t: "Dönüştürme Kodu", onPress: openSheet(() => setCouponOpen(true)) },
+    { ic: "chat", g1: "#64748B", g2: "#475569", t: "Müşteri Hizmetleri & SSS", onPress: openSheet(() => setInfo("support")) },
+    { ic: "gear", g1: "#475569", g2: "#334155", t: "Hesap & Güvenlik", r: "⚠️", onPress: openSheet(() => setSecurityOpen(true)) },
   ];
 
   const renderMenu = (items: MenuItem[]) => (
@@ -93,7 +103,7 @@ export default function ProfileTab() {
           <SafeAreaView edges={["top"]}>
             <View style={{ height: 40 }} />
           </SafeAreaView>
-          <Pressable onPress={ahead("Profili Düzenle")} style={styles.editBtn}>
+          <Pressable onPress={openSheet(() => setEditOpen(true))} style={styles.editBtn}>
             <Icon name="edit" size={15} color={C.gold} />
           </Pressable>
         </Gradient>
@@ -168,6 +178,11 @@ export default function ProfileTab() {
         <Icon name="gear" size={28} color={C.dim} />
         <Txt weight="bold" size={13} color={C.dim} style={{ marginTop: 12, marginBottom: 4 }}>{stub}</Txt>
       </Sheet>
+
+      <EditProfileSheet visible={editOpen} onClose={() => setEditOpen(false)} />
+      <CouponSheet visible={couponOpen} onClose={() => setCouponOpen(false)} />
+      <SecuritySheet visible={securityOpen} onClose={() => setSecurityOpen(false)} />
+      <ProfileInfoSheet visible={info !== null} mode={info ?? "lang"} lang={lang} setLang={setLang} onClose={() => setInfo(null)} />
     </View>
   );
 }

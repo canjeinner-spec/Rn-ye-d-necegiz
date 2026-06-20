@@ -16,6 +16,7 @@ type AppState = {
   setGirisYapildi: (v: boolean) => void;
 
   userName: string;
+  userBio: string;
   userPhoto: string | null;
   isStreamer: boolean;
   myRoom: Room | null;
@@ -26,6 +27,7 @@ type AppState = {
   setActiveDM: (d: DMThread | null) => void;
 
   setUserName: (n: string) => void;
+  setUserBio: (b: string) => void;
   setUserPhoto: (p: string | null) => void;
   setStreamer: (v: boolean) => void;
 
@@ -45,6 +47,7 @@ export const useApp = create<AppState>((set, get) => ({
   setGirisYapildi: (v) => set({ girisYapildi: v }),
 
   userName: "Sen",
+  userBio: "",
   userPhoto: null,
   isStreamer: false,
   myRoom: null,
@@ -55,6 +58,7 @@ export const useApp = create<AppState>((set, get) => ({
   setActiveDM: (d) => set({ activeDM: d }),
 
   setUserName: (n) => set({ userName: n }),
+  setUserBio: (b) => set({ userBio: b }),
   setUserPhoto: (p) => set({ userPhoto: p }),
   setStreamer: (v) => set({ isStreamer: v }),
 
