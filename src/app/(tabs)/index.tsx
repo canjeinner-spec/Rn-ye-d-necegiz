@@ -12,7 +12,6 @@ import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { ROOMS, type Room } from "@/data/seed";
 import { RoomPasswordGate } from "@/sheets/RoomPasswordGate";
-import { RoomPreview } from "@/sheets/RoomPreview";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
@@ -75,7 +74,6 @@ export default function Home() {
   const router = useRouter();
   const enterRoom = useApp((s) => s.enterRoom);
   const [tab, setTab] = useState(0);
-  const [previewRoom, setPreviewRoom] = useState<Room | null>(null);
   const [gateRoom, setGateRoom] = useState<Room | null>(null);
 
   const enterAndGo = (room: Room) => {
@@ -85,14 +83,8 @@ export default function Home() {
   };
   const onRoomPress = (room: Room) => {
     haptic.light();
-    setPreviewRoom(room);
-  };
-  const onJoin = () => {
-    if (!previewRoom) return;
-    const r = previewRoom;
-    setPreviewRoom(null);
-    if (r.locked) setGateRoom(r);
-    else enterAndGo(r);
+    if (room.locked) setGateRoom(room);
+    else enterAndGo(room);
   };
 
   return (
@@ -120,7 +112,6 @@ export default function Home() {
         </ScrollView>
       </SafeAreaView>
 
-      {previewRoom && <RoomPreview room={previewRoom} onClose={() => setPreviewRoom(null)} onJoin={onJoin} />}
       {gateRoom && (
         <RoomPasswordGate
           room={gateRoom}

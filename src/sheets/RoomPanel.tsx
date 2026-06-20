@@ -74,6 +74,7 @@ export function RoomPanel(props: Props) {
   const { room, roomName, setRoomName, roomPhoto, announce, setAnnounce, locked, setLocked, setRoomPass, memberCount, canManage, onReport, onStats, onClose } = props;
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState(0);
+  const [following, setFollowing] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [lockWarn, setLockWarn] = useState(false);
   const [lockSheet, setLockSheet] = useState(false);
@@ -144,6 +145,11 @@ export function RoomPanel(props: Props) {
                       <Icon name="warn" size={20} color="rgba(255,255,255,.4)" />
                     </Pressable>
                   </View>
+
+                  <Pressable onPress={() => setFollowing((f) => !f)} style={[styles.followBtn, { borderColor: following ? C.gold : "rgba(255,255,255,.14)", backgroundColor: following ? C.gold + "12" : "rgba(255,255,255,.05)" }]}>
+                    <Icon name={following ? "check" : "heart"} size={16} sw={following ? 2.5 : 1.7} color={following ? C.gold2 : C.text} />
+                    <Txt weight="extrabold" size={13.5} color={following ? C.gold2 : C.text}>{following ? "Takiptesin" : "Takip Et"}</Txt>
+                  </Pressable>
 
                   <View style={styles.levelHeader}>
                     <Txt weight="semibold" size={13.5} color={C.dim}>Level</Txt>
@@ -363,6 +369,7 @@ const styles = StyleSheet.create({
   tabBtn: { flex: 1, paddingVertical: 14, alignItems: "center" },
   tabUnderline: { position: "absolute", bottom: -1, width: 28, height: 3, borderRadius: 3 },
   idCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 16, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 4 },
+  followBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, marginTop: 10 },
   idThumb: { width: 68, height: 68, borderRadius: 14, overflow: "hidden" },
   levelHeader: { flexDirection: "row", alignItems: "center", paddingTop: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.06)" },
   levelTrack: { height: 4, borderRadius: 4, backgroundColor: "rgba(255,255,255,.08)", marginVertical: 8, overflow: "hidden" },
