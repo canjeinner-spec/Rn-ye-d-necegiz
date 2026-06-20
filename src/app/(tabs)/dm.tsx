@@ -16,10 +16,10 @@ import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
-const QUICK: { ic: IconName; t: string; g1: string; g2: string; badge?: number }[] = [
+const QUICK: { ic: IconName; t: string; g1: string; g2: string; badge?: number; route?: string }[] = [
   { ic: "userAdd", t: "Arkadaşlık", g1: "#34D399", g2: "#059669", badge: 2 },
   { ic: "mega", t: "Etkinlik", g1: "#60A5FA", g2: "#2563EB" },
-  { ic: "bell", t: "Bildirim", g1: "#F5CE6E", g2: "#C8922B", badge: 5 },
+  { ic: "bell", t: "Bildirim", g1: "#F5CE6E", g2: "#C8922B", badge: 5, route: "/notifications" },
   { ic: "eye", t: "Ziyaretçi", g1: "#A855F7", g2: "#7C3AED" },
 ];
 
@@ -62,7 +62,7 @@ export default function DmTab() {
 
         <View style={styles.quickRow}>
           {QUICK.map((q) => (
-            <Pressable key={q.t} onPress={() => setStub(`${q.t} — Aşama 5`)} style={{ flex: 1, alignItems: "center", gap: 8 }}>
+            <Pressable key={q.t} onPress={() => { haptic.light(); q.route ? router.navigate(q.route as never) : setStub(`${q.t} — Aşama 5`); }} style={{ flex: 1, alignItems: "center", gap: 8 }}>
               <View>
                 <Gradient colors={[q.g1, q.g2]} deg={135} style={styles.quickTile}>
                   <Gradient colors={["rgba(255,255,255,.22)", "rgba(255,255,255,0)"]} deg={180} locations={[0, 0.55]} style={StyleSheet.absoluteFill} pointerEvents="none" />
