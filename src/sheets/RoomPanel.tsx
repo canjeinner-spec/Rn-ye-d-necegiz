@@ -2,7 +2,7 @@ import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import Animated, { SlideInDown } from "react-native-reanimated";
+import Animated, { FadeIn, SlideInDown, ZoomIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Portrait } from "@/components/Portrait";
@@ -13,6 +13,8 @@ import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type Role = "host" | "mod" | "user";
 type Member = { name: string; role: Role; active: boolean };
@@ -247,7 +249,8 @@ export function RoomPanel(props: Props) {
       </Pressable>
 
       {manageOpen && (
-        <Pressable style={styles.centerOverlay} onPress={() => setManageOpen(false)}>
+        <AnimatedPressable entering={FadeIn.duration(140)} style={styles.centerOverlay} onPress={() => setManageOpen(false)}>
+          <Animated.View entering={ZoomIn.springify().damping(15).mass(0.7)}>
           <Pressable style={[styles.dialog, { maxWidth: 340, alignItems: "stretch" }]}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 }}>
               <Icon name="gear" size={18} color={C.gold} />
@@ -266,11 +269,13 @@ export function RoomPanel(props: Props) {
               </Pressable>
             </View>
           </Pressable>
-        </Pressable>
+          </Animated.View>
+        </AnimatedPressable>
       )}
 
       {lockWarn && (
-        <Pressable style={styles.centerOverlay} onPress={() => setLockWarn(false)}>
+        <AnimatedPressable entering={FadeIn.duration(140)} style={styles.centerOverlay} onPress={() => setLockWarn(false)}>
+          <Animated.View entering={ZoomIn.springify().damping(15).mass(0.7)}>
           <Pressable style={styles.dialog}>
             <Gradient colors={["#F5CE6E", "#C8922B"]} deg={135} style={styles.dialogIcon}>
               <Icon name="lock" size={25} sw={2} color="#3A2A05" />
@@ -290,11 +295,13 @@ export function RoomPanel(props: Props) {
               </Pressable>
             </View>
           </Pressable>
-        </Pressable>
+          </Animated.View>
+        </AnimatedPressable>
       )}
 
       {lockSheet && (
-        <Pressable style={styles.centerOverlay} onPress={() => setLockSheet(false)}>
+        <AnimatedPressable entering={FadeIn.duration(140)} style={styles.centerOverlay} onPress={() => setLockSheet(false)}>
+          <Animated.View entering={ZoomIn.springify().damping(15).mass(0.7)}>
           <Pressable style={styles.dialog}>
             <Gradient colors={["#F5CE6E", "#C8922B"]} deg={135} style={styles.dialogIcon}>
               <Icon name="lock" size={26} sw={2} color="#3A2A05" />
@@ -325,11 +332,13 @@ export function RoomPanel(props: Props) {
               </Gradient>
             </Pressable>
           </Pressable>
-        </Pressable>
+          </Animated.View>
+        </AnimatedPressable>
       )}
 
       {editField && (
-        <Pressable style={styles.centerOverlay} onPress={() => setEditField(null)}>
+        <AnimatedPressable entering={FadeIn.duration(140)} style={styles.centerOverlay} onPress={() => setEditField(null)}>
+          <Animated.View entering={ZoomIn.springify().damping(15).mass(0.7)}>
           <Pressable style={[styles.dialog, { maxWidth: 320 }]}>
             <Txt weight="displayBold" size={16} color="#fff" style={{ marginBottom: 14 }}>{editField.label}</Txt>
             <TextInput
@@ -351,7 +360,8 @@ export function RoomPanel(props: Props) {
               </Pressable>
             </View>
           </Pressable>
-        </Pressable>
+          </Animated.View>
+        </AnimatedPressable>
       )}
     </Modal>
   );

@@ -14,6 +14,7 @@ import { BlurView } from "expo-blur";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 
+import { CenterModal } from "@/components/CenterModal";
 import { GiftFx } from "@/components/GiftFx";
 import { Pill } from "@/components/Pill";
 import { Portrait } from "@/components/Portrait";
@@ -36,6 +37,8 @@ import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
 const MY_ROLE: "host" | "mod" | "user" = "host";
+
+const SYS_MSGS = ["Oda Sahibi · Oda modu değiştirildi", "Oda Sahibi · Oda imzası değiştirildi"];
 
 const ROOM_REPORT: { ic: IconName; t: string }[] = [
   { ic: "adult", t: "Uygunsuz / 18+ içerik" },
@@ -125,6 +128,18 @@ function ChatRow({ m }: { m: ChatMsg }) {
   );
 }
 
+function SystemBanner({ roomName }: { roomName: string }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 7 }}>
+      <View style={{ paddingTop: 2 }}><Icon name="bell" size={13} color={C.gold2} /></View>
+      <Txt size={12.5} color="rgba(255,255,255,.72)" lh={1.5} style={{ flex: 1 }}>
+        <Txt weight="extrabold" size={12.5} color={C.gold2}>Sistem: </Txt>
+        {roomName}'na hoş geldiniz. Oda; pornografik, taciz, yasa dışı ve kural ihlali içeren içerikler paylaşılamaz. Kural ihlali ile karşılaşırsanız lütfen zamanında bildirin.
+      </Txt>
+    </View>
+  );
+}
+
 function ActionRow({ icon, color, label, onPress }: { icon: IconName; color: string; label: string; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={styles.actionBtn}>
@@ -141,15 +156,18 @@ export default function RoomScreen() {
   const { currentRoom, userPhoto, leaveRoom, fireBroadcast } = useApp();
   const room = currentRoom;
 
+  const [host] = useState<Seat | null>(() => SEATS.find((s) => s.host) ?? null);
   const [seats, setSeats] = useState<(Seat | null)[]>(() => {
     const arr: (Seat | null)[] = Array(8).fill(null);
-    SEATS.forEach((s, i) => {
+    SEATS.filter((s) => !s.host).forEach((s, i) => {
       if (i < 8) arr[i] = s;
     });
     return arr;
   });
   const [msgs, setMsgs] = useState<ChatMsg[]>(CHAT0);
   const [input, setInput] = useState("");
+  const [speakerOn, setSpeakerOn] = useState(true);
+  const [micOn, setMicOn] = useState(false);
   const [seatLocks, setSeatLocks] = useState<boolean[]>(() => Array(8).fill(false));
   const [mySeat, setMySeat] = useState<number | null>(null);
   const [seatSheet, setSeatSheet] = useState<number | null>(null);
@@ -183,7 +201,7 @@ export default function RoomScreen() {
     }
   };
 
-  const occupants = useMemo(() => seats.filter(Boolean) as Seat[], [seats]);
+  const occupants = useMemo(() => [host, ...seats].filter(Boolean) as Seat[], [seats, host]);
 
   const toast = (msg: string) => {
     setSeatToast(msg);
@@ -267,7 +285,10 @@ export default function RoomScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.topbar}>
-            <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Pressable onPress={minimize} hitSlop={8} style={{ padding: 2 }}>
+                <Icon name="back" size={22} color="#fff" />
+              </Pressable>
               <Pressable onPress={() => setPanelOpen(true)} style={styles.roomChip}>
                 <View style={styles.thumb}>
                   <Scene kind={room.scene} />
@@ -281,7 +302,8 @@ export default function RoomScreen() {
                   </Txt>
                 </View>
               </Pressable>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 16, paddingTop: 5 }}>
+              <View style={{ flex: 1 }} />
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
                 <Pressable onPress={() => setStub("Paylaş — yakında")}>
                   <Icon name="share" size={21} color="#fff" />
                 </Pressable>
@@ -293,8 +315,8 @@ export default function RoomScreen() {
 
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
               <Pressable onPress={() => setContribOpen(true)} style={styles.trophy}>
-                <Txt size={14}>🏆</Txt>
-                <Txt weight="extrabold" size={12} color="#FEF3C7">103</Txt>
+                <Icon name="bars" size={13} color="#FEF3C7" />
+                <Txt weight="extrabold" size={11.5} color="#FEF3C7">Saatlik sıra</Txt>
                 <Icon name="chev" size={12} color="#FEF3C7" />
               </Pressable>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, maxWidth: "62%" }}>
@@ -313,52 +335,75 @@ export default function RoomScreen() {
             </View>
           </View>
 
-          <View style={styles.grid}>
-            {seats.map((s, idx) => (
-              <SeatItem
-                key={idx}
-                seat={s}
-                idx={idx}
-                locked={seatLocks[idx]}
-                userPhoto={userPhoto}
-                onPress={() => (s ? tapOccupant(s) : tapSeat(idx))}
-              />
-            ))}
+          <View style={styles.stage}>
+            {host && (
+              <Pressable onPress={() => tapOccupant(host)} style={styles.hostSeat}>
+                <View>
+                  {host.speaking && <SpeakingRing />}
+                  <Portrait name={host.name} size={82} muted={host.muted} ring={C.gold} glow />
+                </View>
+                <Txt weight="extrabold" size={12} color="#fff" style={{ marginTop: 6 }}>{host.name}</Txt>
+                <View style={{ marginTop: 4 }}>
+                  <RolePill type="host" />
+                </View>
+              </Pressable>
+            )}
+            <View style={styles.grid}>
+              {seats.map((s, idx) => (
+                <SeatItem
+                  key={idx}
+                  seat={s}
+                  idx={idx}
+                  locked={seatLocks[idx]}
+                  userPhoto={userPhoto}
+                  onPress={() => (s ? tapOccupant(s) : tapSeat(idx))}
+                />
+              ))}
+            </View>
           </View>
 
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 11 }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 6, gap: 11 }}>
+            <SystemBanner roomName={roomName} />
+            {SYS_MSGS.map((s, i) => (
+              <View key={"sys" + i} style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                <Icon name="bell" size={13} color={C.gold2} />
+                <Txt weight="extrabold" size={12} color={C.gold2}>Sistem:</Txt>
+                <Txt size={12.5} color="rgba(255,255,255,.7)">{s}</Txt>
+              </View>
+            ))}
             {msgs.map((m, i) => (
               <ChatRow key={i} m={m} />
             ))}
           </ScrollView>
 
           <View style={styles.bottombar}>
+            <Pressable onPress={() => { setSpeakerOn((v) => !v); toast(speakerOn ? "Ses kapatıldı" : "Ses açıldı"); }} style={styles.barIcon}>
+              <Icon name="mega" size={22} color={speakerOn ? "#fff" : C.dim2} />
+            </Pressable>
+            <Pressable onPress={() => { setMicOn((v) => !v); toast(micOn ? "Mikrofon kapalı" : "Mikrofon açık"); }} style={styles.barIcon}>
+              <Icon name={micOn ? "mic" : "micoff"} size={21} color={micOn ? C.gold2 : "#fff"} />
+            </Pressable>
             <View style={styles.inputWrap}>
               <TextInput
                 value={input}
                 onChangeText={setInput}
                 onSubmitEditing={send}
-                placeholder="Mesaj yaz..."
+                placeholder="Bir şeyler yaz..."
                 placeholderTextColor={C.dim2}
                 style={styles.input}
                 returnKeyType="send"
               />
-              <Pressable onPress={send} disabled={!input.trim()} style={styles.sendBtnWrap}>
-                {input.trim() ? (
-                  <Gradient colors={["#F5CE6E", "#C8922B"]} deg={135} style={styles.sendBtn}>
-                    <Icon name="send" size={18} sw={2} color="#241A05" />
-                  </Gradient>
-                ) : (
-                  <View style={[styles.sendBtn, { backgroundColor: "rgba(255,255,255,.07)" }]}>
-                    <Icon name="send" size={18} sw={2} color={C.dim2} />
-                  </View>
-                )}
-              </Pressable>
             </View>
-            <Pressable onPress={() => setGiftOpen(true)} style={styles.giftBtnWrap}>
-              <Gradient colors={["#EC4899", "#BE185D"]} deg={135} style={styles.giftBtn}>
-                <Icon name="gift" size={24} color="#FBCFE8" />
+            <Pressable onPress={() => setStub("Emoji — yakında")} style={styles.barIcon}>
+              <Txt size={21}>😊</Txt>
+            </Pressable>
+            <Pressable onPress={() => setGiftOpen(true)} style={styles.barIcon}>
+              <Gradient colors={["#EC4899", "#BE185D"]} deg={135} style={styles.giftMini}>
+                <Icon name="gift" size={18} color="#FBCFE8" />
               </Gradient>
+            </Pressable>
+            <Pressable onPress={() => setStub("Oyunlar — yakında")} style={styles.barIcon}>
+              <Icon name="dice" size={22} color="#fff" />
             </Pressable>
           </View>
         </KeyboardAvoidingView>
@@ -478,46 +523,48 @@ export default function RoomScreen() {
 
       {statsOpen && <RoomStats room={room} roomName={roomName} roomPhoto={roomPhoto} onClose={() => setStatsOpen(false)} />}
 
-      <Sheet visible={reportOpen} onClose={() => { setReportOpen(false); setReportReason(null); setReportDone(false); }}>
-        {reportDone ? (
-          <View style={{ alignItems: "center", paddingVertical: 6 }}>
-            <Gradient colors={[C.green, "#059669"]} deg={135} style={styles.reportDone}>
-              <Icon name="check" size={28} sw={3} color="#04231A" />
-            </Gradient>
-            <Txt weight="displayBold" size={16} color="#fff">Rapor gönderildi</Txt>
-            <Txt size={11.5} color={C.dim} style={{ marginTop: 8 }}>Ekibimiz en kısa sürede inceleyecek.</Txt>
-            <Pressable onPress={() => { setReportOpen(false); setReportReason(null); setReportDone(false); }} style={{ alignSelf: "stretch", marginTop: 18, borderRadius: 14, overflow: "hidden" }}>
-              <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 13, alignItems: "center" }}>
-                <Txt weight="extrabold" size={13} color="#241A05">Tamam</Txt>
+      <CenterModal visible={reportOpen} onClose={() => { setReportOpen(false); setReportReason(null); setReportDone(false); }}>
+        <View style={styles.reportCard}>
+          {reportDone ? (
+            <View style={{ alignItems: "center", paddingVertical: 6 }}>
+              <Gradient colors={[C.green, "#059669"]} deg={135} style={styles.reportDone}>
+                <Icon name="check" size={28} sw={3} color="#04231A" />
               </Gradient>
-            </Pressable>
-          </View>
-        ) : (
-          <>
-            <Txt weight="displayBold" size={16} color="#fff">Odayı Raporla</Txt>
-            <Txt size={11.5} color={C.dim} style={{ marginTop: 8, marginBottom: 8 }}>Bu oda neden uygunsuz?</Txt>
-            {ROOM_REPORT.map((r) => {
-              const on = reportReason === r.t;
-              return (
-                <Pressable key={r.t} onPress={() => setReportReason(r.t)} style={[styles.reasonRow, { backgroundColor: on ? C.red + "12" : C.card, borderColor: on ? C.red : C.line }]}>
-                  <View style={styles.reasonIcon}>
-                    <Icon name={r.ic} size={16} color="#FB7185" />
-                  </View>
-                  <Txt weight="bold" size={12.5} color={on ? C.red : C.text} style={{ flex: 1 }}>{r.t}</Txt>
-                  {on && <Icon name="check" size={15} sw={3} color={C.red} />}
-                </Pressable>
-              );
-            })}
-            {reportReason && (
-              <Pressable onPress={() => setReportDone(true)} style={{ borderRadius: 14, overflow: "hidden", marginTop: 12 }}>
-                <Gradient colors={["#DC2626", "#7F1D1D"]} deg={135} style={{ paddingVertical: 14, alignItems: "center" }}>
-                  <Txt weight="extrabold" size={13} color="#FEE2E2">Raporu Gönder</Txt>
+              <Txt weight="displayBold" size={16} color="#fff">Rapor gönderildi</Txt>
+              <Txt size={11.5} color={C.dim} align="center" style={{ marginTop: 8 }}>Ekibimiz en kısa sürede inceleyecek.</Txt>
+              <Pressable onPress={() => { setReportOpen(false); setReportReason(null); setReportDone(false); }} style={{ alignSelf: "stretch", marginTop: 18, borderRadius: 14, overflow: "hidden" }}>
+                <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 13, alignItems: "center" }}>
+                  <Txt weight="extrabold" size={13} color="#241A05">Tamam</Txt>
                 </Gradient>
               </Pressable>
-            )}
-          </>
-        )}
-      </Sheet>
+            </View>
+          ) : (
+            <>
+              <Txt weight="displayBold" size={16} color="#fff">Odayı Raporla</Txt>
+              <Txt size={11.5} color={C.dim} style={{ marginTop: 8, marginBottom: 8 }}>Bu oda neden uygunsuz?</Txt>
+              {ROOM_REPORT.map((r) => {
+                const on = reportReason === r.t;
+                return (
+                  <Pressable key={r.t} onPress={() => setReportReason(r.t)} style={[styles.reasonRow, { backgroundColor: on ? C.red + "12" : C.card, borderColor: on ? C.red : C.line }]}>
+                    <View style={styles.reasonIcon}>
+                      <Icon name={r.ic} size={16} color="#FB7185" />
+                    </View>
+                    <Txt weight="bold" size={12.5} color={on ? C.red : C.text} style={{ flex: 1 }}>{r.t}</Txt>
+                    {on && <Icon name="check" size={15} sw={3} color={C.red} />}
+                  </Pressable>
+                );
+              })}
+              {reportReason && (
+                <Pressable onPress={() => setReportDone(true)} style={{ borderRadius: 14, overflow: "hidden", marginTop: 12 }}>
+                  <Gradient colors={["#DC2626", "#7F1D1D"]} deg={135} style={{ paddingVertical: 14, alignItems: "center" }}>
+                    <Txt weight="extrabold" size={13} color="#FEE2E2">Raporu Gönder</Txt>
+                  </Gradient>
+                </Pressable>
+              )}
+            </>
+          )}
+        </View>
+      </CenterModal>
 
       {giftFx && <GiftFx gift={giftFx} />}
     </View>
@@ -543,26 +590,27 @@ const styles = StyleSheet.create({
   thumb: { width: 38, height: 38, borderRadius: 10, overflow: "hidden" },
   trophy: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4, paddingLeft: 8, paddingRight: 12, borderRadius: 8, backgroundColor: "rgba(217,119,6,.25)" },
   countBadge: { alignItems: "center", justifyContent: "center", minWidth: 34, height: 34, paddingHorizontal: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,.1)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
-  grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 16, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 8 },
+  stage: { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 6 },
+  hostSeat: { alignItems: "center", marginBottom: 14 },
+  grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 16 },
+  barIcon: { minWidth: 34, height: 42, alignItems: "center", justifyContent: "center" },
+  giftMini: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  reportCard: { backgroundColor: "rgba(26,22,38,0.98)", borderRadius: 22, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
   seat: { width: "25%", alignItems: "center", gap: 6 },
   emptySeat: { width: 60, height: 60, borderRadius: 30, borderWidth: 2, borderStyle: "dashed", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.02)" },
   seatLock: { position: "absolute", bottom: -2, right: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: "#0A0A0F", borderWidth: 1, borderColor: C.gold + "66", alignItems: "center", justifyContent: "center" },
   speakRing: { position: "absolute", top: -7, left: -7, right: -7, bottom: -7, borderRadius: 999, borderWidth: 2, borderColor: C.purple2 },
-  bottombar: { flexDirection: "row", gap: 12, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, alignItems: "center" },
+  bottombar: { flexDirection: "row", gap: 5, paddingHorizontal: 10, paddingTop: 10, paddingBottom: 6, alignItems: "center" },
   inputWrap: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 26,
-    paddingLeft: 20,
-    paddingRight: 4,
-    paddingVertical: 4,
-    gap: 8,
+    paddingHorizontal: 16,
     backgroundColor: "rgba(255,255,255,.06)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,.13)",
   },
-  input: { flex: 1, color: C.text, fontSize: 13.5, fontFamily: "PlusJakartaSans_500Medium", minWidth: 0, paddingVertical: 8 },
+  input: { color: C.text, fontSize: 13, fontFamily: "PlusJakartaSans_500Medium", minWidth: 0, paddingVertical: 10 },
   sendBtnWrap: { width: 42, height: 42 },
   sendBtn: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   giftBtnWrap: { width: 50, height: 50, borderRadius: 25, shadowColor: "#EC4899", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 9, elevation: 6 },
