@@ -18,7 +18,6 @@ import { haptic } from "@/lib/haptics";
 import { CouponSheet } from "@/sheets/CouponSheet";
 import { EditProfileSheet } from "@/sheets/EditProfileSheet";
 import { ProfileInfoSheet, type InfoMode } from "@/sheets/ProfileInfoSheet";
-import { SecuritySheet } from "@/sheets/SecuritySheet";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
@@ -33,7 +32,6 @@ export default function ProfileTab() {
   const [lang, setLang] = useState("Türkçe");
   const [editOpen, setEditOpen] = useState(false);
   const [couponOpen, setCouponOpen] = useState(false);
-  const [securityOpen, setSecurityOpen] = useState(false);
   const [info, setInfo] = useState<InfoMode | null>(null);
 
   const goMyRoom = () => { haptic.light(); router.navigate("/my-room"); };
@@ -71,10 +69,8 @@ export default function ProfileTab() {
   ];
 
   const settings: MenuItem[] = [
-    { ic: "gear", g1: "#64748B", g2: "#475569", t: "Dil", r: lang, onPress: openSheet(() => setInfo("lang")) },
-    { ic: "ticket", g1: "#64748B", g2: "#475569", t: "Dönüştürme Kodu", onPress: openSheet(() => setCouponOpen(true)) },
     { ic: "chat", g1: "#64748B", g2: "#475569", t: "Müşteri Hizmetleri & SSS", onPress: openSheet(() => setInfo("support")) },
-    { ic: "gear", g1: "#475569", g2: "#334155", t: "Hesap & Güvenlik", r: "⚠️", onPress: openSheet(() => setSecurityOpen(true)) },
+    { ic: "gear", g1: "#475569", g2: "#334155", t: "Hesap & Güvenlik", r: "⚠️", onPress: () => { haptic.light(); router.navigate("/security"); } },
   ];
 
   const renderMenu = (items: MenuItem[]) => (
@@ -175,7 +171,6 @@ export default function ProfileTab() {
 
       <EditProfileSheet visible={editOpen} onClose={() => setEditOpen(false)} />
       <CouponSheet visible={couponOpen} onClose={() => setCouponOpen(false)} />
-      <SecuritySheet visible={securityOpen} onClose={() => setSecurityOpen(false)} />
       <ProfileInfoSheet visible={info !== null} mode={info ?? "lang"} lang={lang} setLang={setLang} onClose={() => setInfo(null)} />
     </View>
   );
@@ -184,7 +179,7 @@ export default function ProfileTab() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   cover: { height: 104, position: "relative" },
-  editBtn: { position: "absolute", right: 14, top: 12, width: 34, height: 34, borderRadius: 12, backgroundColor: "rgba(0,0,0,.3)", alignItems: "center", justifyContent: "center" },
+  editBtn: { position: "absolute", right: 14, bottom: 12, width: 34, height: 34, borderRadius: 12, backgroundColor: "rgba(0,0,0,.3)", alignItems: "center", justifyContent: "center" },
   camBadge: { position: "absolute", right: 0, bottom: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: C.gold2, borderWidth: 2.5, borderColor: "#08080C", alignItems: "center", justifyContent: "center" },
   tileRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 18, backgroundColor: "rgba(255,255,255,.03)", borderRadius: 20, paddingVertical: 16, paddingHorizontal: 8 },
   wallet: { flexDirection: "row", alignItems: "center", marginTop: 16, backgroundColor: "rgba(255,255,255,.03)", borderRadius: 20, padding: 16 },
