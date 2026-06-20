@@ -11,6 +11,8 @@ import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { ROOMS, type Room } from "@/data/seed";
+import { RoomPasswordGate } from "@/sheets/RoomPasswordGate";
+import { RoomPreview } from "@/sheets/RoomPreview";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
@@ -73,11 +75,24 @@ export default function Home() {
   const router = useRouter();
   const enterRoom = useApp((s) => s.enterRoom);
   const [tab, setTab] = useState(0);
+  const [previewRoom, setPreviewRoom] = useState<Room | null>(null);
+  const [gateRoom, setGateRoom] = useState<Room | null>(null);
 
-  const open = (room: Room) => {
+  const enterAndGo = (room: Room) => {
     haptic.light();
     enterRoom(room);
     router.navigate("/room");
+  };
+  const onRoomPress = (room: Room) => {
+    haptic.light();
+    setPreviewRoom(room);
+  };
+  const onJoin = () => {
+    if (!previewRoom) return;
+    const r = previewRoom;
+    setPreviewRoom(null);
+    if (r.locked) setGateRoom(r);
+    else enterAndGo(r);
   };
 
   return (
@@ -100,10 +115,19 @@ export default function Home() {
 
         <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 120, gap: 10 }} showsVerticalScrollIndicator={false}>
           {ROOMS.map((r) => (
-            <RoomRow key={r.id} room={r} onPress={() => open(r)} />
+            <RoomRow key={r.id} room={r} onPress={() => onRoomPress(r)} />
           ))}
         </ScrollView>
       </SafeAreaView>
+
+      {previewRoom && <RoomPreview room={previewRoom} onClose={() => setPreviewRoom(null)} onJoin={onJoin} />}
+      {gateRoom && (
+        <RoomPasswordGate
+          room={gateRoom}
+          onClose={() => setGateRoom(null)}
+          onPass={() => { const r = gateRoom; setGateRoom(null); enterAndGo(r); }}
+        />
+      )}
     </View>
   );
 }
