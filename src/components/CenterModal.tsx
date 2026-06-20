@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { Modal, Pressable, StyleSheet } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet } from "react-native";
 import Animated, { ZoomIn } from "react-native-reanimated";
 
 export function CenterModal({
@@ -15,11 +15,13 @@ export function CenterModal({
 }) {
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <Pressable style={[styles.center, { backgroundColor: `rgba(3,3,8,${dim})` }]} onPress={onClose}>
-        <Animated.View entering={ZoomIn.springify().damping(15).mass(0.7)} style={styles.wrap}>
-          <Pressable>{children}</Pressable>
-        </Animated.View>
-      </Pressable>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <Pressable style={[styles.center, { backgroundColor: `rgba(3,3,8,${dim})` }]} onPress={onClose}>
+          <Animated.View entering={ZoomIn.springify().damping(15).mass(0.7)} style={styles.wrap}>
+            <Pressable>{children}</Pressable>
+          </Animated.View>
+        </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
