@@ -77,21 +77,37 @@ export function Badge({ type, size = 26, lvl }: BadgeProps) {
         {t === "super_admin" && (
           <G>
             <Defs>
-              <LinearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor="#FCA5A5" />
-                <Stop offset="1" stopColor="#B91C1C" />
+              <LinearGradient id={gid} x1="0" y1="0" x2="0.3" y2="1">
+                <Stop offset="0" stopColor="#F87171" />
+                <Stop offset="0.5" stopColor="#DC2626" />
+                <Stop offset="1" stopColor="#7F1D1D" />
+              </LinearGradient>
+              <LinearGradient id={`${gid}c`} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor="#FDE68A" />
+                <Stop offset="1" stopColor="#D97706" />
               </LinearGradient>
             </Defs>
+            {/* kalkan */}
             <Path
-              d={`M${s * 0.5},${s * 0.12} L${s * 0.82},${s * 0.26} L${s * 0.82},${s * 0.52} C${s * 0.82},${s * 0.72} ${s * 0.5},${s * 0.9} ${s * 0.5},${s * 0.9} C${s * 0.5},${s * 0.9} ${s * 0.18},${s * 0.72} ${s * 0.18},${s * 0.52} L${s * 0.18},${s * 0.26} Z`}
+              d={`M${s * 0.5},${s * 0.24} L${s * 0.8},${s * 0.34} L${s * 0.8},${s * 0.56} C${s * 0.8},${s * 0.74} ${s * 0.5},${s * 0.9} ${s * 0.5},${s * 0.9} C${s * 0.5},${s * 0.9} ${s * 0.2},${s * 0.74} ${s * 0.2},${s * 0.56} L${s * 0.2},${s * 0.34} Z`}
               fill={`url(#${gid})`}
-              stroke="#FFE2E2"
-              strokeWidth={s * 0.04}
+              stroke={`url(#${gid}c)`}
+              strokeWidth={s * 0.055}
               strokeLinejoin="round"
             />
+            {/* altın taç (üstte) */}
+            <Path
+              d={`M${s * 0.3},${s * 0.24} L${s * 0.34},${s * 0.08} L${s * 0.42},${s * 0.18} L${s * 0.5},${s * 0.04} L${s * 0.58},${s * 0.18} L${s * 0.66},${s * 0.08} L${s * 0.7},${s * 0.24} Z`}
+              fill={`url(#${gid}c)`}
+              stroke="#92400E"
+              strokeWidth={s * 0.02}
+              strokeLinejoin="round"
+            />
+            <Circle cx={s * 0.5} cy={s * 0.13} r={s * 0.035} fill="#FFF7DC" />
+            {/* merkez yıldız */}
             <Polygon
-              points={`${s * 0.5},${s * 0.3} ${s * 0.555},${s * 0.45} ${s * 0.7},${s * 0.45} ${s * 0.58},${s * 0.55} ${s * 0.62},${s * 0.7} ${s * 0.5},${s * 0.61} ${s * 0.38},${s * 0.7} ${s * 0.42},${s * 0.55} ${s * 0.3},${s * 0.45} ${s * 0.445},${s * 0.45}`}
-              fill="#FFF"
+              points={`${s * 0.5},${s * 0.4} ${s * 0.55},${s * 0.53} ${s * 0.68},${s * 0.53} ${s * 0.575},${s * 0.62} ${s * 0.615},${s * 0.75} ${s * 0.5},${s * 0.67} ${s * 0.385},${s * 0.75} ${s * 0.425},${s * 0.62} ${s * 0.32},${s * 0.53} ${s * 0.45},${s * 0.53}`}
+              fill="#FFF7DC"
             />
           </G>
         )}

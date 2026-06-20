@@ -4,7 +4,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react
 import Animated, { SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { BadgeRow } from "@/components/BadgeRow";
+import { BadgeInfoCard, BadgeRow } from "@/components/BadgeRow";
 import { Portrait } from "@/components/Portrait";
 import { RolePill } from "@/components/RolePill";
 import { Txt } from "@/components/Txt";
@@ -67,6 +67,7 @@ export function ProfileCard({
   const canManageTarget = canManage && (!isOwner || superPower);
 
   const [gearOpen, setGearOpen] = useState(false);
+  const [badgeInfo, setBadgeInfo] = useState<BadgeItem | null>(null);
   const [toast, setToast] = useState<{ msg: string; color: string } | null>(null);
   const [followed, setFollowed] = useState(false);
   const [blocked, setBlocked] = useState(false);
@@ -189,7 +190,7 @@ export function ProfileCard({
                     <View style={{ flexDirection: "row", gap: 7, marginTop: 9, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
                       {isOwner && <RolePill type="host" />}
                       {user.mod && !isOwner && <RolePill type="mod" />}
-                      <BadgeRow size={28} badges={CARD_BADGES} />
+                      <BadgeRow size={28} badges={CARD_BADGES} onBadgePress={setBadgeInfo} />
                     </View>
                     <View style={{ marginTop: 9 }}>
                       {isOwner ? (
@@ -215,6 +216,7 @@ export function ProfileCard({
             </ScrollView>
           </Pressable>
         </Animated.View>
+        {badgeInfo && <BadgeInfoCard info={badgeInfo} onClose={() => setBadgeInfo(null)} />}
       </Pressable>
     </Modal>
   );
