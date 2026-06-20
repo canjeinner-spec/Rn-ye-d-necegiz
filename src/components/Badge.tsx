@@ -38,6 +38,8 @@ export function Badge({ type, size = 26, lvl }: BadgeProps) {
   const t = GLOW[type] ? type : "member";
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const gid = `bdg_${t}_${uid}`;
+  const lvlStr = String(lvl ?? 1);
+  const lvlFs = s * (lvlStr.length >= 3 ? 0.34 : lvlStr.length === 2 ? 0.44 : 0.52);
 
   return (
     <View
@@ -120,26 +122,31 @@ export function Badge({ type, size = 26, lvl }: BadgeProps) {
         {t === "level" && (
           <G>
             <Defs>
-              <LinearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor="#A5F3FC" />
-                <Stop offset="1" stopColor="#0891B2" />
+              <LinearGradient id={gid} x1="0" y1="0" x2="0.35" y2="1">
+                <Stop offset="0" stopColor="#67E8F9" />
+                <Stop offset="0.55" stopColor="#22D3EE" />
+                <Stop offset="1" stopColor="#0E7490" />
               </LinearGradient>
             </Defs>
             <Path
-              d={`M${s * 0.58},${s * 0.12} L${s * 0.34},${s * 0.54} L${s * 0.49},${s * 0.54} L${s * 0.42},${s * 0.88} L${s * 0.68},${s * 0.46} L${s * 0.52},${s * 0.46} Z`}
+              d={`M${s * 0.5},${s * 0.06} L${s * 0.87},${s * 0.28} L${s * 0.87},${s * 0.72} L${s * 0.5},${s * 0.94} L${s * 0.13},${s * 0.72} L${s * 0.13},${s * 0.28} Z`}
               fill={`url(#${gid})`}
-              stroke="#ECFEFF"
-              strokeWidth={s * 0.035}
+              stroke="#CFFAFE"
+              strokeWidth={s * 0.05}
               strokeLinejoin="round"
             />
-            {lvl != null && (
-              <G>
-                <Circle cx={s * 0.76} cy={s * 0.76} r={s * 0.2} fill="#0E7490" stroke="#A5F3FC" strokeWidth={s * 0.03} />
-                <SvgText x={s * 0.76} y={s * 0.835} fontSize={s * 0.26} fontWeight="900" fill="#ECFEFF" textAnchor="middle">
-                  {String(lvl)}
-                </SvgText>
-              </G>
-            )}
+            <Path
+              d={`M${s * 0.5},${s * 0.17} L${s * 0.78},${s * 0.335} L${s * 0.78},${s * 0.665} L${s * 0.5},${s * 0.83} L${s * 0.22},${s * 0.665} L${s * 0.22},${s * 0.335} Z`}
+              fill="none"
+              stroke="#0E7490"
+              strokeWidth={s * 0.03}
+              strokeLinejoin="round"
+              opacity={0.45}
+            />
+            <Path d={`M${s * 0.3},${s * 0.22} L${s * 0.5},${s * 0.1} L${s * 0.5},${s * 0.2} Z`} fill="#FFFFFF" opacity={0.3} />
+            <SvgText x={s * 0.5} y={s * 0.5 + lvlFs * 0.36} fontSize={lvlFs} fontWeight="900" fill="#06323B" textAnchor="middle">
+              {lvlStr}
+            </SvgText>
           </G>
         )}
 
