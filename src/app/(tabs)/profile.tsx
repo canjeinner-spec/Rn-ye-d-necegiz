@@ -54,7 +54,7 @@ export default function ProfileTab() {
 
   const menu: MenuItem[] = [
     { ic: "mic", g1: "#A855F7", g2: "#6D28D9", t: "Odam", s: "Kendi sesli sohbet odanı aç", onPress: goMyRoom },
-    { ic: "crown", g1: "#F5CE6E", g2: "#B45309", t: "Aron VIP", s: "Özel ayrıcalıkların kilidini aç", onPress: ahead("Aron VIP") },
+    { ic: "crown", g1: "#F5CE6E", g2: "#B45309", t: "Aron VIP", s: "Özel ayrıcalıkların kilidini aç", onPress: () => { haptic.light(); router.navigate("/vip"); } },
     ...(isStreamer ? [{ ic: "mic" as IconName, g1: "#34D399", g2: "#059669", t: "Yayıncı Paneli", s: "Kazancını ve ajansını yönet", onPress: ahead("Yayıncı Paneli") }] : []),
     { ic: "gift", g1: "#EC4899", g2: "#BE185D", t: "Hediye Geçmişi", s: "Gönderdiğin & aldığın hediyeler", onPress: ahead("Hediye Geçmişi") },
     { ic: "userAdd", g1: "#34D399", g2: "#059669", t: "Arkadaşını Davet Et", s: "Davet et, beraber elmas kazanın", onPress: ahead("Davet") },
