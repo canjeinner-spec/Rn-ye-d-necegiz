@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  tabs: { gap: 8, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10 },
+  tabs: { gap: 8, alignItems: "center", paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10 },
   tab: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 7, paddingHorizontal: 15, borderRadius: 999 },
   badge: { minWidth: 15, height: 15, borderRadius: 999, paddingHorizontal: 4, alignItems: "center", justifyContent: "center" },
   row: { flexDirection: "row", gap: 12, alignItems: "flex-start", paddingVertical: 13, paddingHorizontal: 12, borderRadius: 16, marginBottom: 6, borderWidth: 1 },
