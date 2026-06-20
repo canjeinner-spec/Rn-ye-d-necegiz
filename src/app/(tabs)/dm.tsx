@@ -17,7 +17,7 @@ import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
 const QUICK: { ic: IconName; t: string; g1: string; g2: string; badge?: number; route?: string }[] = [
-  { ic: "userAdd", t: "Arkadaşlık", g1: "#34D399", g2: "#059669", badge: 2 },
+  { ic: "userAdd", t: "Arkadaşlık", g1: "#34D399", g2: "#059669", badge: 2, route: "/friends" },
   { ic: "mega", t: "Etkinlik", g1: "#60A5FA", g2: "#2563EB", route: "/events" },
   { ic: "bell", t: "Bildirim", g1: "#F5CE6E", g2: "#C8922B", badge: 5, route: "/notifications" },
   { ic: "eye", t: "Ziyaretçi", g1: "#A855F7", g2: "#7C3AED", route: "/visitors" },
