@@ -11,6 +11,9 @@ export type BroadcastData = {
 };
 
 type AppState = {
+  girisYapildi: boolean;
+  setGirisYapildi: (v: boolean) => void;
+
   userName: string;
   userPhoto: string | null;
   isStreamer: boolean;
@@ -35,6 +38,9 @@ type AppState = {
 let bcTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useApp = create<AppState>((set, get) => ({
+  girisYapildi: false,
+  setGirisYapildi: (v) => set({ girisYapildi: v }),
+
   userName: "Sen",
   userPhoto: null,
   isStreamer: false,

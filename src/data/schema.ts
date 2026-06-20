@@ -29,6 +29,7 @@ export type Kullanici = {
   profil_resmi?: string | null;
   biyografi?: string | null;
   dogum_tarihi?: string | null;
+  cinsiyet?: "e" | "k" | null;
   ulke?: string | null;
   sehir?: string | null;
   durum: KullaniciDurumu;

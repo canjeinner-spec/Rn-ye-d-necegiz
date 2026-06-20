@@ -16,6 +16,9 @@ CREATE TYPE ozel_id_tier        AS ENUM ('normal', 'super', 'altin', 'elmas', 'k
 CREATE TYPE ozel_id_durumu      AS ENUM ('musait', 'rezerve', 'satildi');
 CREATE TYPE arkadaslik_durumu   AS ENUM ('beklemede', 'kabul', 'reddedildi');
 
+-- ── kullanicilar: cinsiyet (mockup profil/onboarding'de var, v7'de yoktu) ──
+ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS cinsiyet VARCHAR(1) CHECK (cinsiyet IN ('e', 'k'));
+
 -- Bildirim tipine yeni değerler (feed/etkinlik/arkadaşlık/görev)
 ALTER TYPE bildirim_tipi ADD VALUE IF NOT EXISTS 'begeni';
 ALTER TYPE bildirim_tipi ADD VALUE IF NOT EXISTS 'yorum';
