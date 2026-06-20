@@ -39,7 +39,7 @@ export default function NotificationsScreen() {
           )}
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs}>
           {NOTIF_TABS.map(([k, label]) => {
             const on = tab === k;
             const cnt = k === "all" ? unread : items.filter((n) => n.kategori === k && n.okunmadi).length;
@@ -61,7 +61,7 @@ export default function NotificationsScreen() {
           })}
         </ScrollView>
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
           {filtered.length === 0 && (
             <Txt weight="semibold" size={12.5} color={C.dim} align="center" style={{ paddingVertical: 60 }}>Bu kategoride bildirim yok.</Txt>
           )}
@@ -102,6 +102,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  tabsScroll: { flexGrow: 0, flexShrink: 0 },
   tabs: { gap: 8, alignItems: "center", paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10 },
   tab: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, height: 32, paddingHorizontal: 15, borderRadius: 999, overflow: "hidden" },
   badge: { minWidth: 15, height: 15, borderRadius: 999, paddingHorizontal: 4, alignItems: "center", justifyContent: "center" },
