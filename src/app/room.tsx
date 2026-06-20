@@ -112,19 +112,36 @@ function SeatItem({
 
 function ChatRow({ m }: { m: ChatMsg }) {
   const role = m.host ? ("host" as const) : m.mod ? ("mod" as const) : null;
+  // sohbet baloncuğu — kuşanılan balona göre tema (envanter: sohbet_balonu)
+  const bubble = m.myOwn ? "gold" : m.host ? "host" : m.mod ? "mod" : "plain";
   return (
     <View style={{ flexDirection: "row", gap: 9, alignItems: "flex-start" }}>
       <Portrait name={m.name} size={30} />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+      <View style={{ flex: 1, minWidth: 0, alignItems: "flex-start" }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
           <Txt weight="extrabold" size={11.5} color={m.host ? C.gold : m.mod ? C.purple2 : "rgba(255,255,255,.7)"}>
             {m.name}
           </Txt>
           {role && <RolePill type={role} />}
         </View>
-        <Txt size={13} color="#EDEBF2" lh={1.45} style={{ marginTop: 2 }}>
-          {m.text}
-        </Txt>
+        {bubble === "gold" ? (
+          <Gradient colors={["#FBE08C", "#E0A93C"]} deg={130} style={[styles.bubble, { borderColor: "#FFF2C2" }]}>
+            <Txt weight="semibold" size={12.5} color="#2A1D04" lh={1.4}>{m.text}</Txt>
+          </Gradient>
+        ) : (
+          <View
+            style={[
+              styles.bubble,
+              bubble === "host"
+                ? { backgroundColor: "rgba(245,206,110,.14)", borderColor: C.gold + "55" }
+                : bubble === "mod"
+                  ? { backgroundColor: "rgba(167,139,250,.16)", borderColor: C.purple2 + "55" }
+                  : { backgroundColor: "rgba(255,255,255,.06)", borderColor: "rgba(255,255,255,.1)" },
+            ]}
+          >
+            <Txt size={12.5} color="#EDEBF2" lh={1.4}>{m.text}</Txt>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -159,7 +176,7 @@ export default function RoomScreen() {
   const room = currentRoom;
   const isMine = !!room && (room.owner === true || room.host === "Sen");
 
-  const [host] = useState<Seat | null>(() => SEATS.find((s) => s.host) ?? null);
+  const [host, setHost] = useState<Seat | null>(() => SEATS.find((s) => s.host) ?? null);
   const [seats, setSeats] = useState<(Seat | null)[]>(() => {
     const arr: (Seat | null)[] = Array(8).fill(null);
     SEATS.filter((s) => !s.host).forEach((s, i) => {
@@ -170,7 +187,7 @@ export default function RoomScreen() {
   const [msgs, setMsgs] = useState<ChatMsg[]>(CHAT0);
   const [input, setInput] = useState("");
   const [speakerOn, setSpeakerOn] = useState(true);
-  const [micOn, setMicOn] = useState(false);
+  const [micOn, setMicOn] = useState(isMine);
   const [seatLocks, setSeatLocks] = useState<boolean[]>(() => Array(8).fill(false));
   const [mySeat, setMySeat] = useState<number | null>(null);
   const [seatSheet, setSeatSheet] = useState<number | null>(null);
@@ -226,6 +243,7 @@ export default function RoomScreen() {
     });
     const wasNull = mySeat === null;
     setMySeat(idx);
+    setMicOn(true);
     setSeatSheet(null);
     toast(wasNull ? "Mikrofona geçtin" : "Koltuk değiştirildi");
   };
@@ -233,8 +251,17 @@ export default function RoomScreen() {
     if (mySeat === null) return;
     setSeats((p) => p.map((t, i) => (i === mySeat ? null : t)));
     setMySeat(null);
+    setMicOn(false);
     setSeatSheet(null);
     toast("Mikrofondan indin");
+  };
+  const toggleMyMic = () => {
+    const next = !micOn;
+    haptic.light();
+    setMicOn(next);
+    if (isMine) setHost((h) => (h ? { ...h, muted: !next } : h));
+    else if (mySeat !== null) setSeats((p) => p.map((t, i) => (i === mySeat && t ? { ...t, muted: !next } : t)));
+    toast(next ? "Mikrofonun açık" : "Mikrofonun kapalı");
   };
   const toggleLock = (idx: number) => {
     setSeatLocks((p) => p.map((v, i) => (i === idx ? !v : v)));
@@ -382,10 +409,10 @@ export default function RoomScreen() {
             <Pressable onPress={() => { setSpeakerOn((v) => !v); toast(speakerOn ? "Ses kapatıldı" : "Ses açıldı"); }} style={styles.barIcon}>
               <Icon name="mega" size={22} color={speakerOn ? "#fff" : C.dim2} />
             </Pressable>
-            <Pressable onPress={() => { setMicOn((v) => !v); toast(micOn ? "Mikrofon kapalı" : "Mikrofon açık"); }} style={styles.barIcon}>
+            <Pressable onPress={toggleMyMic} style={styles.barIcon}>
               <Icon name={micOn ? "mic" : "micoff"} size={21} color={micOn ? C.gold2 : "#fff"} />
             </Pressable>
-            <View style={styles.inputWrap}>
+            <View style={[styles.inputWrap, { marginLeft: 4, marginRight: 6 }]}>
               <TextInput
                 value={input}
                 onChangeText={setInput}
@@ -396,16 +423,10 @@ export default function RoomScreen() {
                 returnKeyType="send"
               />
             </View>
-            <Pressable onPress={() => setStub("Emoji — yakında")} style={styles.barIcon}>
-              <Txt size={21}>😊</Txt>
-            </Pressable>
-            <Pressable onPress={() => setGiftOpen(true)} style={styles.barIcon}>
+            <Pressable onPress={() => setGiftOpen(true)} style={styles.giftBtnBig}>
               <Gradient colors={["#EC4899", "#BE185D"]} deg={135} style={styles.giftMini}>
-                <Icon name="gift" size={18} color="#FBCFE8" />
+                <Icon name="gift" size={21} color="#FBCFE8" />
               </Gradient>
-            </Pressable>
-            <Pressable onPress={() => setStub("Oyunlar — yakında")} style={styles.barIcon}>
-              <Icon name="dice" size={22} color="#fff" />
             </Pressable>
           </View>
         </KeyboardAvoidingView>
@@ -595,7 +616,9 @@ const styles = StyleSheet.create({
   hostSeat: { alignItems: "center", marginBottom: 14 },
   grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 16 },
   barIcon: { minWidth: 34, height: 42, alignItems: "center", justifyContent: "center" },
-  giftMini: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  giftMini: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
+  giftBtnBig: { width: 46, height: 46, alignItems: "center", justifyContent: "center" },
+  bubble: { alignSelf: "flex-start", maxWidth: "94%", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 15, borderTopLeftRadius: 5, borderWidth: 1 },
   reportCard: { backgroundColor: "rgba(26,22,38,0.98)", borderRadius: 22, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
   seat: { width: "25%", alignItems: "center", gap: 6 },
   emptySeat: { width: 60, height: 60, borderRadius: 30, borderWidth: 2, borderStyle: "dashed", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.02)" },
