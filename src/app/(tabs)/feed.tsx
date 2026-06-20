@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AuthorityTag } from "@/components/AuthorityTag";
 import { Badge } from "@/components/Badge";
 import { Portrait } from "@/components/Portrait";
 import { Scene } from "@/components/Scene";
@@ -41,6 +42,8 @@ function SendBtn({ disabled, onPress, size = 34 }: { disabled: boolean; onPress:
 export default function FeedScreen() {
   const router = useRouter();
   const userPhoto = useApp((s) => s.userPhoto);
+  const userName = useApp((s) => s.userName);
+  const privileged = useApp((s) => s.role !== "user");
   const enterRoom = useApp((s) => s.enterRoom);
 
   const [tab, setTab] = useState(0);
@@ -174,10 +177,11 @@ export default function FeedScreen() {
                   </View>
                 )}
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
-                  <Portrait name={p.who} size={42} online />
+                  <Portrait name={p.who} size={42} online photo={p.mine ? userPhoto || undefined : undefined} />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Txt weight="extrabold" size={13} color={p.mine ? C.gold2 : C.text}>{p.who}</Txt>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <Txt weight="extrabold" size={13} color={p.mine ? C.gold2 : C.text}>{p.mine ? userName : p.who}</Txt>
+                      {p.mine && privileged && <AuthorityTag size={8} />}
                       {p.vip && <Badge type="vip" size={15} />}
                       <Txt weight="extrabold" size={10} color="#5EEAD4">LV.{p.lv}</Txt>
                     </View>
@@ -250,10 +254,10 @@ export default function FeedScreen() {
                     {p.comments.map((c, ci) => (
                       <View key={ci} style={{ paddingVertical: 7, paddingLeft: 8 }}>
                         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 9 }}>
-                          <Portrait name={c.who} size={28} />
+                          <Portrait name={c.who} size={28} photo={c.mine ? userPhoto || undefined : undefined} />
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <Txt size={12} color={C.text} lh={1.4}>
-                              <Txt weight="extrabold" size={11.5} color={c.mine ? C.gold2 : C.text}>{c.who} </Txt>
+                              <Txt weight="extrabold" size={11.5} color={c.mine ? C.gold2 : C.text}>{c.mine ? userName : c.who} </Txt>
                               {c.text}
                             </Txt>
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 14, marginTop: 4 }}>
@@ -270,9 +274,9 @@ export default function FeedScreen() {
                         </View>
                         {c.replies.map((r, ri) => (
                           <View key={ri} style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, paddingTop: 6, paddingLeft: 30 }}>
-                            <Portrait name={r.who} size={24} />
+                            <Portrait name={r.who} size={24} photo={r.mine ? userPhoto || undefined : undefined} />
                             <Txt size={11.5} color={C.text} style={{ flex: 1 }} lh={1.4}>
-                              <Txt weight="extrabold" size={11} color={r.mine ? C.gold2 : C.text}>{r.who} </Txt>
+                              <Txt weight="extrabold" size={11} color={r.mine ? C.gold2 : C.text}>{r.mine ? userName : r.who} </Txt>
                               {r.text}
                             </Txt>
                           </View>
