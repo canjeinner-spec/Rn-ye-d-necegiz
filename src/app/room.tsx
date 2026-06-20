@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 
 import { CenterModal } from "@/components/CenterModal";
+import { BigGiftOverlay } from "@/components/BigGiftOverlay";
 import { GiftFx } from "@/components/GiftFx";
 import { Pill } from "@/components/Pill";
 import { Portrait } from "@/components/Portrait";
@@ -184,6 +185,7 @@ export default function RoomScreen() {
   const [reportDone, setReportDone] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftFx, setGiftFx] = useState<(Gift & { qty: number }) | null>(null);
+  const [bigGift, setBigGift] = useState<{ gift: Gift; qty: number } | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [roomPhoto] = useState<string | null>(room?.photo ?? null);
   const [stub, setStub] = useState<string | null>(null);
@@ -191,12 +193,14 @@ export default function RoomScreen() {
   const sendGift = (g: Gift, qty: number, recipient: string) => {
     g.tier === "legendary" ? haptic.heavy() : haptic.success();
     setGiftOpen(false);
-    setGiftFx({ ...g, qty });
-    const dur = g.tier === "legendary" ? 3600 : g.tier === "epic" ? 3000 : 2400;
-    setTimeout(() => setGiftFx(null), dur);
-    if (g.tier === "legendary" && room) {
-      fireBroadcast({ sender: "Sen", recipient, qty, room, gift: g });
+    if (g.tier === "legendary") {
+      setBigGift({ gift: g, qty });
+      if (room) fireBroadcast({ sender: "Sen", recipient, qty, room, gift: g });
+      return;
     }
+    setGiftFx({ ...g, qty });
+    const dur = g.tier === "epic" ? 3000 : 2400;
+    setTimeout(() => setGiftFx(null), dur);
   };
 
   const occupants = useMemo(() => [host, ...seats].filter(Boolean) as Seat[], [seats, host]);
@@ -562,6 +566,8 @@ export default function RoomScreen() {
       </CenterModal>
 
       {giftFx && <GiftFx gift={giftFx} />}
+
+      {bigGift && <BigGiftOverlay gift={bigGift.gift} qty={bigGift.qty} sender="Sen" onDone={() => setBigGift(null)} />}
     </View>
   );
 }
