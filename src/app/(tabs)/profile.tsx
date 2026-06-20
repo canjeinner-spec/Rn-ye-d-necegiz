@@ -121,7 +121,7 @@ export default function ProfileTab() {
           </View>
 
           <View style={{ flexDirection: "row", marginTop: 16 }}>
-            {([["Ziyaretçi", "1.2K", ahead("Ziyaretçiler")], ["Takip", "96", undefined], ["Takipçi", "128", undefined]] as const).map(([l, v, fn]) => (
+            {([["Ziyaretçi", "1.2K", () => { haptic.light(); router.navigate("/visitors"); }], ["Takip", "96", undefined], ["Takipçi", "128", undefined]] as const).map(([l, v, fn]) => (
               <Pressable key={l} onPress={fn} style={{ flex: 1, alignItems: "center" }}>
                 <Txt weight="displayBold" size={17} color={C.text}>{v}</Txt>
                 <Txt weight="semibold" size={10.5} color={C.dim} style={{ marginTop: 2 }}>{l}</Txt>

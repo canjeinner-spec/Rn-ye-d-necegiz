@@ -1,0 +1,108 @@
+import { useRouter } from "expo-router";
+import { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { Badge } from "@/components/Badge";
+import { Portrait } from "@/components/Portrait";
+import { Txt } from "@/components/Txt";
+import { VISITORS, type Visitor } from "@/data/visitors";
+import { Icon } from "@/icons/Icon";
+import { haptic } from "@/lib/haptics";
+import { C } from "@/theme/colors";
+import { Gradient } from "@/theme/Gradient";
+
+function VisitorRow({ v, i }: { v: Visitor; i: number }) {
+  const [following, setFollowing] = useState(false);
+  return (
+    <View style={styles.row}>
+      <Portrait name={v.name} size={48} ring={v.vip ? C.gold : undefined} glow={v.vip} online={i % 3 !== 0} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <Txt weight="extrabold" size={13.5} color={C.text}>{v.name}</Txt>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+            <Badge type="level" size={14} lvl={v.lv} />
+            <Txt weight="extrabold" size={10.5} color="#5EEAD4">LV.{v.lv}</Txt>
+          </View>
+          {v.vip && <Badge type="vip" size={15} />}
+          <Icon name="male" size={12} color={v.gender === "k" ? "#F472B6" : "#60A5FA"} />
+        </View>
+        <Txt size={10.5} color={C.dim2} style={{ marginTop: 3 }}>{v.when} ziyaret etti</Txt>
+      </View>
+      <Pressable
+        onPress={() => { haptic.light(); setFollowing((f) => !f); }}
+        style={[styles.followBtn, { borderColor: following ? C.line : `${C.gold}44`, backgroundColor: following ? "rgba(255,255,255,.05)" : `${C.gold}12` }]}
+      >
+        {!following && <Icon name="userAdd" size={13} color={C.gold2} />}
+        <Txt weight="extrabold" size={11} color={following ? C.dim : C.gold2}>{following ? "Takipte" : "Takip"}</Txt>
+      </Pressable>
+    </View>
+  );
+}
+
+export default function VisitorsScreen() {
+  const router = useRouter();
+  const today = VISITORS.filter((v) => v.today);
+  const earlier = VISITORS.filter((v) => !v.today);
+
+  return (
+    <View style={styles.root}>
+      <Gradient colors={["#1E0E2E", "#08080C"]} deg={170} locations={[0, 0.52]} style={StyleSheet.absoluteFill} />
+      <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.iconBtn}>
+            <Icon name="back" size={16} color={C.text} />
+          </Pressable>
+          <View style={{ flex: 1, alignItems: "center" }}>
+            <Txt weight="displayBold" size={16} color="#fff">Ziyaretçiler</Txt>
+          </View>
+          <View style={{ width: 34 }} />
+        </View>
+
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+          <View style={styles.summary}>
+            <Gradient colors={["#A855F7", "#7C3AED"]} deg={135} style={styles.summaryIcon}>
+              <Icon name="eye" size={24} color="#fff" />
+            </Gradient>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: "row", alignItems: "baseline", gap: 7 }}>
+                <Txt weight="displayBold" size={24} color="#fff">1.2K</Txt>
+                <Txt weight="bold" size={11.5} color="#C4B5FD">toplam ziyaret</Txt>
+              </View>
+              <View style={{ flexDirection: "row", marginTop: 3 }}>
+                <Txt size={11} color={C.dim}>Bugün </Txt>
+                <Txt weight="bold" size={11} color="#fff">{today.length}</Txt>
+                <Txt size={11} color={C.dim}> kişi profilini gezdi</Txt>
+              </View>
+            </View>
+          </View>
+
+          {today.length > 0 && (
+            <>
+              <Txt weight="bold" size={11.5} color={C.dim2} style={styles.sectionLbl}>BUGÜN</Txt>
+              {today.map((v, i) => <VisitorRow key={v.name + i} v={v} i={i} />)}
+            </>
+          )}
+          {earlier.length > 0 && (
+            <>
+              <Txt weight="bold" size={11.5} color={C.dim2} style={[styles.sectionLbl, { marginTop: 18 }]}>DAHA ÖNCE</Txt>
+              {earlier.map((v, i) => <VisitorRow key={v.name + i} v={v} i={i + 100} />)}
+            </>
+          )}
+          <Txt size={10.5} color={C.dim2} align="center" style={{ marginTop: 16 }}>Son 30 günün ziyaretçileri gösteriliyor</Txt>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.bg },
+  header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  summary: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 18, marginBottom: 18, backgroundColor: "rgba(168,85,247,.16)", borderWidth: 1, borderColor: "rgba(168,85,247,.25)" },
+  summaryIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  sectionLbl: { letterSpacing: 0.5, marginBottom: 4 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.05)" },
+  followBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 13, borderRadius: 11, borderWidth: 1 },
+});
