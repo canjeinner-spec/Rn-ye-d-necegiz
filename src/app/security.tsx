@@ -8,6 +8,7 @@ import { Pill } from "@/components/Pill";
 import { Txt } from "@/components/Txt";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
+import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
@@ -34,6 +35,8 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
 
 export default function SecurityScreen() {
   const router = useRouter();
+  const { setGirisYapildi } = useApp();
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const [social, setSocial] = useState<Record<SocialKey, boolean>>({ twitter: false, apple: true, google: false });
   const anyLinked = Object.values(social).some(Boolean);
 
@@ -49,6 +52,7 @@ export default function SecurityScreen() {
   const startPhone = () => { haptic.light(); setFlow(anyLinked ? "confirm" : "error"); };
   const closePhone = () => { setFlow(null); setCode(""); };
   const closePw = () => { setPwOpen(false); setPw({ cur: "", next: "", rep: "" }); setPwDone(false); };
+  const doLogout = () => { haptic.success(); setLogoutOpen(false); setGirisYapildi(false); router.replace("/onboarding"); };
 
   return (
     <View style={styles.root}>
@@ -114,6 +118,17 @@ export default function SecurityScreen() {
             );
           })}
           <Txt size={10} color={C.dim2} lh={1.5} style={{ marginTop: 10 }}>Bağlı değil olana dokununca ilgili hesaba bağlanma ekranına yönlendirilirsin.</Txt>
+
+          <Pressable onPress={() => { haptic.light(); setLogoutOpen(true); }} style={styles.logoutBtn}>
+            <View style={[styles.rowIcon, { backgroundColor: `${C.red}1A` }]}>
+              <Icon name="door" size={16} color={C.red} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Txt weight="extrabold" size={12.5} color={C.red}>Çıkış Yap</Txt>
+              <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>Hesabından güvenli şekilde çık</Txt>
+            </View>
+            <Icon name="chev" size={14} color={`${C.red}99`} />
+          </Pressable>
         </ScrollView>
       </SafeAreaView>
 
@@ -223,6 +238,25 @@ export default function SecurityScreen() {
           )}
         </View>
       </CenterModal>
+
+      {/* Çıkış yap onayı */}
+      <CenterModal visible={logoutOpen} onClose={() => setLogoutOpen(false)} dim={0.72}>
+        <View style={[styles.dialog, { alignItems: "center" }]}>
+          <View style={[styles.statusCircle, { backgroundColor: `${C.red}1A`, borderColor: `${C.red}66` }]}>
+            <Icon name="door" size={28} color={C.red} />
+          </View>
+          <Txt weight="displayBold" size={17} color="#fff">Çıkış yapılsın mı?</Txt>
+          <Txt size={12} color={C.dim} align="center" lh={1.6} style={{ marginTop: 8 }}>Hesabından çıkış yapacaksın. Tekrar girmek için telefon numaranla doğrulama yapman gerekecek.</Txt>
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 20, alignSelf: "stretch" }}>
+            <Pressable onPress={() => setLogoutOpen(false)} style={[styles.btn, { flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.line }]}>
+              <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
+            </Pressable>
+            <Pressable onPress={doLogout} style={[styles.btn, { flex: 1, backgroundColor: `${C.red}1A`, borderWidth: 1, borderColor: `${C.red}66` }]}>
+              <Txt weight="extrabold" size={13} color={C.red}>Çıkış Yap</Txt>
+            </Pressable>
+          </View>
+        </View>
+      </CenterModal>
     </View>
   );
 }
@@ -234,6 +268,7 @@ const styles = StyleSheet.create({
   sectionLbl: { letterSpacing: 0.5, marginBottom: 10 },
   phoneCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 15, backgroundColor: "rgba(27,21,48,.7)", borderWidth: 1, borderColor: `${C.gold}33` },
   row: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 10, padding: 13, borderRadius: 15, backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
+  logoutBtn: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 22, padding: 13, borderRadius: 15, backgroundColor: `${C.red}0E`, borderWidth: 1, borderColor: `${C.red}33` },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   socialIcon: { width: 26, height: 26, borderRadius: 8, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center" },
   goldBox: { backgroundColor: `${C.gold}0E`, borderWidth: 1, borderColor: `${C.gold}33`, borderRadius: 14, padding: 14, marginTop: 16 },
