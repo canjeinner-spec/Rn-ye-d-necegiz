@@ -8,6 +8,7 @@ import { Eq } from "@/components/Eq";
 import { EventBanners } from "@/components/EventBanners";
 import { Portrait } from "@/components/Portrait";
 import { RoomBadges } from "@/components/RoomBadges";
+import { RoomCrest, RoomTopTag, type RoomTier } from "@/components/RoomTopTag";
 import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
@@ -23,8 +24,19 @@ import { Gradient } from "@/theme/Gradient";
 function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
   const friendAvatars = room.crowd.slice(0, 3);
   const coverUri = room.photo || PEOPLE[room.host]?.photo;
+  const tier: RoomTier | null = room.official ? "official" : room.daily != null ? "daily" : null;
+  const tierBg = tier === "daily" ? (["#3A2A66", "#221A42"] as const) : (["#1E2A52", "#162038"] as const);
+
   return (
-    <Pressable onPress={onPress} style={styles.row}>
+    <Pressable onPress={onPress} style={[styles.row, tier && styles.rowSpecial]}>
+      {tier && <Gradient colors={tierBg} deg={135} style={StyleSheet.absoluteFill} pointerEvents="none" />}
+      {tier && (
+        <View style={styles.crest} pointerEvents="none">
+          <RoomCrest kind={tier} />
+        </View>
+      )}
+      {tier && <RoomTopTag kind={tier} rank={room.daily ?? 1} />}
+
       <View style={styles.cover}>
         {coverUri ? <Image source={{ uri: coverUri }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
         {room.locked && (
@@ -34,7 +46,7 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
         )}
       </View>
 
-      <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
+      <View style={{ flex: 1, minWidth: 0, gap: 5, marginRight: tier ? 6 : 0 }}>
         <Txt weight="extrabold" size={14} color="#fff" numberOfLines={1}>
           {room.name}
         </Txt>
@@ -52,8 +64,8 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
         </View>
       </View>
 
-      <View style={{ alignItems: "flex-end", justifyContent: "space-between", alignSelf: "stretch" }}>
-        {room.live ? (
+      <View style={{ minWidth: tier ? 84 : undefined, alignItems: "flex-end", justifyContent: tier ? "flex-end" : "space-between", alignSelf: "stretch" }}>
+        {!tier && (room.live ? (
           <Gradient colors={["#8B5CF6", "#6D28D9"]} deg={135} style={styles.livePill}>
             <View style={styles.liveDot} />
             <Txt weight="extrabold" size={10} color="#fff">Canlı</Txt>
@@ -62,7 +74,7 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
           <View style={[styles.livePill, { backgroundColor: "rgba(255,255,255,.08)" }]}>
             <Txt weight="extrabold" size={10} color={C.dim}>Yakında</Txt>
           </View>
-        )}
+        ))}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
           <Icon name="user" size={12} color={C.dim2} />
           <Txt weight="bold" size={10.5} color={C.dim}>{room.online}</Txt>
@@ -140,6 +152,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,.06)",
   },
+  rowSpecial: { overflow: "hidden", borderColor: "rgba(255,255,255,.12)" },
+  crest: { position: "absolute", right: 6, top: -22 },
   cover: { width: 62, height: 62, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   lockTag: { position: "absolute", top: 4, right: 4, width: 18, height: 18, borderRadius: 9, backgroundColor: "rgba(0,0,0,.55)", alignItems: "center", justifyContent: "center" },
   livePill: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 4, paddingHorizontal: 11, borderRadius: 999 },

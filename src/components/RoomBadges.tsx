@@ -54,8 +54,8 @@ export function RoomBadge({ type, n, size = 18 }: RoomBadgeItem & { size?: numbe
 
 export function RoomBadges({ badges, size = 18 }: { badges: RoomBadgeItem[]; size?: number }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-      {badges.map((b, i) => (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+      {badges.slice(0, 3).map((b, i) => (
         <RoomBadge key={b.type + i} type={b.type} n={b.n} size={size} />
       ))}
     </View>
