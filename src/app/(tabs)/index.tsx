@@ -11,6 +11,7 @@ import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { ROOMS, type Room } from "@/data/seed";
+import { CreateSheet } from "@/sheets/CreateSheet";
 import { RoomPasswordGate } from "@/sheets/RoomPasswordGate";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
@@ -75,6 +76,7 @@ export default function Home() {
   const enterRoom = useApp((s) => s.enterRoom);
   const [tab, setTab] = useState(0);
   const [gateRoom, setGateRoom] = useState<Room | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const enterAndGo = (room: Room) => {
     haptic.light();
@@ -98,7 +100,7 @@ export default function Home() {
             <Txt weight="displayBold" size={19} color="#fff" style={{ letterSpacing: 2 }}>ARON</Txt>
             <Txt weight="displayBold" size={19} color={C.gold} style={{ letterSpacing: 2 }}>CHAT</Txt>
           </View>
-          <Pressable hitSlop={10} style={{ width: 30, alignItems: "flex-end" }}>
+          <Pressable onPress={() => { haptic.light(); setCreateOpen(true); }} hitSlop={10} style={{ width: 30, alignItems: "flex-end" }}>
             <Icon name="plus" size={22} color={C.gold} />
           </Pressable>
         </View>
@@ -119,6 +121,8 @@ export default function Home() {
           onPass={() => { const r = gateRoom; setGateRoom(null); enterAndGo(r); }}
         />
       )}
+
+      <CreateSheet visible={createOpen} onClose={() => setCreateOpen(false)} onCreate={(r) => { setCreateOpen(false); enterRoom(r); router.navigate("/room"); }} />
     </View>
   );
 }
