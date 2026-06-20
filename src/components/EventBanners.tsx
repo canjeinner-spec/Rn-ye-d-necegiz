@@ -13,6 +13,11 @@ import { Gradient } from "@/theme/Gradient";
 
 const { width: SCREEN } = Dimensions.get("window");
 
+/** Banner id → paketlenmiş görsel. Verilen banner tam-kaplama görsel olarak basılır. */
+const BANNER_IMG: Record<string, number> = {
+  guncelleme: require("../../assets/images/update-banner.png"),
+};
+
 /** Bilgilendirme banner'ı (Biz Kimiz? / Gelecek Güncelleme) — emblem + parıltı, premium görünüm */
 function InfoBanner({ b }: { b: EventBanner }) {
   const tag = b.kind === "update" ? "YAKINDA" : "HİKÂYE";
@@ -48,9 +53,14 @@ function InfoBanner({ b }: { b: EventBanner }) {
 }
 
 function Banner({ b, onPress }: { b: EventBanner; onPress: () => void }) {
+  const localImg = BANNER_IMG[b.id];
   return (
     <Pressable onPress={onPress} style={{ width: SCREEN, paddingHorizontal: 14 }}>
-      {b.kind === "about" || b.kind === "update" ? (
+      {localImg ? (
+        <View style={styles.banner}>
+          <Image source={localImg} style={StyleSheet.absoluteFill} contentFit="cover" />
+        </View>
+      ) : b.kind === "about" || b.kind === "update" ? (
         <InfoBanner b={b} />
       ) : (
         <View style={styles.banner}>

@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -39,18 +40,11 @@ export default function UpdatesScreen() {
         </View>
 
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36 }} showsVerticalScrollIndicator={false}>
-          {/* Hero */}
-          <View style={styles.hero}>
-            <Gradient colors={["rgba(94,234,212,.16)", "rgba(94,234,212,.02)"]} deg={150} style={StyleSheet.absoluteFill} pointerEvents="none" />
-            <View style={styles.heroIcon}>
-              <Gradient colors={[C.teal, "#0E7490"]} deg={150} style={StyleSheet.absoluteFill} />
-              <Icon name="evStar" size={28} color="#08201C" />
-            </View>
-            <Txt weight="displayBold" size={19} color="#fff" align="center" style={{ marginTop: 14 }}>Sürekli geliştiriyoruz</Txt>
-            <Txt size={12} color="rgba(255,255,255,.78)" align="center" lh={1.6} style={{ marginTop: 7 }}>
-              Aron Chat her gün biraz daha iyi oluyor. Şu an üzerinde çalıştığımız ve sırada bekleyen özellikler:
-            </Txt>
-          </View>
+          {/* Hero görsel — tam tasarım */}
+          <Image source={require("../../assets/images/update-banner.png")} style={styles.heroImg} contentFit="cover" />
+          <Txt size={12} color="rgba(255,255,255,.78)" align="center" lh={1.6} style={{ marginTop: 14, paddingHorizontal: 6 }}>
+            Aron Chat her gün biraz daha iyi oluyor. Şu an üzerinde çalıştığımız ve sırada bekleyen özellikler:
+          </Txt>
 
           {/* Yol haritası */}
           <Txt weight="bold" size={10.5} color={C.dim} style={styles.sectionLbl}>YOL HARİTASI</Txt>
@@ -87,8 +81,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#0A0F14" },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,.3)", borderWidth: 1, borderColor: C.line, alignItems: "center", justifyContent: "center" },
-  hero: { alignItems: "center", paddingVertical: 24, paddingHorizontal: 18, borderRadius: 24, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: "rgba(255,255,255,.03)" },
-  heroIcon: { width: 60, height: 60, borderRadius: 19, overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.2)" },
+  heroImg: { width: "100%", aspectRatio: 1731 / 909, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
   sectionLbl: { letterSpacing: 0.5, marginTop: 26, marginBottom: 12 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: 16, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line, marginBottom: 10 },
   rowIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1 },
