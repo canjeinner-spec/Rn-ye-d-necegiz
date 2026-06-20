@@ -113,10 +113,12 @@ export default function DMChatScreen() {
 
           {!isSystem && (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 16, paddingTop: 10 }}>
-              <Gradient colors={["#60A5FA", "#2563EB"]} deg={135} style={styles.csBtn}>
-                <Icon name="user" size={17} color="#fff" />
-                <Txt weight="extrabold" size={13.5} color="#fff">Müşteri Hizmetleri</Txt>
-              </Gradient>
+              <Pressable onPress={() => { haptic.light(); router.navigate("/support"); }} style={{ flex: 1, borderRadius: 999, overflow: "hidden" }}>
+                <Gradient colors={["#60A5FA", "#2563EB"]} deg={135} style={styles.csBtn}>
+                  <Icon name="user" size={17} color="#fff" />
+                  <Txt weight="extrabold" size={13.5} color="#fff">Müşteri Hizmetleri</Txt>
+                </Gradient>
+              </Pressable>
               <View style={{ alignItems: "center", gap: 3 }}>
                 <Icon name="edit" size={19} color={C.dim} />
                 <Txt weight="semibold" size={9.5} color={C.dim}>Geri Bildirim</Txt>

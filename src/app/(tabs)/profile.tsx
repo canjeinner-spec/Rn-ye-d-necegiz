@@ -69,7 +69,7 @@ export default function ProfileTab() {
   ];
 
   const settings: MenuItem[] = [
-    { ic: "chat", g1: "#64748B", g2: "#475569", t: "Müşteri Hizmetleri & SSS", onPress: openSheet(() => setInfo("support")) },
+    { ic: "chat", g1: "#64748B", g2: "#475569", t: "Müşteri Hizmetleri & SSS", onPress: () => { haptic.light(); router.navigate("/support"); } },
     { ic: "gear", g1: "#475569", g2: "#334155", t: "Hesap & Güvenlik", r: "⚠️", onPress: () => { haptic.light(); router.navigate("/security"); } },
   ];
 
