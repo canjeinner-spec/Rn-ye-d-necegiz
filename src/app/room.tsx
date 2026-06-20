@@ -154,7 +154,7 @@ function ActionRow({ icon, color, label, onPress }: { icon: IconName; color: str
 
 export default function RoomScreen() {
   const router = useRouter();
-  const { currentRoom, userPhoto, userName, leaveRoom, fireBroadcast } = useApp();
+  const { currentRoom, userPhoto, userName, roomName, roomAnnounce, roomLocked, leaveRoom, fireBroadcast } = useApp();
   const room = currentRoom;
   const isMine = !!room && (room.owner === true || room.host === "Sen");
 
@@ -185,11 +185,7 @@ export default function RoomScreen() {
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftFx, setGiftFx] = useState<(Gift & { qty: number }) | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [roomName, setRoomName] = useState(room?.name ?? "");
   const [roomPhoto] = useState<string | null>(room?.photo ?? null);
-  const [announce, setAnnounce] = useState("Resmî odaya hoş geldiniz! Lütfen nazik olun, keyifli sohbetler dileriz.");
-  const [locked, setLocked] = useState(false);
-  const [, setRoomPass] = useState("");
   const [stub, setStub] = useState<string | null>(null);
 
   const sendGift = (g: Gift, qty: number, recipient: string) => {
@@ -495,15 +491,12 @@ export default function RoomScreen() {
         <RoomPanel
           room={room}
           roomName={roomName}
-          setRoomName={setRoomName}
           roomPhoto={roomPhoto}
-          announce={announce}
-          setAnnounce={setAnnounce}
-          locked={locked}
-          setLocked={setLocked}
-          setRoomPass={setRoomPass}
+          announce={roomAnnounce}
+          locked={roomLocked}
           memberCount={occupants.length}
           canManage={MY_ROLE === "host"}
+          onManage={() => { setPanelOpen(false); router.navigate("/room-manage"); }}
           onReport={() => { setPanelOpen(false); setReportOpen(true); }}
           onStats={() => { setPanelOpen(false); setStatsOpen(true); }}
           onClose={() => setPanelOpen(false)}

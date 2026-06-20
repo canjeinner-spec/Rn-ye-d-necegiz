@@ -26,6 +26,15 @@ type AppState = {
   activeDM: DMThread | null;
   setActiveDM: (d: DMThread | null) => void;
 
+  roomName: string;
+  roomAnnounce: string;
+  roomLocked: boolean;
+  roomPass: string;
+  setRoomName: (v: string) => void;
+  setRoomAnnounce: (v: string) => void;
+  setRoomLocked: (v: boolean) => void;
+  setRoomPass: (v: string) => void;
+
   setUserName: (n: string) => void;
   setUserBio: (b: string) => void;
   setUserPhoto: (p: string | null) => void;
@@ -57,12 +66,29 @@ export const useApp = create<AppState>((set, get) => ({
   activeDM: null,
   setActiveDM: (d) => set({ activeDM: d }),
 
+  roomName: "",
+  roomAnnounce: "",
+  roomLocked: false,
+  roomPass: "",
+  setRoomName: (v) => set({ roomName: v }),
+  setRoomAnnounce: (v) => set({ roomAnnounce: v }),
+  setRoomLocked: (v) => set({ roomLocked: v }),
+  setRoomPass: (v) => set({ roomPass: v }),
+
   setUserName: (n) => set({ userName: n }),
   setUserBio: (b) => set({ userBio: b }),
   setUserPhoto: (p) => set({ userPhoto: p }),
   setStreamer: (v) => set({ isStreamer: v }),
 
-  enterRoom: (r) => set({ currentRoom: r, inRoom: true }),
+  enterRoom: (r) =>
+    set({
+      currentRoom: r,
+      inRoom: true,
+      roomName: r.name,
+      roomAnnounce: r.official ? "Resmî odaya hoş geldiniz! Lütfen nazik olun, keyifli sohbetler dileriz." : "Herkes davetli, saygıyı koru 🌙",
+      roomLocked: !!r.locked,
+      roomPass: r.pass || "",
+    }),
   leaveRoom: () => set({ inRoom: false, currentRoom: null }),
 
   makeMyRoom: () => {

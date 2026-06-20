@@ -1,8 +1,8 @@
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import Animated, { FadeIn, SlideInDown, ZoomIn } from "react-native-reanimated";
+import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import Animated, { SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Portrait } from "@/components/Portrait";
@@ -14,23 +14,18 @@ import { type IconName } from "@/icons/paths";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 type Role = "host" | "mod" | "user";
 type Member = { name: string; role: Role; active: boolean };
 
 type Props = {
   room: Room;
   roomName: string;
-  setRoomName: (v: string) => void;
   roomPhoto: string | null;
   announce: string;
-  setAnnounce: (v: string) => void;
   locked: boolean;
-  setLocked: (v: boolean) => void;
-  setRoomPass: (v: string) => void;
   memberCount: number;
   canManage: boolean;
+  onManage: () => void;
   onReport: () => void;
   onStats: () => void;
   onClose: () => void;
@@ -50,17 +45,6 @@ function InfoRow({ label, right }: { label: string; right: string }) {
   );
 }
 
-function ManageRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={styles.manageRow}>
-      <Txt weight="bold" size={13} color={C.text}>{label}</Txt>
-      <View style={{ flex: 1 }} />
-      <Txt size={12} color={C.dim} numberOfLines={1} style={{ maxWidth: 140 }}>{value || "—"}</Txt>
-      <Icon name="chev" size={14} color={C.dim2} />
-    </Pressable>
-  );
-}
-
 function RoleBtn({ icon, color, label, dim, onPress }: { icon: IconName; color: string; label: string; dim?: boolean; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={{ flex: 1, alignItems: "center", gap: 6, opacity: dim ? 0.4 : 1 }}>
@@ -73,16 +57,11 @@ function RoleBtn({ icon, color, label, dim, onPress }: { icon: IconName; color: 
 }
 
 export function RoomPanel(props: Props) {
-  const { room, roomName, setRoomName, roomPhoto, announce, setAnnounce, locked, setLocked, setRoomPass, memberCount, canManage, onReport, onStats, onClose } = props;
+  const { room, roomName, roomPhoto, announce, locked, memberCount, canManage, onManage, onReport, onStats, onClose } = props;
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState(0);
   const [following, setFollowing] = useState(false);
-  const [manageOpen, setManageOpen] = useState(false);
-  const [lockWarn, setLockWarn] = useState(false);
-  const [lockSheet, setLockSheet] = useState(false);
-  const [passInput, setPassInput] = useState("");
-  const [editField, setEditField] = useState<{ label: string; multiline?: boolean; set: (v: string) => void } | null>(null);
-  const [tmp, setTmp] = useState("");
+  const [joined, setJoined] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [members, setMembers] = useState<Member[]>(() =>
     (room.crowd || [])
@@ -91,17 +70,6 @@ export function RoomPanel(props: Props) {
       .map((n, i) => ({ name: n, role: n === room.host ? "host" : i === 1 ? "mod" : "user", active: i % 3 !== 0 }))
   );
 
-  const openEdit = (label: string, value: string, set: (v: string) => void, multiline?: boolean) => {
-    setEditField({ label, set, multiline });
-    setTmp(value);
-  };
-  const confirmLock = () => {
-    if (passInput.length !== 4) return;
-    setRoomPass(passInput);
-    setLocked(true);
-    setLockSheet(false);
-    setPassInput("");
-  };
   const makeMod = (i: number) => setMembers((ms) => ms.map((m, j) => (j === i ? { ...m, role: "mod" } : m)));
   const makeUser = (i: number) => setMembers((ms) => ms.map((m, j) => (j === i ? { ...m, role: "user" } : m)));
   const kick = (i: number) => { setMembers((ms) => ms.filter((_, j) => j !== i)); setExpanded(null); };
@@ -114,11 +82,6 @@ export function RoomPanel(props: Props) {
             <BlurView intensity={32} tint="dark" style={StyleSheet.absoluteFill} />
             <Gradient colors={["rgba(22,19,32,0.88)", "rgba(11,10,16,0.94)"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
             <View style={styles.handle} />
-            {canManage && (
-              <Pressable onPress={() => setManageOpen(true)} style={styles.gearBtn}>
-                <Icon name="gear" size={18} color={C.gold} />
-              </Pressable>
-            )}
 
             <View style={styles.tabbar}>
               {["Profil", "Üyeler"].map((t, i) => (
@@ -127,242 +90,144 @@ export function RoomPanel(props: Props) {
                   {i === tab && <Gradient colors={[C.gold, "#C8922B"]} deg={90} style={styles.tabUnderline} />}
                 </Pressable>
               ))}
+              {canManage && (
+                <Pressable onPress={onManage} style={styles.gearBtn} hitSlop={8}>
+                  <Icon name="gear" size={17} color={C.gold} />
+                </Pressable>
+              )}
             </View>
 
             {tab === 0 ? (
               <View style={{ padding: 18, paddingBottom: 14 + insets.bottom }}>
-                <>
-                  <View style={styles.idCard}>
-                    <View style={styles.idThumb}>
-                      {roomPhoto ? <Image source={{ uri: roomPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
-                    </View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Txt weight="extrabold" size={15} color="#fff" numberOfLines={1}>{roomName}</Txt>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
-                        <Txt weight="semibold" size={11} color={C.dim}>ID:{room.id}</Txt>
-                        <Icon name="copy" size={12} color={C.dim2} />
-                      </View>
-                    </View>
-                    <Pressable onPress={onReport}>
-                      <Icon name="warn" size={20} color="rgba(255,255,255,.4)" />
-                    </Pressable>
+                <View style={styles.idCard}>
+                  <View style={styles.idThumb}>
+                    {roomPhoto ? <Image source={{ uri: roomPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
                   </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Txt weight="extrabold" size={15} color="#fff" numberOfLines={1} style={{ flexShrink: 1 }}>{roomName}</Txt>
+                      {locked && <Icon name="lock" size={13} color={C.gold} />}
+                    </View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
+                      <Txt weight="semibold" size={11} color={C.dim}>ID:{room.id}</Txt>
+                      <Icon name="copy" size={12} color={C.dim2} />
+                    </View>
+                  </View>
+                  <Pressable onPress={onReport} hitSlop={8}>
+                    <Icon name="warn" size={20} color="rgba(255,255,255,.4)" />
+                  </Pressable>
+                </View>
 
-                  <Pressable onPress={() => setFollowing((f) => !f)} style={[styles.followBtn, { borderColor: following ? C.gold : "rgba(255,255,255,.14)", backgroundColor: following ? C.gold + "12" : "rgba(255,255,255,.05)" }]}>
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+                  <Pressable onPress={() => setJoined((j) => !j)} style={{ flex: 1, borderRadius: 14, overflow: "hidden" }}>
+                    {joined ? (
+                      <View style={[styles.actBtn, { borderWidth: 1.5, borderColor: C.green + "55", backgroundColor: C.green + "14" }]}>
+                        <Icon name="check" size={16} sw={2.5} color="#6EE7B7" />
+                        <Txt weight="extrabold" size={13.5} color="#6EE7B7">Katıldın</Txt>
+                      </View>
+                    ) : (
+                      <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.actBtn}>
+                        <Icon name="mic" size={16} color="#241A05" />
+                        <Txt weight="extrabold" size={13.5} color="#241A05">Katıl</Txt>
+                      </Gradient>
+                    )}
+                  </Pressable>
+                  <Pressable onPress={() => setFollowing((f) => !f)} style={[styles.actBtn, { flex: 1, borderWidth: 1.5, borderColor: following ? C.gold : "rgba(255,255,255,.14)", backgroundColor: following ? C.gold + "12" : "rgba(255,255,255,.05)" }]}>
                     <Icon name={following ? "check" : "heart"} size={16} sw={following ? 2.5 : 1.7} color={following ? C.gold2 : C.text} />
                     <Txt weight="extrabold" size={13.5} color={following ? C.gold2 : C.text}>{following ? "Takiptesin" : "Takip Et"}</Txt>
                   </Pressable>
+                </View>
 
-                  <View style={styles.levelHeader}>
-                    <Txt weight="semibold" size={13.5} color={C.dim}>Level</Txt>
-                    <View style={{ flex: 1 }} />
-                    <Txt weight="semibold" size={11.5} color="rgba(255,255,255,.45)">{ROOM_XP.toLocaleString("tr-TR")}/{ROOM_NEXT.toLocaleString("tr-TR")}</Txt>
-                    <Txt weight="displayBold" size={14} color="#5EEAD4" style={{ marginLeft: 8 }}>LV.{ROOM_LV}</Txt>
+                <View style={styles.levelHeader}>
+                  <Txt weight="semibold" size={13.5} color={C.dim}>Level</Txt>
+                  <View style={{ flex: 1 }} />
+                  <Txt weight="semibold" size={11.5} color="rgba(255,255,255,.45)">{ROOM_XP.toLocaleString("tr-TR")}/{ROOM_NEXT.toLocaleString("tr-TR")}</Txt>
+                  <Txt weight="displayBold" size={14} color="#5EEAD4" style={{ marginLeft: 8 }}>LV.{ROOM_LV}</Txt>
+                </View>
+                <View style={styles.levelTrack}>
+                  <View style={{ height: "100%", width: `${(ROOM_XP / ROOM_NEXT) * 100}%`, borderRadius: 4, backgroundColor: "#06B6D4" }} />
+                </View>
+                <Pressable onPress={onStats} style={styles.levelBanner}>
+                  <Txt weight="semibold" size={11.5} color={C.dim} style={{ flex: 1 }}>Level Atlayın ve Oda Avantajlarının Kilidini Açın</Txt>
+                  <View style={{ flexDirection: "row" }}>
+                    {(room.crowd || []).slice(0, 2).map((n, i) => (
+                      <View key={n} style={{ marginLeft: i ? -8 : 0, borderRadius: 16, borderWidth: 2, borderColor: "rgba(22,19,32,.9)" }}>
+                        <Portrait name={n} size={28} />
+                      </View>
+                    ))}
                   </View>
-                  <View style={styles.levelTrack}>
-                    <View style={{ height: "100%", width: `${(ROOM_XP / ROOM_NEXT) * 100}%`, borderRadius: 4, backgroundColor: "#06B6D4" }} />
-                  </View>
-                  <Pressable onPress={onStats} style={styles.levelBanner}>
-                    <Txt weight="semibold" size={11.5} color={C.dim} style={{ flex: 1 }}>Level Atlayın ve Oda Avantajlarının Kilidini Açın</Txt>
-                    <View style={{ flexDirection: "row" }}>
-                      {(room.crowd || []).slice(0, 2).map((n, i) => (
-                        <View key={n} style={{ marginLeft: i ? -8 : 0, borderRadius: 16, borderWidth: 2, borderColor: "rgba(22,19,32,.9)" }}>
-                          <Portrait name={n} size={28} />
-                        </View>
-                      ))}
-                    </View>
-                    <Icon name="chev" size={14} color={C.dim2} />
-                  </Pressable>
+                  <Icon name="chev" size={14} color={C.dim2} />
+                </Pressable>
 
-                  <InfoRow label="Üyeler" right={String(memberCount)} />
-                  <InfoRow label="Dil" right="Türkçe" />
-                  <InfoRow label="Ülke" right="🇹🇷 Türkiye" />
-                  <InfoRow label="Etiket" right={room.official ? "Resmî" : "Sohbet"} />
-                  <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
-                    <Txt weight="semibold" size={13.5} color={C.dim}>Duyuru</Txt>
-                    <View style={{ flex: 1 }} />
-                    <Txt weight="semibold" size={12.5} color={C.text} align="right" lh={1.5} style={{ maxWidth: "58%", fontStyle: "italic" }}>
-                      {announce || (room.official ? "Aron'a hoş geldin, keyifli sohbetler!" : "Herkes davetli, saygıyı koru 🌙")}
-                    </Txt>
-                  </View>
-
-                </>
+                <InfoRow label="Üyeler" right={String(memberCount)} />
+                <InfoRow label="Dil" right="Türkçe" />
+                <InfoRow label="Ülke" right="🇹🇷 Türkiye" />
+                <InfoRow label="Etiket" right={room.official ? "Resmî" : "Sohbet"} />
+                <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+                  <Txt weight="semibold" size={13.5} color={C.dim}>Duyuru</Txt>
+                  <View style={{ flex: 1 }} />
+                  <Txt weight="semibold" size={12.5} color={C.text} align="right" lh={1.5} style={{ maxWidth: "58%", fontStyle: "italic" }}>
+                    {announce || (room.official ? "Aron'a hoş geldin, keyifli sohbetler!" : "Herkes davetli, saygıyı koru 🌙")}
+                  </Txt>
+                </View>
               </View>
             ) : (
               <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 18, paddingBottom: 24 + insets.bottom }}>
-                <>
-                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
-                    <Txt weight="bold" size={13} color={C.dim}>
-                      Üyeler: <Txt weight="bold" size={13} color={C.gold2}>{members.length}</Txt>
-                      <Txt weight="bold" size={13} color={C.dim2}>/1000</Txt>
-                    </Txt>
-                  </View>
-                  <View style={styles.searchRow}>
-                    <Icon name="search" size={15} color={C.dim2} />
-                    <Txt size={12.5} color={C.dim2}>Kullanıcı adı veya numarası ara</Txt>
-                  </View>
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
+                  <Txt weight="bold" size={13} color={C.dim}>
+                    Üyeler: <Txt weight="bold" size={13} color={C.gold2}>{members.length}</Txt>
+                    <Txt weight="bold" size={13} color={C.dim2}>/1000</Txt>
+                  </Txt>
+                </View>
+                <View style={styles.searchRow}>
+                  <Icon name="search" size={15} color={C.dim2} />
+                  <Txt size={12.5} color={C.dim2}>Kullanıcı adı veya numarası ara</Txt>
+                </View>
 
-                  {members.map((m, i) => {
-                    const isOpen = expanded === i;
-                    const canEdit = canManage && m.role !== "host";
-                    const roleColor = m.role === "host" ? C.gold2 : m.role === "mod" ? C.purple2 : C.dim;
-                    const roleLabel = m.role === "host" ? "Sahip" : m.role === "mod" ? "Yardımcı" : null;
-                    return (
-                      <View key={m.name + i}>
-                        <Pressable onPress={canEdit ? () => setExpanded(isOpen ? null : i) : undefined} style={styles.memberRow}>
-                          <Portrait name={m.name} size={46} online={m.active} />
-                          <View style={{ flex: 1, minWidth: 0 }}>
-                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                              <Txt weight="extrabold" size={13.5} color={m.role === "host" ? C.gold2 : C.text}>{m.name}</Txt>
-                              <Txt weight="extrabold" size={10.5} color="#5EEAD4">LV.{22 + i}</Txt>
-                              {roleLabel && (
-                                <View style={{ borderRadius: 999, paddingVertical: 2, paddingHorizontal: 7, backgroundColor: (m.role === "host" ? C.gold : C.purple2) + "1F", borderWidth: 1, borderColor: (m.role === "host" ? C.gold : C.purple2) + "44" }}>
-                                  <Txt weight="extrabold" size={9} color={roleColor}>{roleLabel}</Txt>
-                                </View>
-                              )}
-                            </View>
-                            <Txt size={10.5} color={C.dim2} style={{ marginTop: 2 }}>{m.active ? "Bugün" : "1 gün önce"} aktifti</Txt>
+                {members.map((m, i) => {
+                  const isOpen = expanded === i;
+                  const canEdit = canManage && m.role !== "host";
+                  const roleColor = m.role === "host" ? C.gold2 : m.role === "mod" ? C.purple2 : C.dim;
+                  const roleLabel = m.role === "host" ? "Sahip" : m.role === "mod" ? "Yardımcı" : null;
+                  return (
+                    <View key={m.name + i}>
+                      <Pressable onPress={canEdit ? () => setExpanded(isOpen ? null : i) : undefined} style={styles.memberRow}>
+                        <Portrait name={m.name} size={46} online={m.active} />
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <Txt weight="extrabold" size={13.5} color={m.role === "host" ? C.gold2 : C.text}>{m.name}</Txt>
+                            <Txt weight="extrabold" size={10.5} color="#5EEAD4">LV.{22 + i}</Txt>
+                            {roleLabel && (
+                              <View style={{ borderRadius: 999, paddingVertical: 2, paddingHorizontal: 7, backgroundColor: (m.role === "host" ? C.gold : C.purple2) + "1F", borderWidth: 1, borderColor: (m.role === "host" ? C.gold : C.purple2) + "44" }}>
+                                <Txt weight="extrabold" size={9} color={roleColor}>{roleLabel}</Txt>
+                              </View>
+                            )}
                           </View>
-                          {canEdit ? (
-                            <View style={[styles.memberArrow, { backgroundColor: isOpen ? "rgba(245,206,110,.15)" : "rgba(255,255,255,.05)", borderColor: isOpen ? C.gold + "44" : "rgba(255,255,255,.1)" }]}>
-                              <Icon name="chev" size={15} color={isOpen ? C.gold2 : C.dim} />
-                            </View>
-                          ) : (
-                            <Icon name="user" size={18} color={roleColor} />
-                          )}
-                        </Pressable>
-                        {isOpen && canEdit && (
-                          <View style={styles.manageActions}>
-                            <RoleBtn icon="trash" color="#FB7185" label="Çıkar" onPress={() => kick(i)} />
-                            <RoleBtn icon="user" color={C.gold2} label="Üye Yap" dim={m.role === "user"} onPress={() => makeUser(i)} />
-                            <RoleBtn icon="crown" color="#5EEAD4" label="Yardımcı Yap" dim={m.role === "mod"} onPress={() => makeMod(i)} />
+                          <Txt size={10.5} color={C.dim2} style={{ marginTop: 2 }}>{m.active ? "Bugün" : "1 gün önce"} aktifti</Txt>
+                        </View>
+                        {canEdit ? (
+                          <View style={[styles.memberArrow, { backgroundColor: isOpen ? "rgba(245,206,110,.15)" : "rgba(255,255,255,.05)", borderColor: isOpen ? C.gold + "44" : "rgba(255,255,255,.1)" }]}>
+                            <Icon name="chev" size={15} color={isOpen ? C.gold2 : C.dim} />
                           </View>
+                        ) : (
+                          <Icon name="user" size={18} color={roleColor} />
                         )}
-                      </View>
-                    );
-                  })}
-                </>
+                      </Pressable>
+                      {isOpen && canEdit && (
+                        <View style={styles.manageActions}>
+                          <RoleBtn icon="trash" color="#FB7185" label="Çıkar" onPress={() => kick(i)} />
+                          <RoleBtn icon="user" color={C.gold2} label="Üye Yap" dim={m.role === "user"} onPress={() => makeUser(i)} />
+                          <RoleBtn icon="crown" color="#5EEAD4" label="Yardımcı Yap" dim={m.role === "mod"} onPress={() => makeMod(i)} />
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
               </ScrollView>
             )}
           </Pressable>
         </Animated.View>
       </Pressable>
-
-      {manageOpen && (
-        <AnimatedPressable entering={FadeIn.duration(140)} style={styles.centerOverlay} onPress={() => setManageOpen(false)}>
-          <Animated.View entering={ZoomIn.springify().damping(15).mass(0.7)}>
-          <Pressable style={[styles.dialog, { maxWidth: 340, alignItems: "stretch" }]}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <Icon name="gear" size={18} color={C.gold} />
-              <Txt weight="displayBold" size={16} color="#fff">Oda Yönetimi</Txt>
-            </View>
-            <View style={{ gap: 8 }}>
-              <ManageRow label="Oda İsmi" value={roomName} onPress={() => openEdit("Oda İsmi", roomName, setRoomName)} />
-              <ManageRow label="Duyuru" value={announce} onPress={() => openEdit("Duyuru", announce, setAnnounce, true)} />
-              <Pressable onPress={() => (locked ? (setLocked(false), setRoomPass("")) : setLockWarn(true))} style={[styles.manageRow, locked && { borderColor: C.gold + "44", backgroundColor: C.gold + "0F" }]}>
-                <Icon name={locked ? "lock" : "unlock"} size={17} color={locked ? C.gold : C.dim} />
-                <Txt weight="bold" size={13} color={locked ? C.gold : C.text} style={{ marginLeft: 10 }}>{locked ? "Kilitli" : "Odayı Kilitle"}</Txt>
-                <View style={{ flex: 1 }} />
-                <View style={[styles.toggle, { backgroundColor: locked ? C.gold : "rgba(255,255,255,.12)", alignItems: locked ? "flex-end" : "flex-start" }]}>
-                  <View style={styles.knob} />
-                </View>
-              </Pressable>
-            </View>
-          </Pressable>
-          </Animated.View>
-        </AnimatedPressable>
-      )}
-
-      {lockWarn && (
-        <AnimatedPressable entering={FadeIn.duration(140)} style={styles.centerOverlay} onPress={() => setLockWarn(false)}>
-          <Animated.View entering={ZoomIn.springify().damping(15).mass(0.7)}>
-          <Pressable style={styles.dialog}>
-            <Gradient colors={["#F5CE6E", "#C8922B"]} deg={135} style={styles.dialogIcon}>
-              <Icon name="lock" size={25} sw={2} color="#3A2A05" />
-            </Gradient>
-            <Txt weight="displayBold" size={16.5} color="#fff" align="center">Odayı Kilitle?</Txt>
-            <Txt size={11.5} color="rgba(255,255,255,.7)" lh={1.6} align="center" style={{ marginTop: 10 }}>
-              Odanı şifrelersen yeni kullanıcılara ve oda listesinde görünmez olur; yalnızca doğrudan katılım yapanlar şifreyle girebilir.
-            </Txt>
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
-              <Pressable onPress={() => setLockWarn(false)} style={[styles.dlgBtn, { backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" }]}>
-                <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
-              </Pressable>
-              <Pressable onPress={() => { setLockWarn(false); setPassInput(""); setLockSheet(true); }} style={{ flex: 1.3, borderRadius: 13, overflow: "hidden" }}>
-                <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={[styles.dlgBtn, { flex: undefined }]}>
-                  <Txt weight="extrabold" size={13} color="#3A2A05">Onayla & Devam</Txt>
-                </Gradient>
-              </Pressable>
-            </View>
-          </Pressable>
-          </Animated.View>
-        </AnimatedPressable>
-      )}
-
-      {lockSheet && (
-        <AnimatedPressable entering={FadeIn.duration(140)} style={styles.centerOverlay} onPress={() => setLockSheet(false)}>
-          <Animated.View entering={ZoomIn.springify().damping(15).mass(0.7)}>
-          <Pressable style={styles.dialog}>
-            <Gradient colors={["#F5CE6E", "#C8922B"]} deg={135} style={styles.dialogIcon}>
-              <Icon name="lock" size={26} sw={2} color="#3A2A05" />
-            </Gradient>
-            <Txt weight="displayBold" size={17} color="#fff" align="center">Oda Şifresi Belirle</Txt>
-            <Txt size={11.5} color={C.dim} lh={1.5} align="center" style={{ marginTop: 8 }}>4 haneli şifre gir. Odaya girmek isteyenler bu şifreyi soracak.</Txt>
-            <View style={{ flexDirection: "row", justifyContent: "center", gap: 10, marginVertical: 20 }}>
-              {[0, 1, 2, 3].map((i) => (
-                <View key={i} style={[styles.passCell, { backgroundColor: passInput[i] ? C.gold + "1A" : "rgba(255,255,255,.05)", borderColor: passInput[i] ? C.gold + "66" : "rgba(255,255,255,.12)" }]}>
-                  <Txt weight="displayBold" size={24} color={C.gold2}>{passInput[i] || ""}</Txt>
-                </View>
-              ))}
-            </View>
-            <View style={styles.keypad}>
-              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"].map((k, i) =>
-                k === "" ? (
-                  <View key={i} style={styles.key} />
-                ) : (
-                  <Pressable key={i} onPress={() => { if (k === "⌫") setPassInput((p) => p.slice(0, -1)); else if (passInput.length < 4) setPassInput((p) => p + k); }} style={[styles.key, styles.keyFilled]}>
-                    <Txt weight="extrabold" size={k === "⌫" ? 16 : 18} color={C.text}>{k}</Txt>
-                  </Pressable>
-                )
-              )}
-            </View>
-            <Pressable onPress={confirmLock} disabled={passInput.length !== 4} style={{ width: "100%", marginTop: 16, borderRadius: 14, overflow: "hidden", opacity: passInput.length === 4 ? 1 : 0.45 }}>
-              <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 14, alignItems: "center" }}>
-                <Txt weight="extrabold" size={14} color="#3A2A05">Kilitle</Txt>
-              </Gradient>
-            </Pressable>
-          </Pressable>
-          </Animated.View>
-        </AnimatedPressable>
-      )}
-
-      {editField && (
-        <AnimatedPressable entering={FadeIn.duration(140)} style={styles.centerOverlay} onPress={() => setEditField(null)}>
-          <Animated.View entering={ZoomIn.springify().damping(15).mass(0.7)}>
-          <Pressable style={[styles.dialog, { maxWidth: 320 }]}>
-            <Txt weight="displayBold" size={16} color="#fff" style={{ marginBottom: 14 }}>{editField.label}</Txt>
-            <TextInput
-              value={tmp}
-              onChangeText={setTmp}
-              autoFocus
-              multiline={editField.multiline}
-              placeholderTextColor={C.dim2}
-              style={[styles.editInput, editField.multiline && { height: 90, textAlignVertical: "top" }]}
-            />
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
-              <Pressable onPress={() => setEditField(null)} style={[styles.dlgBtn, { backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" }]}>
-                <Txt weight="bold" size={13} color={C.text}>İptal</Txt>
-              </Pressable>
-              <Pressable onPress={() => { editField.set(tmp); setEditField(null); }} style={{ flex: 1, borderRadius: 12, overflow: "hidden" }}>
-                <Gradient colors={["#7C3AED", "#5B21B6"]} deg={135} style={styles.dlgBtn}>
-                  <Txt weight="extrabold" size={13} color="#fff">Kaydet</Txt>
-                </Gradient>
-              </Pressable>
-            </View>
-          </Pressable>
-          </Animated.View>
-        </AnimatedPressable>
-      )}
     </Modal>
   );
 }
@@ -372,34 +237,21 @@ const styles = StyleSheet.create({
   sheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: "hidden", borderTopWidth: 1, borderColor: "rgba(255,255,255,.18)", backgroundColor: "rgba(14,12,20,0.6)" },
   sheetFit: { maxHeight: "90%" },
   sheetFull: { height: "86%" },
-  glint: { position: "absolute", top: 0, left: 60, right: 60, height: 1, backgroundColor: "rgba(255,255,255,.55)" },
   handle: { width: 38, height: 4, borderRadius: 4, backgroundColor: "rgba(255,255,255,.2)", alignSelf: "center", marginTop: 12 },
-  gearBtn: { position: "absolute", top: 8, right: 14, zIndex: 5, width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "44" },
   tabbar: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.08)", paddingHorizontal: 8, marginTop: 6 },
   tabBtn: { flex: 1, paddingVertical: 14, alignItems: "center" },
   tabUnderline: { position: "absolute", bottom: -1, width: 28, height: 3, borderRadius: 3 },
+  gearBtn: { position: "absolute", right: 10, top: 8, width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "44" },
   idCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 16, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 4 },
-  followBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, marginTop: 10 },
+  actBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 12, borderRadius: 14 },
   idThumb: { width: 68, height: 68, borderRadius: 14, overflow: "hidden" },
   levelHeader: { flexDirection: "row", alignItems: "center", paddingTop: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.06)" },
   levelTrack: { height: 4, borderRadius: 4, backgroundColor: "rgba(255,255,255,.08)", marginVertical: 8, overflow: "hidden" },
   levelBanner: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.07)", marginBottom: 4 },
   infoRow: { flexDirection: "row", alignItems: "center", paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.06)" },
-  manageRow: { flexDirection: "row", alignItems: "center", paddingVertical: 13, paddingHorizontal: 14, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.07)" },
-  toggle: { width: 42, height: 24, borderRadius: 999, padding: 2, justifyContent: "center" },
-  knob: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },
   searchRow: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 10, paddingHorizontal: 13, borderRadius: 14, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", marginBottom: 14 },
   memberRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.05)" },
   memberArrow: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   manageActions: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.05)" },
   roleIcon: { width: 44, height: 44, borderRadius: 13, alignItems: "center", justifyContent: "center", borderWidth: 1 },
-  centerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(3,3,8,.62)", alignItems: "center", justifyContent: "center", padding: 28 },
-  dialog: { width: "100%", maxWidth: 300, borderRadius: 24, padding: 22, alignItems: "center", backgroundColor: "rgba(28,24,40,0.98)", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
-  dialogIcon: { width: 54, height: 54, borderRadius: 16, alignItems: "center", justifyContent: "center", marginBottom: 14 },
-  dlgBtn: { flex: 1, paddingVertical: 13, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  passCell: { width: 44, height: 54, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1.5 },
-  keypad: { flexDirection: "row", flexWrap: "wrap", gap: 10, width: "100%" },
-  key: { width: "30%", flexGrow: 1, paddingVertical: 14, alignItems: "center", borderRadius: 14 },
-  keyFilled: { backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
-  editInput: { width: "100%", backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: C.text, fontSize: 13.5, fontFamily: "PlusJakartaSans_500Medium" },
 });
