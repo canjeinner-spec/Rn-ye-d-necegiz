@@ -10,8 +10,8 @@ import { RoomBadges } from "@/components/RoomBadges";
 import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
+import { PEOPLE } from "@/data/people";
 import { ROOMS, type Room } from "@/data/seed";
-import { CreateSheet } from "@/sheets/CreateSheet";
 import { RoomPasswordGate } from "@/sheets/RoomPasswordGate";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
@@ -21,10 +21,11 @@ import { Gradient } from "@/theme/Gradient";
 
 function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
   const friendAvatars = room.crowd.slice(0, 3);
+  const coverUri = room.photo || PEOPLE[room.host]?.photo;
   return (
     <Pressable onPress={onPress} style={styles.row}>
       <View style={styles.cover}>
-        {room.photo ? <Image source={{ uri: room.photo }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
+        {coverUri ? <Image source={{ uri: coverUri }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
         {room.locked && (
           <View style={styles.lockTag}>
             <Icon name="lock" size={10} color="#fff" />
@@ -76,7 +77,6 @@ export default function Home() {
   const enterRoom = useApp((s) => s.enterRoom);
   const [tab, setTab] = useState(0);
   const [gateRoom, setGateRoom] = useState<Room | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
 
   const enterAndGo = (room: Room) => {
     haptic.light();
@@ -100,9 +100,7 @@ export default function Home() {
             <Txt weight="displayBold" size={19} color="#fff" style={{ letterSpacing: 2 }}>ARON</Txt>
             <Txt weight="displayBold" size={19} color={C.gold} style={{ letterSpacing: 2 }}>CHAT</Txt>
           </View>
-          <Pressable onPress={() => { haptic.light(); setCreateOpen(true); }} hitSlop={10} style={{ width: 30, alignItems: "flex-end" }}>
-            <Icon name="plus" size={22} color={C.gold} />
-          </Pressable>
+          <View style={{ width: 30 }} />
         </View>
 
         <Tabs items={["Keşfet", "Popüler", "Yakında", "Takip Edilen"]} active={tab} set={setTab} />
@@ -121,8 +119,6 @@ export default function Home() {
           onPass={() => { const r = gateRoom; setGateRoom(null); enterAndGo(r); }}
         />
       )}
-
-      <CreateSheet visible={createOpen} onClose={() => setCreateOpen(false)} onCreate={(r) => { setCreateOpen(false); enterRoom(r); router.navigate("/room"); }} />
     </View>
   );
 }

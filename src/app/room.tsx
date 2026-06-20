@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -153,8 +154,9 @@ function ActionRow({ icon, color, label, onPress }: { icon: IconName; color: str
 
 export default function RoomScreen() {
   const router = useRouter();
-  const { currentRoom, userPhoto, leaveRoom, fireBroadcast } = useApp();
+  const { currentRoom, userPhoto, userName, leaveRoom, fireBroadcast } = useApp();
   const room = currentRoom;
+  const isMine = !!room && (room.owner === true || room.host === "Sen");
 
   const [host] = useState<Seat | null>(() => SEATS.find((s) => s.host) ?? null);
   const [seats, setSeats] = useState<(Seat | null)[]>(() => {
@@ -291,7 +293,7 @@ export default function RoomScreen() {
               </Pressable>
               <Pressable onPress={() => setPanelOpen(true)} style={styles.roomChip}>
                 <View style={styles.thumb}>
-                  <Scene kind={room.scene} />
+                  {room.photo ? <Image source={{ uri: room.photo }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
                 </View>
                 <View style={{ minWidth: 0, flexShrink: 1 }}>
                   <Txt weight="extrabold" size={12.5} color="#fff" numberOfLines={1}>
@@ -336,13 +338,13 @@ export default function RoomScreen() {
           </View>
 
           <View style={styles.stage}>
-            {host && (
-              <Pressable onPress={() => tapOccupant(host)} style={styles.hostSeat}>
+            {(host || isMine) && (
+              <Pressable onPress={() => { if (host && !isMine) tapOccupant(host); }} style={styles.hostSeat}>
                 <View>
-                  {host.speaking && <SpeakingRing />}
-                  <Portrait name={host.name} size={82} muted={host.muted} ring={C.gold} glow />
+                  {host?.speaking && <SpeakingRing />}
+                  <Portrait name={isMine ? "Sen" : host!.name} size={82} muted={host?.muted} ring={C.gold} glow photo={isMine ? userPhoto || undefined : undefined} />
                 </View>
-                <Txt weight="extrabold" size={12} color="#fff" style={{ marginTop: 6 }}>{host.name}</Txt>
+                <Txt weight="extrabold" size={12} color="#fff" style={{ marginTop: 6 }}>{isMine ? userName : host!.name}</Txt>
                 <View style={{ marginTop: 4 }}>
                   <RolePill type="host" />
                 </View>

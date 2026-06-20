@@ -7,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Portrait } from "@/components/Portrait";
 import { Scene } from "@/components/Scene";
 import { Txt } from "@/components/Txt";
+import { PEOPLE } from "@/data/people";
 import { ROOMS, type Room } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
@@ -20,7 +21,7 @@ function RoomCard({ room, onPress }: { room: Room; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={styles.card}>
       <View style={styles.cardThumb}>
-        {room.photo ? <Image source={{ uri: room.photo }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
+        {(room.photo || PEOPLE[room.host]?.photo) ? <Image source={{ uri: room.photo || PEOPLE[room.host]?.photo || "" }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
@@ -84,10 +85,10 @@ export default function MyRoomHub() {
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Txt weight="extrabold" size={15} color="#fff" numberOfLines={1}>{myRoom ? myRoom.name : `${userName} Odası`}</Txt>
-              <Txt weight="semibold" size={11.5} color="#C4B5FD" style={{ marginTop: 4 }}>{myRoom ? "Odana geri dön" : "Odana hoş geldin — açmak için dokun"}</Txt>
+              <Txt weight="semibold" size={11.5} color="#C4B5FD" style={{ marginTop: 4 }}>{myRoom ? "Odana geri dön" : "Henüz odan yok — oluşturmak için dokun"}</Txt>
             </View>
             <Gradient colors={["#A855F7", "#6D28D9"]} deg={135} style={styles.mineBtn}>
-              <Txt weight="extrabold" size={12.5} color="#fff">{myRoom ? "Gir" : "Aç"}</Txt>
+              <Txt weight="extrabold" size={12.5} color="#fff">{myRoom ? "Gir" : "Oluştur"}</Txt>
               <Icon name="chev" size={13} color="#fff" />
             </Gradient>
           </Pressable>
