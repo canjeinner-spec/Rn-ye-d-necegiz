@@ -16,7 +16,11 @@ type PillProps = {
   textStyle?: StyleProp<TextStyle>;
 };
 
+const isPrim = (c: ReactNode): boolean => typeof c === "string" || typeof c === "number";
+
 export function Pill({ children, bg, color = "#fff", border, style, textStyle }: PillProps) {
+  // string / sayı / "{sayı} metin" gibi primitif-dizi içerikleri otomatik Txt'e sarar
+  const wrap = isPrim(children) || (Array.isArray(children) && children.every(isPrim));
   return (
     <View
       style={[
@@ -26,7 +30,7 @@ export function Pill({ children, bg, color = "#fff", border, style, textStyle }:
         style,
       ]}
     >
-      {typeof children === "string" ? (
+      {wrap ? (
         <Txt weight="extrabold" size={10} color={color} style={[{ letterSpacing: 0.3 }, textStyle]}>
           {children}
         </Txt>
