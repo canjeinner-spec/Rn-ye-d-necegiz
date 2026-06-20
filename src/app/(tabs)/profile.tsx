@@ -138,7 +138,7 @@ export default function ProfileTab() {
             ))}
           </View>
 
-          <Pressable onPress={ahead("Cüzdan")} style={styles.wallet}>
+          <Pressable onPress={() => router.navigate("/wallet")} style={styles.wallet}>
             <Txt weight="displayBold" size={15} color={C.text}>Cüzdan</Txt>
             <Icon name="chev" size={15} color={C.dim} />
             <View style={{ flex: 1 }} />
