@@ -28,8 +28,9 @@ const PUBLIC_ID = "4407";
 
 export default function ProfileTab() {
   const router = useRouter();
-  const { userName, userBio, userPhoto, setUserPhoto, isStreamer, setStreamer } = useApp();
+  const { userName, userBio, userPhoto, setUserPhoto, isStreamer, setStreamer, role, setRole, hideProfile, setHideProfile } = useApp();
   const [lang, setLang] = useState("Türkçe");
+  const privileged = role !== "user";
   const [editOpen, setEditOpen] = useState(false);
   const [couponOpen, setCouponOpen] = useState(false);
   const [info, setInfo] = useState<InfoMode | null>(null);
@@ -43,7 +44,7 @@ export default function ProfileTab() {
   };
 
   const badges: BadgeItem[] = [
-    { type: "developer" },
+    ...(role === "super_admin" ? [{ type: "super_admin" as const }] : role === "developer" ? [{ type: "developer" as const }] : []),
     { type: "vip" },
     { type: "level", lvl: 12 },
     { type: "agency", meta: { id: "1", name: "Aron Stars", owner: "Ardaowski" } },
@@ -110,7 +111,15 @@ export default function ProfileTab() {
               </View>
             </Pressable>
             <View style={{ paddingBottom: 6 }}>
-              <Txt weight="displayBold" size={19} color="#fff">{userName}</Txt>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+                <Txt weight="displayBold" size={19} color="#fff">{userName}</Txt>
+                {hideProfile && (
+                  <View style={styles.hiddenPill}>
+                    <Icon name="eye" size={11} color={C.gold2} />
+                    <Txt weight="extrabold" size={9} color={C.gold2}>Gizli</Txt>
+                  </View>
+                )}
+              </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
                 <Txt weight="semibold" size={10.5} color={C.dim}>ID: {PUBLIC_ID}</Txt>
                 <Icon name="copy" size={12} color={C.dim2} />
@@ -164,6 +173,29 @@ export default function ProfileTab() {
             </View>
           </Pressable>
 
+          <View style={styles.roleRow}>
+            <Txt weight="semibold" size={11} color={C.dim} style={{ flex: 1 }}>Demo · Rol</Txt>
+            {(["user", "developer", "super_admin"] as const).map((r) => {
+              const on = role === r;
+              const col = r === "super_admin" ? "#EF4444" : r === "developer" ? "#A78BFA" : C.dim;
+              return (
+                <Pressable key={r} onPress={() => { haptic.select(); setRole(r); }} style={[styles.roleChip, { borderColor: on ? col : C.line, backgroundColor: on ? col + "1F" : "transparent" }]}>
+                  <Txt weight="extrabold" size={10} color={on ? col : C.dim2}>{r === "user" ? "Üye" : r === "developer" ? "Dev" : "Admin"}</Txt>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {privileged && (
+            <Pressable onPress={() => { haptic.light(); setHideProfile(!hideProfile); }} style={styles.streamerToggle}>
+              <Icon name="eye" size={15} color={hideProfile ? C.gold2 : C.dim} />
+              <Txt weight="semibold" size={11} color={C.dim} style={{ flex: 1 }}>Profili gizle (yetkili)</Txt>
+              <View style={[styles.toggle, { backgroundColor: hideProfile ? C.gold : "rgba(255,255,255,.12)", alignItems: hideProfile ? "flex-end" : "flex-start" }]}>
+                <View style={styles.knob} />
+              </View>
+            </Pressable>
+          )}
+
           {renderMenu(menu)}
           {renderMenu(settings)}
         </View>
@@ -184,6 +216,9 @@ const styles = StyleSheet.create({
   tileRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 18, backgroundColor: "rgba(255,255,255,.03)", borderRadius: 20, paddingVertical: 16, paddingHorizontal: 8 },
   wallet: { flexDirection: "row", alignItems: "center", marginTop: 16, backgroundColor: "rgba(255,255,255,.03)", borderRadius: 20, padding: 16 },
   streamerToggle: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderStyle: "dashed", borderColor: C.line, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14 },
+  roleRow: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 10, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderStyle: "dashed", borderColor: C.line, borderRadius: 14, paddingVertical: 8, paddingHorizontal: 14 },
+  roleChip: { paddingVertical: 5, paddingHorizontal: 11, borderRadius: 999, borderWidth: 1 },
+  hiddenPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "44", borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8 },
   toggle: { width: 38, height: 22, borderRadius: 999, padding: 2, justifyContent: "center" },
   knob: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#fff" },
   menuGroup: { marginTop: 14, backgroundColor: "rgba(255,255,255,.03)", borderRadius: 20, padding: 6 },

@@ -88,6 +88,8 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
 export default function Home() {
   const router = useRouter();
   const enterRoom = useApp((s) => s.enterRoom);
+  const role = useApp((s) => s.role);
+  const privileged = role !== "user";
   const [tab, setTab] = useState(0);
   const [gateRoom, setGateRoom] = useState<Room | null>(null);
 
@@ -98,7 +100,8 @@ export default function Home() {
   };
   const onRoomPress = (room: Room) => {
     haptic.light();
-    if (room.locked) setGateRoom(room);
+    // developer / süper admin kilitli odaya şifresiz girer
+    if (room.locked && !privileged) setGateRoom(room);
     else enterAndGo(room);
   };
 

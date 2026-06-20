@@ -172,7 +172,8 @@ function ActionRow({ icon, color, label, onPress }: { icon: IconName; color: str
 
 export default function RoomScreen() {
   const router = useRouter();
-  const { currentRoom, userPhoto, userName, roomName, roomAnnounce, roomLocked, leaveRoom, fireBroadcast } = useApp();
+  const { currentRoom, userPhoto, userName, roomName, roomAnnounce, roomLocked, role, leaveRoom, fireBroadcast } = useApp();
+  const privileged = role !== "user";
   const room = currentRoom;
   const isMine = !!room && (room.owner === true || room.host === "Sen");
 
@@ -281,9 +282,14 @@ export default function RoomScreen() {
     onKickMic: () => setSeats((p) => p.map((t) => (t && t.name === s.name ? null : t))),
     onKickRoom: () => setSeats((p) => p.map((t) => (t && t.name === s.name ? null : t))),
   });
+  const hostActions = () => ({
+    onMute: () => setHost((h) => (h ? { ...h, muted: !h.muted } : h)),
+    onKickMic: () => setHost(null),
+    onKickRoom: () => setHost(null),
+  });
   const tapOccupant = (s: Seat) => {
     if (s.name === "Sen") setSeatSheet(seats.findIndex((t) => t?.name === "Sen"));
-    else setCardUser({ ...s, viewerRole: MY_ROLE, ...seatActions(s) });
+    else setCardUser({ ...s, viewerRole: MY_ROLE, ...(s.host ? hostActions() : seatActions(s)) });
   };
   const openByName = (name: string) => {
     const s = occupants.find((o) => o.name === name);
@@ -529,7 +535,7 @@ export default function RoomScreen() {
       )}
 
       {cardUser && (
-        <ProfileCard user={cardUser} onClose={() => setCardUser(null)} onDM={() => setCardUser(null)} onViewProfile={() => { const u = cardUser; setCardUser(null); router.navigate(`/user-profile?name=${encodeURIComponent(u.name)}&lv=${u.lv}`); }} />
+        <ProfileCard user={cardUser} superPower={privileged} onClose={() => setCardUser(null)} onDM={() => setCardUser(null)} onViewProfile={() => { const u = cardUser; setCardUser(null); router.navigate(`/user-profile?name=${encodeURIComponent(u.name)}&lv=${u.lv}`); }} />
       )}
 
       {contribOpen && (

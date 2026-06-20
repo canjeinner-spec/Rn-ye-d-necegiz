@@ -11,6 +11,8 @@ export type BroadcastData = {
   gift: { tier: "normal" | "rare" | "epic" | "legendary"; emoji: string; name: string };
 };
 
+export type UserRole = "user" | "developer" | "super_admin";
+
 type AppState = {
   girisYapildi: boolean;
   setGirisYapildi: (v: boolean) => void;
@@ -19,6 +21,10 @@ type AppState = {
   userBio: string;
   userPhoto: string | null;
   isStreamer: boolean;
+  role: UserRole;
+  hideProfile: boolean;
+  setRole: (r: UserRole) => void;
+  setHideProfile: (v: boolean) => void;
   myRoom: Room | null;
   currentRoom: Room | null;
   inRoom: boolean;
@@ -59,6 +65,10 @@ export const useApp = create<AppState>((set, get) => ({
   userBio: "",
   userPhoto: null,
   isStreamer: false,
+  role: "user",
+  hideProfile: false,
+  setRole: (r) => set({ role: r }),
+  setHideProfile: (v) => set({ hideProfile: v }),
   myRoom: null,
   currentRoom: null,
   inRoom: false,

@@ -52,16 +52,19 @@ export function ProfileCard({
   onClose,
   onDM,
   onViewProfile,
+  superPower = false,
 }: {
   user: ProfileCardUser;
   onClose: () => void;
   onDM?: (u: ProfileCardUser) => void;
   onViewProfile?: () => void;
+  superPower?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const viewerRole = user.viewerRole || "user";
-  const canManage = viewerRole === "host" || viewerRole === "mod";
+  const canManage = viewerRole === "host" || viewerRole === "mod" || superPower;
   const isOwner = !!user.host;
+  const canManageTarget = canManage && (!isOwner || superPower);
 
   const [gearOpen, setGearOpen] = useState(false);
   const [toast, setToast] = useState<{ msg: string; color: string } | null>(null);
@@ -86,7 +89,7 @@ export function ProfileCard({
   const GEAR = [
     { icon: "micoff" as IconName, label: user.muted ? "Mikrofonu Aç" : "Mikrofonu Sustur", color: C.gold, fn: () => doAction(user.muted ? `${user.name} mikrofonu açıldı.` : `${user.name} susturuldu.`, user.onMute) },
     { icon: "mickick" as IconName, label: "Mikrofondan At", color: C.red, fn: () => doAction(`${user.name} mikrofondan atıldı.`, user.onKickMic, C.red) },
-    { icon: "door" as IconName, label: "Odadan Çıkar", color: C.red, fn: () => doAction(`${user.name} odadan çıkarıldı.`, user.onKickRoom, C.red) },
+    { icon: "door" as IconName, label: isOwner ? "Oda Sahibini At" : "Odadan Çıkar", color: C.red, fn: () => doAction(isOwner ? `${user.name} (oda sahibi) atıldı.` : `${user.name} odadan çıkarıldı.`, user.onKickRoom, C.red) },
   ];
 
   return (
@@ -153,7 +156,7 @@ export function ProfileCard({
                     <Pressable onPress={onClose} style={styles.iconBtn}>
                       <Icon name="x" size={15} color={C.text} />
                     </Pressable>
-                    {canManage && !isOwner ? (
+                    {canManageTarget ? (
                       <Pressable onPress={() => setGearOpen((v) => !v)} style={[styles.iconBtn, { borderColor: gearOpen ? C.gold : C.line, backgroundColor: gearOpen ? C.gold + "14" : "rgba(255,255,255,.05)" }]}>
                         <Icon name="gear" size={16} color={gearOpen ? C.gold : C.text} />
                       </Pressable>
@@ -162,7 +165,7 @@ export function ProfileCard({
                     )}
                   </View>
 
-                  {gearOpen && canManage && !isOwner && (
+                  {gearOpen && canManageTarget && (
                     <View style={styles.gearMenu}>
                       <Txt weight="bold" size={9} color={C.dim} style={{ padding: 12, paddingBottom: 6, letterSpacing: 0.5 }}>YÖNETİCİ İŞLEMLERİ</Txt>
                       {GEAR.map((a) => (
