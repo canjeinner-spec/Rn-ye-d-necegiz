@@ -32,10 +32,10 @@ function InfoBanner({ b }: { b: EventBanner }) {
         {b.kind === "update" ? (
           <View style={styles.emblem}>
             <Gradient colors={[b.accent, b.accent + "55"]} deg={150} style={StyleSheet.absoluteFill} />
-            <Icon name="evStar" size={26} color="#08201C" />
+            <Icon name="evStar" size={30} color="#08201C" />
           </View>
         ) : (
-          <AronMark s={54} />
+          <AronMark s={62} />
         )}
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
@@ -132,9 +132,9 @@ export function EventBanners() {
 }
 
 const styles = StyleSheet.create({
-  banner: { height: 92, borderRadius: 18, overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
+  banner: { height: 118, borderRadius: 20, overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
   glow: { position: "absolute", right: -28, top: -34, width: 150, height: 150, borderRadius: 75 },
-  emblem: { width: 54, height: 54, borderRadius: 17, overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.2)" },
+  emblem: { width: 62, height: 62, borderRadius: 19, overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.2)" },
   tag: { paddingVertical: 1.5, paddingHorizontal: 6, borderRadius: 5 },
   title: { textShadowColor: "rgba(0,0,0,.45)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
   dots: { flexDirection: "row", justifyContent: "center", gap: 5, marginTop: 9 },
