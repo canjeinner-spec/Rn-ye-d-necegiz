@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Eq } from "@/components/Eq";
+import { EventBanners } from "@/components/EventBanners";
 import { Portrait } from "@/components/Portrait";
 import { RoomBadges } from "@/components/RoomBadges";
 import { Scene } from "@/components/Scene";
@@ -105,10 +106,13 @@ export default function Home() {
 
         <Tabs items={["Keşfet", "Popüler", "Yakında", "Takip Edilen"]} active={tab} set={setTab} />
 
-        <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 120, gap: 10 }} showsVerticalScrollIndicator={false}>
-          {ROOMS.map((r) => (
-            <RoomRow key={r.id} room={r} onPress={() => onRoomPress(r)} />
-          ))}
+        <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+          <EventBanners />
+          <View style={{ paddingHorizontal: 12, paddingTop: 14, gap: 10 }}>
+            {ROOMS.map((r) => (
+              <RoomRow key={r.id} room={r} onPress={() => onRoomPress(r)} />
+            ))}
+          </View>
         </ScrollView>
       </SafeAreaView>
 
