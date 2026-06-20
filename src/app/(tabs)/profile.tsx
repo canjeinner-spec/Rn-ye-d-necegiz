@@ -9,7 +9,6 @@ import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { MenuIcon } from "@/components/MenuIcon";
 import { Pill } from "@/components/Pill";
 import { Portrait } from "@/components/Portrait";
-import { Sheet } from "@/components/Sheet";
 import { TileIcon, type TileType } from "@/components/TileIcon";
 import { Txt } from "@/components/Txt";
 import { type BadgeItem } from "@/data/badges";
@@ -31,14 +30,12 @@ const PUBLIC_ID = "4407";
 export default function ProfileTab() {
   const router = useRouter();
   const { userName, userBio, userPhoto, setUserPhoto, isStreamer, setStreamer } = useApp();
-  const [stub, setStub] = useState<string | null>(null);
   const [lang, setLang] = useState("Türkçe");
   const [editOpen, setEditOpen] = useState(false);
   const [couponOpen, setCouponOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
   const [info, setInfo] = useState<InfoMode | null>(null);
 
-  const ahead = (label: string) => () => setStub(`${label} — Aşama 5`);
   const goMyRoom = () => { haptic.light(); router.navigate("/my-room"); };
   const openSheet = (fn: () => void) => () => { haptic.light(); fn(); };
 
@@ -175,11 +172,6 @@ export default function ProfileTab() {
           {renderMenu(settings)}
         </View>
       </ScrollView>
-
-      <Sheet visible={!!stub} onClose={() => setStub(null)} contentStyle={{ alignItems: "center" }}>
-        <Icon name="gear" size={28} color={C.dim} />
-        <Txt weight="bold" size={13} color={C.dim} style={{ marginTop: 12, marginBottom: 4 }}>{stub}</Txt>
-      </Sheet>
 
       <EditProfileSheet visible={editOpen} onClose={() => setEditOpen(false)} />
       <CouponSheet visible={couponOpen} onClose={() => setCouponOpen(false)} />
