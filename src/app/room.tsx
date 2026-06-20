@@ -509,7 +509,7 @@ export default function RoomScreen() {
       )}
 
       {cardUser && (
-        <ProfileCard user={cardUser} onClose={() => setCardUser(null)} onDM={() => setCardUser(null)} onViewProfile={() => setCardUser(null)} />
+        <ProfileCard user={cardUser} onClose={() => setCardUser(null)} onDM={() => setCardUser(null)} onViewProfile={() => { const u = cardUser; setCardUser(null); router.navigate(`/user-profile?name=${encodeURIComponent(u.name)}&lv=${u.lv}`); }} />
       )}
 
       {contribOpen && (

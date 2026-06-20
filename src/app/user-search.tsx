@@ -123,7 +123,12 @@ export default function UserSearchScreen() {
       </SafeAreaView>
 
       {card && (
-        <ProfileCard user={card} onClose={() => setCard(null)} onDM={openDM} onViewProfile={() => setCard(null)} />
+        <ProfileCard
+          user={card}
+          onClose={() => setCard(null)}
+          onDM={openDM}
+          onViewProfile={() => { const u = card; setCard(null); router.navigate(`/user-profile?name=${encodeURIComponent(u.name)}&lv=${u.lv}`); }}
+        />
       )}
     </View>
   );
