@@ -64,7 +64,7 @@ export function Portrait({
       >
         {/* taban silüet */}
         <Svg viewBox="0 0 100 100" width="100%" height="100%" style={StyleSheet.absoluteFill}>
-          <RadialGradient id={gid} cx="35%" cy="22%" r="95%">
+          <RadialGradient id={gid} cx="50%" cy="32%" r="120%">
             <Stop offset="0%" stopColor={p.bg[0]} />
             <Stop offset="100%" stopColor={p.bg[1]} />
           </RadialGradient>

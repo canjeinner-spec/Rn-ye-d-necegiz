@@ -21,5 +21,6 @@ export const PEOPLE: Record<string, Person> = {
   Ardaowski: { bg: ["#241345", "#0E081E"], hair: "#17171F", style: "short", acc: "#B79CFF", photo: "https://i.pravatar.cc/150?img=14" },
   Melis: { bg: ["#33161E", "#150A12"], hair: "#4E3526", style: "long", acc: "#F2B8C6", photo: "https://i.pravatar.cc/150?img=24" },
   Rüya: { bg: ["#2A1140", "#120822"], hair: "#5E2D86", style: "long", acc: "#C99CFF", photo: "https://i.pravatar.cc/150?img=47" },
+  Aron: { bg: ["#241B0A", "#0E0A04"], hair: "#22180F", style: "short", acc: C.gold2, photo: "https://i.pravatar.cc/150?img=68" },
   Sen: { bg: ["#332407", "#171005"], hair: "#22180F", style: "short", acc: C.gold2 },
 };
