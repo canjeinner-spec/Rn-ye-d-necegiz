@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
+import { FEATURES } from "@/lib/features";
 import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
@@ -31,6 +32,8 @@ export function BottomNav({ state, navigation }: BottomTabBarProps) {
         {state.routes.map((route, i) => {
           const meta = META[route.name];
           if (!meta) return null;
+          // MVP: Sıralama sekmesi gizli (FEATURES.rankTab) — ekran sidebar'dan açılır
+          if (route.name === "rank" && !FEATURES.rankTab) return null;
           const on = state.index === i;
           const color = on ? C.gold : C.dim2;
           const onPress = () => {

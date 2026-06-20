@@ -10,6 +10,7 @@ import { Portrait } from "@/components/Portrait";
 import { RoomBadges } from "@/components/RoomBadges";
 import { RoomCrest, RoomTopTag, type RoomTier } from "@/components/RoomTopTag";
 import { Scene } from "@/components/Scene";
+import { SideMenu } from "@/components/SideMenu";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { PEOPLE } from "@/data/people";
@@ -92,6 +93,7 @@ export default function Home() {
   const privileged = role !== "user";
   const [tab, setTab] = useState(0);
   const [gateRoom, setGateRoom] = useState<Room | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const enterAndGo = (room: Room) => {
     haptic.light();
@@ -109,14 +111,16 @@ export default function Home() {
     <View style={styles.root}>
       <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.navigate("/preview")} hitSlop={10} style={{ width: 30 }}>
-            <Icon name="search" size={20} color={C.dim} />
+          <Pressable onPress={() => { haptic.light(); setMenuOpen(true); }} hitSlop={8} style={styles.roundBtn}>
+            <Icon name="menu" size={20} color={C.text} />
           </Pressable>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
             <Txt weight="displayBold" size={19} color="#fff" style={{ letterSpacing: 2 }}>ARON</Txt>
             <Txt weight="displayBold" size={19} color={C.gold} style={{ letterSpacing: 2 }}>CHAT</Txt>
           </View>
-          <View style={{ width: 30 }} />
+          <Pressable onPress={() => router.navigate("/preview")} hitSlop={8} style={styles.roundBtn}>
+            <Icon name="search" size={19} color={C.text} />
+          </Pressable>
         </View>
 
         <Tabs items={["Keşfet", "Popüler", "Yakında", "Takip Edilen"]} active={tab} set={setTab} />
@@ -138,6 +142,8 @@ export default function Home() {
           onPass={() => { const r = gateRoom; setGateRoom(null); enterAndGo(r); }}
         />
       )}
+
+      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </View>
   );
 }
@@ -145,6 +151,7 @@ export default function Home() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
+  roundBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
   row: {
     flexDirection: "row",
     alignItems: "center",

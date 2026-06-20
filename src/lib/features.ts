@@ -18,4 +18,6 @@ export const FEATURES = {
   store: false,
   /** Profil menüsündeki "Aron VIP" girişi */
   vip: false,
+  /** Alt navigasyondaki "Sıralama" sekmesi (rank ekranı sidebar'dan erişilir) */
+  rankTab: false,
 } as const;
