@@ -92,3 +92,21 @@ export const RANKS: { name: string; coins: string }[] = [
   { name: "Rüya", coins: "518K" },
   { name: "Furkan", coins: "390K" },
 ];
+
+export const AGENCY_RANKS: { name: string; owner: string; members: number; score: string }[] = [
+  { name: "Aron Stars", owner: "Ardaowski", members: 48, score: "12.6M" },
+  { name: "Gece Kulübü", owner: "Mervee", members: 35, score: "9.2M" },
+  { name: "Elysion", owner: "Lunas", members: 29, score: "7.8M" },
+  { name: "Matador", owner: "Zeno Sv.", members: 22, score: "5.1M" },
+  { name: "Vice", owner: "Ender", members: 18, score: "3.6M" },
+  { name: "Meyhane", owner: "Rüya", members: 14, score: "2.4M" },
+];
+
+export const STREAMER_RANKS: { name: string; agency: string; coins: string }[] = [
+  { name: "Mervee", agency: "Gece Kulübü", coins: "1.8M" },
+  { name: "Lunas", agency: "Elysion", coins: "1.2M" },
+  { name: "Rüya", agency: "Meyhane", coins: "940K" },
+  { name: "Ender", agency: "Vice", coins: "610K" },
+  { name: "Zeno Sv.", agency: "Matador", coins: "455K" },
+  { name: "Furkan", agency: "Aron Stars", coins: "300K" },
+];
