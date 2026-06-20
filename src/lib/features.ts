@@ -30,4 +30,8 @@ export const FEATURES = {
   notifications: false,
   /** DM'deki "Ziyaretçi" kısayolu (ekran profilden de açılır) */
   visitors: false,
+  /** Başkasının profilindeki "Hediye" bölümü (Hediye Gönder) */
+  profileGift: false,
+  /** DM sohbet kutusundaki hediye butonu */
+  dmGift: false,
 } as const;

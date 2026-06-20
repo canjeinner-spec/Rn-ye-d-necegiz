@@ -15,6 +15,7 @@ import { DM_THREADS, type DMThread } from "@/data/dm";
 import { type Gift } from "@/data/gifts";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
+import { FEATURES } from "@/lib/features";
 import { haptic } from "@/lib/haptics";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { useApp } from "@/store/appStore";
@@ -149,25 +150,28 @@ export default function UserProfileScreen() {
                 <Txt weight="semibold" size={12} color={C.dim}>959 oda</Txt>
                 <Icon name="chev" size={15} color={C.dim2} />
               </View>
-              <View style={{ padding: 16, paddingBottom: 0 }}>
-                <Txt weight="extrabold" size={13.5} color={C.text} style={{ marginBottom: 10 }}>Hediye</Txt>
-                <Pressable onPress={() => { haptic.light(); setGiftOpen(true); }} style={styles.giftCard}>
-                  <View style={styles.giftIcon}>
-                    <Icon name="crown" size={17} color={C.gold2} />
+              {/* MVP: Hediye bölümü gizli (FEATURES.profileGift) */}
+              {FEATURES.profileGift && (
+                <View style={{ padding: 16, paddingBottom: 0 }}>
+                  <Txt weight="extrabold" size={13.5} color={C.text} style={{ marginBottom: 10 }}>Hediye</Txt>
+                  <Pressable onPress={() => { haptic.light(); setGiftOpen(true); }} style={styles.giftCard}>
+                    <View style={styles.giftIcon}>
+                      <Icon name="crown" size={17} color={C.gold2} />
+                    </View>
+                    <Txt weight="extrabold" size={13} color="#fff">Hediye Sergi Salonu</Txt>
+                    <View style={{ flex: 1 }} />
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Txt weight="extrabold" size={11.5} color={C.gold2}>Hediye Gönder</Txt>
+                      <Icon name="chev" size={13} color={C.gold2} />
+                    </View>
+                  </Pressable>
+                  <View style={{ flexDirection: "row", marginTop: 12 }}>
+                    <Txt size={11} color={C.dim}>Normal Hediyeler: </Txt>
+                    <Txt weight="bold" size={11} color={C.text}>4.926</Txt>
+                    <Txt size={11} color={C.dim}> toplandı</Txt>
                   </View>
-                  <Txt weight="extrabold" size={13} color="#fff">Hediye Sergi Salonu</Txt>
-                  <View style={{ flex: 1 }} />
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                    <Txt weight="extrabold" size={11.5} color={C.gold2}>Hediye Gönder</Txt>
-                    <Icon name="chev" size={13} color={C.gold2} />
-                  </View>
-                </Pressable>
-                <View style={{ flexDirection: "row", marginTop: 12 }}>
-                  <Txt size={11} color={C.dim}>Normal Hediyeler: </Txt>
-                  <Txt weight="bold" size={11} color={C.text}>4.926</Txt>
-                  <Txt size={11} color={C.dim}> toplandı</Txt>
                 </View>
-              </View>
+              )}
             </View>
           ) : (
             <View style={{ padding: 18 }}>

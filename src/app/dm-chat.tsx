@@ -11,6 +11,7 @@ import { GiftSheet } from "@/sheets/GiftSheet";
 import { ARON_POSTS, SYSTEM_POSTS } from "@/data/dm";
 import { type Gift } from "@/data/gifts";
 import { Icon } from "@/icons/Icon";
+import { FEATURES } from "@/lib/features";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
@@ -179,9 +180,12 @@ export default function DMChatScreen() {
             <View style={styles.inputWrap}>
               <TextInput value={input} onChangeText={setInput} onSubmitEditing={send} placeholder="Mesajını yaz..." placeholderTextColor={C.dim2} style={styles.input} returnKeyType="send" />
             </View>
-            <Pressable onPress={() => setGiftOpen(true)} style={styles.giftBtn}>
-              <Icon name="crown" size={18} color={C.gold2} />
-            </Pressable>
+            {/* MVP: hediye butonu gizli (FEATURES.dmGift) */}
+            {FEATURES.dmGift && (
+              <Pressable onPress={() => setGiftOpen(true)} style={styles.giftBtn}>
+                <Icon name="crown" size={18} color={C.gold2} />
+              </Pressable>
+            )}
             <Pressable onPress={send} style={{ borderRadius: 22, overflow: "hidden" }}>
               <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.sendBtn}>
                 <Icon name="send" size={17} sw={2} color="#241A05" />
