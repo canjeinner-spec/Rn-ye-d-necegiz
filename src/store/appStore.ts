@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { type DMThread } from "@/data/dm";
 import { type Room } from "@/data/seed";
 
 export type BroadcastData = {
@@ -21,6 +22,8 @@ type AppState = {
   currentRoom: Room | null;
   inRoom: boolean;
   broadcast: BroadcastData | null;
+  activeDM: DMThread | null;
+  setActiveDM: (d: DMThread | null) => void;
 
   setUserName: (n: string) => void;
   setUserPhoto: (p: string | null) => void;
@@ -48,6 +51,8 @@ export const useApp = create<AppState>((set, get) => ({
   currentRoom: null,
   inRoom: false,
   broadcast: null,
+  activeDM: null,
+  setActiveDM: (d) => set({ activeDM: d }),
 
   setUserName: (n) => set({ userName: n }),
   setUserPhoto: (p) => set({ userPhoto: p }),
