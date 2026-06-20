@@ -22,7 +22,7 @@ const QUICK: { ic: IconName; t: string; g1: string; g2: string; badge?: number; 
   { ic: "userAdd", t: "Arkadaşlık", g1: "#34D399", g2: "#059669", badge: 2, route: "/friends", flag: FEATURES.friends },
   { ic: "mega", t: "Etkinlik", g1: "#60A5FA", g2: "#2563EB", route: "/events", flag: FEATURES.events },
   { ic: "bell", t: "Bildirim", g1: "#F5CE6E", g2: "#C8922B", badge: 5, route: "/notifications", flag: FEATURES.notifications },
-  { ic: "eye", t: "Ziyaretçi", g1: "#A855F7", g2: "#7C3AED", route: "/visitors" },
+  { ic: "eye", t: "Ziyaretçi", g1: "#A855F7", g2: "#7C3AED", route: "/visitors", flag: FEATURES.visitors },
 ];
 
 function Avatar({ d }: { d: DMThread }) {
@@ -62,6 +62,7 @@ export default function DmTab() {
           </Pressable>
         </View>
 
+        {QUICK.some((q) => q.flag !== false) && (
         <View style={styles.quickRow}>
           {QUICK.filter((q) => q.flag !== false).map((q) => (
             <Pressable key={q.t} onPress={() => { haptic.light(); q.route ? router.navigate(q.route as never) : setStub(`${q.t} — Aşama 5`); }} style={{ width: 74, alignItems: "center", gap: 8 }}>
@@ -80,6 +81,7 @@ export default function DmTab() {
             </Pressable>
           ))}
         </View>
+        )}
 
         <Tabs items={["Tümü", "Okunmamış", "Online"]} active={tab} set={setTab} />
 

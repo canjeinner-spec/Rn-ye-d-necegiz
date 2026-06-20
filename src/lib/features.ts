@@ -28,4 +28,6 @@ export const FEATURES = {
   events: false,
   /** DM'deki "Bildirim" kısayolu */
   notifications: false,
+  /** DM'deki "Ziyaretçi" kısayolu (ekran profilden de açılır) */
+  visitors: false,
 } as const;
