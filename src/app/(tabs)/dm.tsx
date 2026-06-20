@@ -11,15 +11,17 @@ import { Txt } from "@/components/Txt";
 import { DM_THREADS, type DMThread } from "@/data/dm";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
+import { FEATURES } from "@/lib/features";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
-const QUICK: { ic: IconName; t: string; g1: string; g2: string; badge?: number; route?: string }[] = [
-  { ic: "userAdd", t: "Arkadaşlık", g1: "#34D399", g2: "#059669", badge: 2, route: "/friends" },
-  { ic: "mega", t: "Etkinlik", g1: "#60A5FA", g2: "#2563EB", route: "/events" },
-  { ic: "bell", t: "Bildirim", g1: "#F5CE6E", g2: "#C8922B", badge: 5, route: "/notifications" },
+// MVP: Arkadaşlık / Etkinlik / Bildirim kısayolları gizli (FEATURES.*) — ekranlar duruyor
+const QUICK: { ic: IconName; t: string; g1: string; g2: string; badge?: number; route?: string; flag?: boolean }[] = [
+  { ic: "userAdd", t: "Arkadaşlık", g1: "#34D399", g2: "#059669", badge: 2, route: "/friends", flag: FEATURES.friends },
+  { ic: "mega", t: "Etkinlik", g1: "#60A5FA", g2: "#2563EB", route: "/events", flag: FEATURES.events },
+  { ic: "bell", t: "Bildirim", g1: "#F5CE6E", g2: "#C8922B", badge: 5, route: "/notifications", flag: FEATURES.notifications },
   { ic: "eye", t: "Ziyaretçi", g1: "#A855F7", g2: "#7C3AED", route: "/visitors" },
 ];
 
@@ -61,8 +63,8 @@ export default function DmTab() {
         </View>
 
         <View style={styles.quickRow}>
-          {QUICK.map((q) => (
-            <Pressable key={q.t} onPress={() => { haptic.light(); q.route ? router.navigate(q.route as never) : setStub(`${q.t} — Aşama 5`); }} style={{ flex: 1, alignItems: "center", gap: 8 }}>
+          {QUICK.filter((q) => q.flag !== false).map((q) => (
+            <Pressable key={q.t} onPress={() => { haptic.light(); q.route ? router.navigate(q.route as never) : setStub(`${q.t} — Aşama 5`); }} style={{ width: 74, alignItems: "center", gap: 8 }}>
               <View>
                 <Gradient colors={[q.g1, q.g2]} deg={135} style={styles.quickTile}>
                   <Gradient colors={["rgba(255,255,255,.22)", "rgba(255,255,255,0)"]} deg={180} locations={[0, 0.55]} style={StyleSheet.absoluteFill} pointerEvents="none" />
@@ -148,7 +150,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18, paddingTop: 10, paddingBottom: 8 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  quickRow: { flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14 },
+  quickRow: { flexDirection: "row", justifyContent: "space-around", paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14 },
   quickTile: { width: 56, height: 56, borderRadius: 17, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   quickBadge: { position: "absolute", top: -4, right: -4, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: "#F43F5E", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#0A0A0F" },
   threadRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 16 },

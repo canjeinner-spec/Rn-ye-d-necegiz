@@ -20,4 +20,12 @@ export const FEATURES = {
   vip: false,
   /** Alt navigasyondaki "Sıralama" sekmesi (rank ekranı sidebar'dan erişilir) */
   rankTab: false,
+  /** Profildeki "Eşyalarım" (envanter) tile'ı */
+  inventory: false,
+  /** DM'deki "Arkadaşlık" kısayolu */
+  friends: false,
+  /** DM'deki "Etkinlik" kısayolu */
+  events: false,
+  /** DM'deki "Bildirim" kısayolu */
+  notifications: false,
 } as const;

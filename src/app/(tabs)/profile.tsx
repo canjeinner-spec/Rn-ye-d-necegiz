@@ -57,7 +57,8 @@ export default function ProfileTab() {
     { type: "tasks", lbl: "Görevler", onPress: () => { haptic.light(); router.navigate("/tasks"); } },
     // MVP: Mağaza tile'ı gizli (FEATURES.store)
     ...(FEATURES.store ? [{ type: "store" as TileType, lbl: "Mağaza", onPress: () => { haptic.light(); router.navigate("/store"); } }] : []),
-    { type: "items", lbl: "Eşyalarım", onPress: () => { haptic.light(); router.navigate("/inventory"); } },
+    // MVP: Eşyalarım (envanter) tile'ı gizli (FEATURES.inventory)
+    ...(FEATURES.inventory ? [{ type: "items" as TileType, lbl: "Eşyalarım", onPress: () => { haptic.light(); router.navigate("/inventory"); } }] : []),
     { type: "level", lbl: "Level", onPress: () => { haptic.light(); router.navigate("/level"); } },
   ];
 

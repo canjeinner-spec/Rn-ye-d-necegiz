@@ -18,11 +18,13 @@ const ST: Record<Status, { t: string; c: string }> = {
 
 const ROADMAP: { ic: IconName; t: string; s: string; st: Status }[] = [
   { ic: "gift", t: "Hediye & Ekonomi", s: "Hediye gönderme, elmas ve coin ekonomisi", st: "yakinda" },
+  { ic: "userAdd", t: "Arkadaş Sistemi", s: "Arkadaş ekle, istekler ve arkadaş listesi", st: "yakinda" },
+  { ic: "mega", t: "Etkinlikler", s: "Kampanyalar, yarışmalar ve ödüller", st: "yakinda" },
+  { ic: "bell", t: "Bildirimler", s: "Mesaj, davet ve etkileşim bildirimleri", st: "gelistiriliyor" },
+  { ic: "evDiamond", t: "Envanter (Eşyalarım)", s: "Çerçeve, balon ve sahip olduğun eşyalar", st: "planlaniyor" },
   { ic: "mic", t: "Yayıncı Merkezi", s: "Kazanç, ajans ve yayıncı paneli", st: "yakinda" },
-  { ic: "bell", t: "Anlık Bildirimler", s: "Mesaj ve oda davetleri anında ulaşsın", st: "gelistiriliyor" },
-  { ic: "gear", t: "Performans & Stabilite", s: "Daha akıcı, daha hızlı bir deneyim", st: "gelistiriliyor" },
   { ic: "crown", t: "VIP Ayrıcalıkları", s: "Özel çerçeveler, rozetler ve temalar", st: "planlaniyor" },
-  { ic: "bars", t: "Sıralama & Etkinlikler", s: "Haftalık yarışlar ve ödüller", st: "planlaniyor" },
+  { ic: "gear", t: "Performans & Stabilite", s: "Daha akıcı, daha hızlı bir deneyim", st: "gelistiriliyor" },
 ];
 
 export default function UpdatesScreen() {
