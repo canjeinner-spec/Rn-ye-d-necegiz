@@ -9,8 +9,8 @@ export type EventBanner = {
   c1: string;
   c2: string;
   accent: string;
-  /** Banner türü — "about" bilgilendirme/hikâye banner'ı için özel görünüm */
-  kind?: "event" | "about";
+  /** Banner türü — "about"/"update" bilgilendirme banner'ları için özel görünüm */
+  kind?: "event" | "about" | "update";
   /** about için alt başlık */
   subtitle?: string;
   /** Verilirse banner'a tam-kaplama görsel basılır (expo-image). Kaliteli görsel için */
@@ -22,6 +22,7 @@ export type EventBanner = {
 export const EVENT_BANNERS: EventBanner[] = [
   { id: "yildiz", title: "Yıldız Koleksiyon Kartı", date: "4/6/2026 22:00 – 25/7/2026 21:59 (UTC+3)", c1: "#7C3AED", c2: "#C026D3", accent: "#FDE68A" },
   { id: "hakkimizda", kind: "about", title: "Biz Kimiz?", subtitle: "Aron Chat'in hikâyesi", date: "", c1: "#26203F", c2: "#0C0A16", accent: "#F5CE6E", route: "/about" },
+  { id: "guncelleme", kind: "update", title: "Gelecek Güncelleme", subtitle: "Sırada ne var?", date: "", c1: "#0E2A2A", c2: "#0A1018", accent: "#5EEAD4", route: "/updates" },
   { id: "futbol", title: "Futbol Şampiyonası", date: "9/6/2026 – 16/6/2026 (UTC+3)", c1: "#047857", c2: "#0E7490", accent: "#FEF3C7" },
   { id: "sevgi", title: "Sevgi Festivali", date: "14/6/2026 – 21/6/2026 (UTC+3)", c1: "#BE185D", c2: "#7C3AED", accent: "#FBCFE8" },
 ];
