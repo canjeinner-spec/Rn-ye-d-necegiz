@@ -43,22 +43,18 @@ export default function NotificationsScreen() {
           {NOTIF_TABS.map(([k, label]) => {
             const on = tab === k;
             const cnt = k === "all" ? unread : items.filter((n) => n.kategori === k && n.okunmadi).length;
-            const inner = (
-              <>
+            return (
+              <Pressable key={k} onPress={() => { haptic.select(); setTab(k); }} style={styles.tab}>
+                {on ? (
+                  <Gradient colors={["#7C3AED", "#5B21B6"]} deg={135} style={StyleSheet.absoluteFill} />
+                ) : (
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(255,255,255,.06)" }]} />
+                )}
                 <Txt weight="extrabold" size={12} color={on ? "#fff" : C.dim}>{label}</Txt>
                 {cnt > 0 && (
                   <View style={[styles.badge, { backgroundColor: on ? "rgba(255,255,255,.25)" : C.red }]}>
                     <Txt weight="extrabold" size={9} color="#fff">{cnt}</Txt>
                   </View>
-                )}
-              </>
-            );
-            return (
-              <Pressable key={k} onPress={() => { haptic.select(); setTab(k); }} style={{ borderRadius: 999, overflow: "hidden" }}>
-                {on ? (
-                  <Gradient colors={["#7C3AED", "#5B21B6"]} deg={135} style={styles.tab}>{inner}</Gradient>
-                ) : (
-                  <View style={[styles.tab, { backgroundColor: "rgba(255,255,255,.06)" }]}>{inner}</View>
                 )}
               </Pressable>
             );
@@ -107,7 +103,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   tabs: { gap: 8, alignItems: "center", paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10 },
-  tab: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 7, paddingHorizontal: 15, borderRadius: 999 },
+  tab: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, height: 32, paddingHorizontal: 15, borderRadius: 999, overflow: "hidden" },
   badge: { minWidth: 15, height: 15, borderRadius: 999, paddingHorizontal: 4, alignItems: "center", justifyContent: "center" },
   row: { flexDirection: "row", gap: 12, alignItems: "flex-start", paddingVertical: 13, paddingHorizontal: 12, borderRadius: 16, marginBottom: 6, borderWidth: 1 },
   notifIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center", borderWidth: 1 },
