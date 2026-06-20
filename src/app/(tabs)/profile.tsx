@@ -30,7 +30,7 @@ const PUBLIC_ID = "4407";
 
 export default function ProfileTab() {
   const router = useRouter();
-  const { userName, userPhoto, setUserPhoto, isStreamer, setStreamer } = useApp();
+  const { userName, userBio, userPhoto, setUserPhoto, isStreamer, setStreamer } = useApp();
   const [stub, setStub] = useState<string | null>(null);
   const [lang, setLang] = useState("Türkçe");
   const [editOpen, setEditOpen] = useState(false);
@@ -129,6 +129,8 @@ export default function ProfileTab() {
             <BadgeRow size={28} badges={badges} />
             <Pill bg="rgba(255,255,255,.05)" color={C.dim} border={C.line}>🇹🇷 Türkiye</Pill>
           </View>
+
+          {!!userBio && <Txt size={12} color={C.dim} lh={1.5} style={{ marginTop: 10 }}>{userBio}</Txt>}
 
           <View style={{ flexDirection: "row", marginTop: 16 }}>
             {([["Ziyaretçi", "1.2K", () => { haptic.light(); router.navigate("/visitors"); }], ["Takip", "96", undefined], ["Takipçi", "128", undefined]] as const).map(([l, v, fn]) => (
