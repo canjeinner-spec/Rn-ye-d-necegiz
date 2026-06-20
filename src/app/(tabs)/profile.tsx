@@ -49,7 +49,7 @@ export default function ProfileTab() {
     { type: "tasks", lbl: "Görevler", onPress: () => { haptic.light(); router.navigate("/tasks"); } },
     { type: "store", lbl: "Mağaza", onPress: () => { haptic.light(); router.navigate("/store"); } },
     { type: "items", lbl: "Eşyalarım", onPress: () => { haptic.light(); router.navigate("/inventory"); } },
-    { type: "level", lbl: "Level", onPress: ahead("Level") },
+    { type: "level", lbl: "Level", onPress: () => { haptic.light(); router.navigate("/level"); } },
   ];
 
   const menu: MenuItem[] = [
