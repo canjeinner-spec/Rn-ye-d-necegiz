@@ -10,7 +10,6 @@ import { Portrait } from "@/components/Portrait";
 import { RoomBadges } from "@/components/RoomBadges";
 import { RoomCrest, RoomTopTag, type RoomTier } from "@/components/RoomTopTag";
 import { Scene } from "@/components/Scene";
-import { SideMenu } from "@/components/SideMenu";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { PEOPLE } from "@/data/people";
@@ -93,7 +92,6 @@ export default function Home() {
   const privileged = role !== "user";
   const [tab, setTab] = useState(0);
   const [gateRoom, setGateRoom] = useState<Room | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   const enterAndGo = (room: Room) => {
     haptic.light();
@@ -111,9 +109,7 @@ export default function Home() {
     <View style={styles.root}>
       <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
         <View style={styles.header}>
-          <Pressable onPress={() => { haptic.light(); setMenuOpen(true); }} hitSlop={8} style={styles.roundBtn}>
-            <Icon name="menu" size={20} color={C.text} />
-          </Pressable>
+          <View style={{ width: 38 }} />
           <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
             <Txt weight="displayBold" size={19} color="#fff" style={{ letterSpacing: 2 }}>ARON</Txt>
             <Txt weight="displayBold" size={19} color={C.gold} style={{ letterSpacing: 2 }}>CHAT</Txt>
@@ -142,8 +138,6 @@ export default function Home() {
           onPass={() => { const r = gateRoom; setGateRoom(null); enterAndGo(r); }}
         />
       )}
-
-      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </View>
   );
 }
