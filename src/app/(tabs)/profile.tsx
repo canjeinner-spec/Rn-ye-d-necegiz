@@ -59,7 +59,7 @@ export default function ProfileTab() {
     { ic: "gift", g1: "#EC4899", g2: "#BE185D", t: "Hediye Geçmişi", s: "Gönderdiğin & aldığın hediyeler", onPress: () => { haptic.light(); router.navigate("/gift-history"); } },
     { ic: "userAdd", g1: "#34D399", g2: "#059669", t: "Arkadaşını Davet Et", s: "Davet et, beraber elmas kazanın", onPress: () => { haptic.light(); router.navigate("/referral"); } },
     { ic: "flag", g1: "#A855F7", g2: "#7C3AED", t: "Rozetlerim", s: "8 rozet kazandın", onPress: ahead("Rozetlerim") },
-    { ic: "idcard", g1: "#F5CE6E", g2: "#B45309", t: "Özel ID", s: "Prestijli kısa ID'leri keşfet", onPress: ahead("Özel ID") },
+    { ic: "idcard", g1: "#F5CE6E", g2: "#B45309", t: "Özel ID", s: "Prestijli kısa ID'leri keşfet", onPress: () => { haptic.light(); router.navigate("/special-id"); } },
     { ic: "ticket", g1: "#06B6D4", g2: "#0891B2", t: "Hediye Kuponu Gir", s: "Kodunu gir, ödülünü al", onPress: ahead("Kupon") },
   ];
 
