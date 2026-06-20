@@ -152,7 +152,7 @@ export default function WalletScreen() {
                   <Txt weight="extrabold" size={11} color="#5EEAD4">Elmas Yükle</Txt>
                 </Pressable>
                 {isStreamer && (
-                  <Pressable onPress={() => setStub("Para Çek")} style={[styles.quick, { borderColor: "#34D39940", backgroundColor: "rgba(12,42,30,0.6)" }]}>
+                  <Pressable onPress={() => { haptic.light(); router.navigate("/withdraw"); }} style={[styles.quick, { borderColor: "#34D39940", backgroundColor: "rgba(12,42,30,0.6)" }]}>
                     <Txt size={24}>🏦</Txt>
                     <Txt weight="extrabold" size={11} color="#6EE7B7">Para Çek</Txt>
                   </Pressable>
