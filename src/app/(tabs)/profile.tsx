@@ -47,7 +47,7 @@ export default function ProfileTab() {
 
   const tiles: { type: TileType; lbl: string; onPress: () => void }[] = [
     { type: "tasks", lbl: "Görevler", onPress: ahead("Görevler") },
-    { type: "store", lbl: "Mağaza", onPress: ahead("Mağaza") },
+    { type: "store", lbl: "Mağaza", onPress: () => { haptic.light(); router.navigate("/store"); } },
     { type: "items", lbl: "Eşyalarım", onPress: ahead("Eşyalarım") },
     { type: "level", lbl: "Level", onPress: ahead("Level") },
   ];
