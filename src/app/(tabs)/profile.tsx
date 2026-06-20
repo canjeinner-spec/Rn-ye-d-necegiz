@@ -15,6 +15,7 @@ import { Txt } from "@/components/Txt";
 import { type BadgeItem } from "@/data/badges";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
+import { FEATURES } from "@/lib/features";
 import { haptic } from "@/lib/haptics";
 import { CouponSheet } from "@/sheets/CouponSheet";
 import { EditProfileSheet } from "@/sheets/EditProfileSheet";
@@ -54,20 +55,25 @@ export default function ProfileTab() {
 
   const tiles: { type: TileType; lbl: string; onPress: () => void }[] = [
     { type: "tasks", lbl: "Görevler", onPress: () => { haptic.light(); router.navigate("/tasks"); } },
-    { type: "store", lbl: "Mağaza", onPress: () => { haptic.light(); router.navigate("/store"); } },
+    // MVP: Mağaza tile'ı gizli (FEATURES.store)
+    ...(FEATURES.store ? [{ type: "store" as TileType, lbl: "Mağaza", onPress: () => { haptic.light(); router.navigate("/store"); } }] : []),
     { type: "items", lbl: "Eşyalarım", onPress: () => { haptic.light(); router.navigate("/inventory"); } },
     { type: "level", lbl: "Level", onPress: () => { haptic.light(); router.navigate("/level"); } },
   ];
 
   const menu: MenuItem[] = [
     { ic: "mic", g1: "#A855F7", g2: "#6D28D9", t: "Odam", s: "Kendi sesli sohbet odanı aç", onPress: goMyRoom },
-    { ic: "crown", g1: "#F5CE6E", g2: "#B45309", t: "Aron VIP", s: "Özel ayrıcalıkların kilidini aç", onPress: () => { haptic.light(); router.navigate("/vip"); } },
-    ...(isStreamer ? [{ ic: "mic" as IconName, g1: "#34D399", g2: "#059669", t: "Yayıncı Paneli", s: "Kazancını ve ajansını yönet", onPress: () => { haptic.light(); router.navigate("/agency-panel"); } }] : []),
-    { ic: "gift", g1: "#EC4899", g2: "#BE185D", t: "Hediye Geçmişi", s: "Gönderdiğin & aldığın hediyeler", onPress: () => { haptic.light(); router.navigate("/gift-history"); } },
+    // MVP: Aron VIP gizli (FEATURES.vip)
+    ...(FEATURES.vip ? [{ ic: "crown" as IconName, g1: "#F5CE6E", g2: "#B45309", t: "Aron VIP", s: "Özel ayrıcalıkların kilidini aç", onPress: () => { haptic.light(); router.navigate("/vip"); } }] : []),
+    // MVP: Yayıncı Paneli (yayıncı merkezi) gizli (FEATURES.streamerPanel)
+    ...(isStreamer && FEATURES.streamerPanel ? [{ ic: "mic" as IconName, g1: "#34D399", g2: "#059669", t: "Yayıncı Paneli", s: "Kazancını ve ajansını yönet", onPress: () => { haptic.light(); router.navigate("/agency-panel"); } }] : []),
+    // MVP: Hediye Geçmişi gizli (FEATURES.giftHistory)
+    ...(FEATURES.giftHistory ? [{ ic: "gift" as IconName, g1: "#EC4899", g2: "#BE185D", t: "Hediye Geçmişi", s: "Gönderdiğin & aldığın hediyeler", onPress: () => { haptic.light(); router.navigate("/gift-history"); } }] : []),
     { ic: "userAdd", g1: "#34D399", g2: "#059669", t: "Arkadaşını Davet Et", s: "Davet et, beraber elmas kazanın", onPress: () => { haptic.light(); router.navigate("/referral"); } },
     { ic: "flag", g1: "#A855F7", g2: "#7C3AED", t: "Rozetlerim", s: "8 rozet kazandın", onPress: openSheet(() => setInfo("badges")) },
     { ic: "idcard", g1: "#F5CE6E", g2: "#B45309", t: "Özel ID", s: "Prestijli kısa ID'leri keşfet", onPress: () => { haptic.light(); router.navigate("/special-id"); } },
-    { ic: "ticket", g1: "#06B6D4", g2: "#0891B2", t: "Hediye Kuponu Gir", s: "Kodunu gir, ödülünü al", onPress: openSheet(() => setCouponOpen(true)) },
+    // MVP: Hediye Kuponu Gir gizli (FEATURES.giftCoupon)
+    ...(FEATURES.giftCoupon ? [{ ic: "ticket" as IconName, g1: "#06B6D4", g2: "#0891B2", t: "Hediye Kuponu Gir", s: "Kodunu gir, ödülünü al", onPress: openSheet(() => setCouponOpen(true)) }] : []),
   ];
 
   const settings: MenuItem[] = [

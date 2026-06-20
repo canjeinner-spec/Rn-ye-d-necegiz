@@ -34,6 +34,7 @@ import { type Gift } from "@/data/gifts";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
+import { FEATURES } from "@/lib/features";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
@@ -476,11 +477,14 @@ export default function RoomScreen() {
                 returnKeyType="send"
               />
             </View>
-            <Pressable onPress={() => setGiftOpen(true)} style={styles.giftBtnBig}>
-              <Gradient colors={["#EC4899", "#BE185D"]} deg={135} style={styles.giftMini}>
-                <Icon name="gift" size={21} color="#FBCFE8" />
-              </Gradient>
-            </Pressable>
+            {/* MVP: oda içi hediye ikonu gizli (FEATURES.roomGift) */}
+            {FEATURES.roomGift && (
+              <Pressable onPress={() => setGiftOpen(true)} style={styles.giftBtnBig}>
+                <Gradient colors={["#EC4899", "#BE185D"]} deg={135} style={styles.giftMini}>
+                  <Icon name="gift" size={21} color="#FBCFE8" />
+                </Gradient>
+              </Pressable>
+            )}
           </View>
         </KeyboardAvoidingView>
 
