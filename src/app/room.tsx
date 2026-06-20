@@ -15,6 +15,7 @@ import { BlurView } from "expo-blur";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 
+import { AuthorityTag } from "@/components/AuthorityTag";
 import { CenterModal } from "@/components/CenterModal";
 import { BigGiftOverlay } from "@/components/BigGiftOverlay";
 import { GiftFx } from "@/components/GiftFx";
@@ -64,12 +65,16 @@ function SeatItem({
   idx,
   locked,
   userPhoto,
+  userName,
+  privileged,
   onPress,
 }: {
   seat: Seat | null;
   idx: number;
   locked: boolean;
   userPhoto: string | null;
+  userName: string;
+  privileged: boolean;
   onPress: () => void;
 }) {
   if (!seat) {
@@ -84,6 +89,7 @@ function SeatItem({
       </Pressable>
     );
   }
+  const isMe = seat.name === "Sen";
   const ring = seat.host ? C.gold : seat.mod ? C.purple2 : seat.speaking ? C.purple2 : seat.ring || "rgba(255,255,255,.16)";
   return (
     <Pressable style={styles.seat} onPress={onPress}>
@@ -93,7 +99,7 @@ function SeatItem({
           name={seat.name}
           size={60}
           muted={seat.muted}
-          photo={seat.name === "Sen" ? userPhoto || undefined : undefined}
+          photo={isMe ? userPhoto || undefined : undefined}
           ring={ring}
           glow={seat.speaking || seat.host || seat.mod}
         />
@@ -103,26 +109,46 @@ function SeatItem({
           </View>
         )}
       </View>
-      <Txt weight="bold" size={10.5} color={seat.name === "Sen" ? C.gold : C.text} numberOfLines={1} style={{ maxWidth: 68 }}>
-        {seat.name}
+      <Txt weight="bold" size={10.5} color={isMe ? C.gold : C.text} numberOfLines={1} style={{ maxWidth: 68 }}>
+        {isMe ? userName : seat.name}
       </Txt>
+      {isMe && privileged && <AuthorityTag size={8} />}
     </Pressable>
   );
 }
 
-function ChatRow({ m }: { m: ChatMsg }) {
+function ChatRow({
+  m,
+  userName,
+  userPhoto,
+  privileged,
+  onSelfPress,
+}: {
+  m: ChatMsg;
+  userName: string;
+  userPhoto: string | null;
+  privileged: boolean;
+  onSelfPress: () => void;
+}) {
   const role = m.host ? ("host" as const) : m.mod ? ("mod" as const) : null;
+  const isMe = !!m.myOwn || m.name === "Sen";
+  const displayName = isMe ? userName : m.name;
   // sohbet baloncuğu — kuşanılan balona göre tema (envanter: sohbet_balonu)
   const bubble = m.myOwn ? "gold" : m.host ? "host" : m.mod ? "mod" : "plain";
   return (
     <View style={{ flexDirection: "row", gap: 9, alignItems: "flex-start" }}>
-      <Portrait name={m.name} size={30} />
+      <Pressable onPress={onSelfPress} disabled={!isMe}>
+        <Portrait name={m.name} size={30} photo={isMe ? userPhoto || undefined : undefined} />
+      </Pressable>
       <View style={{ flex: 1, minWidth: 0, alignItems: "flex-start" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
-          <Txt weight="extrabold" size={11.5} color={m.host ? C.gold : m.mod ? C.purple2 : "rgba(255,255,255,.7)"}>
-            {m.name}
-          </Txt>
+          <Pressable onPress={onSelfPress} disabled={!isMe}>
+            <Txt weight="extrabold" size={11.5} color={m.host ? C.gold : m.mod ? C.purple2 : isMe ? C.gold2 : "rgba(255,255,255,.7)"}>
+              {displayName}
+            </Txt>
+          </Pressable>
           {role && <RolePill type={role} />}
+          {isMe && privileged && <AuthorityTag size={8} />}
         </View>
         {bubble === "gold" ? (
           <Gradient colors={["#FBE08C", "#E0A93C"]} deg={130} style={[styles.bubble, { borderColor: "#FFF2C2" }]}>
@@ -287,11 +313,27 @@ export default function RoomScreen() {
     onKickMic: () => setHost(null),
     onKickRoom: () => setHost(null),
   });
+  const openMyCard = () => {
+    const seated = mySeat !== null;
+    const muted = isMine ? !!host?.muted : seated ? !!seats[mySeat]?.muted : !micOn;
+    setCardUser({
+      name: userName,
+      muted,
+      lv: 12,
+      host: isMine || undefined,
+      viewerRole: "user",
+      self: true,
+      authority: privileged,
+      photo: userPhoto || undefined,
+      onLeaveSeat: seated ? leaveSeat : undefined,
+    });
+  };
   const tapOccupant = (s: Seat) => {
-    if (s.name === "Sen") setSeatSheet(seats.findIndex((t) => t?.name === "Sen"));
+    if (s.name === "Sen") openMyCard();
     else setCardUser({ ...s, viewerRole: MY_ROLE, ...(s.host ? hostActions() : seatActions(s)) });
   };
   const openByName = (name: string) => {
+    if (name === "Sen") { openMyCard(); return; }
     const s = occupants.find((o) => o.name === name);
     if (s) setCardUser({ ...s, viewerRole: MY_ROLE, ...seatActions(s) });
   };
@@ -358,7 +400,7 @@ export default function RoomScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, alignItems: "center" }}>
                   {occupants.slice(0, 7).map((o, i) => (
                     <Pressable key={(o.name || "u") + i} onPress={() => setUserList(true)}>
-                      <Portrait name={o.name} size={32} ring="rgba(255,255,255,.22)" />
+                      <Portrait name={o.name} size={32} ring="rgba(255,255,255,.22)" photo={o.name === "Sen" ? userPhoto || undefined : undefined} />
                     </Pressable>
                   ))}
                 </ScrollView>
@@ -372,12 +414,15 @@ export default function RoomScreen() {
 
           <View style={styles.stage}>
             {(host || isMine) && (
-              <Pressable onPress={() => { if (host && !isMine) tapOccupant(host); }} style={styles.hostSeat}>
+              <Pressable onPress={() => { if (isMine) openMyCard(); else if (host) tapOccupant(host); }} style={styles.hostSeat}>
                 <View>
                   {host?.speaking && <SpeakingRing />}
                   <Portrait name={isMine ? "Sen" : host!.name} size={82} muted={host?.muted} ring={C.gold} glow photo={isMine ? userPhoto || undefined : undefined} />
                 </View>
-                <Txt weight="extrabold" size={12} color="#fff" style={{ marginTop: 6 }}>{isMine ? userName : host!.name}</Txt>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap", justifyContent: "center", maxWidth: 140 }}>
+                  <Txt weight="extrabold" size={12} color="#fff">{isMine ? userName : host!.name}</Txt>
+                  {isMine && privileged && <AuthorityTag size={8} />}
+                </View>
                 <View style={{ marginTop: 4 }}>
                   <RolePill type="host" />
                 </View>
@@ -391,6 +436,8 @@ export default function RoomScreen() {
                   idx={idx}
                   locked={seatLocks[idx]}
                   userPhoto={userPhoto}
+                  userName={userName}
+                  privileged={privileged}
                   onPress={() => (s ? tapOccupant(s) : tapSeat(idx))}
                 />
               ))}
@@ -407,7 +454,7 @@ export default function RoomScreen() {
               </View>
             ))}
             {msgs.map((m, i) => (
-              <ChatRow key={i} m={m} />
+              <ChatRow key={i} m={m} userName={userName} userPhoto={userPhoto} privileged={privileged} onSelfPress={openMyCard} />
             ))}
           </ScrollView>
 
@@ -471,14 +518,17 @@ export default function RoomScreen() {
           <Pill bg="rgba(255,255,255,.07)" color={C.dim} border={C.line}>{occupants.length} kişi</Pill>
         </View>
         <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ gap: 4 }}>
-          {occupants.map((s) => (
+          {occupants.map((s) => {
+            const isMe = s.name === "Sen";
+            return (
             <Pressable key={s.name} onPress={() => { setUserList(false); tapOccupant(s); }} style={styles.userRow}>
-              <Portrait name={s.name} size={40} ring={s.host ? C.gold : s.mod ? C.purple2 : "rgba(255,255,255,.14)"} glow={s.host || s.mod} online />
+              <Portrait name={s.name} size={40} ring={s.host ? C.gold : s.mod ? C.purple2 : "rgba(255,255,255,.14)"} glow={s.host || s.mod} online photo={isMe ? userPhoto || undefined : undefined} />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <Txt weight="extrabold" size={12.5} color={C.text}>{s.name}</Txt>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <Txt weight="extrabold" size={12.5} color={C.text}>{isMe ? userName : s.name}</Txt>
                   {s.host && <RolePill type="host" />}
                   {s.mod && !s.host && <RolePill type="mod" />}
+                  {isMe && privileged && <AuthorityTag size={8} />}
                 </View>
                 <Txt weight="semibold" size={10} color={s.muted ? C.dim2 : C.green} style={{ marginTop: 3 }}>
                   {s.muted ? "🔇 Sessiz" : "🎙️ Konuşuyor"}
@@ -486,7 +536,8 @@ export default function RoomScreen() {
               </View>
               <Icon name="chev" size={13} color={C.dim2} />
             </Pressable>
-          ))}
+            );
+          })}
         </ScrollView>
       </Sheet>
 
@@ -535,7 +586,7 @@ export default function RoomScreen() {
       )}
 
       {cardUser && (
-        <ProfileCard user={cardUser} superPower={privileged} onClose={() => setCardUser(null)} onDM={() => setCardUser(null)} onViewProfile={() => { const u = cardUser; setCardUser(null); router.navigate(`/user-profile?name=${encodeURIComponent(u.name)}&lv=${u.lv}`); }} />
+        <ProfileCard user={cardUser} superPower={privileged} onClose={() => setCardUser(null)} onDM={() => setCardUser(null)} onViewProfile={() => { const u = cardUser; setCardUser(null); if (u.self) router.navigate("/profile"); else router.navigate(`/user-profile?name=${encodeURIComponent(u.name)}&lv=${u.lv}`); }} />
       )}
 
       {contribOpen && (

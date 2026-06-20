@@ -4,6 +4,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react
 import Animated, { SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AuthorityTag } from "@/components/AuthorityTag";
 import { BadgeInfoCard, BadgeRow } from "@/components/BadgeRow";
 import { Portrait } from "@/components/Portrait";
 import { RolePill } from "@/components/RolePill";
@@ -20,6 +21,14 @@ export type ProfileCardUser = Seat & {
   onMute?: () => void;
   onKickMic?: () => void;
   onKickRoom?: () => void;
+  /** kendi kartım mı — yönetim aksiyonları gizlenir, kendi profilim açılır */
+  self?: boolean;
+  /** developer / süper admin → "Yetkili" rozeti gösterilir */
+  authority?: boolean;
+  /** gerçek profil fotoğrafı (kendi kartım için) */
+  photo?: string;
+  /** mikrofonda oturuyorsam — kendi kartımdan inebilmek için */
+  onLeaveSeat?: () => void;
 };
 
 const REPORT_REASONS: { ic: IconName; t: string }[] = [
@@ -64,7 +73,7 @@ export function ProfileCard({
   const viewerRole = user.viewerRole || "user";
   const canManage = viewerRole === "host" || viewerRole === "mod" || superPower;
   const isOwner = !!user.host;
-  const canManageTarget = canManage && (!isOwner || superPower);
+  const canManageTarget = canManage && (!isOwner || superPower) && !user.self;
 
   const [gearOpen, setGearOpen] = useState(false);
   const [badgeInfo, setBadgeInfo] = useState<BadgeItem | null>(null);
@@ -185,11 +194,12 @@ export function ProfileCard({
                   )}
 
                   <View style={{ alignItems: "center", marginTop: toast ? 8 : 0 }}>
-                    <Portrait name={user.name} size={88} ring={isOwner ? C.gold : C.purple2} glow online frameBorder="#101016" />
+                    <Portrait name={user.name} size={88} ring={isOwner ? C.gold : C.purple2} glow online frameBorder="#101016" photo={user.photo} />
                     <Txt weight="displayBold" size={20} color="#fff" style={{ marginTop: 10 }}>{user.name}</Txt>
                     <View style={{ flexDirection: "row", gap: 7, marginTop: 9, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
                       {isOwner && <RolePill type="host" />}
                       {user.mod && !isOwner && <RolePill type="mod" />}
+                      {user.authority && <AuthorityTag />}
                       <BadgeRow size={28} badges={CARD_BADGES} onBadgePress={setBadgeInfo} />
                     </View>
                     <View style={{ marginTop: 9 }}>
@@ -204,13 +214,22 @@ export function ProfileCard({
                     </View>
                   </View>
 
-                  <View style={{ gap: 7, marginTop: 16 }}>
-                    <ActionRow icon="user" color={C.text} label="Profilini Görüntüle" onPress={() => { onViewProfile?.(); onClose(); }} />
-                    <ActionRow icon="chat" color={C.text} label="Mesaj Gönder" onPress={() => { onDM?.(user); onClose(); }} />
-                    <ActionRow icon="userAdd" color={followed ? C.dim : C.text} label={followed ? "Takipten Çık" : "Takip Et"} onPress={() => { setFollowed((v) => !v); showToast(followed ? `${user.name} takipten çıkıldı.` : `${user.name} takip edildi.`); }} />
-                    <ActionRow icon="blockuser" color={blocked ? C.dim : C.red} label={blocked ? "Engeli Kaldır" : "Engelle"} onPress={() => { setBlocked((v) => !v); showToast(blocked ? `${user.name} engeli kaldırıldı.` : `${user.name} engellendi.`); }} />
-                    <ActionRow icon="flag" color={C.red} label="Kullanıcıyı Raporla" onPress={() => setReportView(true)} />
-                  </View>
+                  {user.self ? (
+                    <View style={{ gap: 7, marginTop: 16 }}>
+                      <ActionRow icon="user" color={C.text} label="Profilini Görüntüle" onPress={() => { onViewProfile?.(); onClose(); }} />
+                      {user.onLeaveSeat && (
+                        <ActionRow icon="micoff" color={C.red} label="Mikrofondan in" onPress={() => { user.onLeaveSeat?.(); onClose(); }} />
+                      )}
+                    </View>
+                  ) : (
+                    <View style={{ gap: 7, marginTop: 16 }}>
+                      <ActionRow icon="user" color={C.text} label="Profilini Görüntüle" onPress={() => { onViewProfile?.(); onClose(); }} />
+                      <ActionRow icon="chat" color={C.text} label="Mesaj Gönder" onPress={() => { onDM?.(user); onClose(); }} />
+                      <ActionRow icon="userAdd" color={followed ? C.dim : C.text} label={followed ? "Takipten Çık" : "Takip Et"} onPress={() => { setFollowed((v) => !v); showToast(followed ? `${user.name} takipten çıkıldı.` : `${user.name} takip edildi.`); }} />
+                      <ActionRow icon="blockuser" color={blocked ? C.dim : C.red} label={blocked ? "Engeli Kaldır" : "Engelle"} onPress={() => { setBlocked((v) => !v); showToast(blocked ? `${user.name} engeli kaldırıldı.` : `${user.name} engellendi.`); }} />
+                      <ActionRow icon="flag" color={C.red} label="Kullanıcıyı Raporla" onPress={() => setReportView(true)} />
+                    </View>
+                  )}
                 </>
               )}
             </ScrollView>

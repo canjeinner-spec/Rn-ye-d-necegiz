@@ -3,6 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Animated, { SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AuthorityTag } from "@/components/AuthorityTag";
 import { Badge } from "@/components/Badge";
 import { DiamondBadge } from "@/components/Coins";
 import { Portrait } from "@/components/Portrait";
@@ -10,6 +11,7 @@ import { RolePill } from "@/components/RolePill";
 import { Txt } from "@/components/Txt";
 import { type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
+import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
@@ -25,6 +27,8 @@ export function ContributionView({
   onOpenUser: (name: string) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const { userName, userPhoto, role } = useApp();
+  const privileged = role !== "user";
   const [tab, setTab] = useState(1);
 
   const names = occupants.map((o) => o.name).filter((n) => n && n !== "Sen");
@@ -120,9 +124,12 @@ export function ContributionView({
 
             <View style={[styles.myRank, { paddingBottom: 14 + insets.bottom }]}>
               <Txt weight="displayBold" size={14} color={C.dim} style={{ width: 18 }}>—</Txt>
-              <Portrait name="Sen" size={42} ring={C.gold} />
+              <Portrait name="Sen" size={42} ring={C.gold} photo={userPhoto || undefined} />
               <View style={{ flex: 1 }}>
-                <Txt weight="extrabold" size={13} color="#fff">Sen</Txt>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <Txt weight="extrabold" size={13} color="#fff">{userName}</Txt>
+                  {privileged && <AuthorityTag size={8} />}
+                </View>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
                   <DiamondBadge size={13} />
                   <Txt weight="extrabold" size={12} color={C.gold2}>{myVal}</Txt>

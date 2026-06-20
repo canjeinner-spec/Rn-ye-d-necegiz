@@ -12,6 +12,8 @@ export const C = {
   purple: "#8B5CF6",
   purple2: "#A78BFA",
   green: "#34D399",
+  teal: "#5EEAD4",
+  teal2: "#2DD4BF",
   red: "#F87171",
   text: "#F4F2EE",
   dim: "#8E8C99",

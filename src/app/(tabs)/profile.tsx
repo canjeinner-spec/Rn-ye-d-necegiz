@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BadgeRow } from "@/components/BadgeRow";
+import { AuthorityTag } from "@/components/AuthorityTag";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { MenuIcon } from "@/components/MenuIcon";
 import { Pill } from "@/components/Pill";
@@ -110,9 +111,10 @@ export default function ProfileTab() {
                 <Icon name="camera" size={14} sw={2} color="#241A05" />
               </View>
             </Pressable>
-            <View style={{ paddingBottom: 6 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+            <View style={{ paddingBottom: 6, flex: 1 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                 <Txt weight="displayBold" size={19} color="#fff">{userName}</Txt>
+                {privileged && <AuthorityTag />}
                 {hideProfile && (
                   <View style={styles.hiddenPill}>
                     <Icon name="eye" size={11} color={C.gold2} />
