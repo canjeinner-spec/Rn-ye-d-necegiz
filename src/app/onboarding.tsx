@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -32,7 +32,7 @@ function GoldButton({ label, disabled, loading, onPress }: { label: string; disa
 
 export default function Onboarding() {
   const router = useRouter();
-  const { setGirisYapildi, setUserName, setUserPhoto, loadProfile } = useApp();
+  const { girisYapildi, setGirisYapildi, setUserName, setUserPhoto, loadProfile } = useApp();
 
   const [step, setStep] = useState<Step>("home");
   const [busy, setBusy] = useState(false);
@@ -146,6 +146,10 @@ export default function Onboarding() {
       <Icon name="back" size={16} color={C.text} />
     </Pressable>
   );
+
+  // Açılışta zaten girişliysen (oturum geri yüklendi) ana ekrana git.
+  // Yalnızca "home" adımında — kayıt/giriş akışını (email/register) bozmaz.
+  if (girisYapildi && step === "home") return <Redirect href="/" />;
 
   return (
     <View style={styles.root}>
