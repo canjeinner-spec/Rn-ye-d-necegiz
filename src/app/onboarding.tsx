@@ -10,6 +10,8 @@ import { Txt } from "@/components/Txt";
 import { PRESET_AVATARS } from "@/data/onboarding";
 import { signInWithEmail, signInWithGoogle, signUpWithEmail } from "@/data/remote/authRepo";
 import { updateMyProfile } from "@/data/remote/profileRepo";
+import { uploadAvatar } from "@/data/remote/storageRepo";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
@@ -47,6 +49,7 @@ export default function Onboarding() {
   const [rBio, setRBio] = useState("");
   const [rGender, setRGender] = useState<"e" | "k" | null>(null);
   const [rPhoto, setRPhoto] = useState<string | null>(null);
+  const [rBase64, setRBase64] = useState<string | null>(null); // yüklenecek görselin base64'ü (preset'te null)
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const passValid = pass.length >= 6;
@@ -110,15 +113,20 @@ export default function Onboarding() {
     setErr(null);
     setBusy(true);
     try {
+      // Çekilen görseli Storage'a yükle (preset avatarlar zaten URL).
+      let photoUrl = rPhoto;
+      if (rPhoto && rBase64 && isSupabaseConfigured) {
+        try { photoUrl = await uploadAvatar(rBase64, rPhoto); } catch { /* yüklenemezse yerel URI ile devam */ }
+      }
       await updateMyProfile({
         kullanici_adi: rName.trim(),
         biyografi: rBio.trim() || null,
         cinsiyet: rGender, // DB: varchar(1) CHECK IN ('e','k')
-        profil_resmi: rPhoto || null,
+        profil_resmi: photoUrl || null,
       });
       // Anlık UI için store'u da güncelle
       setUserName(rName.trim());
-      if (rPhoto) setUserPhoto(rPhoto);
+      if (photoUrl) setUserPhoto(photoUrl);
       await enterApp();
     } catch (e: any) {
       setErr(turkishAuthError(e?.message));
@@ -128,8 +136,8 @@ export default function Onboarding() {
   };
 
   const pickImage = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.85 });
-    if (!res.canceled) setRPhoto(res.assets[0].uri);
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.85, base64: true });
+    if (!res.canceled) { setRPhoto(res.assets[0].uri); setRBase64(res.assets[0].base64 ?? null); }
   };
 
   const Back = ({ to }: { to: Step }) => (
@@ -237,7 +245,7 @@ export default function Onboarding() {
                   {PRESET_AVATARS.map((u) => {
                     const on = rPhoto === u;
                     return (
-                      <Pressable key={u} onPress={() => setRPhoto(u)} style={[styles.preset, { borderColor: on ? C.gold : "rgba(255,255,255,.12)" }]}>
+                      <Pressable key={u} onPress={() => { setRPhoto(u); setRBase64(null); }} style={[styles.preset, { borderColor: on ? C.gold : "rgba(255,255,255,.12)" }]}>
                         <Image source={{ uri: u }} style={StyleSheet.absoluteFill} contentFit="cover" />
                       </Pressable>
                     );

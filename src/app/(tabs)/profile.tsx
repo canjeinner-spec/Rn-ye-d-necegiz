@@ -16,6 +16,7 @@ import { type BadgeItem } from "@/data/badges";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { updateMyProfile } from "@/data/remote/profileRepo";
+import { uploadAvatar } from "@/data/remote/storageRepo";
 import { FEATURES } from "@/lib/features";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
@@ -43,14 +44,17 @@ export default function ProfileTab() {
   const openSheet = (fn: () => void) => () => { haptic.light(); fn(); };
 
   const pickAvatar = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.85 });
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.85, base64: true });
     if (res.canceled) return;
-    const uri = res.assets[0].uri;
-    setUserPhoto(uri); // anlık UI
-    // DB'ye kalıcı yaz (onboarding ile tutarlı). Not: şimdilik yerel URI;
-    // cihazlar arası kalıcılık için Supabase Storage gerekir (sonraki adım).
+    const a = res.assets[0];
+    setUserPhoto(a.uri); // anlık yerel önizleme
     if (isSupabaseConfigured && useApp.getState().session) {
-      try { await updateMyProfile({ profil_resmi: uri }); } catch { /* sessiz geç */ }
+      try {
+        // Storage'a yükle → herkese açık URL'i kalıcı yaz (cihazlar arası çalışır)
+        const url = a.base64 ? await uploadAvatar(a.base64, a.uri) : a.uri;
+        setUserPhoto(url);
+        await updateMyProfile({ profil_resmi: url });
+      } catch { /* sessiz geç — yerel önizleme kalır */ }
     }
   };
 
