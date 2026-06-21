@@ -482,9 +482,9 @@ export default function RoomScreen() {
 
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
               <Pressable onPress={() => setContribOpen(true)} style={styles.trophy}>
-                <Icon name="bars" size={13} color="#FEF3C7" />
-                <Txt weight="extrabold" size={11.5} color="#FEF3C7">Saatlik sıra</Txt>
-                <Icon name="chev" size={12} color="#FEF3C7" />
+                <Icon name="bars" size={11} color="#FEF3C7" />
+                <Txt weight="bold" size={9.5} color="#FEF3C7">Saatlik sıra</Txt>
+                <Icon name="chev" size={11} color="#FEF3C7" />
               </Pressable>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, maxWidth: "62%" }}>
                 {/* Düz View (ScrollView değil): içerik genişliğinde → sayı ikonunun
@@ -785,7 +785,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,.14)",
   },
   thumb: { width: 32, height: 32, borderRadius: 9, overflow: "hidden" },
-  trophy: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4, paddingLeft: 8, paddingRight: 12, borderRadius: 8, backgroundColor: "rgba(217,119,6,.25)" },
+  trophy: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 3, paddingLeft: 7, paddingRight: 8, borderRadius: 8, backgroundColor: "rgba(217,119,6,.25)" },
   countBadge: { alignItems: "center", justifyContent: "center", minWidth: 34, height: 34, paddingHorizontal: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,.1)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
   stage: { paddingHorizontal: 14, paddingTop: 6, paddingBottom: 4 },
   hostSeat: { alignItems: "center", marginBottom: 10 },
