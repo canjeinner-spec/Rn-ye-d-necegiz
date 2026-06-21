@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -11,8 +11,10 @@ import { Sheet } from "@/components/Sheet";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { FEED_SEED, SCOPE_LABEL, type FeedPost, type FeedScope } from "@/data/feed";
+import { createPost, listPosts } from "@/data/remote/feedRepo";
 import { ROOMS } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
@@ -49,7 +51,20 @@ export default function FeedScreen() {
   const [tab, setTab] = useState(0);
   const [composer, setComposer] = useState(false);
   const [text, setText] = useState("");
+  const [sharing, setSharing] = useState(false);
   const [posts, setPosts] = useState<FeedPost[]>(FEED_SEED);
+
+  // Gerçek gönderileri DB'den yükle (üstte), mock seed altta. Ekrana her dönüşte tazele.
+  useFocusEffect(
+    useCallback(() => {
+      if (!isSupabaseConfigured) return;
+      let alive = true;
+      listPosts()
+        .then((db) => { if (alive) setPosts([...db, ...FEED_SEED]); })
+        .catch((e) => console.warn("[feed] listPosts:", e?.message || e));
+      return () => { alive = false; };
+    }, []),
+  );
   const [liked, setLiked] = useState<Record<number, boolean>>({});
   const [openCmt, setOpenCmt] = useState<number | null>(null);
   const [cmtText, setCmtText] = useState("");
@@ -66,10 +81,27 @@ export default function FeedScreen() {
   const mapUser = (id: number, fn: (p: UserPost) => UserPost) =>
     setPosts((ps) => ps.map((x) => (x.type === "user" && x.id === id ? fn(x) : x)));
 
-  const share = () => {
-    if (!text.trim()) return;
+  const share = async () => {
+    const body = text.trim();
+    if (!body || sharing) return;
     haptic.light();
-    setPosts((p) => [{ id: nextId.current++, type: "user", who: "Sen", lv: 32, vip: true, body: text.trim(), when: "şimdi", likes: 0, room: null, comments: [], scope: "herkes", mine: true }, ...p]);
+    // Supabase: kalıcı paylaş
+    if (isSupabaseConfigured && useApp.getState().session) {
+      setSharing(true);
+      try {
+        const post = await createPost(body);
+        setPosts((p) => [post, ...p]);
+        setText("");
+        setComposer(false);
+      } catch {
+        note("Paylaşılamadı, tekrar dene");
+      } finally {
+        setSharing(false);
+      }
+      return;
+    }
+    // Yerel (Supabase yoksa)
+    setPosts((p) => [{ id: nextId.current++, type: "user", who: "Sen", lv: 32, vip: true, body, when: "şimdi", likes: 0, room: null, comments: [], scope: "herkes", mine: true }, ...p]);
     setText("");
     setComposer(false);
   };
@@ -136,9 +168,9 @@ export default function FeedScreen() {
                 <Pressable onPress={() => { setComposer(false); setText(""); }} style={{ paddingVertical: 8, paddingHorizontal: 12 }}>
                   <Txt weight="bold" size={12} color={C.dim}>İptal</Txt>
                 </Pressable>
-                <Pressable onPress={share} disabled={!text.trim()} style={{ borderRadius: 999, overflow: "hidden", opacity: text.trim() ? 1 : 0.45 }}>
+                <Pressable onPress={share} disabled={!text.trim() || sharing} style={{ borderRadius: 999, overflow: "hidden", opacity: text.trim() && !sharing ? 1 : 0.45 }}>
                   <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 8, paddingHorizontal: 18 }}>
-                    <Txt weight="extrabold" size={12.5} color="#241A05">Paylaş</Txt>
+                    <Txt weight="extrabold" size={12.5} color="#241A05">{sharing ? "Paylaşılıyor…" : "Paylaş"}</Txt>
                   </Gradient>
                 </Pressable>
               </View>
