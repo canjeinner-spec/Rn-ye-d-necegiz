@@ -32,6 +32,7 @@ type AppState = {
   session: Session | null;
   bootstrapped: boolean;
   publicId: string | null;
+  dbId: number | null; // kullanicilar.id (realtime/DM eşlemeleri için)
   initAuth: () => void;
   loadProfile: () => Promise<void>;
   signOutApp: () => Promise<void>;
@@ -85,6 +86,7 @@ export const useApp = create<AppState>((set, get) => ({
   session: null,
   bootstrapped: false,
   publicId: null,
+  dbId: null,
 
   initAuth: () => {
     if (authStarted) return;
@@ -127,6 +129,7 @@ export const useApp = create<AppState>((set, get) => ({
         userBio: p.biyografi || "",
         userPhoto: p.profil_resmi || null,
         publicId: p.public_id || null,
+        dbId: p.id ?? null,
         role: mapRole(p.ekonomi_rolu),
       });
     } catch {
@@ -144,6 +147,7 @@ export const useApp = create<AppState>((set, get) => ({
       session: null,
       girisYapildi: false,
       publicId: null,
+      dbId: null,
       userName: "Sen",
       userBio: "",
       userPhoto: null,

@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -9,9 +9,11 @@ import { OfficialAvatar, SystemAvatar } from "@/components/SpecialAvatars";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { DM_THREADS, type DMThread } from "@/data/dm";
+import { listThreads } from "@/data/remote/dmRepo";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { FEATURES } from "@/lib/features";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
@@ -28,17 +30,42 @@ const QUICK: { ic: IconName; t: string; g1: string; g2: string; badge?: number; 
 function Avatar({ d }: { d: DMThread }) {
   if (d.official) return <OfficialAvatar size={48} />;
   if (d.system) return <SystemAvatar size={48} />;
-  return <Portrait name={d.name} size={48} online={d.online} />;
+  return <Portrait name={d.name} size={48} online={d.online} photo={d.photo} />;
 }
+
+// Resmi (Aron) + Sistem kanalları mock kalır; gerçek kişiler DB'den gelir.
+const SPECIAL_THREADS = DM_THREADS.filter((d) => d.official || d.system);
 
 export default function DmTab() {
   const router = useRouter();
   const setActiveDM = useApp((s) => s.setActiveDM);
+  const session = useApp((s) => s.session);
   const [tab, setTab] = useState(0);
-  const [threads, setThreads] = useState(DM_THREADS);
+  const [dbThreads, setDbThreads] = useState<DMThread[]>([]);
+  const [hidden, setHidden] = useState<Set<number>>(new Set());
   const [actionFor, setActionFor] = useState<DMThread | null>(null);
   const [stub, setStub] = useState<string | null>(null);
 
+  const reload = useCallback(() => {
+    if (!isSupabaseConfigured || !session) return;
+    listThreads().then(setDbThreads).catch((e) => console.warn("[dm] listThreads:", e?.message || e));
+  }, [session]);
+
+  // Ekrana her dönüşte tazele
+  useFocusEffect(useCallback(() => { reload(); }, [reload]));
+
+  // Realtime: yeni mesaj geldiğinde thread listesini tazele
+  useEffect(() => {
+    const sb = supabase;
+    if (!isSupabaseConfigured || !session || !sb) return;
+    const ch = sb
+      .channel("dm-threads")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "dm_mesajlari" }, () => reload())
+      .subscribe();
+    return () => { sb.removeChannel(ch); };
+  }, [session, reload]);
+
+  const threads = [...SPECIAL_THREADS, ...dbThreads].filter((d) => !hidden.has(d.id));
   const filtered = threads.filter((d) => (tab === 0 ? true : tab === 1 ? d.unread > 0 : d.online));
 
   const openChat = (d: DMThread) => {
@@ -48,7 +75,7 @@ export default function DmTab() {
   };
   const deleteThread = () => {
     if (!actionFor) return;
-    setThreads((t) => t.filter((x) => x.id !== actionFor.id));
+    setHidden((h) => new Set(h).add(actionFor.id));
     setActionFor(null);
   };
 

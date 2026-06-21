@@ -13,6 +13,7 @@ import { Scene } from "@/components/Scene";
 import { Txt } from "@/components/Txt";
 import { DM_THREADS, type DMThread } from "@/data/dm";
 import { type Gift } from "@/data/gifts";
+import { getOrCreateConversation } from "@/data/remote/dmRepo";
 import { getPublicProfile, type PublicProfile } from "@/data/remote/profileRepo";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
@@ -81,8 +82,17 @@ export default function UserProfileScreen() {
     { type: "agency", meta: { id: "1", name: "Aron Stars", owner: "Ardaowski" } },
   ];
 
-  const openDM = () => {
+  const openDM = async () => {
     haptic.light();
+    // Gerçek kullanıcı (DB profili) → konuşmayı bul/oluştur, gerçek DM aç
+    if (isSupabaseConfigured && profile && useApp.getState().session) {
+      try {
+        const convId = await getOrCreateConversation(profile.id);
+        setActiveDM({ id: convId, convId, name: profile.kullanici_adi, publicId: profile.public_id, photo: profile.profil_resmi || undefined, last: "", time: "", unread: 0, online: false });
+        router.navigate("/dm-chat");
+        return;
+      } catch { /* hata → mock akışa düş */ }
+    }
     const existing = DM_THREADS.find((d) => d.name === name);
     const thread: DMThread = existing || { id: Date.now(), name, last: "", time: "Şimdi", unread: 0, online: true };
     setActiveDM(thread);

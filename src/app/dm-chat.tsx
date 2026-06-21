@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -9,15 +9,17 @@ import { OfficialAvatar, SystemAvatar } from "@/components/SpecialAvatars";
 import { Txt } from "@/components/Txt";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { ARON_POSTS, SYSTEM_POSTS } from "@/data/dm";
+import { getMessages, mapRealtimeMessage, markRead, sendMessage } from "@/data/remote/dmRepo";
 import { type Gift } from "@/data/gifts";
 import { Icon } from "@/icons/Icon";
 import { FEATURES } from "@/lib/features";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
-type Msg = { me: boolean; text?: string; gift?: Gift; qty?: number; time: string };
+type Msg = { id?: number; me: boolean; text?: string; gift?: Gift; qty?: number; time: string };
 
 function IconBtn({ name, onPress }: { name: "back" | "phone"; onPress?: () => void }) {
   return (
@@ -30,23 +32,54 @@ function IconBtn({ name, onPress }: { name: "back" | "phone"; onPress?: () => vo
 export default function DMChatScreen() {
   const router = useRouter();
   const peer = useApp((s) => s.activeDM);
+  const dbId = useApp((s) => s.dbId);
   const back = () => router.back();
 
+  const convId = peer?.convId;
+  const isRealDM = !!convId && isSupabaseConfigured;
+  const scrollRef = useRef<ScrollView>(null);
+
   const [msgs, setMsgs] = useState<Msg[]>(() =>
-    peer
-      ? [
+    isRealDM || !peer
+      ? []
+      : [
           { me: false, text: peer.last || "Selam!", time: peer.time || "21:40" },
           { me: true, text: "Geliyorum birazdan 🙌", time: "21:49" },
         ]
-      : []
   );
   const [input, setInput] = useState("");
   const [giftOpen, setGiftOpen] = useState(false);
 
-  const send = () => {
-    if (!input.trim()) return;
-    setMsgs((m) => [...m, { me: true, text: input.trim(), time: "Şimdi" }]);
+  // Gerçek DM: mesajları yükle + okundu işaretle + realtime dinle
+  useEffect(() => {
+    const sb = supabase;
+    if (!isRealDM || !convId || !sb) return;
+    let alive = true;
+    getMessages(convId).then((m) => { if (alive) setMsgs(m); }).catch(() => {});
+    markRead(convId).catch(() => {});
+    const ch = sb
+      .channel(`dm-${convId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "dm_mesajlari", filter: `konusma_id=eq.${convId}` }, (payload) => {
+        const msg = mapRealtimeMessage(payload.new as never, dbId);
+        setMsgs((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
+        if (!msg.me) markRead(convId).catch(() => {});
+      })
+      .subscribe();
+    return () => { alive = false; sb.removeChannel(ch); };
+  }, [convId, isRealDM, dbId]);
+
+  const send = async () => {
+    const t = input.trim();
+    if (!t) return;
     setInput("");
+    if (isRealDM && convId) {
+      try {
+        const msg = await sendMessage(convId, t);
+        setMsgs((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
+      } catch { /* gönderilemezse sessiz geç */ }
+      return;
+    }
+    setMsgs((m) => [...m, { me: true, text: t, time: "Şimdi" }]);
   };
   const sendGift = (g: Gift, qty: number) => {
     haptic.success();
@@ -146,7 +179,7 @@ export default function DMChatScreen() {
             <IconBtn name="phone" />
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: 16, gap: 9 }} showsVerticalScrollIndicator={false}>
+          <ScrollView ref={scrollRef} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })} contentContainerStyle={{ padding: 16, gap: 9 }} showsVerticalScrollIndicator={false}>
             {msgs.map((m, i) =>
               m.gift ? (
                 <View key={i} style={{ alignSelf: m.me ? "flex-end" : "flex-start", maxWidth: "76%" }}>

@@ -11,6 +11,9 @@ export type DMThread = {
   time: string;
   unread: number;
   online: boolean;
+  convId?: number; // gerçek DB konuşma id'si (Supabase). Yoksa mock/resmi/sistem.
+  publicId?: string; // karşı kullanıcının public_id'si
+  photo?: string; // karşı kullanıcının profil fotoğrafı
 };
 
 export const DM_THREADS: DMThread[] = [
