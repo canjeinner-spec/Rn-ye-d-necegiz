@@ -82,24 +82,22 @@ function SeatItem({
   if (!seat) {
     return (
       <Pressable style={styles.seat} onPress={onPress}>
-        <View style={[styles.emptySeat, { borderColor: locked ? C.gold + "66" : C.line }]}>
-          <Icon name={locked ? "lock" : "plus"} size={locked ? 18 : 22} sw={2.2} color={locked ? C.gold : C.dim2} />
+        <View style={[styles.emptySeat, { borderColor: locked ? C.gold + "66" : "rgba(255,255,255,.14)" }]}>
+          <Icon name={locked ? "lock" : "plus"} size={locked ? 16 : 20} sw={2} color={locked ? C.gold : C.dim2} />
         </View>
-        <Txt weight="semibold" size={10} color={locked ? C.gold : C.dim2}>
-          {locked ? "Kilitli" : "Boş"}
-        </Txt>
+        {locked && <Txt weight="semibold" size={10} color={C.gold}>Kilitli</Txt>}
       </Pressable>
     );
   }
   const isMe = seat.name === "Sen";
-  const ring = seat.host ? C.gold : seat.mod ? C.purple2 : seat.speaking ? C.purple2 : seat.ring || "rgba(255,255,255,.16)";
+  const ring = seat.host ? C.gold : seat.mod ? C.teal : seat.speaking ? C.teal : seat.ring || "rgba(255,255,255,.16)";
   return (
     <Pressable style={styles.seat} onPress={onPress}>
       <View>
         {seat.speaking && <SpeakingRing />}
         <Portrait
           name={seat.name}
-          size={60}
+          size={52}
           muted={seat.muted}
           photo={isMe ? userPhoto || undefined : undefined}
           ring={ring}
@@ -148,7 +146,7 @@ function ChatRow({
       <View style={{ flex: 1, minWidth: 0, alignItems: "flex-start" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
           <Pressable onPress={tap}>
-            <Txt weight="extrabold" size={11.5} color={m.host ? C.gold : m.mod ? C.purple2 : isMe ? C.gold2 : "rgba(255,255,255,.7)"}>
+            <Txt weight="extrabold" size={11.5} color={m.host ? C.gold : m.mod ? C.teal : isMe ? C.gold2 : "rgba(255,255,255,.7)"}>
               {displayName}
             </Txt>
           </Pressable>
@@ -166,7 +164,7 @@ function ChatRow({
               bubble === "host"
                 ? { backgroundColor: "rgba(245,206,110,.14)", borderColor: C.gold + "55" }
                 : bubble === "mod"
-                  ? { backgroundColor: "rgba(167,139,250,.16)", borderColor: C.purple2 + "55" }
+                  ? { backgroundColor: "rgba(94,234,212,.12)", borderColor: C.teal + "55" }
                   : { backgroundColor: "rgba(255,255,255,.06)", borderColor: "rgba(255,255,255,.1)" },
             ]}
           >
@@ -449,7 +447,8 @@ export default function RoomScreen() {
 
   return (
     <View style={styles.root}>
-      <Scene kind={room.scene} />
+      {/* Mat & ferah oda zemini (renkli Scene yerine) */}
+      <Gradient colors={["#1E1E22", "#161619", "#0F0F11"]} deg={180} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.topbar}>
@@ -488,8 +487,9 @@ export default function RoomScreen() {
                 <Icon name="chev" size={12} color="#FEF3C7" />
               </Pressable>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, maxWidth: "62%" }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, alignItems: "center", flexDirection: "row-reverse" }}>
-                  {crowd.slice(0, 7).map((o) => (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, alignItems: "center" }}>
+                  {/* Sağdan sola dizilsin: diziyi ters çevir (en yeni/ilk sağda, sayı rozetinin yanında) */}
+                  {[...crowd.slice(0, 7)].reverse().map((o) => (
                     <Pressable key={o.key} onPress={() => setUserList(true)}>
                       <Portrait name={o.name} size={32} ring="rgba(255,255,255,.22)" photo={o.photo} />
                     </Pressable>
@@ -508,7 +508,7 @@ export default function RoomScreen() {
               <Pressable onPress={() => { if (isMine) openMyCard(); else if (host) tapOccupant(host); }} style={styles.hostSeat}>
                 <View>
                   {host?.speaking && <SpeakingRing />}
-                  <Portrait name={isMine ? "Sen" : host!.name} size={82} muted={host?.muted} ring={C.gold} glow photo={isMine ? userPhoto || undefined : undefined} />
+                  <Portrait name={isMine ? "Sen" : host!.name} size={70} muted={host?.muted} ring={C.gold} glow photo={isMine ? userPhoto || undefined : undefined} />
                 </View>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap", justifyContent: "center", maxWidth: 140 }}>
                   <Txt weight="extrabold" size={12} color="#fff">{isMine ? userName : host!.name}</Txt>
@@ -641,7 +641,7 @@ export default function RoomScreen() {
                 const isMe = s.name === "Sen";
                 return (
                   <Pressable key={s.name} onPress={() => { setUserList(false); tapOccupant(s); }} style={styles.userRow}>
-                    <Portrait name={s.name} size={40} ring={s.host ? C.gold : s.mod ? C.purple2 : "rgba(255,255,255,.14)"} glow={s.host || s.mod} online photo={isMe ? userPhoto || undefined : undefined} />
+                    <Portrait name={s.name} size={40} ring={s.host ? C.gold : s.mod ? C.teal : "rgba(255,255,255,.14)"} glow={s.host || s.mod} online photo={isMe ? userPhoto || undefined : undefined} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <Txt weight="extrabold" size={12.5} color={C.text}>{isMe ? userName : s.name}</Txt>
@@ -771,7 +771,7 @@ export default function RoomScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  topbar: { paddingHorizontal: 14, paddingTop: 6, paddingBottom: 8 },
+  topbar: { paddingHorizontal: 14, paddingTop: 4, paddingBottom: 6 },
   roomChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -785,21 +785,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,.14)",
   },
-  thumb: { width: 38, height: 38, borderRadius: 10, overflow: "hidden" },
+  thumb: { width: 32, height: 32, borderRadius: 9, overflow: "hidden" },
   trophy: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4, paddingLeft: 8, paddingRight: 12, borderRadius: 8, backgroundColor: "rgba(217,119,6,.25)" },
   countBadge: { alignItems: "center", justifyContent: "center", minWidth: 34, height: 34, paddingHorizontal: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,.1)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
-  stage: { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 6 },
-  hostSeat: { alignItems: "center", marginBottom: 14 },
-  grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 16 },
+  stage: { paddingHorizontal: 14, paddingTop: 6, paddingBottom: 4 },
+  hostSeat: { alignItems: "center", marginBottom: 10 },
+  grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 12 },
   barIcon: { minWidth: 34, height: 42, alignItems: "center", justifyContent: "center" },
   giftMini: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   giftBtnBig: { width: 46, height: 46, alignItems: "center", justifyContent: "center" },
   bubble: { alignSelf: "flex-start", maxWidth: "94%", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 15, borderTopLeftRadius: 5, borderWidth: 1 },
   reportCard: { backgroundColor: "rgba(26,22,38,0.98)", borderRadius: 22, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
-  seat: { width: "25%", alignItems: "center", gap: 6 },
-  emptySeat: { width: 60, height: 60, borderRadius: 30, borderWidth: 2, borderStyle: "dashed", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.02)" },
+  seat: { width: "25%", alignItems: "center", gap: 5 },
+  emptySeat: { width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.02)" },
   seatLock: { position: "absolute", bottom: -2, right: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: "#0A0A0F", borderWidth: 1, borderColor: C.gold + "66", alignItems: "center", justifyContent: "center" },
-  speakRing: { position: "absolute", top: -7, left: -7, right: -7, bottom: -7, borderRadius: 999, borderWidth: 2, borderColor: C.purple2 },
+  speakRing: { position: "absolute", top: -7, left: -7, right: -7, bottom: -7, borderRadius: 999, borderWidth: 2, borderColor: C.teal },
   bottombar: { flexDirection: "row", gap: 5, paddingHorizontal: 10, paddingTop: 10, paddingBottom: 6, alignItems: "center" },
   inputWrap: {
     flex: 1,
