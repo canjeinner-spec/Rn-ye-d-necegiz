@@ -385,7 +385,7 @@ export default function FeedScreen() {
                               <Pressable onPress={() => { setReplyTo(replyTo && replyTo.pid === p.id && replyTo.ci === ci ? null : { pid: p.id, ci }); setReplyText(""); }}>
                                 <Txt weight="bold" size={10.5} color={C.dim2}>Yanıtla</Txt>
                               </Pressable>
-                              {c.mine && (
+                              {(c.mine || p.mine) && (
                                 <Pressable onPress={() => delComment(p.id, ci)}>
                                   <Txt weight="bold" size={10.5} color={C.dim2}>Sil</Txt>
                                 </Pressable>
@@ -402,7 +402,7 @@ export default function FeedScreen() {
                               <Txt weight="extrabold" size={11} color={r.mine ? C.gold2 : C.text} onPress={() => goProfile(r.publicId, r.who, r.mine)}>{r.mine ? userName : r.who} </Txt>
                               {r.text}
                             </Txt>
-                            {r.mine && (
+                            {(r.mine || p.mine) && (
                               <Pressable onPress={() => delReply(p.id, ci, ri)} hitSlop={6}>
                                 <Txt weight="bold" size={10} color={C.dim2}>Sil</Txt>
                               </Pressable>
