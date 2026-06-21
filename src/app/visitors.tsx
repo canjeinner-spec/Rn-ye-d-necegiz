@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -7,19 +7,21 @@ import { Badge } from "@/components/Badge";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import { VISITORS, type Visitor } from "@/data/visitors";
+import { getMyVisitors } from "@/data/remote/visitRepo";
 import { Icon } from "@/icons/Icon";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
+import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
-function VisitorRow({ v, i }: { v: Visitor; i: number }) {
-  const [following, setFollowing] = useState(false);
+function VisitorRow({ v, i, onPress }: { v: Visitor; i: number; onPress: () => void }) {
   return (
-    <View style={styles.row}>
-      <Portrait name={v.name} size={48} ring={v.vip ? C.gold : undefined} glow={v.vip} online={i % 3 !== 0} />
+    <Pressable onPress={onPress} style={styles.row}>
+      <Portrait name={v.name} size={48} ring={v.vip ? C.gold : undefined} glow={v.vip} online={i % 3 !== 0} photo={v.photo} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          <Txt weight="extrabold" size={13.5} color={C.text}>{v.name}</Txt>
+          <Txt weight="extrabold" size={13.5} color={C.text} numberOfLines={1}>{v.name}</Txt>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
             <Badge type="level" size={14} lvl={v.lv} />
             <Txt weight="extrabold" size={10.5} color="#5EEAD4">LV.{v.lv}</Txt>
@@ -29,21 +31,31 @@ function VisitorRow({ v, i }: { v: Visitor; i: number }) {
         </View>
         <Txt size={10.5} color={C.dim2} style={{ marginTop: 3 }}>{v.when} ziyaret etti</Txt>
       </View>
-      <Pressable
-        onPress={() => { haptic.light(); setFollowing((f) => !f); }}
-        style={[styles.followBtn, { borderColor: following ? C.line : `${C.gold}44`, backgroundColor: following ? "rgba(255,255,255,.05)" : `${C.gold}12` }]}
-      >
-        {!following && <Icon name="userAdd" size={13} color={C.gold2} />}
-        <Txt weight="extrabold" size={11} color={following ? C.dim : C.gold2}>{following ? "Takipte" : "Takip"}</Txt>
-      </Pressable>
-    </View>
+      <Icon name="chev" size={15} color={C.dim2} />
+    </Pressable>
   );
 }
 
 export default function VisitorsScreen() {
   const router = useRouter();
-  const today = VISITORS.filter((v) => v.today);
-  const earlier = VISITORS.filter((v) => !v.today);
+  const session = useApp((s) => s.session);
+  const live = isSupabaseConfigured && !!session;
+  const [visitors, setVisitors] = useState<Visitor[]>(live ? [] : VISITORS);
+
+  useFocusEffect(useCallback(() => {
+    if (!live) return;
+    let alive = true;
+    getMyVisitors().then((v) => { if (alive) setVisitors(v); }).catch((e) => console.warn("[visitors]", e?.message || e));
+    return () => { alive = false; };
+  }, [live]));
+
+  const today = visitors.filter((v) => v.today);
+  const earlier = visitors.filter((v) => !v.today);
+  const openProfile = (v: Visitor) => {
+    haptic.light();
+    const q = v.publicId ? `publicId=${encodeURIComponent(v.publicId)}&` : "";
+    router.navigate(`/user-profile?${q}name=${encodeURIComponent(v.name)}`);
+  };
 
   return (
     <View style={styles.root}>
@@ -66,8 +78,8 @@ export default function VisitorsScreen() {
             </Gradient>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: "row", alignItems: "baseline", gap: 7 }}>
-                <Txt weight="displayBold" size={24} color="#fff">1.2K</Txt>
-                <Txt weight="bold" size={11.5} color="#C4B5FD">toplam ziyaret</Txt>
+                <Txt weight="displayBold" size={24} color="#fff">{visitors.length}</Txt>
+                <Txt weight="bold" size={11.5} color="#C4B5FD">toplam ziyaretçi</Txt>
               </View>
               <View style={{ flexDirection: "row", marginTop: 3 }}>
                 <Txt size={11} color={C.dim}>Bugün </Txt>
@@ -77,19 +89,22 @@ export default function VisitorsScreen() {
             </View>
           </View>
 
+          {visitors.length === 0 && (
+            <Txt size={12.5} color={C.dim} align="center" style={{ paddingVertical: 50 }}>Henüz ziyaretçin yok.</Txt>
+          )}
           {today.length > 0 && (
             <>
               <Txt weight="bold" size={11.5} color={C.dim2} style={styles.sectionLbl}>BUGÜN</Txt>
-              {today.map((v, i) => <VisitorRow key={v.name + i} v={v} i={i} />)}
+              {today.map((v, i) => <VisitorRow key={(v.publicId || v.name) + i} v={v} i={i} onPress={() => openProfile(v)} />)}
             </>
           )}
           {earlier.length > 0 && (
             <>
               <Txt weight="bold" size={11.5} color={C.dim2} style={[styles.sectionLbl, { marginTop: 18 }]}>DAHA ÖNCE</Txt>
-              {earlier.map((v, i) => <VisitorRow key={v.name + i} v={v} i={i + 100} />)}
+              {earlier.map((v, i) => <VisitorRow key={(v.publicId || v.name) + i} v={v} i={i + 100} onPress={() => openProfile(v)} />)}
             </>
           )}
-          <Txt size={10.5} color={C.dim2} align="center" style={{ marginTop: 16 }}>Son 30 günün ziyaretçileri gösteriliyor</Txt>
+          {visitors.length > 0 && <Txt size={10.5} color={C.dim2} align="center" style={{ marginTop: 16 }}>Son ziyaretçilerin gösteriliyor</Txt>}
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -104,5 +119,4 @@ const styles = StyleSheet.create({
   summaryIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   sectionLbl: { letterSpacing: 0.5, marginBottom: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.05)" },
-  followBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 13, borderRadius: 11, borderWidth: 1 },
 });

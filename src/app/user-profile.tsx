@@ -16,6 +16,7 @@ import { type Gift } from "@/data/gifts";
 import { getOrCreateConversation } from "@/data/remote/dmRepo";
 import { follow, getFollowState, unfollow } from "@/data/remote/followRepo";
 import { getPublicProfile, type PublicProfile } from "@/data/remote/profileRepo";
+import { getVisitorCount, recordVisit } from "@/data/remote/visitRepo";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { FEATURES } from "@/lib/features";
@@ -45,6 +46,7 @@ export default function UserProfileScreen() {
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [followers, setFollowers] = useState<number | null>(null);
   const [followingCount, setFollowingCount] = useState<number | null>(null);
+  const [visitorCount, setVisitorCount] = useState<number | null>(null);
   useEffect(() => {
     if (!isSupabaseConfigured || !params.publicId) return;
     let alive = true;
@@ -52,12 +54,14 @@ export default function UserProfileScreen() {
       if (!alive) return;
       setProfile(p);
       if (p) {
+        recordVisit(p.id).catch(() => {}); // ziyareti kaydet
         getFollowState(p.id).then((s) => {
           if (!alive) return;
           setFollowers(s.followers);
           setFollowingCount(s.following);
           setFollowing(s.isFollowing);
         }).catch(() => {});
+        getVisitorCount(p.id).then((c) => { if (alive) setVisitorCount(c); }).catch(() => {});
       }
     }).catch(() => {});
     return () => { alive = false; };
@@ -173,7 +177,7 @@ export default function UserProfileScreen() {
           </View>
 
           <View style={styles.stats}>
-            {([["8.4K", "Ziyaretçiler"], [followingCount != null ? String(followingCount) : "—", "Takip Edilen"], [followers != null ? String(followers) : "—", "Takipçiler"]] as const).map(([n, l], i) => (
+            {([[visitorCount != null ? String(visitorCount) : "—", "Ziyaretçiler"], [followingCount != null ? String(followingCount) : "—", "Takip Edilen"], [followers != null ? String(followers) : "—", "Takipçiler"]] as const).map(([n, l], i) => (
               <View key={l} style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
                 <View style={{ flex: 1, alignItems: "center" }}>
                   <Txt weight="displayBold" size={18} color="#fff">{n}</Txt>

@@ -1,7 +1,7 @@
 /**
  * Ziyaretçiler — profil_ziyaretleri (ziyaretci/zaman).
  */
-export type Visitor = { name: string; lv: number; when: string; today: boolean; vip: boolean; gender: "e" | "k" };
+export type Visitor = { name: string; lv: number; when: string; today: boolean; vip: boolean; gender: "e" | "k"; photo?: string; publicId?: string };
 
 export const VISITORS: Visitor[] = [
   { name: "Mervee", lv: 38, when: "5 dk önce", today: true, vip: true, gender: "k" },
