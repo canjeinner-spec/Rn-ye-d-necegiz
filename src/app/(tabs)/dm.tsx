@@ -58,8 +58,10 @@ export default function DmTab() {
   useEffect(() => {
     const sb = supabase;
     if (!isSupabaseConfigured || !session || !sb) return;
+    // Benzersiz kanal adı: aynı isimli (abone olmuş) kanalın yeniden kullanılıp
+    // ".on() after subscribe()" hatası vermesini önler.
     const ch = sb
-      .channel("dm-threads")
+      .channel(`dm-threads-${Date.now()}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "dm_mesajlari" }, () => reload())
       .subscribe();
     return () => { sb.removeChannel(ch); };

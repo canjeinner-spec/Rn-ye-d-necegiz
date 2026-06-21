@@ -58,7 +58,7 @@ export default function DMChatScreen() {
     getMessages(convId).then((m) => { if (alive) setMsgs(m); }).catch(() => {});
     markRead(convId).catch(() => {});
     const ch = sb
-      .channel(`dm-${convId}`)
+      .channel(`dm-${convId}-${Date.now()}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "dm_mesajlari", filter: `konusma_id=eq.${convId}` }, (payload) => {
         const msg = mapRealtimeMessage(payload.new as never, dbId);
         setMsgs((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
