@@ -173,11 +173,12 @@ export async function editPost(postDbId: number, icerik: string): Promise<void> 
   if (error) throw error;
 }
 
-/** Kendi gönderini sil (soft-delete: silinmis=true → akıştan düşer). */
+/** Kendi gönderini sil (garantili soft-delete; SECURITY DEFINER RPC). */
 export async function deletePost(postDbId: number): Promise<void> {
   const sb = requireSupabase();
-  const { error } = await sb.from("gonderiler").update({ silinmis: true }).eq("id", postDbId);
+  const { data, error } = await sb.rpc("gonderi_sil", { p_gonderi_id: postDbId });
   if (error) throw error;
+  if (data === false) throw new Error("Gönderi silinemedi (yetki yok ya da bulunamadı).");
 }
 
 /** Kendi gönderini sabitle / sabitlemeyi kaldır. */
