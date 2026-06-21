@@ -31,6 +31,8 @@ export type Seat = {
   mod?: boolean;
   host?: boolean;
   speaking?: boolean;
+  photo?: string;
+  publicId?: string;
 };
 
 export type ChatMsg = { name: string; time: string; text: string; mod?: boolean; host?: boolean; myOwn?: boolean; photo?: string; uid?: number; publicId?: string };

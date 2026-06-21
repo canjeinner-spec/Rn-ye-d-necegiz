@@ -1,9 +1,10 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CenterModal } from "@/components/CenterModal";
+import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
@@ -11,11 +12,22 @@ import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
+const AYLAR = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+function kickZamani(at: number) {
+  const d = new Date(at);
+  const ay = AYLAR[d.getMonth()];
+  const sa = String(d.getHours()).padStart(2, "0");
+  const dk = String(d.getMinutes()).padStart(2, "0");
+  return `${d.getDate()} ${ay} ${sa}:${dk}`;
+}
+
 type EditField = { key: "name" | "announce"; label: string; multiline?: boolean } | null;
 
 export default function RoomManageScreen() {
   const router = useRouter();
   const { roomName, roomAnnounce, roomLocked, setRoomName, setRoomAnnounce, setRoomLocked, setRoomPass } = useApp();
+  const kickedUsers = useApp((s) => s.kickedUsers);
+  const unkickFromRoom = useApp((s) => s.unkickFromRoom);
 
   const [edit, setEdit] = useState<EditField>(null);
   const [tmp, setTmp] = useState("");
@@ -63,7 +75,7 @@ export default function RoomManageScreen() {
           </View>
         </View>
 
-        <View style={{ paddingHorizontal: 18, paddingTop: 12 }}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
           <Txt weight="bold" size={10.5} color={C.dim} style={styles.sectionLbl}>ODA BİLGİLERİ</Txt>
 
           <Pressable onPress={() => openEdit("name", "Oda İsmi", roomName)} style={styles.row}>
@@ -88,6 +100,42 @@ export default function RoomManageScreen() {
             <Icon name="chev" size={14} color={C.dim2} />
           </Pressable>
 
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 22, marginBottom: 10 }}>
+            <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5 }}>ODADAN ATILANLAR</Txt>
+            {kickedUsers.length > 0 && (
+              <View style={styles.countPill}>
+                <Txt weight="extrabold" size={9.5} color="#FCA5A5">{kickedUsers.length}</Txt>
+              </View>
+            )}
+          </View>
+
+          {kickedUsers.length === 0 ? (
+            <View style={styles.emptyKick}>
+              <Icon name="ban" size={17} color={C.dim2} />
+              <Txt size={11.5} color={C.dim} style={{ flex: 1 }} lh={1.4}>Odadan atılan kimse yok. Atılan kişiler burada listelenir; listeden silersen tekrar girebilir.</Txt>
+            </View>
+          ) : (
+            kickedUsers.map((k) => (
+              <View key={k.name} style={styles.kickRow}>
+                <Portrait name={k.name} size={40} photo={k.photo || undefined} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Txt weight="extrabold" size={12.5} color={C.text} numberOfLines={1}>{k.name}</Txt>
+                  <Txt size={10} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>
+                    <Txt size={10} color="#FCA5A5">{k.by}</Txt> attı · {kickZamani(k.at)}
+                  </Txt>
+                </View>
+                <Pressable
+                  onPress={() => { haptic.success(); unkickFromRoom(k.name); }}
+                  hitSlop={8}
+                  style={styles.unkickBtn}
+                >
+                  <Icon name="unlock" size={13} color="#6EE7B7" />
+                  <Txt weight="extrabold" size={11} color="#6EE7B7">Geri al</Txt>
+                </Pressable>
+              </View>
+            ))
+          )}
+
           <Txt weight="bold" size={10.5} color={C.dim} style={[styles.sectionLbl, { marginTop: 22 }]}>GİZLİLİK</Txt>
 
           <Pressable onPress={toggleLock} style={[styles.row, roomLocked && { borderColor: C.gold + "44", backgroundColor: C.gold + "0F" }]}>
@@ -102,7 +150,7 @@ export default function RoomManageScreen() {
               <View style={styles.knob} />
             </View>
           </Pressable>
-        </View>
+        </ScrollView>
       </SafeAreaView>
 
       <CenterModal visible={!!edit} onClose={() => setEdit(null)}>
@@ -194,6 +242,10 @@ const styles = StyleSheet.create({
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   sectionLbl: { letterSpacing: 0.5, marginBottom: 10 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10, padding: 13, borderRadius: 15, backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
+  countPill: { minWidth: 18, paddingHorizontal: 6, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(248,113,113,.16)", borderWidth: 1, borderColor: "rgba(248,113,113,.3)" },
+  emptyKick: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 15, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: C.line },
+  kickRow: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 10, padding: 11, borderRadius: 15, backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
+  unkickBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 11, borderRadius: 10, backgroundColor: "rgba(52,211,153,.12)", borderWidth: 1, borderColor: "rgba(52,211,153,.28)" },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   toggle: { width: 42, height: 24, borderRadius: 999, padding: 2, justifyContent: "center" },
   knob: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },

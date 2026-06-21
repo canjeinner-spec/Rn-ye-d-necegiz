@@ -18,6 +18,15 @@ export type BroadcastData = {
 
 export type UserRole = "user" | "developer" | "super_admin";
 
+/** Odadan atılan kişi kaydı (kim, kim tarafından, ne zaman). */
+export type KickedUser = {
+  name: string;
+  publicId?: string;
+  photo?: string | null;
+  by: string; // atan kişinin adı
+  at: number; // atılma zamanı (epoch ms)
+};
+
 /** Supabase ekonomi_rolu → uygulama UserRole eşlemesi. */
 function mapRole(ekonomiRolu?: string | null): UserRole {
   if (ekonomiRolu === "super_admin" || ekonomiRolu === "developer") return ekonomiRolu;
@@ -60,6 +69,11 @@ type AppState = {
   setRoomAnnounce: (v: string) => void;
   setRoomLocked: (v: boolean) => void;
   setRoomPass: (v: string) => void;
+
+  // Odadan atılanlar (oda yönetiminde listelenir; listeden silinince tekrar girebilir)
+  kickedUsers: KickedUser[];
+  kickFromRoom: (u: Omit<KickedUser, "by" | "at">, by: string) => void;
+  unkickFromRoom: (name: string) => void;
 
   setUserName: (n: string) => void;
   setUserBio: (b: string) => void;
@@ -179,6 +193,17 @@ export const useApp = create<AppState>((set, get) => ({
   setRoomLocked: (v) => set({ roomLocked: v }),
   setRoomPass: (v) => set({ roomPass: v }),
 
+  kickedUsers: [],
+  kickFromRoom: (u, by) =>
+    set((s) => ({
+      kickedUsers: [
+        { ...u, by, at: Date.now() },
+        ...s.kickedUsers.filter((k) => k.name !== u.name),
+      ],
+    })),
+  unkickFromRoom: (name) =>
+    set((s) => ({ kickedUsers: s.kickedUsers.filter((k) => k.name !== name) })),
+
   setUserName: (n) => set({ userName: n }),
   setUserBio: (b) => set({ userBio: b }),
   setUserPhoto: (p) => set({ userPhoto: p }),
@@ -192,6 +217,7 @@ export const useApp = create<AppState>((set, get) => ({
       roomAnnounce: r.official ? "Resmî odaya hoş geldiniz! Lütfen nazik olun, keyifli sohbetler dileriz." : "Herkes davetli, saygıyı koru 🌙",
       roomLocked: !!r.locked,
       roomPass: r.pass || "",
+      kickedUsers: [],
     }),
   leaveRoom: () => set({ inRoom: false, currentRoom: null }),
 

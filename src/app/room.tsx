@@ -201,7 +201,7 @@ function ActionRow({ icon, color, label, onPress }: { icon: IconName; color: str
 
 export default function RoomScreen() {
   const router = useRouter();
-  const { currentRoom, userPhoto, userName, roomName, roomAnnounce, roomLocked, role, leaveRoom, fireBroadcast } = useApp();
+  const { currentRoom, userPhoto, userName, roomName, roomAnnounce, roomLocked, role, leaveRoom, fireBroadcast, kickFromRoom } = useApp();
   const session = useApp((s) => s.session);
   const myDbId = useApp((s) => s.dbId);
   const myPublicId = useApp((s) => s.publicId);
@@ -386,12 +386,18 @@ export default function RoomScreen() {
   const seatActions = (s: Seat) => ({
     onMute: () => setSeats((p) => p.map((t) => (t && t.name === s.name ? { ...t, muted: !t.muted } : t))),
     onKickMic: () => setSeats((p) => p.map((t) => (t && t.name === s.name ? null : t))),
-    onKickRoom: () => setSeats((p) => p.map((t) => (t && t.name === s.name ? null : t))),
+    onKickRoom: () => {
+      setSeats((p) => p.map((t) => (t && t.name === s.name ? null : t)));
+      kickFromRoom({ name: s.name, publicId: s.publicId, photo: s.photo }, userName);
+    },
   });
   const hostActions = () => ({
     onMute: () => setHost((h) => (h ? { ...h, muted: !h.muted } : h)),
     onKickMic: () => setHost(null),
-    onKickRoom: () => setHost(null),
+    onKickRoom: () => {
+      if (host) kickFromRoom({ name: host.name, publicId: host.publicId, photo: host.photo }, userName);
+      setHost(null);
+    },
   });
   const openMyCard = () => {
     const seated = mySeat !== null;
