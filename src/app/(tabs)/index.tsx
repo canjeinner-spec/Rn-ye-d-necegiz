@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -13,9 +13,11 @@ import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { PEOPLE } from "@/data/people";
+import { listRooms } from "@/data/remote/roomsRepo";
 import { ROOMS, type Room } from "@/data/seed";
 import { RoomPasswordGate } from "@/sheets/RoomPasswordGate";
 import { Icon } from "@/icons/Icon";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
@@ -92,6 +94,21 @@ export default function Home() {
   const privileged = role !== "user";
   const [tab, setTab] = useState(0);
   const [gateRoom, setGateRoom] = useState<Room | null>(null);
+  const [dbRooms, setDbRooms] = useState<Room[]>([]);
+
+  // Gerçek odaları DB'den yükle; ekrana her dönüşte tazele (yeni açılan oda görünsün).
+  useFocusEffect(
+    useCallback(() => {
+      if (!isSupabaseConfigured) return;
+      let alive = true;
+      listRooms().then((r) => { if (alive) setDbRooms(r); }).catch(() => {});
+      return () => { alive = false; };
+    }, []),
+  );
+
+  // DB odaları üstte; mock odalar (MVP'de ekranı canlı tutar) altta. Aynı ID tekrarını ele.
+  const dbIds = new Set(dbRooms.map((r) => r.id));
+  const rooms = [...dbRooms, ...ROOMS.filter((r) => !dbIds.has(r.id))];
 
   const enterAndGo = (room: Room) => {
     haptic.light();
@@ -124,7 +141,7 @@ export default function Home() {
         <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
           <EventBanners />
           <View style={{ paddingHorizontal: 12, paddingTop: 14, gap: 10 }}>
-            {ROOMS.map((r) => (
+            {rooms.map((r) => (
               <RoomRow key={r.id} room={r} onPress={() => onRoomPress(r)} />
             ))}
           </View>

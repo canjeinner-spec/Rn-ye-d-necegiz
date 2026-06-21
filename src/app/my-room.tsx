@@ -49,17 +49,29 @@ function RoomCard({ room, onPress }: { room: Room; onPress: () => void }) {
 
 export default function MyRoomHub() {
   const router = useRouter();
-  const { myRoom, userName, userPhoto, openMyRoom, enterRoom } = useApp();
+  const { myRoom, userName, userPhoto, openMyRoom, createMyRoom, enterRoom } = useApp();
   const [tab, setTab] = useState(0);
+  const [creating, setCreating] = useState(false);
 
   const live = ROOMS.filter((r) => r.live && !r.official);
   const lists = [live, live.slice(0, 3), live.slice(1, 4)];
   const list = lists[tab];
 
-  const enterMine = () => {
+  const enterMine = async () => {
     haptic.light();
-    openMyRoom();
-    router.navigate("/room");
+    if (myRoom) {
+      openMyRoom();
+      router.navigate("/room");
+      return;
+    }
+    if (creating) return;
+    setCreating(true);
+    try {
+      await createMyRoom();
+      router.navigate("/room");
+    } finally {
+      setCreating(false);
+    }
   };
   const openRoom = (r: Room) => {
     haptic.light();

@@ -5,6 +5,7 @@ import { type DMThread } from "@/data/dm";
 import { type Room } from "@/data/seed";
 import { getSession, onAuthChange, signOut } from "@/data/remote/authRepo";
 import { ensureMyProfile, getMyProfile } from "@/data/remote/profileRepo";
+import { createRoom } from "@/data/remote/roomsRepo";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 export type BroadcastData = {
@@ -68,6 +69,7 @@ type AppState = {
   leaveRoom: () => void;
   makeMyRoom: () => Room;
   openMyRoom: () => Room;
+  createMyRoom: () => Promise<Room>;
 
   fireBroadcast: (d: BroadcastData) => void;
   clearBroadcast: () => void;
@@ -214,6 +216,24 @@ export const useApp = create<AppState>((set, get) => ({
     let r = myRoom || makeMyRoom();
     r = { ...r, photo: userPhoto || r.photo };
     enterRoom(r);
+    return r;
+  },
+
+  // Kalıcı oda oluşturur (Supabase). Hata/oturum yoksa yerel odaya düşer.
+  createMyRoom: async () => {
+    const { userName, userPhoto, enterRoom, makeMyRoom } = get();
+    if (isSupabaseConfigured && get().session) {
+      try {
+        const r = await createRoom({ name: `${userName} Odası`, photo: userPhoto || null });
+        set({ myRoom: r });
+        enterRoom(r);
+        return r;
+      } catch {
+        // sessizce yerel odaya düş
+      }
+    }
+    const r = makeMyRoom();
+    enterRoom({ ...r, photo: userPhoto || r.photo });
     return r;
   },
 
