@@ -9,6 +9,7 @@ import { OfficialAvatar, SystemAvatar } from "@/components/SpecialAvatars";
 import { Txt } from "@/components/Txt";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { ARON_POSTS, SYSTEM_POSTS } from "@/data/dm";
+import { getBlockStateByPublicId, unblock } from "@/data/remote/blockRepo";
 import { getMessages, mapRealtimeMessage, markRead, sendMessage } from "@/data/remote/dmRepo";
 import { type Gift } from "@/data/gifts";
 import { Icon } from "@/icons/Icon";
@@ -49,6 +50,21 @@ export default function DMChatScreen() {
   );
   const [input, setInput] = useState("");
   const [giftOpen, setGiftOpen] = useState(false);
+  const [block, setBlock] = useState<{ iBlocked: boolean; blockedByThem: boolean; targetId: number | null } | null>(null);
+
+  // Engel durumunu yükle (gerçek kişi sohbeti; resmi/sistem hariç)
+  useEffect(() => {
+    if (!isSupabaseConfigured || !peer?.publicId || peer.official || peer.system) return;
+    let alive = true;
+    getBlockStateByPublicId(peer.publicId).then((b) => { if (alive) setBlock(b); }).catch(() => {});
+    return () => { alive = false; };
+  }, [peer?.publicId, peer?.official, peer?.system]);
+
+  const unblockPeer = async () => {
+    if (!block || block.targetId == null) return;
+    haptic.medium();
+    try { await unblock(block.targetId); setBlock({ ...block, iBlocked: false }); } catch { /* sessiz */ }
+  };
 
   // Gerçek DM: mesajları yükle + okundu işaretle + realtime dinle
   useEffect(() => {
@@ -78,6 +94,7 @@ export default function DMChatScreen() {
   const send = async () => {
     const t = input.trim();
     if (!t) return;
+    if (block?.blockedByThem || block?.iBlocked) return; // engelliyken gönderme
     setInput("");
     if (isRealDM && convId) {
       try {
@@ -218,22 +235,38 @@ export default function DMChatScreen() {
             )}
           </ScrollView>
 
-          <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, alignItems: "center" }}>
-            <View style={styles.inputWrap}>
-              <TextInput value={input} onChangeText={setInput} onSubmitEditing={send} placeholder="Mesajını yaz..." placeholderTextColor={C.dim2} style={styles.input} returnKeyType="send" />
+          {block?.blockedByThem ? (
+            // Twitter tarzı: karşı taraf engellemiş → sohbet kapalı
+            <View style={styles.blockBar}>
+              <Icon name="blockuser" size={15} color={C.dim} />
+              <Txt weight="bold" size={12} color={C.dim} align="center">Bu kişi sizi engelledi. Mesaj gönderemezsiniz.</Txt>
             </View>
-            {/* MVP: hediye butonu gizli (FEATURES.dmGift) */}
-            {FEATURES.dmGift && (
-              <Pressable onPress={() => setGiftOpen(true)} style={styles.giftBtn}>
-                <Icon name="crown" size={18} color={C.gold2} />
+          ) : block?.iBlocked ? (
+            <View style={styles.blockBar}>
+              <Icon name="blockuser" size={15} color="#FB7185" />
+              <Txt weight="bold" size={12} color="#FB7185" style={{ flex: 1 }}>Bu kişiyi engellediniz.</Txt>
+              <Pressable onPress={unblockPeer} hitSlop={8}>
+                <Txt weight="extrabold" size={12} color={C.gold2}>Engeli kaldır</Txt>
               </Pressable>
-            )}
-            <Pressable onPress={send} style={{ borderRadius: 22, overflow: "hidden" }}>
-              <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.sendBtn}>
-                <Icon name="send" size={17} sw={2} color="#241A05" />
-              </Gradient>
-            </Pressable>
-          </View>
+            </View>
+          ) : (
+            <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, alignItems: "center" }}>
+              <View style={styles.inputWrap}>
+                <TextInput value={input} onChangeText={setInput} onSubmitEditing={send} placeholder="Mesajını yaz..." placeholderTextColor={C.dim2} style={styles.input} returnKeyType="send" />
+              </View>
+              {/* MVP: hediye butonu gizli (FEATURES.dmGift) */}
+              {FEATURES.dmGift && (
+                <Pressable onPress={() => setGiftOpen(true)} style={styles.giftBtn}>
+                  <Icon name="crown" size={18} color={C.gold2} />
+                </Pressable>
+              )}
+              <Pressable onPress={send} style={{ borderRadius: 22, overflow: "hidden" }}>
+                <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.sendBtn}>
+                  <Icon name="send" size={17} sw={2} color="#241A05" />
+                </Gradient>
+              </Pressable>
+            </View>
+          )}
         </KeyboardAvoidingView>
       </SafeAreaView>
 
@@ -258,4 +291,5 @@ const styles = StyleSheet.create({
   input: { color: C.text, fontSize: 12.5, fontFamily: "PlusJakartaSans_500Medium", paddingVertical: 11 },
   giftBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: C.gold + "44", backgroundColor: C.gold + "14", alignItems: "center", justifyContent: "center" },
   sendBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  blockBar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, marginHorizontal: 16, marginTop: 8, marginBottom: 6, paddingVertical: 13, paddingHorizontal: 14, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line },
 });

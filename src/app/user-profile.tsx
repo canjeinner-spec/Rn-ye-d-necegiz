@@ -13,6 +13,7 @@ import { Scene } from "@/components/Scene";
 import { Txt } from "@/components/Txt";
 import { DM_THREADS, type DMThread } from "@/data/dm";
 import { type Gift } from "@/data/gifts";
+import { block, getBlockState, unblock } from "@/data/remote/blockRepo";
 import { getOrCreateConversation } from "@/data/remote/dmRepo";
 import { follow, getFollowState, unfollow } from "@/data/remote/followRepo";
 import { getPublicProfile, type PublicProfile } from "@/data/remote/profileRepo";
@@ -62,6 +63,7 @@ export default function UserProfileScreen() {
           setFollowing(s.isFollowing);
         }).catch(() => {});
         getVisitorCount(p.id).then((c) => { if (alive) setVisitorCount(c); }).catch(() => {});
+        getBlockState(p.id).then((b) => { if (!alive) return; setBlocked(b.iBlocked); setBlockedByThem(b.blockedByThem); }).catch(() => {});
       }
     }).catch(() => {});
     return () => { alive = false; };
@@ -93,7 +95,8 @@ export default function UserProfileScreen() {
   const [friend, setFriend] = useState<"none" | "pending" | "friend">("none");
   const [following, setFollowing] = useState(false);
   const [menu, setMenu] = useState(false);
-  const [blocked, setBlocked] = useState(false);
+  const [blocked, setBlocked] = useState(false); // ben onu engelledim
+  const [blockedByThem, setBlockedByThem] = useState(false); // o beni engelledi
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState("");
   const [addOpen, setAddOpen] = useState(false);
@@ -131,7 +134,19 @@ export default function UserProfileScreen() {
     router.navigate("/dm-chat");
   };
   const copyId = () => { haptic.select(); setCopied(true); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => setCopied(false), 1200); };
-  const toggleBlock = () => { setMenu(false); haptic.medium(); setBlocked((b) => !b); flash(blocked ? `${name} engeli kaldırıldı.` : `${name} engellendi.`); };
+  const toggleBlock = () => {
+    setMenu(false);
+    haptic.medium();
+    const next = !blocked;
+    setBlocked(next);
+    flash(next ? `${name} engellendi.` : `${name} engeli kaldırıldı.`);
+    if (isSupabaseConfigured && profile) {
+      (next ? block(profile.id) : unblock(profile.id)).catch((e) => {
+        console.warn("[block]", e?.message || e);
+        setBlocked(!next); // geri al
+      });
+    }
+  };
   const sendRequest = () => { haptic.success(); setFriend("pending"); setAddOpen(false); setAddMsg(""); };
   const sendGift = (g: Gift, qty: number) => { haptic.success(); setGiftOpen(false); flash(`${g.name} ×${qty} gönderildi!`); };
 
@@ -255,7 +270,23 @@ export default function UserProfileScreen() {
         )}
 
         <View style={[styles.actionBar, { paddingBottom: 14 + insets.bottom }]}>
-          {friend === "none" ? (
+          {blockedByThem ? (
+            <View style={styles.blockNotice}>
+              <Icon name="blockuser" size={16} color={C.dim} />
+              <Txt weight="bold" size={12.5} color={C.dim}>Bu kişi sizi engelledi</Txt>
+            </View>
+          ) : blocked ? (
+            <>
+              <View style={[styles.blockNotice, { flex: 1 }]}>
+                <Icon name="blockuser" size={16} color="#FB7185" />
+                <Txt weight="bold" size={12.5} color="#FB7185">Bu kişiyi engellediniz</Txt>
+              </View>
+              <Pressable onPress={toggleBlock} style={styles.barBtn}>
+                <Icon name="check" size={15} color={C.text} sw={2.5} />
+                <Txt weight="bold" size={12} color={C.text}>Engeli Kaldır</Txt>
+              </Pressable>
+            </>
+          ) : friend === "none" ? (
             <Pressable onPress={() => { haptic.light(); setAddOpen(true); }} style={styles.barBtn}>
               <Icon name="userAdd" size={17} color={C.text} />
               <Txt weight="bold" size={12} color={C.text}>Arkadaş Ekle</Txt>
@@ -382,6 +413,7 @@ const styles = StyleSheet.create({
   actionBar: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 18, paddingTop: 12, backgroundColor: "rgba(10,10,15,.95)" },
   barBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 14, backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.13)" },
   barBtnPrimary: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 14 },
+  blockNotice: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 13, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line },
   toast: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: `${C.red}55`, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999 },
   dialog: { borderRadius: 24, padding: 20, backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
   addInput: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
