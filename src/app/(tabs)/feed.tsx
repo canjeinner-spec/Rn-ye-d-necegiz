@@ -398,15 +398,22 @@ export default function FeedScreen() {
                             <Pressable onPress={() => goProfile(r.publicId, r.who, r.mine)}>
                               <Portrait name={r.who} size={24} photo={r.mine ? userPhoto || undefined : r.photo} />
                             </Pressable>
-                            <Txt size={11.5} color={C.text} style={{ flex: 1 }} lh={1.4}>
-                              <Txt weight="extrabold" size={11} color={r.mine ? C.gold2 : C.text} onPress={() => goProfile(r.publicId, r.who, r.mine)}>{r.mine ? userName : r.who} </Txt>
-                              {r.text}
-                            </Txt>
-                            {(r.mine || p.mine) && (
-                              <Pressable onPress={() => delReply(p.id, ci, ri)} hitSlop={6}>
-                                <Txt weight="bold" size={10} color={C.dim2}>Sil</Txt>
-                              </Pressable>
-                            )}
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <Txt size={11.5} color={C.text} lh={1.4}>
+                                <Txt weight="extrabold" size={11} color={r.mine ? C.gold2 : C.text} onPress={() => goProfile(r.publicId, r.who, r.mine)}>{r.mine ? userName : r.who} </Txt>
+                                {r.text}
+                              </Txt>
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 14, marginTop: 3 }}>
+                                <Pressable onPress={() => { setReplyTo({ pid: p.id, ci }); setReplyText(`@${r.mine ? userName : r.who} `); }} hitSlop={6}>
+                                  <Txt weight="bold" size={10} color={C.dim2}>Yanıtla</Txt>
+                                </Pressable>
+                                {(r.mine || p.mine) && (
+                                  <Pressable onPress={() => delReply(p.id, ci, ri)} hitSlop={6}>
+                                    <Txt weight="bold" size={10} color={C.dim2}>Sil</Txt>
+                                  </Pressable>
+                                )}
+                              </View>
+                            </View>
                           </View>
                         ))}
                         {replyTo && replyTo.pid === p.id && replyTo.ci === ci && (
