@@ -61,15 +61,28 @@ export async function signInWithGoogle() {
     throw new Error("Google girişi iptal edildi.");
   }
 
-  // exp:// şeması URL() ile bazen düzgün ayrışmaz; hem query hem fragment'tan ara.
-  const code = extractParam(res.url, "code");
+  // exp:// şeması URL() ile bazen düzgün ayrışmaz; query+fragment'tan elle çıkar.
   const errDesc = extractParam(res.url, "error_description") || extractParam(res.url, "error");
-  if (errDesc) throw new Error(decodeURIComponent(errDesc));
-  if (!code) throw new Error("Google yetki kodu bulunamadı.");
+  if (errDesc) throw new Error(decodeURIComponent(errDesc.replace(/\+/g, " ")));
 
-  const { data: sess, error: exErr } = await sb.auth.exchangeCodeForSession(code);
-  if (exErr) throw exErr;
-  return sess;
+  // implicit akış: token'lar deep-link'te döner → doğrudan oturum kur.
+  const access_token = extractParam(res.url, "access_token");
+  const refresh_token = extractParam(res.url, "refresh_token");
+  if (access_token && refresh_token) {
+    const { data: sess, error: setErr } = await sb.auth.setSession({ access_token, refresh_token });
+    if (setErr) throw setErr;
+    return sess;
+  }
+
+  // (yedek) PKCE code dönerse onu da işle.
+  const code = extractParam(res.url, "code");
+  if (code) {
+    const { data: sess, error: exErr } = await sb.auth.exchangeCodeForSession(code);
+    if (exErr) throw exErr;
+    return sess;
+  }
+
+  throw new Error("Google oturum bilgisi alınamadı.");
 }
 
 /** Bir URL'deki query veya fragment parametresini şemadan bağımsız çıkarır. */
