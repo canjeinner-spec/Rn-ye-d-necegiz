@@ -51,6 +51,13 @@ export async function updateMyProfile(
   return data as Profile;
 }
 
+/** Profil satırı yoksa (auth.uid() için) yeniden oluşturur — self-heal. */
+export async function ensureMyProfile(): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("profilimi_garantile");
+  if (error) throw error;
+}
+
 /** Görünen ad (kullanici_adi) müsait mi? (case-insensitive, RPC). */
 export async function isUsernameAvailable(name: string): Promise<boolean> {
   const sb = requireSupabase();

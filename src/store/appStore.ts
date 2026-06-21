@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { type DMThread } from "@/data/dm";
 import { type Room } from "@/data/seed";
 import { getSession, onAuthChange, signOut } from "@/data/remote/authRepo";
-import { getMyProfile } from "@/data/remote/profileRepo";
+import { ensureMyProfile, getMyProfile } from "@/data/remote/profileRepo";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 export type BroadcastData = {
@@ -109,9 +109,14 @@ export const useApp = create<AppState>((set, get) => ({
   loadProfile: async () => {
     try {
       let p = await getMyProfile();
-      // Signup trigger satırı henüz oluşmadıysa kısa retry.
+      // Satır yoksa: trigger henüz işlememiş olabilir ya da satır elle
+      // silinmiş olabilir → self-heal RPC ile garantile, sonra tekrar oku.
       if (!p) {
-        await new Promise((r) => setTimeout(r, 800));
+        try {
+          await ensureMyProfile();
+        } catch {
+          await new Promise((r) => setTimeout(r, 800)); // RPC yoksa kısa bekleyip yine dene
+        }
         p = await getMyProfile();
       }
       if (!p) return;
