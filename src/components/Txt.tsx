@@ -27,6 +27,10 @@ export function Txt({ weight = "medium", size = 14, color = C.text, lh, align, s
           fontFamily: Font[weight],
           fontSize: size,
           color,
+          // Android: fazladan font boşluğunu kaldır → metin dikeyde düzgün
+          // ortalanır (küçük rozetlerdeki sayıların "gömük" görünmesini önler).
+          // iOS bu özelliği yok sayar.
+          includeFontPadding: false,
           ...(lh ? { lineHeight: size * lh } : null),
           ...(align ? { textAlign: align } : null),
         },
