@@ -1,6 +1,5 @@
 import { makeRedirectUri } from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
-import { Platform } from "react-native";
 import { type Session } from "@supabase/supabase-js";
 
 import { requireSupabase, supabase } from "@/lib/supabase";
@@ -48,7 +47,6 @@ export async function signInWithGoogle() {
   // Bu adres Supabase → Authentication → URL Configuration → Redirect URLs
   // listesine eklenmeli, yoksa Supabase "Site URL" (localhost) fallback yapar.
   const redirectTo = makeRedirectUri();
-  console.log(`[auth][${Platform.OS}] Google redirectTo:`, redirectTo); // Supabase'e eklenecek adres
 
   const { data, error } = await sb.auth.signInWithOAuth({
     provider: "google",
