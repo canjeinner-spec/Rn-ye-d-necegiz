@@ -113,7 +113,7 @@ export default function Onboarding() {
       await updateMyProfile({
         kullanici_adi: rName.trim(),
         biyografi: rBio.trim() || null,
-        cinsiyet: rGender === "e" ? "erkek" : "kadin",
+        cinsiyet: rGender, // DB: varchar(1) CHECK IN ('e','k')
         profil_resmi: rPhoto || null,
       });
       // Anlık UI için store'u da güncelle
@@ -224,12 +224,12 @@ export default function Onboarding() {
               <Txt size={12} color={C.dim} lh={1.5} style={{ marginTop: 8 }}>Seni nasıl görelim? Birkaç bilgi yeterli.</Txt>
 
               <View style={{ alignItems: "center", marginTop: 24 }}>
-                <Pressable onPress={pickImage} style={[styles.avatar, { borderColor: rPhoto ? C.gold : "rgba(255,255,255,.15)" }]}>
-                  {rPhoto ? <Image source={{ uri: rPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Icon name="camera" size={30} color={C.dim} />}
-                  <View style={styles.avatarPlus}>
-                    <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ flex: 1, borderRadius: 15, alignItems: "center", justifyContent: "center" }}>
-                      <Icon name="plus" size={15} sw={2.5} color="#241A05" />
-                    </Gradient>
+                <Pressable onPress={pickImage} style={styles.avatarWrap}>
+                  <View style={[styles.avatar, { borderColor: rPhoto ? C.gold : "rgba(255,255,255,.15)" }]}>
+                    {rPhoto ? <Image source={{ uri: rPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Icon name="camera" size={30} color={C.dim} />}
+                  </View>
+                  <View style={styles.camBadge}>
+                    <Icon name="camera" size={14} sw={2} color="#241A05" />
                   </View>
                 </Pressable>
                 <Txt weight="semibold" size={10.5} color={C.dim2} style={{ marginTop: 9 }}>Fotoğraf yükle veya hazır olanlardan seç</Txt>
@@ -300,8 +300,9 @@ const styles = StyleSheet.create({
   back: { position: "absolute", left: 20, top: 8, zIndex: 2, width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   altBtn: { paddingVertical: 13, borderRadius: 15, borderWidth: 1, borderColor: "rgba(255,255,255,.1)", backgroundColor: "rgba(255,255,255,.05)", alignItems: "center" },
   input: { height: 50, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, color: C.text, fontSize: 15, fontFamily: "PlusJakartaSans_700Bold" },
+  avatarWrap: { width: 100, height: 100 },
   avatar: { width: 100, height: 100, borderRadius: 50, overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 2, backgroundColor: "rgba(255,255,255,.05)" },
-  avatarPlus: { position: "absolute", bottom: 0, right: 0, width: 30, height: 30, borderRadius: 15, borderWidth: 2.5, borderColor: "#0A0A0F", overflow: "hidden" },
+  camBadge: { position: "absolute", right: 2, bottom: 2, width: 30, height: 30, borderRadius: 15, backgroundColor: C.gold2, borderWidth: 2.5, borderColor: "#0A0A0F", alignItems: "center", justifyContent: "center" },
   preset: { width: 46, height: 46, borderRadius: 23, overflow: "hidden", borderWidth: 2 },
   genderBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 14, borderWidth: 1.5 },
 });
