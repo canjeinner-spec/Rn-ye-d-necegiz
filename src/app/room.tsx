@@ -109,7 +109,7 @@ function SeatItem({
           </View>
         )}
       </View>
-      <Txt weight="bold" size={10.5} color={isMe ? C.gold : C.text} numberOfLines={1} style={{ maxWidth: 68 }}>
+      <Txt weight="medium" size={9.5} color={isMe ? C.gold : C.text} numberOfLines={1} style={{ maxWidth: 68 }}>
         {isMe ? userName : seat.name}
       </Txt>
       {isMe && privileged && <AuthorityTag size={8} />}
@@ -513,7 +513,7 @@ export default function RoomScreen() {
                   <Portrait name={isMine ? "Sen" : host!.name} size={70} muted={host?.muted} ring={C.gold} glow photo={isMine ? userPhoto || undefined : undefined} />
                 </View>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap", justifyContent: "center", maxWidth: 140 }}>
-                  <Txt weight="extrabold" size={12} color="#fff">{isMine ? userName : host!.name}</Txt>
+                  <Txt weight="semibold" size={11} color="#fff">{isMine ? userName : host!.name}</Txt>
                   {isMine && privileged && <AuthorityTag size={8} />}
                 </View>
               </Pressable>
