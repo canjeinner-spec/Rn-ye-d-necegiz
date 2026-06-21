@@ -29,6 +29,7 @@ function toScene(kategori: string | null): SceneKind {
 function mapRoom(r: OdaRow, hostName: string, myId: number | null): Room {
   return {
     id: r.public_id,
+    dbId: r.id,
     name: r.ad,
     host: hostName,
     online: r.aktif_katilimci_sayisi,
@@ -80,6 +81,47 @@ export async function listRooms(limit = 50): Promise<Room[]> {
 /** 6 haneli benzersiz oda ID'si (çakışmada birkaç kez dener). */
 function genRoomId(): string {
   return String(Math.floor(100000 + Math.random() * 899999));
+}
+
+export type RoomMessage = { id: number; uid: number | null; name: string; photo?: string; text: string; time: string; me: boolean };
+
+function hhmm(iso: string): string {
+  return new Date(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+}
+
+/** Oda sohbet mesajları (eskiden yeniye) + yazar adı/fotoğrafı. */
+export async function getRoomMessages(odaId: number, limit = 60): Promise<RoomMessage[]> {
+  const sb = requireSupabase();
+  const [{ data, error }, me] = await Promise.all([
+    sb.from("oda_mesajlari").select("id, kullanici_id, icerik, gonderilme_tarihi").eq("oda_id", odaId).order("gonderilme_tarihi", { ascending: true }).limit(limit),
+    getMyProfile().catch(() => null),
+  ]);
+  if (error) throw error;
+  const rows = (data as { id: number; kullanici_id: number | null; icerik: string; gonderilme_tarihi: string }[]) ?? [];
+  const ids = [...new Set(rows.map((r) => r.kullanici_id).filter((x): x is number => x != null))];
+  const names = new Map<number, { kullanici_adi: string; profil_resmi: string | null }>();
+  if (ids.length) {
+    const { data: profs } = await sb.from("profiller").select("id, kullanici_adi, profil_resmi").in("id", ids);
+    for (const p of (profs as { id: number; kullanici_adi: string; profil_resmi: string | null }[]) ?? []) names.set(p.id, p);
+  }
+  return rows.map((r) => ({
+    id: r.id,
+    uid: r.kullanici_id,
+    name: r.kullanici_id != null ? names.get(r.kullanici_id)?.kullanici_adi || "Kullanıcı" : "Kullanıcı",
+    photo: r.kullanici_id != null ? names.get(r.kullanici_id)?.profil_resmi || undefined : undefined,
+    text: r.icerik,
+    time: hhmm(r.gonderilme_tarihi),
+    me: me != null && r.kullanici_id === me.id,
+  }));
+}
+
+/** Odaya mesaj gönder (kendi adına). */
+export async function sendRoomMessage(odaId: number, text: string): Promise<void> {
+  const sb = requireSupabase();
+  const me = await getMyProfile();
+  if (!me) throw new Error("Profil bulunamadı.");
+  const { error } = await sb.from("oda_mesajlari").insert({ oda_id: odaId, kullanici_id: me.id, icerik: text.trim() });
+  if (error) throw error;
 }
 
 /** Yeni oda oluştur (kendi adına). Oluşan Room'u döndürür. */

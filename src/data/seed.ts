@@ -20,6 +20,7 @@ export type Room = {
   badges?: RoomBadgeItem[];
   friends?: number;
   daily?: number;
+  dbId?: number; // odalar.id (gerçek DB odası). Yoksa mock oda.
 };
 
 export type Seat = {
@@ -32,7 +33,7 @@ export type Seat = {
   speaking?: boolean;
 };
 
-export type ChatMsg = { name: string; time: string; text: string; mod?: boolean; host?: boolean; myOwn?: boolean };
+export type ChatMsg = { name: string; time: string; text: string; mod?: boolean; host?: boolean; myOwn?: boolean; photo?: string };
 
 export type DM = {
   name: string;

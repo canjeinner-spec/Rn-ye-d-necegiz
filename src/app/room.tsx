@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -31,10 +31,12 @@ import { ProfileCard, type ProfileCardUser } from "@/sheets/ProfileCard";
 import { RoomPanel } from "@/sheets/RoomPanel";
 import { RoomStats } from "@/sheets/RoomStats";
 import { type Gift } from "@/data/gifts";
+import { getRoomMessages, sendRoomMessage } from "@/data/remote/roomsRepo";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { FEATURES } from "@/lib/features";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
@@ -139,7 +141,7 @@ function ChatRow({
   return (
     <View style={{ flexDirection: "row", gap: 9, alignItems: "flex-start" }}>
       <Pressable onPress={onSelfPress} disabled={!isMe}>
-        <Portrait name={m.name} size={30} photo={isMe ? userPhoto || undefined : undefined} />
+        <Portrait name={m.name} size={30} photo={isMe ? userPhoto || undefined : m.photo} />
       </Pressable>
       <View style={{ flex: 1, minWidth: 0, alignItems: "flex-start" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
@@ -200,9 +202,16 @@ function ActionRow({ icon, color, label, onPress }: { icon: IconName; color: str
 export default function RoomScreen() {
   const router = useRouter();
   const { currentRoom, userPhoto, userName, roomName, roomAnnounce, roomLocked, role, leaveRoom, fireBroadcast } = useApp();
+  const session = useApp((s) => s.session);
+  const myDbId = useApp((s) => s.dbId);
+  const myPublicId = useApp((s) => s.publicId);
   const privileged = role !== "user";
   const room = currentRoom;
   const isMine = !!room && (room.owner === true || room.host === "Sen");
+
+  // Gerçek (DB) oda mı? → canlı sohbet + presence
+  const dbId = room?.dbId;
+  const isDbRoom = !!dbId && isSupabaseConfigured && !!session;
 
   const [host, setHost] = useState<Seat | null>(() => SEATS.find((s) => s.host) ?? null);
   const [seats, setSeats] = useState<(Seat | null)[]>(() => {
@@ -212,7 +221,10 @@ export default function RoomScreen() {
     });
     return arr;
   });
-  const [msgs, setMsgs] = useState<ChatMsg[]>(CHAT0);
+  const [msgs, setMsgs] = useState<ChatMsg[]>(() => (isDbRoom ? [] : CHAT0));
+  const [liveMembers, setLiveMembers] = useState<{ uid: number; name: string; photo?: string; publicId?: string }[]>([]);
+  const memberMapRef = useRef<Map<number, { name: string; photo?: string }>>(new Map());
+  const chatRef = useRef<ScrollView>(null);
   const [input, setInput] = useState("");
   const [speakerOn, setSpeakerOn] = useState(true);
   const [micOn, setMicOn] = useState(isMine);
@@ -250,6 +262,59 @@ export default function RoomScreen() {
 
   const occupants = useMemo(() => [host, ...seats].filter(Boolean) as Seat[], [seats, host]);
 
+  // Header/sayaç için birleşik kalabalık: DB odasında presence, yoksa koltuklar (mock)
+  const crowd = isDbRoom
+    ? liveMembers.map((m) => ({ key: "u" + m.uid, name: m.name, photo: m.uid === myDbId ? userPhoto || undefined : m.photo }))
+    : occupants.map((o, i) => ({ key: (o.name || "u") + i, name: o.name, photo: o.name === "Sen" ? userPhoto || undefined : undefined }));
+  const crowdCount = isDbRoom ? liveMembers.length : occupants.length;
+
+  // Gerçek oda: ilk mesajları yükle + Realtime (canlı sohbet + presence)
+  useEffect(() => {
+    const sb = supabase;
+    if (!isDbRoom || !dbId || !sb) return;
+    let alive = true;
+    const fmt = (iso: string) => new Date(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+
+    getRoomMessages(dbId)
+      .then((rows) => { if (alive) setMsgs(rows.map((r) => ({ name: r.name, time: r.time, text: r.text, myOwn: r.me, photo: r.photo }))); })
+      .catch(() => {});
+
+    const ch = sb.channel(`room-${dbId}-${Date.now()}`, { config: { presence: { key: String(myDbId ?? Math.random()) } } });
+
+    ch.on("presence", { event: "sync" }, () => {
+      const state = ch.presenceState() as Record<string, { uid?: number; name?: string; photo?: string; publicId?: string }[]>;
+      const map = new Map<number, { name: string; photo?: string }>();
+      const members: { uid: number; name: string; photo?: string; publicId?: string }[] = [];
+      for (const arr of Object.values(state)) {
+        for (const p of arr) {
+          if (p.uid == null) continue;
+          map.set(p.uid, { name: p.name || "Kullanıcı", photo: p.photo });
+          if (!members.some((m) => m.uid === p.uid)) members.push({ uid: p.uid, name: p.name || "Kullanıcı", photo: p.photo, publicId: p.publicId });
+        }
+      }
+      memberMapRef.current = map;
+      if (alive) setLiveMembers(members);
+    });
+
+    ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "oda_mesajlari", filter: `oda_id=eq.${dbId}` }, (payload) => {
+      const row = payload.new as { kullanici_id: number | null; icerik: string; gonderilme_tarihi: string };
+      const uid = row.kullanici_id;
+      const mine = uid != null && uid === myDbId;
+      const info = uid != null ? memberMapRef.current.get(uid) : undefined;
+      const name = mine ? userName : info?.name || "Kullanıcı";
+      const photo = mine ? userPhoto || undefined : info?.photo;
+      if (alive) setMsgs((prev) => [...prev, { name, time: fmt(row.gonderilme_tarihi), text: row.icerik, myOwn: mine, photo }]);
+    });
+
+    ch.subscribe(async (status) => {
+      if (status === "SUBSCRIBED") await ch.track({ uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined });
+    });
+
+    return () => { alive = false; ch.untrack(); sb.removeChannel(ch); };
+    // userName/userPhoto oturum boyunca sabit; bağımlılığa eklemiyoruz (yeniden abone olmasın)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDbRoom, dbId, myDbId]);
+
   const toast = (msg: string) => {
     setSeatToast(msg);
     setTimeout(() => setSeatToast(""), 1800);
@@ -257,8 +322,14 @@ export default function RoomScreen() {
 
   const send = () => {
     if (!input.trim()) return;
-    setMsgs((m) => [...m, { name: "Sen", time: "21:49", text: input.trim(), myOwn: true }]);
+    const t = input.trim();
     setInput("");
+    if (isDbRoom && dbId) {
+      // Realtime echo ile listeye düşecek (optimistik eklemiyoruz → çift olmaz)
+      sendRoomMessage(dbId, t).catch(() => toast("Mesaj gönderilemedi"));
+      return;
+    }
+    setMsgs((m) => [...m, { name: "Sen", time: "21:49", text: t, myOwn: true }]);
   };
 
   const sitHere = (idx: number) => {
@@ -399,15 +470,15 @@ export default function RoomScreen() {
               </Pressable>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, maxWidth: "62%" }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, alignItems: "center" }}>
-                  {occupants.slice(0, 7).map((o, i) => (
-                    <Pressable key={(o.name || "u") + i} onPress={() => setUserList(true)}>
-                      <Portrait name={o.name} size={32} ring="rgba(255,255,255,.22)" photo={o.name === "Sen" ? userPhoto || undefined : undefined} />
+                  {crowd.slice(0, 7).map((o) => (
+                    <Pressable key={o.key} onPress={() => setUserList(true)}>
+                      <Portrait name={o.name} size={32} ring="rgba(255,255,255,.22)" photo={o.photo} />
                     </Pressable>
                   ))}
                 </ScrollView>
                 <Pressable onPress={() => setUserList(true)} style={styles.countBadge}>
                   <Icon name="user" size={12} color="rgba(255,255,255,.7)" />
-                  <Txt weight="extrabold" size={9} color="#fff">{occupants.length}</Txt>
+                  <Txt weight="extrabold" size={9} color="#fff">{crowdCount}</Txt>
                 </Pressable>
               </View>
             </View>
@@ -445,7 +516,7 @@ export default function RoomScreen() {
             </View>
           </View>
 
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 6, gap: 11 }}>
+          <ScrollView ref={chatRef} onContentSizeChange={() => chatRef.current?.scrollToEnd({ animated: true })} style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 6, gap: 11 }}>
             <SystemBanner roomName={roomName} />
             {SYS_MSGS.map((s, i) => (
               <View key={"sys" + i} style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -519,29 +590,54 @@ export default function RoomScreen() {
       <Sheet visible={userList} onClose={() => setUserList(false)} maxHeightRatio={0.72}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <Txt weight="displayBold" size={16} color="#fff">Odadaki Kullanıcılar</Txt>
-          <Pill bg="rgba(255,255,255,.07)" color={C.dim} border={C.line}>{occupants.length} kişi</Pill>
+          <Pill bg="rgba(255,255,255,.07)" color={C.dim} border={C.line}>{(isDbRoom ? liveMembers.length : occupants.length)} kişi</Pill>
         </View>
         <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ gap: 4 }}>
-          {occupants.map((s) => {
-            const isMe = s.name === "Sen";
-            return (
-            <Pressable key={s.name} onPress={() => { setUserList(false); tapOccupant(s); }} style={styles.userRow}>
-              <Portrait name={s.name} size={40} ring={s.host ? C.gold : s.mod ? C.purple2 : "rgba(255,255,255,.14)"} glow={s.host || s.mod} online photo={isMe ? userPhoto || undefined : undefined} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                  <Txt weight="extrabold" size={12.5} color={C.text}>{isMe ? userName : s.name}</Txt>
-                  {s.host && <RolePill type="host" />}
-                  {s.mod && !s.host && <RolePill type="mod" />}
-                  {isMe && privileged && <AuthorityTag size={8} />}
-                </View>
-                <Txt weight="semibold" size={10} color={s.muted ? C.dim2 : C.green} style={{ marginTop: 3 }}>
-                  {s.muted ? "🔇 Sessiz" : "🎙️ Konuşuyor"}
-                </Txt>
-              </View>
-              <Icon name="chev" size={13} color={C.dim2} />
-            </Pressable>
-            );
-          })}
+          {isDbRoom
+            ? liveMembers.map((m) => {
+                const isMe = m.uid === myDbId;
+                return (
+                  <Pressable
+                    key={m.uid}
+                    onPress={() => {
+                      setUserList(false);
+                      if (isMe) openMyCard();
+                      else if (m.publicId) router.navigate(`/user-profile?publicId=${encodeURIComponent(m.publicId)}&name=${encodeURIComponent(m.name)}`);
+                    }}
+                    style={styles.userRow}
+                  >
+                    <Portrait name={m.name} size={40} ring="rgba(255,255,255,.14)" online photo={isMe ? userPhoto || undefined : m.photo} />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <Txt weight="extrabold" size={12.5} color={C.text}>{isMe ? userName : m.name}</Txt>
+                        {isMe && privileged && <AuthorityTag size={8} />}
+                      </View>
+                      <Txt weight="semibold" size={10} color={C.green} style={{ marginTop: 3 }}>Odada</Txt>
+                    </View>
+                    <Icon name="chev" size={13} color={C.dim2} />
+                  </Pressable>
+                );
+              })
+            : occupants.map((s) => {
+                const isMe = s.name === "Sen";
+                return (
+                  <Pressable key={s.name} onPress={() => { setUserList(false); tapOccupant(s); }} style={styles.userRow}>
+                    <Portrait name={s.name} size={40} ring={s.host ? C.gold : s.mod ? C.purple2 : "rgba(255,255,255,.14)"} glow={s.host || s.mod} online photo={isMe ? userPhoto || undefined : undefined} />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <Txt weight="extrabold" size={12.5} color={C.text}>{isMe ? userName : s.name}</Txt>
+                        {s.host && <RolePill type="host" />}
+                        {s.mod && !s.host && <RolePill type="mod" />}
+                        {isMe && privileged && <AuthorityTag size={8} />}
+                      </View>
+                      <Txt weight="semibold" size={10} color={s.muted ? C.dim2 : C.green} style={{ marginTop: 3 }}>
+                        {s.muted ? "🔇 Sessiz" : "🎙️ Konuşuyor"}
+                      </Txt>
+                    </View>
+                    <Icon name="chev" size={13} color={C.dim2} />
+                  </Pressable>
+                );
+              })}
         </ScrollView>
       </Sheet>
 
