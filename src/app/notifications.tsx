@@ -3,9 +3,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import { NOTIF_TABS, NOTIFS, type BildirimKategori, type BildirimItem } from "@/data/notifications";
-import { listNotifications, mapNotif, markAllNotifsRead, markNotifRead } from "@/data/remote/notifRepo";
+import { enrichAvatars, listNotifications, mapNotif, markAllNotifsRead, markNotifRead } from "@/data/remote/notifRepo";
 import { Icon } from "@/icons/Icon";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
@@ -36,7 +37,8 @@ export default function NotificationsScreen() {
     if (!live || !sb) return;
     const ch = sb.channel(`notif-${Date.now()}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "bildirimler" }, (payload) => {
-        setItems((prev) => [mapNotif(payload.new as never), ...prev]);
+        const item = mapNotif(payload.new as never);
+        enrichAvatars([item]).then(([e]) => setItems((prev) => [e, ...prev])).catch(() => setItems((prev) => [item, ...prev]));
       })
       .subscribe();
     return () => { sb.removeChannel(ch); };
@@ -49,9 +51,10 @@ export default function NotificationsScreen() {
     setItems(items.map((n) => ({ ...n, okunmadi: false })));
     if (live) markAllNotifsRead().catch(() => {});
   };
-  const tapOne = (id: number) => {
-    setItems(items.map((n) => (n.id === id ? { ...n, okunmadi: false } : n)));
-    if (live) markNotifRead(id).catch(() => {});
+  const tapOne = (n: BildirimItem) => {
+    setItems(items.map((x) => (x.id === n.id ? { ...x, okunmadi: false } : x)));
+    if (live) markNotifRead(n.id).catch(() => {});
+    if (n.publicId) router.navigate(`/user-profile?publicId=${encodeURIComponent(n.publicId)}`);
   };
 
   return (
@@ -100,12 +103,22 @@ export default function NotificationsScreen() {
           {filtered.map((n) => (
             <Pressable
               key={n.id}
-              onPress={() => tapOne(n.id)}
+              onPress={() => tapOne(n)}
               style={[styles.row, { backgroundColor: n.okunmadi ? "rgba(124,58,237,.08)" : "transparent", borderColor: n.okunmadi ? "rgba(124,58,237,.2)" : "transparent" }]}
             >
-              <View style={[styles.notifIcon, { backgroundColor: `${n.renk}1A`, borderColor: `${n.renk}40` }]}>
-                <Txt size={20}>{n.ikon}</Txt>
-              </View>
+              {n.actorId != null ? (
+                // İlgili kişinin güncel avatarı + üzerinde küçük tür ikonu (Twitter gibi)
+                <View>
+                  <Portrait name={n.baslik} size={42} photo={n.avatar} ring="rgba(255,255,255,.12)" />
+                  <View style={[styles.typeBadge, { backgroundColor: n.renk }]}>
+                    <Txt size={10}>{n.ikon}</Txt>
+                  </View>
+                </View>
+              ) : (
+                <View style={[styles.notifIcon, { backgroundColor: `${n.renk}1A`, borderColor: `${n.renk}40` }]}>
+                  <Txt size={20}>{n.ikon}</Txt>
+                </View>
+              )}
               <View style={{ flex: 1, minWidth: 0 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
                   <Txt weight="extrabold" size={13} color={C.text}>{n.baslik}</Txt>
@@ -140,5 +153,6 @@ const styles = StyleSheet.create({
   badge: { minWidth: 15, height: 15, borderRadius: 999, paddingHorizontal: 4, alignItems: "center", justifyContent: "center" },
   row: { flexDirection: "row", gap: 12, alignItems: "flex-start", paddingVertical: 13, paddingHorizontal: 12, borderRadius: 16, marginBottom: 6, borderWidth: 1 },
   notifIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  typeBadge: { position: "absolute", right: -2, bottom: -2, width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: C.bg },
   dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: C.red },
 });

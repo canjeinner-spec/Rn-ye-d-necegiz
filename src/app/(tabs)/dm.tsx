@@ -10,6 +10,7 @@ import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { DM_THREADS, type DMThread } from "@/data/dm";
 import { DM_ID_OFFSET, listThreads } from "@/data/remote/dmRepo";
+import { getUnreadCount } from "@/data/remote/notifRepo";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { FEATURES } from "@/lib/features";
@@ -42,6 +43,7 @@ export default function DmTab() {
   const session = useApp((s) => s.session);
   const [tab, setTab] = useState(0);
   const [dbThreads, setDbThreads] = useState<DMThread[]>([]);
+  const [notifUnread, setNotifUnread] = useState(0);
   const [hidden, setHidden] = useState<Set<number>>(new Set());
   const [actionFor, setActionFor] = useState<DMThread | null>(null);
   const [stub, setStub] = useState<string | null>(null);
@@ -51,8 +53,11 @@ export default function DmTab() {
     listThreads().then(setDbThreads).catch((e) => console.warn("[dm] listThreads:", e?.message || e));
   }, [session]);
 
-  // Ekrana her dönüşte tazele
-  useFocusEffect(useCallback(() => { reload(); }, [reload]));
+  // Ekrana her dönüşte tazele (thread'ler + bildirim sayısı)
+  useFocusEffect(useCallback(() => {
+    reload();
+    if (isSupabaseConfigured && session) getUnreadCount().then(setNotifUnread).catch(() => {});
+  }, [reload, session]));
 
   // Realtime: yeni mesaj geldiğinde thread listesini tazele
   useEffect(() => {
@@ -106,22 +111,25 @@ export default function DmTab() {
 
         {QUICK.some((q) => q.flag !== false) && (
         <View style={styles.quickRow}>
-          {QUICK.filter((q) => q.flag !== false).map((q) => (
+          {QUICK.filter((q) => q.flag !== false).map((q) => {
+            const badge = q.t === "Bildirim" ? notifUnread : q.badge;
+            return (
             <Pressable key={q.t} onPress={() => { haptic.light(); q.route ? router.navigate(q.route as never) : setStub(`${q.t} — Aşama 5`); }} style={{ width: 74, alignItems: "center", gap: 8 }}>
               <View>
                 <Gradient colors={[q.g1, q.g2]} deg={135} style={styles.quickTile}>
                   <Gradient colors={["rgba(255,255,255,.22)", "rgba(255,255,255,0)"]} deg={180} locations={[0, 0.55]} style={StyleSheet.absoluteFill} pointerEvents="none" />
                   <Icon name={q.ic} size={24} color="#fff" />
                 </Gradient>
-                {q.badge != null && (
+                {badge != null && badge > 0 && (
                   <View style={styles.quickBadge}>
-                    <Txt weight="extrabold" size={10} color="#fff">{q.badge}</Txt>
+                    <Txt weight="extrabold" size={10} color="#fff">{badge > 99 ? "99+" : badge}</Txt>
                   </View>
                 )}
               </View>
               <Txt weight="bold" size={10.5} color={C.dim}>{q.t}</Txt>
             </Pressable>
-          ))}
+            );
+          })}
         </View>
         )}
 

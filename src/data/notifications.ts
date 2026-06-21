@@ -15,6 +15,9 @@ export type BildirimItem = {
   zaman: string;
   okunmadi: boolean;
   aksiyon?: string;
+  actorId?: number; // ilgili kullanıcı (kullanicilar.id) — avatar/publicId çözümü için
+  avatar?: string; // ilgili kişinin güncel profil fotoğrafı
+  publicId?: string; // ilgili kişinin public_id'si → profile git
 };
 
 export const NOTIF_TABS: [BildirimKategori | "all", string][] = [

@@ -35,6 +35,7 @@ function timeAgo(iso: string): string {
 
 export function mapNotif(r: BildirimRow): BildirimItem {
   const s = STYLE[r.tip] || STYLE.sistem;
+  const actor = r.veri && typeof r.veri.actor === "number" ? (r.veri.actor as number) : undefined;
   return {
     id: r.id,
     kategori: s.kategori,
@@ -45,17 +46,32 @@ export function mapNotif(r: BildirimRow): BildirimItem {
     icerik: r.icerik || "",
     zaman: timeAgo(r.olusturulma_tarihi),
     okunmadi: !r.okundu,
+    actorId: actor,
   };
+}
+
+/** İlgili kişilerin GÜNCEL avatar/public_id'sini (okuma anında) ekler. */
+export async function enrichAvatars(items: BildirimItem[]): Promise<BildirimItem[]> {
+  const ids = [...new Set(items.map((i) => i.actorId).filter((x): x is number => x != null))];
+  if (ids.length === 0) return items;
+  const sb = requireSupabase();
+  const { data } = await sb.from("profiller").select("id, public_id, profil_resmi").in("id", ids);
+  const map = new Map<number, { public_id: string; profil_resmi: string | null }>();
+  for (const p of (data as { id: number; public_id: string; profil_resmi: string | null }[]) ?? []) map.set(p.id, p);
+  return items.map((i) => {
+    const p = i.actorId != null ? map.get(i.actorId) : undefined;
+    return p ? { ...i, avatar: p.profil_resmi || undefined, publicId: p.public_id } : i;
+  });
 }
 
 const COLS = "id, tip, baslik, icerik, veri, okundu, olusturulma_tarihi";
 
-/** Kendi bildirimlerim (yeniden eskiye). */
+/** Kendi bildirimlerim (yeniden eskiye) — ilgili avatarlarla zenginleştirilmiş. */
 export async function listNotifications(limit = 60): Promise<BildirimItem[]> {
   const sb = requireSupabase();
   const { data, error } = await sb.from("bildirimler").select(COLS).order("olusturulma_tarihi", { ascending: false }).limit(limit);
   if (error) throw error;
-  return ((data as BildirimRow[]) ?? []).map(mapNotif);
+  return enrichAvatars(((data as BildirimRow[]) ?? []).map(mapNotif));
 }
 
 /** Okunmamış bildirim sayısı. */
