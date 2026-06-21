@@ -69,7 +69,8 @@ export default function UserProfileScreen() {
     const next = !following;
     setFollowing(next);
     setFollowers((c) => Math.max(0, (c ?? 0) + (next ? 1 : -1)));
-    (next ? follow(profile.id) : unfollow(profile.id)).catch(() => {
+    (next ? follow(profile.id) : unfollow(profile.id)).catch((e) => {
+      console.warn("[follow]", e?.code || "", e?.message || e);
       // geri al
       setFollowing(!next);
       setFollowers((c) => Math.max(0, (c ?? 0) + (next ? -1 : 1)));
