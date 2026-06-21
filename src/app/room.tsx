@@ -279,7 +279,11 @@ export default function RoomScreen() {
       .then((rows) => { if (alive) setMsgs(rows.map((r) => ({ name: r.name, time: r.time, text: r.text, myOwn: r.me, photo: r.photo }))); })
       .catch(() => {});
 
-    const ch = sb.channel(`room-${dbId}-${Date.now()}`, { config: { presence: { key: String(myDbId ?? Math.random()) } } });
+    // Kanal adı SABİT olmalı (room-<id>) — tüm cihazlar aynı kanala girip
+    // presence'ı paylaşır. (Date.now() ekleseydik herkes ayrı kanalda kalırdı.)
+    const topic = `room-${dbId}`;
+    sb.getChannels().forEach((c) => { if (c.topic === topic || c.topic === `realtime:${topic}`) sb.removeChannel(c); });
+    const ch = sb.channel(topic, { config: { presence: { key: String(myDbId ?? Math.random()) } } });
 
     ch.on("presence", { event: "sync" }, () => {
       const state = ch.presenceState() as Record<string, { uid?: number; name?: string; photo?: string; publicId?: string }[]>;
@@ -326,7 +330,7 @@ export default function RoomScreen() {
     setInput("");
     if (isDbRoom && dbId) {
       // Realtime echo ile listeye düşecek (optimistik eklemiyoruz → çift olmaz)
-      sendRoomMessage(dbId, t).catch(() => toast("Mesaj gönderilemedi"));
+      sendRoomMessage(dbId, t).catch((e) => { console.warn("[room] send:", e?.message || e); toast("Mesaj gönderilemedi"); });
       return;
     }
     setMsgs((m) => [...m, { name: "Sen", time: "21:49", text: t, myOwn: true }]);
@@ -469,7 +473,7 @@ export default function RoomScreen() {
                 <Icon name="chev" size={12} color="#FEF3C7" />
               </Pressable>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, maxWidth: "62%" }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, alignItems: "center" }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, alignItems: "center", flexDirection: "row-reverse" }}>
                   {crowd.slice(0, 7).map((o) => (
                     <Pressable key={o.key} onPress={() => setUserList(true)}>
                       <Portrait name={o.name} size={32} ring="rgba(255,255,255,.22)" photo={o.photo} />
