@@ -11,7 +11,7 @@ import { Sheet } from "@/components/Sheet";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { FEED_SEED, SCOPE_LABEL, type FeedPost, type FeedScope } from "@/data/feed";
-import { addComment as addCommentDb, createPost, deletePost, editPost, FEED_ID_OFFSET, likePost, listPosts, setPinned, unlikePost } from "@/data/remote/feedRepo";
+import { addComment as addCommentDb, addReply as addReplyDb, createPost, deletePost, editPost, FEED_ID_OFFSET, likePost, listPosts, setPinned, unlikePost } from "@/data/remote/feedRepo";
 import { ROOMS } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -128,12 +128,13 @@ export default function FeedScreen() {
   };
   const isDb = (id: number) => id >= FEED_ID_OFFSET && isSupabaseConfigured && useApp.getState().session;
 
-  const openProfile = (p: UserPost) => {
+  const goProfile = (publicId: string | undefined, name: string, mine?: boolean) => {
     haptic.light();
-    if (p.mine) { router.navigate("/profile"); return; }
-    const q = p.publicId ? `publicId=${encodeURIComponent(p.publicId)}&` : "";
-    router.navigate(`/user-profile?${q}name=${encodeURIComponent(p.who)}`);
+    if (mine) { router.navigate("/profile"); return; }
+    const q = publicId ? `publicId=${encodeURIComponent(publicId)}&` : "";
+    router.navigate(`/user-profile?${q}name=${encodeURIComponent(name)}`);
   };
+  const openProfile = (p: UserPost) => goProfile(p.publicId, p.who, p.mine);
 
   const delPost = (id: number) => {
     setPosts((p) => p.filter((x) => x.id !== id));
@@ -166,11 +167,17 @@ export default function FeedScreen() {
     }
   };
   const delComment = (id: number, ci: number) => mapUser(id, (x) => ({ ...x, comments: x.comments.filter((_, j) => j !== ci) }));
-  const addReply = (pid: number, ci: number) => {
-    if (!replyText.trim()) return;
-    mapUser(pid, (x) => ({ ...x, comments: x.comments.map((c, j) => (j === ci ? { ...c, replies: [...c.replies, { who: "Sen", text: replyText.trim(), mine: true }] } : c)) }));
+  const addReply = async (pid: number, ci: number) => {
+    const t = replyText.trim();
+    if (!t) return;
+    const post = posts.find((x) => x.type === "user" && x.id === pid);
+    const parentCid = post && post.type === "user" ? post.comments[ci]?.cid : undefined;
+    mapUser(pid, (x) => ({ ...x, comments: x.comments.map((c, j) => (j === ci ? { ...c, replies: [...c.replies, { who: userName, text: t, mine: true }] } : c)) }));
     setReplyText("");
     setReplyTo(null);
+    if (isDb(pid) && parentCid != null) {
+      try { await addReplyDb(parentCid, pid - FEED_ID_OFFSET, t); } catch { note("Yanıt gönderilemedi"); }
+    }
   };
   const joinRoom = (id: string) => {
     const r = ROOMS.find((x) => x.id === id);
@@ -338,10 +345,12 @@ export default function FeedScreen() {
                     {p.comments.map((c, ci) => (
                       <View key={ci} style={{ paddingVertical: 7, paddingLeft: 8 }}>
                         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 9 }}>
-                          <Portrait name={c.who} size={28} photo={c.mine ? userPhoto || undefined : undefined} />
+                          <Pressable onPress={() => goProfile(c.publicId, c.who, c.mine)}>
+                            <Portrait name={c.who} size={28} photo={c.mine ? userPhoto || undefined : undefined} />
+                          </Pressable>
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <Txt size={12} color={C.text} lh={1.4}>
-                              <Txt weight="extrabold" size={11.5} color={c.mine ? C.gold2 : C.text}>{c.mine ? userName : c.who} </Txt>
+                              <Txt weight="extrabold" size={11.5} color={c.mine ? C.gold2 : C.text} onPress={() => goProfile(c.publicId, c.who, c.mine)}>{c.mine ? userName : c.who} </Txt>
                               {c.text}
                             </Txt>
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 14, marginTop: 4 }}>
@@ -358,9 +367,11 @@ export default function FeedScreen() {
                         </View>
                         {c.replies.map((r, ri) => (
                           <View key={ri} style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, paddingTop: 6, paddingLeft: 30 }}>
-                            <Portrait name={r.who} size={24} photo={r.mine ? userPhoto || undefined : undefined} />
+                            <Pressable onPress={() => goProfile(r.publicId, r.who, r.mine)}>
+                              <Portrait name={r.who} size={24} photo={r.mine ? userPhoto || undefined : undefined} />
+                            </Pressable>
                             <Txt size={11.5} color={C.text} style={{ flex: 1 }} lh={1.4}>
-                              <Txt weight="extrabold" size={11} color={r.mine ? C.gold2 : C.text}>{r.mine ? userName : r.who} </Txt>
+                              <Txt weight="extrabold" size={11} color={r.mine ? C.gold2 : C.text} onPress={() => goProfile(r.publicId, r.who, r.mine)}>{r.mine ? userName : r.who} </Txt>
                               {r.text}
                             </Txt>
                           </View>

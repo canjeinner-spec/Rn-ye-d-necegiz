@@ -69,7 +69,7 @@ async function fetchAuthors(ids: number[]): Promise<Map<number, Author>> {
   return map;
 }
 
-type YorumRow = { id: number; gonderi_id: number; kullanici_id: number; icerik: string; olusturulma_tarihi: string };
+type YorumRow = { id: number; gonderi_id: number; kullanici_id: number; ust_yorum_id: number | null; icerik: string; olusturulma_tarihi: string };
 
 export type FeedResult = { posts: FeedPost[]; likedIds: number[] };
 
@@ -91,30 +91,38 @@ export async function listPosts(limit = 50): Promise<FeedResult> {
   if (rows.length === 0) return { posts: [], likedIds: [] };
   const postIds = rows.map((r) => r.id);
 
-  // Yorumlar (üst-seviye) + benim beğenilerim — paralel.
+  // Tüm yorumlar (üst-seviye + yanıtlar) + benim beğenilerim — paralel.
   const [commentsRes, likesRes] = await Promise.all([
     sb
       .from("gonderi_yorumlari")
-      .select("id, gonderi_id, kullanici_id, icerik, olusturulma_tarihi")
+      .select("id, gonderi_id, kullanici_id, ust_yorum_id, icerik, olusturulma_tarihi")
       .in("gonderi_id", postIds)
-      .is("ust_yorum_id", null)
       .order("olusturulma_tarihi", { ascending: true }),
     me
       ? sb.from("gonderi_begeniler").select("gonderi_id").eq("kullanici_id", me.id).in("gonderi_id", postIds)
       : Promise.resolve({ data: [] as { gonderi_id: number }[] }),
   ]);
-  const comments = (commentsRes.data as YorumRow[]) ?? [];
+  const allComments = (commentsRes.data as YorumRow[]) ?? [];
   const myLikes = new Set(((likesRes.data as { gonderi_id: number }[]) ?? []).map((x) => x.gonderi_id));
 
   // Yazar adları: gönderi + yorum yazarları birlikte.
-  const authors = await fetchAuthors([...rows.map((r) => r.kullanici_id), ...comments.map((c) => c.kullanici_id)]);
+  const authors = await fetchAuthors([...rows.map((r) => r.kullanici_id), ...allComments.map((c) => c.kullanici_id)]);
+  const nameOf = (uid: number) => authors.get(uid)?.kullanici_adi || "Kullanıcı";
+  const pidOf = (uid: number) => authors.get(uid)?.public_id;
 
-  // Yorumları gönderiye göre grupla.
+  // Üst-seviye yorumları gönderiye göre grupla; yanıtları üst yoruma ekle.
   const byPost = new Map<number, FeedComment[]>();
-  for (const c of comments) {
+  const byCid = new Map<number, FeedComment>();
+  for (const c of allComments.filter((c) => c.ust_yorum_id == null)) {
+    const fc: FeedComment = { cid: c.id, who: nameOf(c.kullanici_id), publicId: pidOf(c.kullanici_id), text: c.icerik, mine: me?.id === c.kullanici_id, replies: [] };
+    byCid.set(c.id, fc);
     const arr = byPost.get(c.gonderi_id) ?? [];
-    arr.push({ who: authors.get(c.kullanici_id)?.kullanici_adi || "Kullanıcı", text: c.icerik, mine: me?.id === c.kullanici_id, replies: [] });
+    arr.push(fc);
     byPost.set(c.gonderi_id, arr);
+  }
+  for (const r of allComments.filter((c) => c.ust_yorum_id != null)) {
+    const parent = byCid.get(r.ust_yorum_id as number);
+    if (parent) parent.replies.push({ who: nameOf(r.kullanici_id), publicId: pidOf(r.kullanici_id), text: r.icerik, mine: me?.id === r.kullanici_id });
   }
 
   const posts = rows.map((r) => mapPost(r, authors.get(r.kullanici_id), me?.id ?? null, byPost.get(r.id) ?? []));
@@ -144,6 +152,17 @@ export async function addComment(postDbId: number, icerik: string): Promise<void
   const me = await getMyProfile();
   if (!me) throw new Error("Profil bulunamadı.");
   const { error } = await sb.from("gonderi_yorumlari").insert({ gonderi_id: postDbId, kullanici_id: me.id, icerik: icerik.trim() });
+  if (error) throw error;
+}
+
+/** Bir yoruma yanıt ekle (kendi adına; ust_yorum_id = üst yorumun id'si). */
+export async function addReply(parentCommentId: number, postDbId: number, icerik: string): Promise<void> {
+  const sb = requireSupabase();
+  const me = await getMyProfile();
+  if (!me) throw new Error("Profil bulunamadı.");
+  const { error } = await sb
+    .from("gonderi_yorumlari")
+    .insert({ gonderi_id: postDbId, kullanici_id: me.id, ust_yorum_id: parentCommentId, icerik: icerik.trim() });
   if (error) throw error;
 }
 
