@@ -272,14 +272,14 @@ export default function UserProfileScreen() {
         <View style={[styles.actionBar, { paddingBottom: 14 + insets.bottom }]}>
           {blockedByThem ? (
             <View style={styles.blockNotice}>
-              <Icon name="blockuser" size={16} color={C.dim} />
-              <Txt weight="bold" size={12.5} color={C.dim}>Bu kişi sizi engelledi</Txt>
+              <Icon name="blockuser" size={15} color={C.dim} />
+              <Txt weight="bold" size={12} color={C.dim} numberOfLines={1} style={{ flexShrink: 1 }}>Bu kişi sizi engelledi</Txt>
             </View>
           ) : blocked ? (
             <>
               <View style={[styles.blockNotice, { flex: 1 }]}>
-                <Icon name="blockuser" size={16} color="#FB7185" />
-                <Txt weight="bold" size={12.5} color="#FB7185">Bu kişiyi engellediniz</Txt>
+                <Icon name="blockuser" size={15} color="#FB7185" />
+                <Txt weight="bold" size={12} color="#FB7185" numberOfLines={1} style={{ flexShrink: 1 }}>Bu kişiyi engellediniz</Txt>
               </View>
               <Pressable onPress={toggleBlock} style={styles.barBtn}>
                 <Icon name="check" size={15} color={C.text} sw={2.5} />
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   actionBar: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 18, paddingTop: 12, backgroundColor: "rgba(10,10,15,.95)" },
   barBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 14, backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.13)" },
   barBtnPrimary: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 14 },
-  blockNotice: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 13, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line },
+  blockNotice: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, paddingHorizontal: 12, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line },
   toast: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: `${C.red}55`, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999 },
   dialog: { borderRadius: 24, padding: 20, backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
   addInput: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
