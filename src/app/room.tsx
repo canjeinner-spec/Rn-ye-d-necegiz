@@ -31,7 +31,6 @@ import { ProfileCard, type ProfileCardUser } from "@/sheets/ProfileCard";
 import { RoomPanel } from "@/sheets/RoomPanel";
 import { RoomStats } from "@/sheets/RoomStats";
 import { type Gift } from "@/data/gifts";
-import { getRoomMessages, sendRoomMessage } from "@/data/remote/roomsRepo";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
@@ -227,6 +226,7 @@ export default function RoomScreen() {
   const [msgs, setMsgs] = useState<ChatMsg[]>(() => (isDbRoom ? [] : CHAT0));
   const [liveMembers, setLiveMembers] = useState<{ uid: number; name: string; photo?: string; publicId?: string }[]>([]);
   const memberMapRef = useRef<Map<number, { name: string; photo?: string; publicId?: string }>>(new Map());
+  const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
   const chatRef = useRef<ScrollView>(null);
   const [input, setInput] = useState("");
   const [speakerOn, setSpeakerOn] = useState(true);
@@ -271,22 +271,18 @@ export default function RoomScreen() {
     : occupants.map((o, i) => ({ key: (o.name || "u") + i, name: o.name, photo: o.name === "Sen" ? userPhoto || undefined : undefined }));
   const crowdCount = isDbRoom ? liveMembers.length : occupants.length;
 
-  // Gerçek oda: ilk mesajları yükle + Realtime (canlı sohbet + presence)
+  // Gerçek oda: Realtime presence + ANLIK sohbet (Broadcast — DB'ye yazmaz,
+  // geçmiş tutmaz; sonradan giren/çıkıp-giren temiz sohbetle başlar).
   useEffect(() => {
     const sb = supabase;
     if (!isDbRoom || !dbId || !sb) return;
     let alive = true;
-    const fmt = (iso: string) => new Date(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 
-    getRoomMessages(dbId)
-      .then((rows) => { if (alive) setMsgs(rows.map((r) => ({ name: r.name, time: r.time, text: r.text, myOwn: r.me, photo: r.photo, uid: r.uid ?? undefined, publicId: r.publicId }))); })
-      .catch(() => {});
-
-    // Kanal adı SABİT olmalı (room-<id>) — tüm cihazlar aynı kanala girip
-    // presence'ı paylaşır. (Date.now() ekleseydik herkes ayrı kanalda kalırdı.)
+    // Kanal adı SABİT olmalı (room-<id>) — tüm cihazlar aynı kanala girer.
     const topic = `room-${dbId}`;
     sb.getChannels().forEach((c) => { if (c.topic === topic || c.topic === `realtime:${topic}`) sb.removeChannel(c); });
-    const ch = sb.channel(topic, { config: { presence: { key: String(myDbId ?? Math.random()) } } });
+    const ch = sb.channel(topic, { config: { presence: { key: String(myDbId ?? Math.random()) }, broadcast: { self: true } } });
+    chanRef.current = ch;
 
     ch.on("presence", { event: "sync" }, () => {
       const state = ch.presenceState() as Record<string, { uid?: number; name?: string; photo?: string; publicId?: string }[]>;
@@ -303,22 +299,26 @@ export default function RoomScreen() {
       if (alive) setLiveMembers(members);
     });
 
-    ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "oda_mesajlari", filter: `oda_id=eq.${dbId}` }, (payload) => {
-      const row = payload.new as { kullanici_id: number | null; icerik: string; gonderilme_tarihi: string };
-      const uid = row.kullanici_id;
-      const mine = uid != null && uid === myDbId;
-      const info = uid != null ? memberMapRef.current.get(uid) : undefined;
-      const name = mine ? userName : info?.name || "Kullanıcı";
-      const photo = mine ? userPhoto || undefined : info?.photo;
-      const publicId = mine ? myPublicId || undefined : info?.publicId;
-      if (alive) setMsgs((prev) => [...prev, { name, time: fmt(row.gonderilme_tarihi), text: row.icerik, myOwn: mine, photo, uid: uid ?? undefined, publicId }]);
+    // Anlık sohbet — broadcast (DB yok). self:true → kendi mesajım da gelir.
+    ch.on("broadcast", { event: "chat" }, ({ payload }) => {
+      const p = payload as { uid?: number; name?: string; photo?: string; publicId?: string; text: string; time: string };
+      const mine = p.uid != null && p.uid === myDbId;
+      if (alive) setMsgs((prev) => [...prev, {
+        name: mine ? userName : p.name || "Kullanıcı",
+        time: p.time,
+        text: p.text,
+        myOwn: mine,
+        photo: mine ? userPhoto || undefined : p.photo,
+        uid: p.uid,
+        publicId: mine ? myPublicId || undefined : p.publicId,
+      }]);
     });
 
     ch.subscribe(async (status) => {
       if (status === "SUBSCRIBED") await ch.track({ uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined });
     });
 
-    return () => { alive = false; ch.untrack(); sb.removeChannel(ch); };
+    return () => { alive = false; chanRef.current = null; ch.untrack(); sb.removeChannel(ch); };
     // userName/userPhoto oturum boyunca sabit; bağımlılığa eklemiyoruz (yeniden abone olmasın)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDbRoom, dbId, myDbId]);
@@ -332,9 +332,11 @@ export default function RoomScreen() {
     if (!input.trim()) return;
     const t = input.trim();
     setInput("");
-    if (isDbRoom && dbId) {
-      // Realtime echo ile listeye düşecek (optimistik eklemiyoruz → çift olmaz)
-      sendRoomMessage(dbId, t).catch((e) => { console.warn("[room] send:", e?.message || e); toast("Mesaj gönderilemedi"); });
+    if (isDbRoom && chanRef.current) {
+      // Anlık yayın (DB'ye yazmaz). self:true sayesinde kendi mesajımız da
+      // broadcast dinleyicisine düşer → çift eklemeyiz.
+      const time = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+      chanRef.current.send({ type: "broadcast", event: "chat", payload: { uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined, text: t, time } });
       return;
     }
     setMsgs((m) => [...m, { name: "Sen", time: "21:49", text: t, myOwn: true }]);
