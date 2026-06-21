@@ -21,7 +21,7 @@ type GonderiRow = {
   olusturulma_tarihi: string;
 };
 
-type Author = { kullanici_adi: string; seviye_id: number | null; public_id: string };
+type Author = { kullanici_adi: string; seviye_id: number | null; public_id: string; profil_resmi: string | null };
 
 function toScope(kapsam: string): FeedScope {
   return kapsam === "arkadaslar" ? "arkadaslar" : "herkes";
@@ -43,6 +43,7 @@ function mapPost(r: GonderiRow, author: Author | undefined, myId: number | null,
     type: "user",
     who: author?.kullanici_adi || "Kullanıcı",
     publicId: author?.public_id,
+    photo: author?.profil_resmi || undefined,
     lv: author?.seviye_id ?? 1,
     vip: false,
     body: r.icerik || "",
@@ -62,9 +63,9 @@ async function fetchAuthors(ids: number[]): Promise<Map<number, Author>> {
   const uniq = [...new Set(ids)];
   if (uniq.length === 0) return map;
   const sb = requireSupabase();
-  const { data } = await sb.from("profiller").select("id, public_id, kullanici_adi, seviye_id").in("id", uniq);
-  for (const row of (data as { id: number; public_id: string; kullanici_adi: string; seviye_id: number | null }[]) ?? []) {
-    map.set(row.id, { kullanici_adi: row.kullanici_adi, seviye_id: row.seviye_id, public_id: row.public_id });
+  const { data } = await sb.from("profiller").select("id, public_id, kullanici_adi, seviye_id, profil_resmi").in("id", uniq);
+  for (const row of (data as { id: number; public_id: string; kullanici_adi: string; seviye_id: number | null; profil_resmi: string | null }[]) ?? []) {
+    map.set(row.id, { kullanici_adi: row.kullanici_adi, seviye_id: row.seviye_id, public_id: row.public_id, profil_resmi: row.profil_resmi });
   }
   return map;
 }
@@ -109,12 +110,13 @@ export async function listPosts(limit = 50): Promise<FeedResult> {
   const authors = await fetchAuthors([...rows.map((r) => r.kullanici_id), ...allComments.map((c) => c.kullanici_id)]);
   const nameOf = (uid: number) => authors.get(uid)?.kullanici_adi || "Kullanıcı";
   const pidOf = (uid: number) => authors.get(uid)?.public_id;
+  const photoOf = (uid: number) => authors.get(uid)?.profil_resmi || undefined;
 
   // Üst-seviye yorumları gönderiye göre grupla; yanıtları üst yoruma ekle.
   const byPost = new Map<number, FeedComment[]>();
   const byCid = new Map<number, FeedComment>();
   for (const c of allComments.filter((c) => c.ust_yorum_id == null)) {
-    const fc: FeedComment = { cid: c.id, who: nameOf(c.kullanici_id), publicId: pidOf(c.kullanici_id), text: c.icerik, mine: me?.id === c.kullanici_id, replies: [] };
+    const fc: FeedComment = { cid: c.id, who: nameOf(c.kullanici_id), publicId: pidOf(c.kullanici_id), photo: photoOf(c.kullanici_id), text: c.icerik, mine: me?.id === c.kullanici_id, replies: [] };
     byCid.set(c.id, fc);
     const arr = byPost.get(c.gonderi_id) ?? [];
     arr.push(fc);
@@ -122,7 +124,7 @@ export async function listPosts(limit = 50): Promise<FeedResult> {
   }
   for (const r of allComments.filter((c) => c.ust_yorum_id != null)) {
     const parent = byCid.get(r.ust_yorum_id as number);
-    if (parent) parent.replies.push({ cid: r.id, who: nameOf(r.kullanici_id), publicId: pidOf(r.kullanici_id), text: r.icerik, mine: me?.id === r.kullanici_id });
+    if (parent) parent.replies.push({ cid: r.id, who: nameOf(r.kullanici_id), publicId: pidOf(r.kullanici_id), photo: photoOf(r.kullanici_id), text: r.icerik, mine: me?.id === r.kullanici_id });
   }
 
   const posts = rows.map((r) => mapPost(r, authors.get(r.kullanici_id), me?.id ?? null, byPost.get(r.id) ?? []));
@@ -219,7 +221,7 @@ export async function createPost(icerik: string): Promise<FeedPost> {
       .select(SELECT_COLS)
       .single();
     if (!error && data) {
-      return mapPost(data as GonderiRow, { kullanici_adi: me.kullanici_adi, seviye_id: me.seviye_id, public_id: me.public_id }, me.id, []);
+      return mapPost(data as GonderiRow, { kullanici_adi: me.kullanici_adi, seviye_id: me.seviye_id, public_id: me.public_id, profil_resmi: me.profil_resmi }, me.id, []);
     }
     if ((error as { code?: string } | null)?.code === "23505") { lastErr = error; continue; }
     throw error;

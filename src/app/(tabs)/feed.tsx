@@ -295,7 +295,7 @@ export default function FeedScreen() {
                 )}
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
                   <Pressable onPress={() => openProfile(p)} style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 11, minWidth: 0 }}>
-                    <Portrait name={p.who} size={42} online photo={p.mine ? userPhoto || undefined : undefined} />
+                    <Portrait name={p.who} size={42} online photo={p.mine ? userPhoto || undefined : p.photo} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <Txt weight="extrabold" size={13} color={p.mine ? C.gold2 : C.text}>{p.mine ? userName : p.who}</Txt>
@@ -374,7 +374,7 @@ export default function FeedScreen() {
                       <View key={ci} style={{ paddingVertical: 7, paddingLeft: 8 }}>
                         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 9 }}>
                           <Pressable onPress={() => goProfile(c.publicId, c.who, c.mine)}>
-                            <Portrait name={c.who} size={28} photo={c.mine ? userPhoto || undefined : undefined} />
+                            <Portrait name={c.who} size={28} photo={c.mine ? userPhoto || undefined : c.photo} />
                           </Pressable>
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <Txt size={12} color={C.text} lh={1.4}>
@@ -396,7 +396,7 @@ export default function FeedScreen() {
                         {c.replies.map((r, ri) => (
                           <View key={ri} style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, paddingTop: 6, paddingLeft: 30 }}>
                             <Pressable onPress={() => goProfile(r.publicId, r.who, r.mine)}>
-                              <Portrait name={r.who} size={24} photo={r.mine ? userPhoto || undefined : undefined} />
+                              <Portrait name={r.who} size={24} photo={r.mine ? userPhoto || undefined : r.photo} />
                             </Pressable>
                             <Txt size={11.5} color={C.text} style={{ flex: 1 }} lh={1.4}>
                               <Txt weight="extrabold" size={11} color={r.mine ? C.gold2 : C.text} onPress={() => goProfile(r.publicId, r.who, r.mine)}>{r.mine ? userName : r.who} </Txt>

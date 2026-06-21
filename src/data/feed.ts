@@ -4,8 +4,8 @@
  */
 export type FeedScope = "herkes" | "arkadaslar";
 
-export type FeedReply = { who: string; text: string; mine?: boolean; publicId?: string; cid?: number };
-export type FeedComment = { who: string; text: string; mine?: boolean; replies: FeedReply[]; cid?: number; publicId?: string };
+export type FeedReply = { who: string; text: string; mine?: boolean; publicId?: string; cid?: number; photo?: string };
+export type FeedComment = { who: string; text: string; mine?: boolean; replies: FeedReply[]; cid?: number; publicId?: string; photo?: string };
 
 export type FeedPost =
   | {
@@ -22,6 +22,7 @@ export type FeedPost =
       type: "user";
       who: string;
       publicId?: string; // gönderi sahibinin public_id'si (DB gönderilerinde) → profile git
+      photo?: string; // gönderi sahibinin avatarı
       lv: number;
       vip: boolean;
       body: string;
