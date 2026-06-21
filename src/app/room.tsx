@@ -516,9 +516,6 @@ export default function RoomScreen() {
                   <Txt weight="extrabold" size={12} color="#fff">{isMine ? userName : host!.name}</Txt>
                   {isMine && privileged && <AuthorityTag size={8} />}
                 </View>
-                <View style={{ marginTop: 4 }}>
-                  <RolePill type="host" />
-                </View>
               </Pressable>
             )}
             <View style={styles.grid}>
