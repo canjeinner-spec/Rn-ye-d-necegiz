@@ -1,4 +1,5 @@
 import { type Session } from "@supabase/supabase-js";
+import { Platform } from "react-native";
 import { create } from "zustand";
 
 import { type DMThread } from "@/data/dm";
@@ -98,15 +99,15 @@ export const useApp = create<AppState>((set, get) => ({
     }
     getSession()
       .then(async (session) => {
-        console.log("[auth] initAuth getSession:", session ? "OTURUM VAR" : "OTURUM YOK");
+        console.log(`[auth][${Platform.OS}] initAuth getSession:`, session ? "OTURUM VAR" : "OTURUM YOK");
         set({ session, girisYapildi: !!session });
         if (session) await get().loadProfile();
       })
-      .catch((e) => console.warn("[auth] initAuth getSession HATA:", e?.message || String(e)))
+      .catch((e) => console.warn(`[auth][${Platform.OS}] initAuth getSession HATA:`, e?.message || String(e)))
       .finally(() => set({ bootstrapped: true }));
 
     onAuthChange(async (session) => {
-      console.log("[auth] onAuthChange:", session ? "OTURUM VAR" : "OTURUM YOK");
+      console.log(`[auth][${Platform.OS}] onAuthChange:`, session ? "OTURUM VAR" : "OTURUM YOK");
       set({ session, girisYapildi: !!session });
       if (session) await get().loadProfile();
     });
