@@ -12,6 +12,7 @@ import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { FEED_SEED, SCOPE_LABEL, type FeedPost, type FeedScope } from "@/data/feed";
 import { addComment as addCommentDb, addReply as addReplyDb, createPost, deleteComment, deletePost, editPost, FEED_ID_OFFSET, likePost, listPosts, setPinned, unlikePost } from "@/data/remote/feedRepo";
+import { getUnreadCount } from "@/data/remote/notifRepo";
 import { ROOMS } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -53,6 +54,17 @@ export default function FeedScreen() {
   const [text, setText] = useState("");
   const [sharing, setSharing] = useState(false);
   const [posts, setPosts] = useState<FeedPost[]>(FEED_SEED);
+  const [notifUnread, setNotifUnread] = useState(0);
+
+  // Bildirim çanı için okunmamış sayısı (ekrana her gelişte)
+  useFocusEffect(
+    useCallback(() => {
+      if (!isSupabaseConfigured) return;
+      let alive = true;
+      getUnreadCount().then((c) => { if (alive) setNotifUnread(c); }).catch(() => {});
+      return () => { alive = false; };
+    }, []),
+  );
 
   // Gerçek gönderileri DB'den yükle (üstte), mock seed altta. Ekrana her dönüşte tazele.
   useFocusEffect(
@@ -206,8 +218,9 @@ export default function FeedScreen() {
         <View style={styles.header}>
           <View style={{ width: 34 }} />
           <Txt weight="displayBold" size={17} color="#fff" style={{ letterSpacing: 0.5 }}>Akış</Txt>
-          <Pressable style={styles.iconBtn}>
+          <Pressable onPress={() => { haptic.light(); router.navigate("/notifications"); }} style={styles.iconBtn}>
             <Icon name="bell" size={18} color={C.text} />
+            {notifUnread > 0 && <View style={styles.bellDot} />}
           </Pressable>
         </View>
 
@@ -483,6 +496,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18, paddingTop: 10, paddingBottom: 4 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  bellDot: { position: "absolute", top: 7, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: C.red, borderWidth: 1.5, borderColor: C.bg },
   composerTrigger: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.07)", marginBottom: 6 },
   shareChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 13, borderRadius: 999, backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "33" },
   composer: { paddingTop: 4, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.07)", marginBottom: 6 },

@@ -1,12 +1,15 @@
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Txt } from "@/components/Txt";
 import { NOTIF_TABS, NOTIFS, type BildirimKategori, type BildirimItem } from "@/data/notifications";
+import { listNotifications, mapNotif, markAllNotifsRead, markNotifRead } from "@/data/remote/notifRepo";
 import { Icon } from "@/icons/Icon";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
+import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
@@ -14,13 +17,42 @@ type TabKey = BildirimKategori | "all";
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const session = useApp((s) => s.session);
+  const live = isSupabaseConfigured && !!session;
   const [tab, setTab] = useState<TabKey>("all");
-  const [items, setItems] = useState<BildirimItem[]>(NOTIFS);
+  const [items, setItems] = useState<BildirimItem[]>(live ? [] : NOTIFS);
+
+  // DB'den yükle (ekrana her gelişte)
+  useFocusEffect(useCallback(() => {
+    if (!live) return;
+    let alive = true;
+    listNotifications().then((n) => { if (alive) setItems(n); }).catch((e) => console.warn("[notif] list:", e?.message || e));
+    return () => { alive = false; };
+  }, [live]));
+
+  // Realtime: yeni bildirim gelince başa ekle
+  useEffect(() => {
+    const sb = supabase;
+    if (!live || !sb) return;
+    const ch = sb.channel(`notif-${Date.now()}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "bildirimler" }, (payload) => {
+        setItems((prev) => [mapNotif(payload.new as never), ...prev]);
+      })
+      .subscribe();
+    return () => { sb.removeChannel(ch); };
+  }, [live]);
 
   const filtered = tab === "all" ? items : items.filter((n) => n.kategori === tab);
   const unread = items.filter((n) => n.okunmadi).length;
-  const markAll = () => { haptic.light(); setItems(items.map((n) => ({ ...n, okunmadi: false }))); };
-  const tapOne = (id: number) => setItems(items.map((n) => (n.id === id ? { ...n, okunmadi: false } : n)));
+  const markAll = () => {
+    haptic.light();
+    setItems(items.map((n) => ({ ...n, okunmadi: false })));
+    if (live) markAllNotifsRead().catch(() => {});
+  };
+  const tapOne = (id: number) => {
+    setItems(items.map((n) => (n.id === id ? { ...n, okunmadi: false } : n)));
+    if (live) markNotifRead(id).catch(() => {});
+  };
 
   return (
     <View style={styles.root}>

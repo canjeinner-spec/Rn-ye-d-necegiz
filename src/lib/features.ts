@@ -26,8 +26,8 @@ export const FEATURES = {
   friends: false,
   /** DM'deki "Etkinlik" kısayolu */
   events: false,
-  /** DM'deki "Bildirim" kısayolu */
-  notifications: false,
+  /** DM'deki "Bildirim" kısayolu (artık gerçek — Faz 3) */
+  notifications: true,
   /** DM'deki "Ziyaretçi" kısayolu (ekran profilden de açılır) */
   visitors: false,
   /** Başkasının profilindeki "Hediye" bölümü (Hediye Gönder) */
