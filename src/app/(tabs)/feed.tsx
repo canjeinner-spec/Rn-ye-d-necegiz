@@ -11,7 +11,7 @@ import { Sheet } from "@/components/Sheet";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { FEED_SEED, SCOPE_LABEL, type FeedPost, type FeedScope } from "@/data/feed";
-import { createPost, listPosts } from "@/data/remote/feedRepo";
+import { addComment as addCommentDb, createPost, FEED_ID_OFFSET, likePost, listPosts, unlikePost } from "@/data/remote/feedRepo";
 import { ROOMS } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -60,7 +60,11 @@ export default function FeedScreen() {
       if (!isSupabaseConfigured) return;
       let alive = true;
       listPosts()
-        .then((db) => { if (alive) setPosts([...db, ...FEED_SEED]); })
+        .then(({ posts: db, likedIds }) => {
+          if (!alive) return;
+          setPosts([...db, ...FEED_SEED]);
+          setLiked((prev) => { const next = { ...prev }; for (const id of likedIds) next[id] = true; return next; });
+        })
         .catch((e) => console.warn("[feed] listPosts:", e?.message || e));
       return () => { alive = false; };
     }, []),
@@ -105,15 +109,35 @@ export default function FeedScreen() {
     setText("");
     setComposer(false);
   };
-  const toggleLike = (id: number) => { haptic.select(); setLiked((l) => ({ ...l, [id]: !l[id] })); };
+  const toggleLike = async (id: number) => {
+    haptic.select();
+    const wasLiked = !!liked[id];
+    // optimistik: hem kalp rengi hem sayaç
+    setLiked((l) => ({ ...l, [id]: !wasLiked }));
+    mapUser(id, (x) => ({ ...x, likes: Math.max(0, x.likes + (wasLiked ? -1 : 1)) }));
+    if (id >= FEED_ID_OFFSET && isSupabaseConfigured && useApp.getState().session) {
+      try {
+        if (wasLiked) await unlikePost(id - FEED_ID_OFFSET);
+        else await likePost(id - FEED_ID_OFFSET);
+      } catch {
+        // geri al
+        setLiked((l) => ({ ...l, [id]: wasLiked }));
+        mapUser(id, (x) => ({ ...x, likes: Math.max(0, x.likes + (wasLiked ? 1 : -1)) }));
+      }
+    }
+  };
   const delPost = (id: number) => { setPosts((p) => p.filter((x) => x.id !== id)); setMenuPost(null); note("Paylaşım silindi"); };
   const saveEdit = (id: number) => { mapUser(id, (x) => ({ ...x, body: editText.trim() || x.body, when: "düzenlendi" })); setEditId(null); };
   const togglePin = (id: number) => { mapUser(id, (x) => ({ ...x, pinned: !x.pinned })); setMenuPost(null); note("Güncellendi"); };
   const setScope = (id: number, sc: FeedScope) => { mapUser(id, (x) => ({ ...x, scope: sc })); setScopePost(null); };
-  const addComment = (id: number) => {
-    if (!cmtText.trim()) return;
-    mapUser(id, (x) => ({ ...x, comments: [...x.comments, { who: "Sen", text: cmtText.trim(), mine: true, replies: [] }] }));
+  const addComment = async (id: number) => {
+    const t = cmtText.trim();
+    if (!t) return;
+    mapUser(id, (x) => ({ ...x, comments: [...x.comments, { who: userName, text: t, mine: true, replies: [] }] }));
     setCmtText("");
+    if (id >= FEED_ID_OFFSET && isSupabaseConfigured && useApp.getState().session) {
+      try { await addCommentDb(id - FEED_ID_OFFSET, t); } catch { note("Yorum gönderilemedi"); }
+    }
   };
   const delComment = (id: number, ci: number) => mapUser(id, (x) => ({ ...x, comments: x.comments.filter((_, j) => j !== ci) }));
   const addReply = (pid: number, ci: number) => {
@@ -271,7 +295,7 @@ export default function FeedScreen() {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 22, marginTop: 11 }}>
                   <Pressable onPress={() => toggleLike(p.id)} style={styles.action}>
                     <Icon name="heart" size={16} color={liked[p.id] ? "#FB7185" : C.dim} fill={liked[p.id] ? "#FB7185" : "none"} />
-                    <Txt weight="bold" size={11.5} color={liked[p.id] ? "#FB7185" : C.dim}>{p.likes + (liked[p.id] ? 1 : 0)}</Txt>
+                    <Txt weight="bold" size={11.5} color={liked[p.id] ? "#FB7185" : C.dim}>{p.likes}</Txt>
                   </Pressable>
                   <Pressable onPress={() => setOpenCmt(openCmt === p.id ? null : p.id)} style={styles.action}>
                     <Icon name="chat" size={16} color={openCmt === p.id ? C.gold2 : C.dim} />
