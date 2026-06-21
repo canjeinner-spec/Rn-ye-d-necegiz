@@ -15,6 +15,7 @@ import { Txt } from "@/components/Txt";
 import { type BadgeItem } from "@/data/badges";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
+import { getFollowCounts } from "@/data/remote/followRepo";
 import { updateMyProfile } from "@/data/remote/profileRepo";
 import { uploadAvatar } from "@/data/remote/storageRepo";
 import { FEATURES } from "@/lib/features";
@@ -32,10 +33,15 @@ type MenuItem = { ic: IconName; g1: string; g2: string; t: string; s?: string; r
 
 export default function ProfileTab() {
   const router = useRouter();
-  const { userName, userBio, userPhoto, setUserPhoto, isStreamer, setStreamer, role, setRole, hideProfile, setHideProfile, publicId, loadProfile, session } = useApp();
+  const { userName, userBio, userPhoto, setUserPhoto, isStreamer, setStreamer, role, setRole, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
+  const [followCounts, setFollowCounts] = useState<{ followers: number; following: number } | null>(null);
 
-  // Ekrana her gelişte profili DB'den tazele (ad/ID/foto güncel kalsın).
-  useFocusEffect(useCallback(() => { if (session) loadProfile(); }, [session, loadProfile]));
+  // Ekrana her gelişte profili + takip sayaçlarını DB'den tazele.
+  useFocusEffect(useCallback(() => {
+    if (!session) return;
+    loadProfile();
+    if (dbId) getFollowCounts(dbId).then(setFollowCounts).catch(() => {});
+  }, [session, loadProfile, dbId]));
   const [lang, setLang] = useState("Türkçe");
   const privileged = role !== "user";
   const [editOpen, setEditOpen] = useState(false);
@@ -160,7 +166,7 @@ export default function ProfileTab() {
           {!!userBio && <Txt size={12} color={C.dim} lh={1.5} style={{ marginTop: 10 }}>{userBio}</Txt>}
 
           <View style={{ flexDirection: "row", marginTop: 16 }}>
-            {([["Ziyaretçi", "1.2K", () => { haptic.light(); router.navigate("/visitors"); }], ["Takip", "96", undefined], ["Takipçi", "128", undefined]] as const).map(([l, v, fn]) => (
+            {([["Ziyaretçi", "1.2K", () => { haptic.light(); router.navigate("/visitors"); }], ["Takip", followCounts ? String(followCounts.following) : "—", undefined], ["Takipçi", followCounts ? String(followCounts.followers) : "—", undefined]] as const).map(([l, v, fn]) => (
               <Pressable key={l} onPress={fn} style={{ flex: 1, alignItems: "center" }}>
                 <Txt weight="displayBold" size={17} color={C.text}>{v}</Txt>
                 <Txt weight="semibold" size={10.5} color={C.dim} style={{ marginTop: 2 }}>{l}</Txt>

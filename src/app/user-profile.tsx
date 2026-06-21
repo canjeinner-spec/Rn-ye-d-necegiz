@@ -14,6 +14,7 @@ import { Txt } from "@/components/Txt";
 import { DM_THREADS, type DMThread } from "@/data/dm";
 import { type Gift } from "@/data/gifts";
 import { getOrCreateConversation } from "@/data/remote/dmRepo";
+import { follow, getFollowState, unfollow } from "@/data/remote/followRepo";
 import { getPublicProfile, type PublicProfile } from "@/data/remote/profileRepo";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
@@ -42,12 +43,38 @@ export default function UserProfileScreen() {
 
   // publicId verilmişse gerçek profili DB'den yükle (yoksa mock parametreler).
   const [profile, setProfile] = useState<PublicProfile | null>(null);
+  const [followers, setFollowers] = useState<number | null>(null);
+  const [followingCount, setFollowingCount] = useState<number | null>(null);
   useEffect(() => {
     if (!isSupabaseConfigured || !params.publicId) return;
     let alive = true;
-    getPublicProfile(params.publicId).then((p) => { if (alive) setProfile(p); }).catch(() => {});
+    getPublicProfile(params.publicId).then((p) => {
+      if (!alive) return;
+      setProfile(p);
+      if (p) {
+        getFollowState(p.id).then((s) => {
+          if (!alive) return;
+          setFollowers(s.followers);
+          setFollowingCount(s.following);
+          setFollowing(s.isFollowing);
+        }).catch(() => {});
+      }
+    }).catch(() => {});
     return () => { alive = false; };
   }, [params.publicId]);
+
+  const toggleFollow = () => {
+    if (!profile) { setFollowing((f) => !f); return; } // mock fallback
+    haptic.light();
+    const next = !following;
+    setFollowing(next);
+    setFollowers((c) => Math.max(0, (c ?? 0) + (next ? 1 : -1)));
+    (next ? follow(profile.id) : unfollow(profile.id)).catch(() => {
+      // geri al
+      setFollowing(!next);
+      setFollowers((c) => Math.max(0, (c ?? 0) + (next ? -1 : 1)));
+    });
+  };
 
   const name = profile?.kullanici_adi || params.name || "Kullanıcı";
   const lv = profile?.seviye_id ?? (Number(params.lv) || 28);
@@ -145,7 +172,7 @@ export default function UserProfileScreen() {
           </View>
 
           <View style={styles.stats}>
-            {([["8.4K", "Ziyaretçiler"], ["3", "Takip Edilen"], ["24", "Takipçiler"]] as const).map(([n, l], i) => (
+            {([["8.4K", "Ziyaretçiler"], [followingCount != null ? String(followingCount) : "—", "Takip Edilen"], [followers != null ? String(followers) : "—", "Takipçiler"]] as const).map(([n, l], i) => (
               <View key={l} style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
                 <View style={{ flex: 1, alignItems: "center" }}>
                   <Txt weight="displayBold" size={18} color="#fff">{n}</Txt>
@@ -243,7 +270,7 @@ export default function UserProfileScreen() {
             <Icon name="chat" size={16} color={C.text} />
             <Txt weight="bold" size={12} color={C.text}>Mesaj</Txt>
           </Pressable>
-          <Pressable onPress={() => { haptic.light(); setFollowing((f) => !f); }} style={{ flex: 1, borderRadius: 14, overflow: "hidden" }}>
+          <Pressable onPress={toggleFollow} style={{ flex: 1, borderRadius: 14, overflow: "hidden" }}>
             {following ? (
               <View style={[styles.barBtn, { width: "100%" }]}>
                 <Icon name="check" size={16} color={C.text} sw={2.5} />
