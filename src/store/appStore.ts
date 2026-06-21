@@ -98,13 +98,15 @@ export const useApp = create<AppState>((set, get) => ({
     }
     getSession()
       .then(async (session) => {
+        console.log("[auth] initAuth getSession:", session ? "OTURUM VAR" : "OTURUM YOK");
         set({ session, girisYapildi: !!session });
         if (session) await get().loadProfile();
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[auth] initAuth getSession HATA:", e?.message || String(e)))
       .finally(() => set({ bootstrapped: true }));
 
     onAuthChange(async (session) => {
+      console.log("[auth] onAuthChange:", session ? "OTURUM VAR" : "OTURUM YOK");
       set({ session, girisYapildi: !!session });
       if (session) await get().loadProfile();
     });
