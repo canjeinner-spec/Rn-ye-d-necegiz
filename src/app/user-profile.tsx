@@ -13,9 +13,11 @@ import { Scene } from "@/components/Scene";
 import { Txt } from "@/components/Txt";
 import { DM_THREADS, type DMThread } from "@/data/dm";
 import { type Gift } from "@/data/gifts";
+import { getPublicProfile, type PublicProfile } from "@/data/remote/profileRepo";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { FEATURES } from "@/lib/features";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { useApp } from "@/store/appStore";
@@ -35,10 +37,24 @@ export default function UserProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const setActiveDM = useApp((s) => s.setActiveDM);
-  const params = useLocalSearchParams<{ name?: string; lv?: string }>();
-  const name = params.name || "Kullanıcı";
-  const lv = Number(params.lv) || 28;
-  const id = "1149663822";
+  const params = useLocalSearchParams<{ name?: string; lv?: string; publicId?: string }>();
+
+  // publicId verilmişse gerçek profili DB'den yükle (yoksa mock parametreler).
+  const [profile, setProfile] = useState<PublicProfile | null>(null);
+  useEffect(() => {
+    if (!isSupabaseConfigured || !params.publicId) return;
+    let alive = true;
+    getPublicProfile(params.publicId).then((p) => { if (alive) setProfile(p); }).catch(() => {});
+    return () => { alive = false; };
+  }, [params.publicId]);
+
+  const name = profile?.kullanici_adi || params.name || "Kullanıcı";
+  const lv = profile?.seviye_id ?? (Number(params.lv) || 28);
+  const id = profile?.public_id || params.publicId || "1149663822";
+  const photo = profile?.profil_resmi || undefined;
+  const bio = profile?.biyografi || null;
+  const gender = profile?.cinsiyet || null; // 'e' | 'k' | null
+  const country = profile?.ulke || null;
 
   const [tab, setTab] = useState(0);
   const [friend, setFriend] = useState<"none" | "pending" | "friend">("none");
@@ -94,7 +110,7 @@ export default function UserProfileScreen() {
           </View>
 
           <View style={{ alignItems: "center", marginTop: -46, paddingHorizontal: 18 }}>
-            <Portrait name={name} size={92} ring={C.gold} glow frameBorder="#0A0A0F" />
+            <Portrait name={name} size={92} ring={C.gold} glow frameBorder="#0A0A0F" photo={photo} />
             <Txt weight="displayBold" size={18} color="#fff" style={{ marginTop: 10 }}>{name}</Txt>
             <View style={{ marginTop: 9 }}>
               <BadgeRow size={26} badges={badges} />
@@ -110,12 +126,12 @@ export default function UserProfileScreen() {
                 <Txt weight="extrabold" size={12} color="#5EEAD4">LV.{lv}</Txt>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <Icon name="male" size={14} color="#60A5FA" />
-                <Txt weight="bold" size={12} color="#60A5FA">Erkek</Txt>
+                <Icon name="male" size={14} color={gender === "k" ? "#FB7185" : "#60A5FA"} />
+                <Txt weight="bold" size={12} color={gender === "k" ? "#FB7185" : "#60A5FA"}>{gender === "k" ? "Kadın" : "Erkek"}</Txt>
               </View>
-              <Txt weight="bold" size={12} color="#6EE7B7">🇹🇷 Türkiye</Txt>
+              <Txt weight="bold" size={12} color="#6EE7B7">🇹🇷 {country || "Türkiye"}</Txt>
             </View>
-            <Txt size={11.5} color={C.dim2} style={{ marginTop: 12 }}>Açıklama kısmı boş</Txt>
+            <Txt size={11.5} color={bio ? C.text : C.dim2} lh={1.5} align="center" style={{ marginTop: 12, paddingHorizontal: 20 }}>{bio || "Açıklama kısmı boş"}</Txt>
           </View>
 
           <View style={styles.stats}>

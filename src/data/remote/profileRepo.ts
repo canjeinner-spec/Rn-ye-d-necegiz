@@ -59,14 +59,49 @@ export async function isUsernameAvailable(name: string): Promise<boolean> {
   return Boolean(data);
 }
 
+/** Herkese açık profil (profiller view — hassas kolonlar gizli). */
+export type PublicProfile = {
+  id: number;
+  public_id: string;
+  kullanici_adi: string;
+  profil_resmi: string | null;
+  biyografi: string | null;
+  cinsiyet: string | null;
+  ulke: string | null;
+  sehir: string | null;
+  seviye_id: number | null;
+  deneyim_puani: number;
+  durum: string;
+  ekonomi_rolu: string;
+};
+
+const PUBLIC_COLS =
+  "id, public_id, kullanici_adi, profil_resmi, biyografi, cinsiyet, ulke, sehir, seviye_id, deneyim_puani, durum, ekonomi_rolu";
+
 /** Başka bir kullanıcının herkese açık profili (profiller view). */
-export async function getPublicProfile(publicId: string) {
+export async function getPublicProfile(publicId: string): Promise<PublicProfile | null> {
   const sb = requireSupabase();
   const { data, error } = await sb
     .from("profiller")
-    .select("id, public_id, kullanici_adi, profil_resmi, biyografi, cinsiyet, ulke, sehir, seviye_id, deneyim_puani, durum, ekonomi_rolu")
+    .select(PUBLIC_COLS)
     .eq("public_id", publicId)
     .maybeSingle();
   if (error) throw error;
-  return data;
+  return data as PublicProfile | null;
+}
+
+/** Kullanıcı arama — görünen ad (kullanici_adi) veya public_id ile (case-insensitive). */
+export async function searchProfiles(query: string, limit = 20): Promise<PublicProfile[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const sb = requireSupabase();
+  const safe = q.replace(/[%,]/g, ""); // PostgREST or-filtresini bozacak karakterleri çıkar
+  const { data, error } = await sb
+    .from("profiller")
+    .select(PUBLIC_COLS)
+    .or(`kullanici_adi.ilike.%${safe}%,public_id.ilike.%${safe}%`)
+    .order("deneyim_puani", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data as PublicProfile[]) ?? [];
 }
