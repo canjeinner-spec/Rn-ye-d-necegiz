@@ -208,10 +208,10 @@ export function ProfileCard({
                       {isOwner ? (
                         <View style={styles.idPill}>
                           <Icon name="idcard" size={12} color={C.gold2} />
-                          <Txt weight="extrabold" size={11} color={C.gold2}>ID: 11111</Txt>
+                          <Txt weight="extrabold" size={11} color={C.gold2}>ID: {user.publicId || "11111"}</Txt>
                         </View>
                       ) : (
-                        <Txt weight="semibold" size={11} color={C.dim}>ID: {"48" + user.lv}</Txt>
+                        <Txt weight="semibold" size={11} color={C.dim}>ID: {user.publicId || "48" + user.lv}</Txt>
                       )}
                     </View>
                   </View>

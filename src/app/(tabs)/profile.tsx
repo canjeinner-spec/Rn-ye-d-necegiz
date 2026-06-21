@@ -1,6 +1,6 @@
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -29,11 +29,13 @@ import { Gradient } from "@/theme/Gradient";
 
 type MenuItem = { ic: IconName; g1: string; g2: string; t: string; s?: string; r?: string; onPress: () => void };
 
-const PUBLIC_ID = "4407";
 
 export default function ProfileTab() {
   const router = useRouter();
-  const { userName, userBio, userPhoto, setUserPhoto, isStreamer, setStreamer, role, setRole, hideProfile, setHideProfile } = useApp();
+  const { userName, userBio, userPhoto, setUserPhoto, isStreamer, setStreamer, role, setRole, hideProfile, setHideProfile, publicId, loadProfile, session } = useApp();
+
+  // Ekrana her gelişte profili DB'den tazele (ad/ID/foto güncel kalsın).
+  useFocusEffect(useCallback(() => { if (session) loadProfile(); }, [session, loadProfile]));
   const [lang, setLang] = useState("Türkçe");
   const privileged = role !== "user";
   const [editOpen, setEditOpen] = useState(false);
@@ -144,7 +146,7 @@ export default function ProfileTab() {
                 )}
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
-                <Txt weight="semibold" size={10.5} color={C.dim}>ID: {PUBLIC_ID}</Txt>
+                <Txt weight="semibold" size={10.5} color={C.dim}>ID: {publicId || "—"}</Txt>
                 <Icon name="copy" size={12} color={C.dim2} />
               </View>
             </View>

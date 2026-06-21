@@ -405,6 +405,7 @@ export default function RoomScreen() {
       self: true,
       authority: privileged,
       photo: userPhoto || undefined,
+      publicId: myPublicId || undefined,
       onLeaveSeat: seated ? leaveSeat : undefined,
     });
   };
