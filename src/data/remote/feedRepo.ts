@@ -122,7 +122,7 @@ export async function listPosts(limit = 50): Promise<FeedResult> {
   }
   for (const r of allComments.filter((c) => c.ust_yorum_id != null)) {
     const parent = byCid.get(r.ust_yorum_id as number);
-    if (parent) parent.replies.push({ who: nameOf(r.kullanici_id), publicId: pidOf(r.kullanici_id), text: r.icerik, mine: me?.id === r.kullanici_id });
+    if (parent) parent.replies.push({ cid: r.id, who: nameOf(r.kullanici_id), publicId: pidOf(r.kullanici_id), text: r.icerik, mine: me?.id === r.kullanici_id });
   }
 
   const posts = rows.map((r) => mapPost(r, authors.get(r.kullanici_id), me?.id ?? null, byPost.get(r.id) ?? []));
@@ -164,6 +164,14 @@ export async function addReply(parentCommentId: number, postDbId: number, icerik
     .from("gonderi_yorumlari")
     .insert({ gonderi_id: postDbId, kullanici_id: me.id, ust_yorum_id: parentCommentId, icerik: icerik.trim() });
   if (error) throw error;
+}
+
+/** Kendi yorumunu/yanıtını sil (garantili soft-delete; üst yorumsa yanıtları da). */
+export async function deleteComment(commentDbId: number): Promise<void> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("yorum_sil", { p_yorum_id: commentDbId });
+  if (error) throw error;
+  if (data === false) throw new Error("Yorum silinemedi (yetki yok ya da bulunamadı).");
 }
 
 /** Kendi gönderinin içeriğini düzenle (RLS yalnızca kendi satırını günceller). */

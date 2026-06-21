@@ -4,7 +4,7 @@
  */
 export type FeedScope = "herkes" | "arkadaslar";
 
-export type FeedReply = { who: string; text: string; mine?: boolean; publicId?: string };
+export type FeedReply = { who: string; text: string; mine?: boolean; publicId?: string; cid?: number };
 export type FeedComment = { who: string; text: string; mine?: boolean; replies: FeedReply[]; cid?: number; publicId?: string };
 
 export type FeedPost =

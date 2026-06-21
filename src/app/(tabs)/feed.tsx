@@ -11,7 +11,7 @@ import { Sheet } from "@/components/Sheet";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { FEED_SEED, SCOPE_LABEL, type FeedPost, type FeedScope } from "@/data/feed";
-import { addComment as addCommentDb, addReply as addReplyDb, createPost, deletePost, editPost, FEED_ID_OFFSET, likePost, listPosts, setPinned, unlikePost } from "@/data/remote/feedRepo";
+import { addComment as addCommentDb, addReply as addReplyDb, createPost, deleteComment, deletePost, editPost, FEED_ID_OFFSET, likePost, listPosts, setPinned, unlikePost } from "@/data/remote/feedRepo";
 import { ROOMS } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -166,7 +166,18 @@ export default function FeedScreen() {
       try { await addCommentDb(id - FEED_ID_OFFSET, t); } catch { note("Yorum gönderilemedi"); }
     }
   };
-  const delComment = (id: number, ci: number) => mapUser(id, (x) => ({ ...x, comments: x.comments.filter((_, j) => j !== ci) }));
+  const delComment = (id: number, ci: number) => {
+    const post = posts.find((x) => x.type === "user" && x.id === id);
+    const cid = post && post.type === "user" ? post.comments[ci]?.cid : undefined;
+    mapUser(id, (x) => ({ ...x, comments: x.comments.filter((_, j) => j !== ci) }));
+    if (isDb(id) && cid != null) deleteComment(cid).catch(() => note("Silinemedi"));
+  };
+  const delReply = (id: number, ci: number, ri: number) => {
+    const post = posts.find((x) => x.type === "user" && x.id === id);
+    const rid = post && post.type === "user" ? post.comments[ci]?.replies[ri]?.cid : undefined;
+    mapUser(id, (x) => ({ ...x, comments: x.comments.map((c, j) => (j === ci ? { ...c, replies: c.replies.filter((_, k) => k !== ri) } : c)) }));
+    if (isDb(id) && rid != null) deleteComment(rid).catch(() => note("Silinemedi"));
+  };
   const addReply = async (pid: number, ci: number) => {
     const t = replyText.trim();
     if (!t) return;
@@ -374,6 +385,11 @@ export default function FeedScreen() {
                               <Txt weight="extrabold" size={11} color={r.mine ? C.gold2 : C.text} onPress={() => goProfile(r.publicId, r.who, r.mine)}>{r.mine ? userName : r.who} </Txt>
                               {r.text}
                             </Txt>
+                            {r.mine && (
+                              <Pressable onPress={() => delReply(p.id, ci, ri)} hitSlop={6}>
+                                <Txt weight="bold" size={10} color={C.dim2}>Sil</Txt>
+                              </Pressable>
+                            )}
                           </View>
                         ))}
                         {replyTo && replyTo.pid === p.id && replyTo.ci === ci && (
