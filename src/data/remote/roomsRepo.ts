@@ -83,7 +83,7 @@ function genRoomId(): string {
   return String(Math.floor(100000 + Math.random() * 899999));
 }
 
-export type RoomMessage = { id: number; uid: number | null; name: string; photo?: string; text: string; time: string; me: boolean };
+export type RoomMessage = { id: number; uid: number | null; name: string; photo?: string; publicId?: string; text: string; time: string; me: boolean };
 
 function hhmm(iso: string): string {
   return new Date(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
@@ -99,20 +99,24 @@ export async function getRoomMessages(odaId: number, limit = 60): Promise<RoomMe
   if (error) throw error;
   const rows = (data as { id: number; kullanici_id: number | null; icerik: string; gonderilme_tarihi: string }[]) ?? [];
   const ids = [...new Set(rows.map((r) => r.kullanici_id).filter((x): x is number => x != null))];
-  const names = new Map<number, { kullanici_adi: string; profil_resmi: string | null }>();
+  const names = new Map<number, { kullanici_adi: string; profil_resmi: string | null; public_id: string }>();
   if (ids.length) {
-    const { data: profs } = await sb.from("profiller").select("id, kullanici_adi, profil_resmi").in("id", ids);
-    for (const p of (profs as { id: number; kullanici_adi: string; profil_resmi: string | null }[]) ?? []) names.set(p.id, p);
+    const { data: profs } = await sb.from("profiller").select("id, public_id, kullanici_adi, profil_resmi").in("id", ids);
+    for (const p of (profs as { id: number; public_id: string; kullanici_adi: string; profil_resmi: string | null }[]) ?? []) names.set(p.id, p);
   }
-  return rows.map((r) => ({
-    id: r.id,
-    uid: r.kullanici_id,
-    name: r.kullanici_id != null ? names.get(r.kullanici_id)?.kullanici_adi || "Kullanıcı" : "Kullanıcı",
-    photo: r.kullanici_id != null ? names.get(r.kullanici_id)?.profil_resmi || undefined : undefined,
-    text: r.icerik,
-    time: hhmm(r.gonderilme_tarihi),
-    me: me != null && r.kullanici_id === me.id,
-  }));
+  return rows.map((r) => {
+    const prof = r.kullanici_id != null ? names.get(r.kullanici_id) : undefined;
+    return {
+      id: r.id,
+      uid: r.kullanici_id,
+      name: prof?.kullanici_adi || "Kullanıcı",
+      photo: prof?.profil_resmi || undefined,
+      publicId: prof?.public_id,
+      text: r.icerik,
+      time: hhmm(r.gonderilme_tarihi),
+      me: me != null && r.kullanici_id === me.id,
+    };
+  });
 }
 
 /** Odaya mesaj gönder (kendi adına). */

@@ -126,26 +126,29 @@ function ChatRow({
   userPhoto,
   privileged,
   onSelfPress,
+  onTapUser,
 }: {
   m: ChatMsg;
   userName: string;
   userPhoto: string | null;
   privileged: boolean;
   onSelfPress: () => void;
+  onTapUser?: (m: ChatMsg) => void;
 }) {
   const role = m.host ? ("host" as const) : m.mod ? ("mod" as const) : null;
   const isMe = !!m.myOwn || m.name === "Sen";
   const displayName = isMe ? userName : m.name;
+  const tap = () => (isMe ? onSelfPress() : onTapUser?.(m));
   // sohbet baloncuğu — kuşanılan balona göre tema (envanter: sohbet_balonu)
   const bubble = m.myOwn ? "gold" : m.host ? "host" : m.mod ? "mod" : "plain";
   return (
     <View style={{ flexDirection: "row", gap: 9, alignItems: "flex-start" }}>
-      <Pressable onPress={onSelfPress} disabled={!isMe}>
+      <Pressable onPress={tap}>
         <Portrait name={m.name} size={30} photo={isMe ? userPhoto || undefined : m.photo} />
       </Pressable>
       <View style={{ flex: 1, minWidth: 0, alignItems: "flex-start" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
-          <Pressable onPress={onSelfPress} disabled={!isMe}>
+          <Pressable onPress={tap}>
             <Txt weight="extrabold" size={11.5} color={m.host ? C.gold : m.mod ? C.purple2 : isMe ? C.gold2 : "rgba(255,255,255,.7)"}>
               {displayName}
             </Txt>
@@ -223,7 +226,7 @@ export default function RoomScreen() {
   });
   const [msgs, setMsgs] = useState<ChatMsg[]>(() => (isDbRoom ? [] : CHAT0));
   const [liveMembers, setLiveMembers] = useState<{ uid: number; name: string; photo?: string; publicId?: string }[]>([]);
-  const memberMapRef = useRef<Map<number, { name: string; photo?: string }>>(new Map());
+  const memberMapRef = useRef<Map<number, { name: string; photo?: string; publicId?: string }>>(new Map());
   const chatRef = useRef<ScrollView>(null);
   const [input, setInput] = useState("");
   const [speakerOn, setSpeakerOn] = useState(true);
@@ -276,7 +279,7 @@ export default function RoomScreen() {
     const fmt = (iso: string) => new Date(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 
     getRoomMessages(dbId)
-      .then((rows) => { if (alive) setMsgs(rows.map((r) => ({ name: r.name, time: r.time, text: r.text, myOwn: r.me, photo: r.photo }))); })
+      .then((rows) => { if (alive) setMsgs(rows.map((r) => ({ name: r.name, time: r.time, text: r.text, myOwn: r.me, photo: r.photo, uid: r.uid ?? undefined, publicId: r.publicId }))); })
       .catch(() => {});
 
     // Kanal adı SABİT olmalı (room-<id>) — tüm cihazlar aynı kanala girip
@@ -287,12 +290,12 @@ export default function RoomScreen() {
 
     ch.on("presence", { event: "sync" }, () => {
       const state = ch.presenceState() as Record<string, { uid?: number; name?: string; photo?: string; publicId?: string }[]>;
-      const map = new Map<number, { name: string; photo?: string }>();
+      const map = new Map<number, { name: string; photo?: string; publicId?: string }>();
       const members: { uid: number; name: string; photo?: string; publicId?: string }[] = [];
       for (const arr of Object.values(state)) {
         for (const p of arr) {
           if (p.uid == null) continue;
-          map.set(p.uid, { name: p.name || "Kullanıcı", photo: p.photo });
+          map.set(p.uid, { name: p.name || "Kullanıcı", photo: p.photo, publicId: p.publicId });
           if (!members.some((m) => m.uid === p.uid)) members.push({ uid: p.uid, name: p.name || "Kullanıcı", photo: p.photo, publicId: p.publicId });
         }
       }
@@ -307,7 +310,8 @@ export default function RoomScreen() {
       const info = uid != null ? memberMapRef.current.get(uid) : undefined;
       const name = mine ? userName : info?.name || "Kullanıcı";
       const photo = mine ? userPhoto || undefined : info?.photo;
-      if (alive) setMsgs((prev) => [...prev, { name, time: fmt(row.gonderilme_tarihi), text: row.icerik, myOwn: mine, photo }]);
+      const publicId = mine ? myPublicId || undefined : info?.publicId;
+      if (alive) setMsgs((prev) => [...prev, { name, time: fmt(row.gonderilme_tarihi), text: row.icerik, myOwn: mine, photo, uid: uid ?? undefined, publicId }]);
     });
 
     ch.subscribe(async (status) => {
@@ -407,6 +411,14 @@ export default function RoomScreen() {
   const tapOccupant = (s: Seat) => {
     if (s.name === "Sen") openMyCard();
     else setCardUser({ ...s, viewerRole: MY_ROLE, ...(s.host ? hostActions() : seatActions(s)) });
+  };
+  // Sohbetteki bir mesajın sahibine dokununca kart aç (koltukta da olabilir, değilse temel kart)
+  const openChatUserCard = (m: ChatMsg) => {
+    haptic.light();
+    if (m.myOwn || m.name === userName || m.name === "Sen") { openMyCard(); return; }
+    const seated = m.uid != null ? null : occupants.find((o) => o.name === m.name);
+    if (seated) { setCardUser({ ...seated, viewerRole: MY_ROLE, ...seatActions(seated) }); return; }
+    setCardUser({ name: m.name, muted: false, lv: 0, photo: m.photo, publicId: m.publicId, viewerRole: "user" });
   };
   const openByName = (name: string) => {
     if (name === "Sen") { openMyCard(); return; }
@@ -530,7 +542,7 @@ export default function RoomScreen() {
               </View>
             ))}
             {msgs.map((m, i) => (
-              <ChatRow key={i} m={m} userName={userName} userPhoto={userPhoto} privileged={privileged} onSelfPress={openMyCard} />
+              <ChatRow key={i} m={m} userName={userName} userPhoto={userPhoto} privileged={privileged} onSelfPress={openMyCard} onTapUser={openChatUserCard} />
             ))}
           </ScrollView>
 
@@ -690,7 +702,7 @@ export default function RoomScreen() {
       )}
 
       {cardUser && (
-        <ProfileCard user={cardUser} superPower={privileged} onClose={() => setCardUser(null)} onDM={() => setCardUser(null)} onViewProfile={() => { const u = cardUser; setCardUser(null); if (u.self) router.navigate("/profile"); else router.navigate(`/user-profile?name=${encodeURIComponent(u.name)}&lv=${u.lv}`); }} />
+        <ProfileCard user={cardUser} superPower={privileged} onClose={() => setCardUser(null)} onDM={() => setCardUser(null)} onViewProfile={() => { const u = cardUser; setCardUser(null); if (u.self) { router.navigate("/profile"); return; } const q = u.publicId ? `publicId=${encodeURIComponent(u.publicId)}&` : ""; router.navigate(`/user-profile?${q}name=${encodeURIComponent(u.name)}&lv=${u.lv}`); }} />
       )}
 
       {contribOpen && (

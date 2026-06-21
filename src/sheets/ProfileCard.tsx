@@ -27,6 +27,8 @@ export type ProfileCardUser = Seat & {
   authority?: boolean;
   /** gerçek profil fotoğrafı (kendi kartım için) */
   photo?: string;
+  /** karşı kullanıcının public_id'si → "Profili Gör" gerçek profili açar */
+  publicId?: string;
   /** mikrofonda oturuyorsam — kendi kartımdan inebilmek için */
   onLeaveSeat?: () => void;
 };
