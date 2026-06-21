@@ -101,7 +101,7 @@ export default function Home() {
     useCallback(() => {
       if (!isSupabaseConfigured) return;
       let alive = true;
-      listRooms().then((r) => { if (alive) setDbRooms(r); }).catch(() => {});
+      listRooms().then((r) => { if (alive) setDbRooms(r); }).catch((e) => console.warn("[home] listRooms:", e?.message || e));
       return () => { alive = false; };
     }, []),
   );

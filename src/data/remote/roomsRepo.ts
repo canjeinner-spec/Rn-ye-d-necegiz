@@ -60,10 +60,11 @@ async function fetchHostNames(ids: number[]): Promise<Map<number, string>> {
 export async function listRooms(limit = 50): Promise<Room[]> {
   const sb = requireSupabase();
   const [{ data, error }, me] = await Promise.all([
+    // Not: silinmis filtresi RLS policy'sinde (USING) zaten var; client'ta
+    // silinmis kolonuna SELECT yetkisi olmadığından burada filtrelemeyiz.
     sb
       .from("odalar")
       .select(SELECT_COLS)
-      .eq("silinmis", false)
       .eq("herkese_acik", true)
       .order("aktif_katilimci_sayisi", { ascending: false })
       .order("olusturulma_tarihi", { ascending: false })
