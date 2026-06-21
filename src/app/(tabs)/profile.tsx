@@ -15,7 +15,9 @@ import { Txt } from "@/components/Txt";
 import { type BadgeItem } from "@/data/badges";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
+import { updateMyProfile } from "@/data/remote/profileRepo";
 import { FEATURES } from "@/lib/features";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { CouponSheet } from "@/sheets/CouponSheet";
 import { EditProfileSheet } from "@/sheets/EditProfileSheet";
@@ -42,7 +44,14 @@ export default function ProfileTab() {
 
   const pickAvatar = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.85 });
-    if (!res.canceled) setUserPhoto(res.assets[0].uri);
+    if (res.canceled) return;
+    const uri = res.assets[0].uri;
+    setUserPhoto(uri); // anlık UI
+    // DB'ye kalıcı yaz (onboarding ile tutarlı). Not: şimdilik yerel URI;
+    // cihazlar arası kalıcılık için Supabase Storage gerekir (sonraki adım).
+    if (isSupabaseConfigured && useApp.getState().session) {
+      try { await updateMyProfile({ profil_resmi: uri }); } catch { /* sessiz geç */ }
+    }
   };
 
   const badges: BadgeItem[] = [
