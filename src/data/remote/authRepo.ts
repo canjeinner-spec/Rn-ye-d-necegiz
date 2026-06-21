@@ -61,12 +61,21 @@ export async function signInWithGoogle() {
     throw new Error("Google girişi iptal edildi.");
   }
 
-  const code = new URL(res.url).searchParams.get("code");
+  // exp:// şeması URL() ile bazen düzgün ayrışmaz; hem query hem fragment'tan ara.
+  const code = extractParam(res.url, "code");
+  const errDesc = extractParam(res.url, "error_description") || extractParam(res.url, "error");
+  if (errDesc) throw new Error(decodeURIComponent(errDesc));
   if (!code) throw new Error("Google yetki kodu bulunamadı.");
 
   const { data: sess, error: exErr } = await sb.auth.exchangeCodeForSession(code);
   if (exErr) throw exErr;
   return sess;
+}
+
+/** Bir URL'deki query veya fragment parametresini şemadan bağımsız çıkarır. */
+function extractParam(rawUrl: string, key: string): string | null {
+  const m = rawUrl.match(new RegExp("[?#&]" + key + "=([^&]+)"));
+  return m ? m[1] : null;
 }
 
 export async function signOut() {

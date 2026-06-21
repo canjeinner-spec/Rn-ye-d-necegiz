@@ -26,6 +26,9 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
+        // PKCE: OAuth dönüşünde `?code=` üretir (mobil için doğru akış).
+        // implicit olsaydı token `#` fragment'ında gelir, exchangeCodeForSession çalışmazdı.
+        flowType: "pkce",
       },
     })
   : null;
