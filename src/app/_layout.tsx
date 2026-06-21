@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AppOverlays } from "@/components/AppOverlays";
+import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { fontMap } from "@/theme/fonts";
 
@@ -16,12 +17,19 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const [loaded] = useFonts(fontMap);
+  const initAuth = useApp((s) => s.initAuth);
+  const bootstrapped = useApp((s) => s.bootstrapped);
 
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync().catch(() => {});
-  }, [loaded]);
+    initAuth();
+  }, [initAuth]);
 
-  if (!loaded) return null;
+  useEffect(() => {
+    if (loaded && bootstrapped) SplashScreen.hideAsync().catch(() => {});
+  }, [loaded, bootstrapped]);
+
+  // Fontlar + ilk oturum kontrolü bitene kadar splash açık kalır (flicker önler).
+  if (!loaded || !bootstrapped) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: C.bg }}>

@@ -35,7 +35,7 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
 
 export default function SecurityScreen() {
   const router = useRouter();
-  const { setGirisYapildi } = useApp();
+  const { signOutApp } = useApp();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [social, setSocial] = useState<Record<SocialKey, boolean>>({ twitter: false, apple: true, google: false });
   const anyLinked = Object.values(social).some(Boolean);
@@ -52,7 +52,7 @@ export default function SecurityScreen() {
   const startPhone = () => { haptic.light(); setFlow(anyLinked ? "confirm" : "error"); };
   const closePhone = () => { setFlow(null); setCode(""); };
   const closePw = () => { setPwOpen(false); setPw({ cur: "", next: "", rep: "" }); setPwDone(false); };
-  const doLogout = () => { haptic.success(); setLogoutOpen(false); setGirisYapildi(false); router.replace("/onboarding"); };
+  const doLogout = async () => { haptic.success(); setLogoutOpen(false); await signOutApp(); router.replace("/onboarding"); };
 
   return (
     <View style={styles.root}>

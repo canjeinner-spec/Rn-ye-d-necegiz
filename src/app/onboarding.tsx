@@ -2,26 +2,27 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AronMark } from "@/components/AronMark";
-import { Sheet } from "@/components/Sheet";
 import { Txt } from "@/components/Txt";
-import { COUNTRIES, PRESET_AVATARS, REGISTERED_PHONES, type Ulke } from "@/data/onboarding";
+import { PRESET_AVATARS } from "@/data/onboarding";
+import { signInWithEmail, signInWithGoogle, signUpWithEmail } from "@/data/remote/authRepo";
+import { updateMyProfile } from "@/data/remote/profileRepo";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
-type Step = "home" | "phone" | "code" | "register";
+type Step = "home" | "email" | "register";
 
-function GoldButton({ label, disabled, onPress }: { label: string; disabled?: boolean; onPress: () => void }) {
+function GoldButton({ label, disabled, loading, onPress }: { label: string; disabled?: boolean; loading?: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} style={{ borderRadius: 15, overflow: "hidden", opacity: disabled ? 0.45 : 1 }}>
-      <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 15, alignItems: "center" }}>
-        <Txt weight="extrabold" size={14} color="#241A05">{label}</Txt>
+    <Pressable onPress={onPress} disabled={disabled || loading} style={{ borderRadius: 15, overflow: "hidden", opacity: disabled ? 0.45 : 1 }}>
+      <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 15, alignItems: "center", justifyContent: "center", minHeight: 48 }}>
+        {loading ? <ActivityIndicator color="#241A05" /> : <Txt weight="extrabold" size={14} color="#241A05">{label}</Txt>}
       </Gradient>
     </Pressable>
   );
@@ -29,43 +30,110 @@ function GoldButton({ label, disabled, onPress }: { label: string; disabled?: bo
 
 export default function Onboarding() {
   const router = useRouter();
-  const { setGirisYapildi, setUserName, setUserPhoto } = useApp();
+  const { setGirisYapildi, setUserName, setUserPhoto, loadProfile } = useApp();
 
   const [step, setStep] = useState<Step>("home");
-  const [country, setCountry] = useState<Ulke>(COUNTRIES[0]);
-  const [picker, setPicker] = useState(false);
-  const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // E-posta adımı
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+
+  // Profil tamamlama adımı
   const [rName, setRName] = useState("");
   const [rBio, setRBio] = useState("");
   const [rGender, setRGender] = useState<"e" | "k" | null>(null);
   const [rPhoto, setRPhoto] = useState<string | null>(null);
 
-  const digits = phone.replace(/\D/g, "").slice(0, 10);
-  const phoneValid = digits.length === 10;
-  const pretty = digits.replace(/(\d{3})(\d{3})(\d{2})(\d{2})/, "$1 $2 $3 $4").trim();
-  const codeValid = code.length === 6;
-  const regValid = rName.trim().length >= 2 && !!rGender && !!rPhoto;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const passValid = pass.length >= 6;
+  const emailFormOk = emailValid && passValid;
+  const regValid = rName.trim().length >= 2 && !!rGender;
 
-  const finish = (name?: string, photo?: string | null) => {
-    haptic.success();
-    if (name) setUserName(name.trim());
-    if (photo) setUserPhoto(photo);
+  const enterApp = async () => {
+    await loadProfile();
     setGirisYapildi(true);
     router.replace("/");
   };
-  const verifyCode = () => {
+
+  const submitEmail = async () => {
+    if (!emailFormOk || busy) return;
     haptic.light();
-    if (REGISTERED_PHONES.includes(digits)) finish();
-    else setStep("register");
+    setErr(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      if (mode === "signup") {
+        const res = await signUpWithEmail(email, pass);
+        if (!res.session) {
+          // "Confirm email" açık → kullanıcı e-postasını doğrulamalı.
+          setNotice("E-postana bir doğrulama bağlantısı gönderdik. Onayladıktan sonra giriş yapabilirsin.");
+          setMode("login");
+          return;
+        }
+        haptic.success();
+        setStep("register"); // oturum açık, profilini tamamla
+      } else {
+        await signInWithEmail(email, pass);
+        haptic.success();
+        await enterApp();
+      }
+    } catch (e: any) {
+      setErr(turkishAuthError(e?.message));
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const handleGoogle = async () => {
+    if (busy) return;
+    haptic.light();
+    setErr(null);
+    setBusy(true);
+    try {
+      await signInWithGoogle();
+      haptic.success();
+      await enterApp();
+    } catch (e: any) {
+      setErr(turkishAuthError(e?.message));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const finishProfile = async () => {
+    if (!regValid || busy) return;
+    haptic.success();
+    setErr(null);
+    setBusy(true);
+    try {
+      await updateMyProfile({
+        kullanici_adi: rName.trim(),
+        biyografi: rBio.trim() || null,
+        cinsiyet: rGender === "e" ? "erkek" : "kadin",
+        profil_resmi: rPhoto || null,
+      });
+      // Anlık UI için store'u da güncelle
+      setUserName(rName.trim());
+      if (rPhoto) setUserPhoto(rPhoto);
+      await enterApp();
+    } catch (e: any) {
+      setErr(turkishAuthError(e?.message));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const pickImage = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.85 });
     if (!res.canceled) setRPhoto(res.assets[0].uri);
   };
 
   const Back = ({ to }: { to: Step }) => (
-    <Pressable onPress={() => setStep(to)} style={styles.back}>
+    <Pressable onPress={() => { setErr(null); setNotice(null); setStep(to); }} style={styles.back}>
       <Icon name="back" size={16} color={C.text} />
     </Pressable>
   );
@@ -87,102 +155,71 @@ export default function Onboarding() {
                 Sesin sahnesi. Odaya gir, koltuğa otur,{"\n"}gecenin yıldızı ol.
               </Txt>
               <View style={{ width: "100%", marginTop: 40, gap: 10 }}>
-                <GoldButton label="Telefon ile Devam Et" onPress={() => { haptic.light(); setStep("phone"); }} />
-                <Pressable onPress={() => finish()} style={styles.altBtn}>
-                  <Txt weight="bold" size={13} color={C.text}> Apple ile Devam Et</Txt>
-                </Pressable>
-                <Pressable onPress={() => finish()} style={styles.altBtn}>
+                <GoldButton label="E-posta ile Devam Et" onPress={() => { haptic.light(); setErr(null); setStep("email"); }} />
+                <Pressable onPress={handleGoogle} disabled={busy} style={[styles.altBtn, busy && { opacity: 0.5 }]}>
                   <Txt weight="bold" size={13} color={C.text}>G  Google ile Devam Et</Txt>
                 </Pressable>
-                <Pressable onPress={() => finish()} style={{ paddingVertical: 8, alignItems: "center" }}>
-                  <Txt weight="semibold" size={11.5} color={C.dim}>Misafir olarak göz at →</Txt>
-                </Pressable>
+                {err && <Txt weight="semibold" size={11.5} color={C.red} align="center">{err}</Txt>}
+                {notice && <Txt weight="semibold" size={11.5} color={C.green} align="center" lh={1.5}>{notice}</Txt>}
               </View>
             </View>
           )}
 
-          {step === "phone" && (
+          {step === "email" && (
             <View style={styles.stepTop}>
               <Back to="home" />
               <View style={{ alignItems: "center" }}>
                 <AronMark s={58} />
-                <Txt weight="displayBold" size={21} color="#fff" style={{ marginTop: 16 }}>Telefonunla giriş yap</Txt>
-                <Txt size={12} color={C.dim} lh={1.5} align="center" style={{ marginTop: 8 }}>Numaranı gir, sana doğrulama kodu gönderelim.</Txt>
+                <Txt weight="displayBold" size={21} color="#fff" style={{ marginTop: 16 }}>
+                  {mode === "login" ? "Tekrar hoş geldin" : "Hesabını oluştur"}
+                </Txt>
+                <Txt size={12} color={C.dim} lh={1.5} align="center" style={{ marginTop: 8 }}>
+                  {mode === "login" ? "E-posta ve şifrenle giriş yap." : "E-posta ve bir şifre belirle, hemen başlayalım."}
+                </Txt>
               </View>
 
               <View style={{ marginTop: 28 }}>
-                <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5 }}>TELEFON NUMARASI</Txt>
-                <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-                  <Pressable onPress={() => setPicker(true)} style={[styles.codeBtn, { borderColor: picker ? C.gold : "rgba(255,255,255,.1)" }]}>
-                    <Txt size={18}>{country.flag}</Txt>
-                    <Txt weight="extrabold" size={13.5} color={C.text}>{country.code}</Txt>
-                    <Icon name="chev" size={13} color={C.dim} />
-                  </Pressable>
-                  <View style={{ flex: 1, justifyContent: "center" }}>
-                    <TextInput
-                      value={pretty}
-                      onChangeText={setPhone}
-                      keyboardType="number-pad"
-                      placeholder="5XX XXX XX XX"
-                      placeholderTextColor={C.dim2}
-                      style={[styles.input, { borderColor: phone && !phoneValid ? C.red : "rgba(255,255,255,.1)" }]}
-                    />
-                    {phoneValid && <View style={{ position: "absolute", right: 12 }}><Icon name="check" size={16} sw={3} color={C.green} /></View>}
-                  </View>
-                </View>
-                <Txt weight="semibold" size={10.5} color={phone && !phoneValid ? C.red : C.dim2} style={{ marginTop: 8 }}>
-                  {phone && !phoneValid ? `${digits.length}/10 hane — 10 haneli numara gir` : "10 haneli numaranı başında 0 olmadan gir"}
-                </Txt>
-              </View>
+                <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5 }}>E-POSTA</Txt>
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="ornek@eposta.com"
+                  placeholderTextColor={C.dim2}
+                  style={[styles.input, { marginTop: 8, borderColor: email && !emailValid ? C.red : "rgba(255,255,255,.1)" }]}
+                />
 
-              <View style={{ flex: 1 }} />
-              <GoldButton label="Kod Gönder" disabled={!phoneValid} onPress={() => { haptic.light(); setCode(""); setStep("code"); }} />
-            </View>
-          )}
+                <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5, marginTop: 18 }}>ŞİFRE</Txt>
+                <TextInput
+                  value={pass}
+                  onChangeText={setPass}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  placeholder="En az 6 karakter"
+                  placeholderTextColor={C.dim2}
+                  style={[styles.input, { marginTop: 8, borderColor: pass && !passValid ? C.red : "rgba(255,255,255,.1)" }]}
+                />
+                {pass && !passValid ? <Txt weight="semibold" size={10.5} color={C.red} style={{ marginTop: 8 }}>Şifre en az 6 karakter olmalı</Txt> : null}
 
-          {step === "code" && (
-            <View style={styles.stepTop}>
-              <Back to="phone" />
-              <View style={{ alignItems: "center" }}>
-                <AronMark s={58} />
-                <Txt weight="displayBold" size={21} color="#fff" style={{ marginTop: 16 }}>Kodu gir</Txt>
-                <Txt size={12} color={C.dim} lh={1.5} align="center" style={{ marginTop: 8 }}>
-                  <Txt weight="bold" size={12} color={C.text}>{country.flag} {country.code} {pretty}</Txt>{"\n"}numarasına gönderilen 6 haneli kodu gir.
-                </Txt>
-              </View>
+                {err && <Txt weight="semibold" size={11.5} color={C.red} style={{ marginTop: 14 }} lh={1.5}>{err}</Txt>}
+                {notice && <Txt weight="semibold" size={11.5} color={C.green} style={{ marginTop: 14 }} lh={1.5}>{notice}</Txt>}
 
-              <View style={{ marginTop: 30 }}>
-                <View style={{ flexDirection: "row", gap: 8, justifyContent: "space-between" }}>
-                  {[0, 1, 2, 3, 4, 5].map((i) => (
-                    <View key={i} style={[styles.codeCell, { borderColor: code.length === i ? C.gold : code[i] ? "rgba(255,255,255,.2)" : "rgba(255,255,255,.1)" }]}>
-                      <Txt weight="displayBold" size={22} color={C.text}>{code[i] || ""}</Txt>
-                    </View>
-                  ))}
-                  <TextInput
-                    value={code}
-                    onChangeText={(t) => setCode(t.replace(/\D/g, "").slice(0, 6))}
-                    keyboardType="number-pad"
-                    autoFocus
-                    caretHidden
-                    style={[StyleSheet.absoluteFill, { opacity: 0.01, color: "transparent" }]}
-                  />
-                </View>
-                <Pressable style={{ alignSelf: "center", marginTop: 18 }}>
-                  <Txt weight="bold" size={11.5} color={C.gold}>Kodu tekrar gönder (0:42)</Txt>
+                <Pressable onPress={() => { setErr(null); setNotice(null); setMode(mode === "login" ? "signup" : "login"); }} style={{ marginTop: 18, alignSelf: "center" }}>
+                  <Txt weight="bold" size={11.5} color={C.gold}>
+                    {mode === "login" ? "Hesabın yok mu? Kayıt ol" : "Zaten hesabın var mı? Giriş yap"}
+                  </Txt>
                 </Pressable>
-                <Txt weight="semibold" size={10.5} color={C.dim2} align="center" style={{ marginTop: 14 }}>
-                  Demo: kayıtlı numara 532 144 07 88 → giriş · diğerleri → kayıt
-                </Txt>
               </View>
 
               <View style={{ flex: 1 }} />
-              <GoldButton label="Doğrula" disabled={!codeValid} onPress={verifyCode} />
+              <GoldButton label={mode === "login" ? "Giriş Yap" : "Kayıt Ol"} disabled={!emailFormOk} loading={busy} onPress={submitEmail} />
             </View>
           )}
 
           {step === "register" && (
             <ScrollView contentContainerStyle={{ padding: 30, paddingTop: 24 }} keyboardShouldPersistTaps="handled">
-              <Back to="code" />
               <Txt weight="displayBold" size={21} color="#fff" style={{ marginTop: 8 }}>Profilini oluştur</Txt>
               <Txt size={12} color={C.dim} lh={1.5} style={{ marginTop: 8 }}>Seni nasıl görelim? Birkaç bilgi yeterli.</Txt>
 
@@ -209,7 +246,7 @@ export default function Onboarding() {
               </View>
 
               <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5, marginTop: 26 }}>KULLANICI ADI</Txt>
-              <TextInput value={rName} onChangeText={setRName} maxLength={20} placeholder="Örn: gece_yıldızı" placeholderTextColor={C.dim2}
+              <TextInput value={rName} onChangeText={setRName} maxLength={20} autoCapitalize="none" placeholder="Örn: gece_yıldızı" placeholderTextColor={C.dim2}
                 style={[styles.input, { marginTop: 8, borderColor: rName && rName.trim().length < 2 ? C.red : "rgba(255,255,255,.1)" }]} />
 
               <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5, marginTop: 20 }}>CİNSİYET</Txt>
@@ -230,29 +267,30 @@ export default function Onboarding() {
                 style={[styles.input, { marginTop: 8, height: 80, textAlignVertical: "top", paddingTop: 12 }]} />
               <Txt size={9.5} color={C.dim2} align="right" style={{ marginTop: 4 }}>{rBio.length}/120</Txt>
 
+              {err && <Txt weight="semibold" size={11.5} color={C.red} style={{ marginTop: 14 }} lh={1.5}>{err}</Txt>}
+
               <View style={{ marginTop: 30 }}>
-                <GoldButton label="Aron'a Başla" disabled={!regValid} onPress={() => finish(rName, rPhoto)} />
+                <GoldButton label="Aron'a Başla" disabled={!regValid} loading={busy} onPress={finishProfile} />
               </View>
             </ScrollView>
           )}
         </KeyboardAvoidingView>
       </SafeAreaView>
-
-      <Sheet visible={picker} onClose={() => setPicker(false)} maxHeightRatio={0.6}>
-        <Txt weight="displayBold" size={16} color="#fff" style={{ marginBottom: 10 }}>Ülke / Alan Kodu</Txt>
-        {COUNTRIES.map((c) => {
-          const on = c.code === country.code && c.name === country.name;
-          return (
-            <Pressable key={c.name} onPress={() => { setCountry(c); setPicker(false); }} style={[styles.countryRow, on && { backgroundColor: C.gold + "14" }]}>
-              <Txt size={17}>{c.flag}</Txt>
-              <Txt weight="semibold" size={12.5} color={C.text} style={{ flex: 1 }}>{c.name}</Txt>
-              <Txt weight="extrabold" size={12.5} color={on ? C.gold : C.dim}>{c.code}</Txt>
-            </Pressable>
-          );
-        })}
-      </Sheet>
     </View>
   );
+}
+
+/** Supabase auth hatalarını kullanıcıya Türkçe gösterir. */
+function turkishAuthError(msg?: string): string {
+  const m = (msg || "").toLowerCase();
+  if (m.includes("invalid login")) return "E-posta veya şifre hatalı.";
+  if (m.includes("already registered") || m.includes("already been registered")) return "Bu e-posta zaten kayıtlı. Giriş yapmayı dene.";
+  if (m.includes("email not confirmed")) return "E-postanı henüz doğrulamadın. Gelen kutunu kontrol et.";
+  if (m.includes("rate limit") || m.includes("too many")) return "Çok fazla deneme. Biraz sonra tekrar dene.";
+  if (m.includes("network") || m.includes("fetch")) return "Bağlantı hatası. İnternetini kontrol et.";
+  if (m.includes("iptal")) return "İşlem iptal edildi.";
+  if (m.includes("duplicate") || m.includes("unique")) return "Bu kullanıcı adı alınmış, başka bir tane dene.";
+  return msg || "Bir şeyler ters gitti, tekrar dene.";
 }
 
 const styles = StyleSheet.create({
@@ -261,12 +299,9 @@ const styles = StyleSheet.create({
   stepTop: { flex: 1, paddingHorizontal: 30, paddingTop: 44 },
   back: { position: "absolute", left: 20, top: 8, zIndex: 2, width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   altBtn: { paddingVertical: 13, borderRadius: 15, borderWidth: 1, borderColor: "rgba(255,255,255,.1)", backgroundColor: "rgba(255,255,255,.05)", alignItems: "center" },
-  codeBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, height: 50, borderRadius: 14, borderWidth: 1, backgroundColor: "rgba(255,255,255,.05)" },
   input: { height: 50, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, color: C.text, fontSize: 15, fontFamily: "PlusJakartaSans_700Bold" },
-  codeCell: { flex: 1, maxWidth: 46, aspectRatio: 0.78, borderRadius: 13, borderWidth: 1.5, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.05)" },
   avatar: { width: 100, height: 100, borderRadius: 50, overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 2, backgroundColor: "rgba(255,255,255,.05)" },
   avatarPlus: { position: "absolute", bottom: 0, right: 0, width: 30, height: 30, borderRadius: 15, borderWidth: 2.5, borderColor: "#0A0A0F", overflow: "hidden" },
   preset: { width: 46, height: 46, borderRadius: 23, overflow: "hidden", borderWidth: 2 },
   genderBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 14, borderWidth: 1.5 },
-  countryRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 11, paddingHorizontal: 11, borderRadius: 11 },
 });

@@ -1,7 +1,11 @@
+import { type Session } from "@supabase/supabase-js";
 import { create } from "zustand";
 
 import { type DMThread } from "@/data/dm";
 import { type Room } from "@/data/seed";
+import { getSession, onAuthChange, signOut } from "@/data/remote/authRepo";
+import { getMyProfile } from "@/data/remote/profileRepo";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 export type BroadcastData = {
   sender: string;
@@ -13,9 +17,23 @@ export type BroadcastData = {
 
 export type UserRole = "user" | "developer" | "super_admin";
 
+/** Supabase ekonomi_rolu → uygulama UserRole eşlemesi. */
+function mapRole(ekonomiRolu?: string | null): UserRole {
+  if (ekonomiRolu === "super_admin" || ekonomiRolu === "developer") return ekonomiRolu;
+  return "user";
+}
+
 type AppState = {
   girisYapildi: boolean;
   setGirisYapildi: (v: boolean) => void;
+
+  // Supabase oturumu
+  session: Session | null;
+  bootstrapped: boolean;
+  publicId: string | null;
+  initAuth: () => void;
+  loadProfile: () => Promise<void>;
+  signOutApp: () => Promise<void>;
 
   userName: string;
   userBio: string;
@@ -56,10 +74,75 @@ type AppState = {
 };
 
 let bcTimer: ReturnType<typeof setTimeout> | null = null;
+let authStarted = false;
 
 export const useApp = create<AppState>((set, get) => ({
   girisYapildi: false,
   setGirisYapildi: (v) => set({ girisYapildi: v }),
+
+  session: null,
+  bootstrapped: false,
+  publicId: null,
+
+  initAuth: () => {
+    if (authStarted) return;
+    authStarted = true;
+    // Supabase yapılandırılmadıysa (env yoksa) mock akışla devam et.
+    if (!isSupabaseConfigured) {
+      set({ bootstrapped: true });
+      return;
+    }
+    getSession()
+      .then(async (session) => {
+        set({ session, girisYapildi: !!session });
+        if (session) await get().loadProfile();
+      })
+      .catch(() => {})
+      .finally(() => set({ bootstrapped: true }));
+
+    onAuthChange(async (session) => {
+      set({ session, girisYapildi: !!session });
+      if (session) await get().loadProfile();
+    });
+  },
+
+  loadProfile: async () => {
+    try {
+      let p = await getMyProfile();
+      // Signup trigger satırı henüz oluşmadıysa kısa retry.
+      if (!p) {
+        await new Promise((r) => setTimeout(r, 800));
+        p = await getMyProfile();
+      }
+      if (!p) return;
+      set({
+        userName: p.kullanici_adi || get().userName,
+        userBio: p.biyografi || "",
+        userPhoto: p.profil_resmi || null,
+        publicId: p.public_id || null,
+        role: mapRole(p.ekonomi_rolu),
+      });
+    } catch {
+      // sessizce geç — oturum geçerli, profil sonradan yüklenebilir
+    }
+  },
+
+  signOutApp: async () => {
+    try {
+      await signOut();
+    } catch {
+      // ignore
+    }
+    set({
+      session: null,
+      girisYapildi: false,
+      publicId: null,
+      userName: "Sen",
+      userBio: "",
+      userPhoto: null,
+      role: "user",
+    });
+  },
 
   userName: "Sen",
   userBio: "",
