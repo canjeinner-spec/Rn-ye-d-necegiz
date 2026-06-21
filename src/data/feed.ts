@@ -21,6 +21,7 @@ export type FeedPost =
       id: number;
       type: "user";
       who: string;
+      publicId?: string; // gönderi sahibinin public_id'si (DB gönderilerinde) → profile git
       lv: number;
       vip: boolean;
       body: string;

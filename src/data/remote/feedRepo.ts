@@ -7,7 +7,7 @@ import { requireSupabase } from "@/lib/supabase";
 export const FEED_ID_OFFSET = 1_000_000_000;
 
 const SELECT_COLS =
-  "id, public_id, kullanici_id, icerik, kapsam, begeni_sayisi, yorum_sayisi, olusturulma_tarihi";
+  "id, public_id, kullanici_id, icerik, kapsam, begeni_sayisi, yorum_sayisi, sabitlenmis, olusturulma_tarihi";
 
 type GonderiRow = {
   id: number;
@@ -17,10 +17,11 @@ type GonderiRow = {
   kapsam: string;
   begeni_sayisi: number;
   yorum_sayisi: number;
+  sabitlenmis: boolean;
   olusturulma_tarihi: string;
 };
 
-type Author = { kullanici_adi: string; seviye_id: number | null };
+type Author = { kullanici_adi: string; seviye_id: number | null; public_id: string };
 
 function toScope(kapsam: string): FeedScope {
   return kapsam === "arkadaslar" ? "arkadaslar" : "herkes";
@@ -41,6 +42,7 @@ function mapPost(r: GonderiRow, author: Author | undefined, myId: number | null,
     id: FEED_ID_OFFSET + r.id,
     type: "user",
     who: author?.kullanici_adi || "Kullanıcı",
+    publicId: author?.public_id,
     lv: author?.seviye_id ?? 1,
     vip: false,
     body: r.icerik || "",
@@ -50,6 +52,7 @@ function mapPost(r: GonderiRow, author: Author | undefined, myId: number | null,
     scope: toScope(r.kapsam),
     comments,
     mine: myId != null && r.kullanici_id === myId,
+    pinned: r.sabitlenmis,
   };
 }
 
@@ -59,9 +62,9 @@ async function fetchAuthors(ids: number[]): Promise<Map<number, Author>> {
   const uniq = [...new Set(ids)];
   if (uniq.length === 0) return map;
   const sb = requireSupabase();
-  const { data } = await sb.from("profiller").select("id, kullanici_adi, seviye_id").in("id", uniq);
-  for (const row of (data as { id: number; kullanici_adi: string; seviye_id: number | null }[]) ?? []) {
-    map.set(row.id, { kullanici_adi: row.kullanici_adi, seviye_id: row.seviye_id });
+  const { data } = await sb.from("profiller").select("id, public_id, kullanici_adi, seviye_id").in("id", uniq);
+  for (const row of (data as { id: number; public_id: string; kullanici_adi: string; seviye_id: number | null }[]) ?? []) {
+    map.set(row.id, { kullanici_adi: row.kullanici_adi, seviye_id: row.seviye_id, public_id: row.public_id });
   }
   return map;
 }
@@ -75,7 +78,12 @@ export async function listPosts(limit = 50): Promise<FeedResult> {
   const sb = requireSupabase();
   const [{ data, error }, me] = await Promise.all([
     // silinmis/kapsam filtresi RLS policy'sinde; client'ta o kolonları filtrelemeyiz.
-    sb.from("gonderiler").select(SELECT_COLS).order("olusturulma_tarihi", { ascending: false }).limit(limit),
+    sb
+      .from("gonderiler")
+      .select(SELECT_COLS)
+      .order("sabitlenmis", { ascending: false }) // sabitlenenler üstte
+      .order("olusturulma_tarihi", { ascending: false })
+      .limit(limit),
     getMyProfile().catch(() => null),
   ]);
   if (error) throw error;
@@ -139,6 +147,27 @@ export async function addComment(postDbId: number, icerik: string): Promise<void
   if (error) throw error;
 }
 
+/** Kendi gönderinin içeriğini düzenle (RLS yalnızca kendi satırını günceller). */
+export async function editPost(postDbId: number, icerik: string): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.from("gonderiler").update({ icerik: icerik.trim() }).eq("id", postDbId);
+  if (error) throw error;
+}
+
+/** Kendi gönderini sil (soft-delete: silinmis=true → akıştan düşer). */
+export async function deletePost(postDbId: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.from("gonderiler").update({ silinmis: true }).eq("id", postDbId);
+  if (error) throw error;
+}
+
+/** Kendi gönderini sabitle / sabitlemeyi kaldır. */
+export async function setPinned(postDbId: number, pinned: boolean): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.from("gonderiler").update({ sabitlenmis: pinned }).eq("id", postDbId);
+  if (error) throw error;
+}
+
 function genPublicId(): string {
   return (Date.now().toString(36) + Math.random().toString(36).slice(2)).slice(0, 12);
 }
@@ -162,7 +191,7 @@ export async function createPost(icerik: string): Promise<FeedPost> {
       .select(SELECT_COLS)
       .single();
     if (!error && data) {
-      return mapPost(data as GonderiRow, { kullanici_adi: me.kullanici_adi, seviye_id: me.seviye_id }, me.id, []);
+      return mapPost(data as GonderiRow, { kullanici_adi: me.kullanici_adi, seviye_id: me.seviye_id, public_id: me.public_id }, me.id, []);
     }
     if ((error as { code?: string } | null)?.code === "23505") { lastErr = error; continue; }
     throw error;

@@ -11,7 +11,7 @@ import { Sheet } from "@/components/Sheet";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { FEED_SEED, SCOPE_LABEL, type FeedPost, type FeedScope } from "@/data/feed";
-import { addComment as addCommentDb, createPost, FEED_ID_OFFSET, likePost, listPosts, unlikePost } from "@/data/remote/feedRepo";
+import { addComment as addCommentDb, createPost, deletePost, editPost, FEED_ID_OFFSET, likePost, listPosts, setPinned, unlikePost } from "@/data/remote/feedRepo";
 import { ROOMS } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -126,9 +126,35 @@ export default function FeedScreen() {
       }
     }
   };
-  const delPost = (id: number) => { setPosts((p) => p.filter((x) => x.id !== id)); setMenuPost(null); note("Paylaşım silindi"); };
-  const saveEdit = (id: number) => { mapUser(id, (x) => ({ ...x, body: editText.trim() || x.body, when: "düzenlendi" })); setEditId(null); };
-  const togglePin = (id: number) => { mapUser(id, (x) => ({ ...x, pinned: !x.pinned })); setMenuPost(null); note("Güncellendi"); };
+  const isDb = (id: number) => id >= FEED_ID_OFFSET && isSupabaseConfigured && useApp.getState().session;
+
+  const openProfile = (p: UserPost) => {
+    haptic.light();
+    if (p.mine) { router.navigate("/profile"); return; }
+    const q = p.publicId ? `publicId=${encodeURIComponent(p.publicId)}&` : "";
+    router.navigate(`/user-profile?${q}name=${encodeURIComponent(p.who)}`);
+  };
+
+  const delPost = (id: number) => {
+    setPosts((p) => p.filter((x) => x.id !== id));
+    setMenuPost(null);
+    note("Paylaşım silindi");
+    if (isDb(id)) deletePost(id - FEED_ID_OFFSET).catch(() => note("Silinemedi"));
+  };
+  const saveEdit = (id: number) => {
+    const t = editText.trim();
+    mapUser(id, (x) => ({ ...x, body: t || x.body, when: "düzenlendi" }));
+    setEditId(null);
+    if (t && isDb(id)) editPost(id - FEED_ID_OFFSET, t).catch(() => note("Düzenlenemedi"));
+  };
+  const togglePin = (id: number) => {
+    const cur = posts.find((x) => x.type === "user" && x.id === id);
+    const willPin = cur && cur.type === "user" ? !cur.pinned : true;
+    mapUser(id, (x) => ({ ...x, pinned: willPin }));
+    setMenuPost(null);
+    note(willPin ? "Sabitlendi" : "Sabit kaldırıldı");
+    if (isDb(id)) setPinned(id - FEED_ID_OFFSET, willPin).catch(() => {});
+  };
   const setScope = (id: number, sc: FeedScope) => { mapUser(id, (x) => ({ ...x, scope: sc })); setScopePost(null); };
   const addComment = async (id: number) => {
     const t = cmtText.trim();
@@ -233,16 +259,18 @@ export default function FeedScreen() {
                   </View>
                 )}
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
-                  <Portrait name={p.who} size={42} online photo={p.mine ? userPhoto || undefined : undefined} />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                      <Txt weight="extrabold" size={13} color={p.mine ? C.gold2 : C.text}>{p.mine ? userName : p.who}</Txt>
-                      {p.mine && privileged && <AuthorityTag size={8} />}
-                      {p.vip && <Badge type="vip" size={15} />}
-                      <Txt weight="extrabold" size={10} color="#5EEAD4">LV.{p.lv}</Txt>
+                  <Pressable onPress={() => openProfile(p)} style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 11, minWidth: 0 }}>
+                    <Portrait name={p.who} size={42} online photo={p.mine ? userPhoto || undefined : undefined} />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <Txt weight="extrabold" size={13} color={p.mine ? C.gold2 : C.text}>{p.mine ? userName : p.who}</Txt>
+                        {p.mine && privileged && <AuthorityTag size={8} />}
+                        {p.vip && <Badge type="vip" size={15} />}
+                        <Txt weight="extrabold" size={10} color="#5EEAD4">LV.{p.lv}</Txt>
+                      </View>
+                      <Txt size={10} color={C.dim2} style={{ marginTop: 2 }}>{p.when}</Txt>
                     </View>
-                    <Txt size={10} color={C.dim2} style={{ marginTop: 2 }}>{p.when}</Txt>
-                  </View>
+                  </Pressable>
                   {p.mine && (
                     <Pressable onPress={() => setMenuPost(p)} style={{ padding: 6 }}>
                       <Icon name="dots" size={18} color={C.dim2} />
