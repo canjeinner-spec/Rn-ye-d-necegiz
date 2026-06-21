@@ -9,7 +9,7 @@ import { OfficialAvatar, SystemAvatar } from "@/components/SpecialAvatars";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { DM_THREADS, type DMThread } from "@/data/dm";
-import { listThreads } from "@/data/remote/dmRepo";
+import { DM_ID_OFFSET, listThreads } from "@/data/remote/dmRepo";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { FEATURES } from "@/lib/features";
@@ -62,7 +62,20 @@ export default function DmTab() {
     // ".on() after subscribe()" hatası vermesini önler.
     const ch = sb
       .channel(`dm-threads-${Date.now()}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "dm_mesajlari" }, () => reload())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "dm_mesajlari" }, (payload) => {
+        // Silinmiş (gizlenmiş) bir konuşmaya yeni mesaj geldiyse gizlemeyi kaldır → kutuya geri düşer
+        const convId = (payload.new as { konusma_id?: number })?.konusma_id;
+        if (convId != null) {
+          setHidden((h) => {
+            const tid = DM_ID_OFFSET + convId;
+            if (!h.has(tid)) return h;
+            const n = new Set(h);
+            n.delete(tid);
+            return n;
+          });
+        }
+        reload();
+      })
       .subscribe();
     return () => { sb.removeChannel(ch); };
   }, [session, reload]);

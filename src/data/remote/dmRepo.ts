@@ -3,7 +3,7 @@ import { getMyProfile } from "@/data/remote/profileRepo";
 import { requireSupabase } from "@/lib/supabase";
 
 // Gerçek DB thread id'leri mock DM_THREADS (1..9) ile çakışmasın diye offset.
-const DM_ID_OFFSET = 1_000_000_000;
+export const DM_ID_OFFSET = 1_000_000_000;
 
 export type DMMessage = { id: number; me: boolean; text: string; time: string };
 
