@@ -271,54 +271,54 @@ export default function UserProfileScreen() {
 
         <View style={[styles.actionBar, { paddingBottom: 14 + insets.bottom }]}>
           {blockedByThem ? (
+            // Karşı taraf engellemiş → salt bilgilendirme (tek satır)
             <View style={styles.blockNotice}>
               <Icon name="blockuser" size={15} color={C.dim} />
-              <Txt weight="bold" size={12} color={C.dim} numberOfLines={1} style={{ flexShrink: 1 }}>Bu kişi sizi engelledi</Txt>
+              <Txt weight="bold" size={12.5} color={C.dim} numberOfLines={1} style={{ flexShrink: 1 }}>Bu kişi sizi engelledi</Txt>
             </View>
           ) : blocked ? (
+            // Ben engellemişim → tek tam-genişlik "Engeli Kaldır"
+            <Pressable onPress={toggleBlock} style={styles.unblockBtn}>
+              <Icon name="blockuser" size={16} color="#FB7185" />
+              <Txt weight="extrabold" size={13} color="#FB7185">Engeli Kaldır</Txt>
+            </Pressable>
+          ) : (
             <>
-              <View style={[styles.blockNotice, { flex: 1 }]}>
-                <Icon name="blockuser" size={15} color="#FB7185" />
-                <Txt weight="bold" size={12} color="#FB7185" numberOfLines={1} style={{ flexShrink: 1 }}>Bu kişiyi engellediniz</Txt>
-              </View>
-              <Pressable onPress={toggleBlock} style={styles.barBtn}>
-                <Icon name="check" size={15} color={C.text} sw={2.5} />
-                <Txt weight="bold" size={12} color={C.text}>Engeli Kaldır</Txt>
+              {friend === "none" ? (
+                <Pressable onPress={() => { haptic.light(); setAddOpen(true); }} style={styles.barBtn}>
+                  <Icon name="userAdd" size={17} color={C.text} />
+                  <Txt weight="bold" size={12} color={C.text}>Arkadaş Ekle</Txt>
+                </Pressable>
+              ) : friend === "pending" ? (
+                <View style={[styles.barBtn, { opacity: 0.6 }]}>
+                  <Icon name="check" size={16} color={C.gold} />
+                  <Txt weight="bold" size={12} color={C.gold2}>İstek Gönderildi</Txt>
+                </View>
+              ) : (
+                <View style={styles.barBtn}>
+                  <Icon name="check" size={16} color={C.green} sw={3} />
+                  <Txt weight="bold" size={12} color="#6EE7B7">Arkadaşsınız</Txt>
+                </View>
+              )}
+              <Pressable onPress={openDM} style={styles.barBtn}>
+                <Icon name="chat" size={16} color={C.text} />
+                <Txt weight="bold" size={12} color={C.text}>Mesaj</Txt>
+              </Pressable>
+              <Pressable onPress={toggleFollow} style={{ flex: 1, borderRadius: 14, overflow: "hidden" }}>
+                {following ? (
+                  <View style={[styles.barBtn, { width: "100%" }]}>
+                    <Icon name="check" size={16} color={C.text} sw={2.5} />
+                    <Txt weight="bold" size={12} color={C.text}>Takiptesin</Txt>
+                  </View>
+                ) : (
+                  <Gradient colors={["#F5CE6E", "#C8922B"]} deg={135} style={styles.barBtnPrimary}>
+                    <Icon name="heart" size={16} color="#241A05" />
+                    <Txt weight="extrabold" size={12} color="#241A05">Takip Et</Txt>
+                  </Gradient>
+                )}
               </Pressable>
             </>
-          ) : friend === "none" ? (
-            <Pressable onPress={() => { haptic.light(); setAddOpen(true); }} style={styles.barBtn}>
-              <Icon name="userAdd" size={17} color={C.text} />
-              <Txt weight="bold" size={12} color={C.text}>Arkadaş Ekle</Txt>
-            </Pressable>
-          ) : friend === "pending" ? (
-            <View style={[styles.barBtn, { opacity: 0.6 }]}>
-              <Icon name="check" size={16} color={C.gold} />
-              <Txt weight="bold" size={12} color={C.gold2}>İstek Gönderildi</Txt>
-            </View>
-          ) : (
-            <View style={styles.barBtn}>
-              <Icon name="check" size={16} color={C.green} sw={3} />
-              <Txt weight="bold" size={12} color="#6EE7B7">Arkadaşsınız</Txt>
-            </View>
           )}
-          <Pressable onPress={openDM} style={styles.barBtn}>
-            <Icon name="chat" size={16} color={C.text} />
-            <Txt weight="bold" size={12} color={C.text}>Mesaj</Txt>
-          </Pressable>
-          <Pressable onPress={toggleFollow} style={{ flex: 1, borderRadius: 14, overflow: "hidden" }}>
-            {following ? (
-              <View style={[styles.barBtn, { width: "100%" }]}>
-                <Icon name="check" size={16} color={C.text} sw={2.5} />
-                <Txt weight="bold" size={12} color={C.text}>Takiptesin</Txt>
-              </View>
-            ) : (
-              <Gradient colors={["#F5CE6E", "#C8922B"]} deg={135} style={styles.barBtnPrimary}>
-                <Icon name="heart" size={16} color="#241A05" />
-                <Txt weight="extrabold" size={12} color="#241A05">Takip Et</Txt>
-              </Gradient>
-            )}
-          </Pressable>
         </View>
 
         {!!toast && (
@@ -414,6 +414,7 @@ const styles = StyleSheet.create({
   barBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 14, backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.13)" },
   barBtnPrimary: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 14 },
   blockNotice: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, paddingHorizontal: 12, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line },
+  unblockBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 13, borderRadius: 14, backgroundColor: "rgba(251,113,133,.10)", borderWidth: 1, borderColor: "rgba(251,113,133,.30)" },
   toast: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: `${C.red}55`, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999 },
   dialog: { borderRadius: 24, padding: 20, backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
   addInput: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
