@@ -487,14 +487,16 @@ export default function RoomScreen() {
                 <Icon name="chev" size={12} color="#FEF3C7" />
               </Pressable>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, maxWidth: "62%" }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, alignItems: "center" }}>
-                  {/* Sağdan sola dizilsin: diziyi ters çevir (en yeni/ilk sağda, sayı rozetinin yanında) */}
-                  {[...crowd.slice(0, 7)].reverse().map((o) => (
+                {/* Düz View (ScrollView değil): içerik genişliğinde → sayı ikonunun
+                    tam yanında durur ve kişi arttıkça sola doğru dizilir.
+                    Ters dizi: en yeni/ilk sağda (rozete bitişik). */}
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  {[...crowd.slice(0, 5)].reverse().map((o) => (
                     <Pressable key={o.key} onPress={() => setUserList(true)}>
                       <Portrait name={o.name} size={32} ring="rgba(255,255,255,.22)" photo={o.photo} />
                     </Pressable>
                   ))}
-                </ScrollView>
+                </View>
                 <Pressable onPress={() => setUserList(true)} style={styles.countBadge}>
                   <Icon name="user" size={12} color="rgba(255,255,255,.7)" />
                   <Txt weight="extrabold" size={9} color="#fff">{crowdCount}</Txt>
