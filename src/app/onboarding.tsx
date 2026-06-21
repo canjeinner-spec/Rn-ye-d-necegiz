@@ -9,7 +9,7 @@ import { AronMark } from "@/components/AronMark";
 import { Txt } from "@/components/Txt";
 import { PRESET_AVATARS } from "@/data/onboarding";
 import { signInWithEmail, signInWithGoogle, signUpWithEmail } from "@/data/remote/authRepo";
-import { updateMyProfile } from "@/data/remote/profileRepo";
+import { getMyProfile, updateMyProfile } from "@/data/remote/profileRepo";
 import { uploadAvatar } from "@/data/remote/storageRepo";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { Icon } from "@/icons/Icon";
@@ -62,6 +62,17 @@ export default function Onboarding() {
     router.replace("/");
   };
 
+  // Auth sonrası: profil hâlâ stub (user_1234567) ise profil tamamlamaya
+  // yönlendir (özellikle Google girişinde register adımı atlanmıştı), değilse gir.
+  const proceedAfterAuth = async () => {
+    const profile = await getMyProfile().catch(() => null);
+    if (profile && /^user_\d+$/.test(profile.kullanici_adi || "")) {
+      setStep("register");
+    } else {
+      await enterApp();
+    }
+  };
+
   const submitEmail = async () => {
     if (!emailFormOk || busy) return;
     haptic.light();
@@ -82,7 +93,7 @@ export default function Onboarding() {
       } else {
         await signInWithEmail(email, pass);
         haptic.success();
-        await enterApp();
+        await proceedAfterAuth();
       }
     } catch (e: any) {
       setErr(turkishAuthError(e?.message));
@@ -99,7 +110,7 @@ export default function Onboarding() {
     try {
       await signInWithGoogle();
       haptic.success();
-      await enterApp();
+      await proceedAfterAuth();
     } catch (e: any) {
       setErr(turkishAuthError(e?.message));
     } finally {
@@ -149,7 +160,9 @@ export default function Onboarding() {
 
   // Açılışta zaten girişliysen (oturum geri yüklendi) ana ekrana git.
   // Yalnızca "home" adımında — kayıt/giriş akışını (email/register) bozmaz.
-  if (girisYapildi && step === "home") return <Redirect href="/" />;
+  // Açılışta zaten girişliysen ana ekrana git. busy iken (Google akışı sürerken,
+  // oturum açılıp profil-tamamlama kararı verilmeden) yönlendirme yapma.
+  if (girisYapildi && step === "home" && !busy) return <Redirect href="/" />;
 
   return (
     <View style={styles.root}>
