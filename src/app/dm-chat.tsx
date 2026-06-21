@@ -68,6 +68,13 @@ export default function DMChatScreen() {
     return () => { alive = false; sb.removeChannel(ch); };
   }, [convId, isRealDM, dbId]);
 
+  const openPeerProfile = () => {
+    if (!peer) return;
+    haptic.light();
+    const q = peer.publicId ? `publicId=${encodeURIComponent(peer.publicId)}&` : "";
+    router.navigate(`/user-profile?${q}name=${encodeURIComponent(peer.name)}`);
+  };
+
   const send = async () => {
     const t = input.trim();
     if (!t) return;
@@ -171,11 +178,13 @@ export default function DMChatScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.chatHeader}>
             <IconBtn name="back" onPress={back} />
-            <Portrait name={peer.name} size={38} online={peer.online} />
-            <View style={{ flex: 1 }}>
-              <Txt weight="extrabold" size={13.5} color="#fff">{peer.name}</Txt>
-              <Txt weight="bold" size={10} color={peer.online ? C.green : C.dim}>{peer.online ? "Çevrimiçi" : "Son görülme 21:10"}</Txt>
-            </View>
+            <Pressable onPress={openPeerProfile} style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 11 }}>
+              <Portrait name={peer.name} size={38} online={peer.online} photo={peer.photo} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Txt weight="extrabold" size={13.5} color="#fff" numberOfLines={1}>{peer.name}</Txt>
+                <Txt weight="bold" size={10} color={peer.online ? C.green : C.dim}>{peer.online ? "Çevrimiçi" : "Profili gör"}</Txt>
+              </View>
+            </Pressable>
             <IconBtn name="phone" />
           </View>
 

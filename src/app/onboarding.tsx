@@ -113,20 +113,21 @@ export default function Onboarding() {
     setErr(null);
     setBusy(true);
     try {
-      // Çekilen görseli Storage'a yükle (preset avatarlar zaten URL).
-      let photoUrl = rPhoto;
+      // Çekilen görseli Storage'a yükle; preset avatarlar zaten https URL.
+      // DB'ye yalnızca https URL yazılır — file:// (yerel) ASLA kaydedilmez.
+      let photoUrl: string | null = rPhoto && /^https?:\/\//.test(rPhoto) ? rPhoto : null;
       if (rPhoto && rBase64 && isSupabaseConfigured) {
-        try { photoUrl = await uploadAvatar(rBase64, rPhoto); } catch { /* yüklenemezse yerel URI ile devam */ }
+        try { photoUrl = await uploadAvatar(rBase64, rPhoto); } catch { /* yüklenemezse DB'ye yazma */ }
       }
       await updateMyProfile({
         kullanici_adi: rName.trim(),
         biyografi: rBio.trim() || null,
         cinsiyet: rGender, // DB: varchar(1) CHECK IN ('e','k')
-        profil_resmi: photoUrl || null,
+        profil_resmi: photoUrl,
       });
-      // Anlık UI için store'u da güncelle
+      // Anlık UI için store'u da güncelle (yerel önizleme dahil)
       setUserName(rName.trim());
-      if (photoUrl) setUserPhoto(photoUrl);
+      if (photoUrl || rPhoto) setUserPhoto(photoUrl || rPhoto);
       await enterApp();
     } catch (e: any) {
       setErr(turkishAuthError(e?.message));

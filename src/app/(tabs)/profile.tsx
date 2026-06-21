@@ -48,13 +48,14 @@ export default function ProfileTab() {
     if (res.canceled) return;
     const a = res.assets[0];
     setUserPhoto(a.uri); // anlık yerel önizleme
-    if (isSupabaseConfigured && useApp.getState().session) {
+    // Yalnızca Storage'a yüklenen https URL'i DB'ye yaz; file:// ASLA kaydedilmez
+    // (yoksa diğer cihazlar/kullanıcılar göremez).
+    if (isSupabaseConfigured && useApp.getState().session && a.base64) {
       try {
-        // Storage'a yükle → herkese açık URL'i kalıcı yaz (cihazlar arası çalışır)
-        const url = a.base64 ? await uploadAvatar(a.base64, a.uri) : a.uri;
+        const url = await uploadAvatar(a.base64, a.uri);
         setUserPhoto(url);
         await updateMyProfile({ profil_resmi: url });
-      } catch { /* sessiz geç — yerel önizleme kalır */ }
+      } catch { /* yükleme başarısızsa yerel önizleme kalır, DB'ye yazılmaz */ }
     }
   };
 
