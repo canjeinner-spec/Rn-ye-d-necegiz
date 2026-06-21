@@ -42,7 +42,12 @@ export async function signInWithEmail(email: string, password: string) {
  */
 export async function signInWithGoogle() {
   const sb = requireSupabase();
-  const redirectTo = makeRedirectUri({ scheme: "rnyednecegiz" });
+  // Argümansız makeRedirectUri ortama göre doğru adresi üretir:
+  //  • Expo Go → exp://<host>/--/  (dev-build → rnyednecegiz://)
+  // Bu adres Supabase → Authentication → URL Configuration → Redirect URLs
+  // listesine eklenmeli, yoksa Supabase "Site URL" (localhost) fallback yapar.
+  const redirectTo = makeRedirectUri();
+  console.log("[auth] Google redirectTo:", redirectTo); // Supabase'e eklenecek adres
 
   const { data, error } = await sb.auth.signInWithOAuth({
     provider: "google",
