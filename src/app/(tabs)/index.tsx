@@ -8,7 +8,7 @@ import { Eq } from "@/components/Eq";
 import { EventBanners } from "@/components/EventBanners";
 import { Portrait } from "@/components/Portrait";
 import { RoomBadges } from "@/components/RoomBadges";
-import { RoomCrest, RoomTopTag, type RoomTier } from "@/components/RoomTopTag";
+import { RoomTopTag, type RoomTier } from "@/components/RoomTopTag";
 import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
@@ -25,16 +25,9 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
   const friendAvatars = room.crowd.slice(0, 3);
   const coverUri = room.photo || PEOPLE[room.host]?.photo;
   const tier: RoomTier | null = room.official ? "official" : room.daily != null ? "daily" : null;
-  const tierBg = tier === "daily" ? gradients.tierDaily : gradients.tierOfficial;
 
   return (
-    <Pressable onPress={onPress} style={[styles.row, tier && styles.rowSpecial]}>
-      {tier && <Gradient colors={tierBg} deg={135} style={StyleSheet.absoluteFill} pointerEvents="none" />}
-      {tier && (
-        <View style={styles.crest} pointerEvents="none">
-          <RoomCrest kind={tier} />
-        </View>
-      )}
+    <Pressable onPress={onPress} style={styles.row}>
       {tier && <RoomTopTag kind={tier} rank={room.daily ?? 1} />}
 
       <View style={styles.cover}>
@@ -154,18 +147,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
-  // Öne çıkan (resmi/günlük) odalar: ayırıcı yerine kendi boşluğu olan kart.
-  rowSpecial: {
-    overflow: "hidden",
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    marginVertical: 8,
-    borderWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: colors.borderStrong,
-    borderBottomColor: colors.borderStrong,
-  },
-  crest: { position: "absolute", right: 6, top: -22 },
   // İkincil bilgi: daha sönük (yaklaşık %50 opaklık) → ana başlık öne çıkar.
   metaRow: { opacity: 0.5 },
   cover: { width: 62, height: 62, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: colors.border },
