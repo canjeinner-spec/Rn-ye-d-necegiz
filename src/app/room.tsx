@@ -9,10 +9,12 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 
 import { CenterModal } from "@/components/CenterModal";
@@ -49,6 +51,23 @@ const ROOM_REPORT: { ic: IconName; t: string }[] = [
   { ic: "spam", t: "Spam veya reklam" },
   { ic: "warn", t: "Diğer" },
 ];
+
+/** Sayfanın merkezine odaklanan çok hafif radyal ışıma — "düz siyah" hissini kırar. */
+function CenterGlow() {
+  const { width, height } = useWindowDimensions();
+  return (
+    <Svg pointerEvents="none" style={StyleSheet.absoluteFill} width={width} height={height}>
+      <Defs>
+        <RadialGradient id="roomGlow" cx="50%" cy="40%" r="72%">
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.07} />
+          <Stop offset="0.5" stopColor={C.purple2} stopOpacity={0.04} />
+          <Stop offset="1" stopColor="#000000" stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Rect x={0} y={0} width={width} height={height} fill="url(#roomGlow)" />
+    </Svg>
+  );
+}
 
 function SpeakingRing() {
   const v = useSharedValue(0.94);
@@ -149,10 +168,10 @@ function ChatRow({ m }: { m: ChatMsg }) {
 
 function SystemBanner({ roomName }: { roomName: string }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 7 }}>
-      <View style={{ paddingTop: 2 }}><Icon name="bell" size={13} color={C.gold2} /></View>
-      <Txt size={12.5} color="rgba(255,255,255,.72)" lh={1.5} style={{ flex: 1 }}>
-        <Txt weight="extrabold" size={12.5} color={C.gold2}>Sistem: </Txt>
+    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
+      <View style={{ paddingTop: 1.5 }}><Icon name="bell" size={11} color={C.dim2} /></View>
+      <Txt size={12} color={C.dim2} lh={1.5} style={{ flex: 1 }}>
+        <Txt weight="bold" size={12} color={C.dim}>Sistem: </Txt>
         {roomName}'na hoş geldiniz. Oda; pornografik, taciz, yasa dışı ve kural ihlali içeren içerikler paylaşılamaz. Kural ihlali ile karşılaşırsanız lütfen zamanında bildirin.
       </Txt>
     </View>
@@ -317,6 +336,7 @@ export default function RoomScreen() {
   return (
     <View style={styles.root}>
       <Scene kind={room.scene} />
+      <CenterGlow />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.topbar}>
@@ -400,10 +420,10 @@ export default function RoomScreen() {
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 6, gap: 11 }}>
             <SystemBanner roomName={roomName} />
             {SYS_MSGS.map((s, i) => (
-              <View key={"sys" + i} style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <Icon name="bell" size={13} color={C.gold2} />
-                <Txt weight="extrabold" size={12} color={C.gold2}>Sistem:</Txt>
-                <Txt size={12.5} color="rgba(255,255,255,.7)">{s}</Txt>
+              <View key={"sys" + i} style={{ flexDirection: "row", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+                <Icon name="bell" size={11} color={C.dim2} />
+                <Txt weight="bold" size={12} color={C.dim}>Sistem:</Txt>
+                <Txt size={12} color={C.dim2}>{s}</Txt>
               </View>
             ))}
             {msgs.map((m, i) => (
@@ -412,6 +432,8 @@ export default function RoomScreen() {
           </ScrollView>
 
           <View style={styles.bottombar}>
+            <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+            <View style={styles.bottombarTint} pointerEvents="none" />
             <Pressable onPress={() => { setSpeakerOn((v) => !v); toast(speakerOn ? "Ses kapatıldı" : "Ses açıldı"); }} style={styles.barIcon}>
               <Icon name="mega" size={22} color={speakerOn ? "#fff" : C.dim2} />
             </Pressable>
@@ -624,13 +646,41 @@ const styles = StyleSheet.create({
   barIcon: { minWidth: 34, height: 42, alignItems: "center", justifyContent: "center" },
   giftMini: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   giftBtnBig: { width: 46, height: 46, alignItems: "center", justifyContent: "center" },
-  bubble: { alignSelf: "flex-start", maxWidth: "94%", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 15, borderTopLeftRadius: 5, borderWidth: 1 },
+  bubble: {
+    alignSelf: "flex-start",
+    maxWidth: "94%",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    borderTopLeftRadius: 7,
+    borderWidth: 1,
+    // ekrandan hafif yükselsin
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    elevation: 2,
+  },
   reportCard: { backgroundColor: "rgba(26,22,38,0.98)", borderRadius: 22, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
   seat: { width: "25%", alignItems: "center", gap: 6 },
   emptySeat: { width: 60, height: 60, borderRadius: 30, borderWidth: 2, borderStyle: "dashed", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.02)" },
   seatLock: { position: "absolute", bottom: -2, right: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: "#0A0A0F", borderWidth: 1, borderColor: C.gold + "66", alignItems: "center", justifyContent: "center" },
   speakRing: { position: "absolute", top: -7, left: -7, right: -7, bottom: -7, borderRadius: 999, borderWidth: 2, borderColor: C.purple2 },
-  bottombar: { flexDirection: "row", gap: 5, paddingHorizontal: 10, paddingTop: 10, paddingBottom: 6, alignItems: "center" },
+  bottombar: {
+    flexDirection: "row",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 6,
+    alignItems: "center",
+    // yüzen cam (glassmorphism) katman
+    overflow: "hidden",
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderTopWidth: 1,
+    borderColor: "rgba(255,255,255,.1)",
+  },
+  bottombarTint: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(18,16,26,.45)" },
   inputWrap: {
     flex: 1,
     justifyContent: "center",
