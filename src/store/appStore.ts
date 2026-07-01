@@ -111,7 +111,12 @@ export const useApp = create<AppState>((set, get) => ({
       set({ bootstrapped: true });
       return;
     }
-    getSession()
+    // Supabase (auth-js) ağ hatasında bazen kendi içinde süresiz retry
+    // döngüsüne giriyor ve getSession() hiç sonuçlanmıyor — bu da splash
+    // ekranının sonsuza kadar açık kalmasına yol açardı. Zaman aşımıyla
+    // yarışa sokuyoruz: ağ ne olursa olsun uygulama birkaç saniyede açılır.
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000));
+    Promise.race([getSession(), timeout])
       .then(async (session) => {
         set({ session, girisYapildi: !!session });
         if (session) await get().loadProfile();
