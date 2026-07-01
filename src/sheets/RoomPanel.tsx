@@ -77,8 +77,8 @@ export function RoomPanel(props: Props) {
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Animated.View entering={SlideInDown.duration(300)} style={[styles.sheet, tab === 0 ? styles.sheetFit : styles.sheetFull]}>
-          <Pressable style={tab === 0 ? undefined : { flex: 1 }}>
+        <Animated.View entering={SlideInDown.duration(300)} style={[styles.sheet, tab === 1 ? styles.sheetFull : styles.sheetFit]}>
+          <Pressable style={tab === 1 ? { flex: 1 } : undefined}>
             <BlurView intensity={32} tint="dark" style={StyleSheet.absoluteFill} />
             <Gradient colors={["rgba(22,19,32,0.88)", "rgba(11,10,16,0.94)"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
             <View style={styles.handle} />
@@ -102,26 +102,6 @@ export function RoomPanel(props: Props) {
                   <Icon name="warn" size={16} color="rgba(255,255,255,.5)" />
                 </Pressable>
               </View>
-
-              <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
-                <Pressable onPress={() => setJoined((j) => !j)} style={{ flex: 1, borderRadius: 14, overflow: "hidden" }}>
-                  {joined ? (
-                    <View style={[styles.actBtn, { borderWidth: 1.5, borderColor: C.green + "55", backgroundColor: C.green + "14" }]}>
-                      <Icon name="check" size={16} sw={2.5} color="#6EE7B7" />
-                      <Txt weight="extrabold" size={13.5} color="#6EE7B7">Katıldın</Txt>
-                    </View>
-                  ) : (
-                    <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.actBtn}>
-                      <Icon name="mic" size={16} color="#241A05" />
-                      <Txt weight="extrabold" size={13.5} color="#241A05">Katıl</Txt>
-                    </Gradient>
-                  )}
-                </Pressable>
-                <Pressable onPress={() => setFollowing((f) => !f)} style={[styles.actBtn, { flex: 1, borderWidth: 1.5, borderColor: following ? C.gold : "rgba(255,255,255,.14)", backgroundColor: following ? C.gold + "12" : "rgba(255,255,255,.05)" }]}>
-                  <Icon name={following ? "check" : "heart"} size={16} sw={following ? 2.5 : 1.7} color={following ? C.gold2 : C.text} />
-                  <Txt weight="extrabold" size={13.5} color={following ? C.gold2 : C.text}>{following ? "Takiptesin" : "Takip Et"}</Txt>
-                </Pressable>
-              </View>
             </View>
 
             <View style={styles.headerRow}>
@@ -132,6 +112,10 @@ export function RoomPanel(props: Props) {
                     {i === tab && <Gradient colors={[C.gold, "#C8922B"]} deg={90} style={styles.tabUnderline} />}
                   </Pressable>
                 ))}
+                <Pressable onPress={() => setTab(2)} style={styles.tabBtnIcon}>
+                  <Icon name="mic" size={17} color={tab === 2 ? C.gold2 : "rgba(255,255,255,.42)"} />
+                  {tab === 2 && <Gradient colors={[C.gold, "#C8922B"]} deg={90} style={styles.tabUnderline} />}
+                </Pressable>
               </View>
               {canManage && (
                 <Pressable onPress={onManage} style={styles.gearBtn} hitSlop={8}>
@@ -141,7 +125,7 @@ export function RoomPanel(props: Props) {
             </View>
 
             {tab === 0 ? (
-              <View style={{ padding: 18, paddingBottom: 14 + insets.bottom }}>
+              <View style={{ padding: 18, paddingBottom: 14 }}>
                 <View style={[styles.levelHeader, { paddingTop: 0 }]}>
                   <Txt weight="semibold" size={13.5} color={C.dim}>Level</Txt>
                   <View style={{ flex: 1 }} />
@@ -181,8 +165,8 @@ export function RoomPanel(props: Props) {
                   </View>
                 </View>
               </View>
-            ) : (
-              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 18, paddingBottom: 24 + insets.bottom }}>
+            ) : tab === 1 ? (
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 18, paddingBottom: 24 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
                   <Txt weight="bold" size={13} color={C.dim}>
                     Üyeler: <Txt weight="bold" size={13} color={C.gold2}>{members.length}</Txt>
@@ -234,7 +218,37 @@ export function RoomPanel(props: Props) {
                   );
                 })}
               </ScrollView>
+            ) : (
+              <View style={{ padding: 18, paddingTop: 40, alignItems: "center" }}>
+                <View style={styles.queueIcon}>
+                  <Icon name="mic" size={24} color={C.gold} />
+                </View>
+                <Txt weight="displayBold" size={15} color="#fff" style={{ marginTop: 14 }}>Mikrofon Sırası</Txt>
+                <Txt size={12} color={C.dim} align="center" lh={1.5} style={{ marginTop: 8, maxWidth: 260 }}>
+                  Mikrofona çıkmak isteyenler yakında burada sıraya girebilecek.
+                </Txt>
+              </View>
             )}
+
+            <View style={[styles.footerRow, { paddingBottom: 12 + insets.bottom }]}>
+              <Pressable onPress={() => setJoined((j) => !j)} style={{ flex: 1, borderRadius: 14, overflow: "hidden" }}>
+                {joined ? (
+                  <View style={[styles.actBtn, { borderWidth: 1.5, borderColor: C.green + "55", backgroundColor: C.green + "14" }]}>
+                    <Icon name="check" size={16} sw={2.5} color="#6EE7B7" />
+                    <Txt weight="extrabold" size={13.5} color="#6EE7B7">Katıldın</Txt>
+                  </View>
+                ) : (
+                  <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.actBtn}>
+                    <Icon name="plus" size={16} sw={2.5} color="#241A05" />
+                    <Txt weight="extrabold" size={13.5} color="#241A05">Katıl</Txt>
+                  </Gradient>
+                )}
+              </Pressable>
+              <Pressable onPress={() => setFollowing((f) => !f)} style={[styles.actBtn, { flex: 1, borderWidth: 1.5, borderColor: following ? C.gold : "rgba(255,255,255,.14)", backgroundColor: following ? C.gold + "12" : "rgba(255,255,255,.05)" }]}>
+                <Icon name={following ? "check" : "heart"} size={16} sw={following ? 2.5 : 1.7} color={following ? C.gold2 : C.text} />
+                <Txt weight="extrabold" size={13.5} color={following ? C.gold2 : C.text}>{following ? "Takiptesin" : "Takip Et"}</Txt>
+              </Pressable>
+            </View>
           </Pressable>
         </Animated.View>
       </Pressable>
@@ -251,8 +265,11 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", alignItems: "center", gap: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.08)", paddingHorizontal: 8, marginTop: 6 },
   tabbar: { flex: 1, flexDirection: "row" },
   tabBtn: { flex: 1, paddingVertical: 14, alignItems: "center" },
+  tabBtnIcon: { width: 48, paddingVertical: 14, alignItems: "center" },
   tabUnderline: { position: "absolute", bottom: -1, width: 28, height: 3, borderRadius: 3 },
   gearBtn: { width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "44", marginRight: 2 },
+  footerRow: { flexDirection: "row", gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line, paddingHorizontal: 18, paddingTop: 12 },
+  queueIcon: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "44" },
   idCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 16, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 4 },
   reportIconBtn: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.06)" },
   actBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 12, borderRadius: 14 },
