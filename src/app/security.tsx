@@ -96,78 +96,95 @@ export default function SecurityScreen() {
         <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
           <Txt weight="bold" size={10.5} color={C.dim} style={styles.sectionLbl}>HESAP GÜVENLİĞİ</Txt>
 
-          <Pressable onPress={startPhone} style={styles.phoneCard}>
-            <Txt size={20}>📱</Txt>
-            <View style={{ flex: 1 }}>
-              <Txt weight="bold" size={10.5} color={C.dim}>Kayıtlı telefon numarası</Txt>
-              <Txt weight="displayBold" size={15} color={C.text} style={{ marginTop: 2 }}>{PHONE}</Txt>
-              <Txt weight="semibold" size={10.5} color={C.gold} style={{ marginTop: 3 }}>Numarayı değiştir →</Txt>
-            </View>
-            <Icon name="chev" size={15} color={C.gold} />
-          </Pressable>
+          <View style={styles.group}>
+            <Pressable onPress={startPhone} style={[styles.row, styles.rowInGroup]}>
+              <View style={[styles.rowIcon, { backgroundColor: `${C.gold}1A` }]}>
+                <Icon name="phone" size={16} color={C.gold} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Txt weight="extrabold" size={12.5} color={C.text}>Telefon Numarası</Txt>
+                <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>{PHONE}</Txt>
+              </View>
+              <Icon name="chev" size={14} color={C.dim2} />
+            </Pressable>
 
-          <Pressable onPress={() => { haptic.light(); setPwOpen(true); }} style={styles.row}>
-            <View style={[styles.rowIcon, { backgroundColor: "rgba(168,85,247,.15)" }]}>
-              <Icon name="lock" size={16} color="#A78BFA" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Txt weight="extrabold" size={12.5} color={C.text}>Şifre Güncelleme</Txt>
-              <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>Hesap şifreni değiştir</Txt>
-            </View>
-            <Icon name="chev" size={14} color={C.dim2} />
-          </Pressable>
+            <View style={styles.divider} />
 
-          <View style={styles.row}>
-            <View style={[styles.rowIcon, { backgroundColor: "rgba(96,165,250,.15)" }]}>
-              <Icon name="gear" size={16} color="#60A5FA" />
+            <Pressable onPress={() => { haptic.light(); setPwOpen(true); }} style={[styles.row, styles.rowInGroup]}>
+              <View style={[styles.rowIcon, { backgroundColor: `${C.purple2}1A` }]}>
+                <Icon name="lock" size={16} color={C.purple2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Txt weight="extrabold" size={12.5} color={C.text}>Şifre Güncelleme</Txt>
+                <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>Hesap şifreni değiştir</Txt>
+              </View>
+              <Icon name="chev" size={14} color={C.dim2} />
+            </Pressable>
+
+            <View style={styles.divider} />
+
+            <View style={[styles.row, styles.rowInGroup]}>
+              <View style={[styles.rowIcon, { backgroundColor: "rgba(255,255,255,.06)" }]}>
+                <Icon name="gear" size={16} color={C.dim} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Txt weight="extrabold" size={12.5} color={C.text}>Uygulama Sürümü</Txt>
+                <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>Güncel sürümü kullanıyorsun</Txt>
+              </View>
+              <Txt weight="bold" size={11.5} color={C.dim}>v{APP_VERSION}</Txt>
             </View>
-            <View style={{ flex: 1 }}>
-              <Txt weight="extrabold" size={12.5} color={C.text}>Uygulama Sürümü</Txt>
-              <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>Güncel sürümü kullanıyorsun</Txt>
-            </View>
-            <Txt weight="bold" size={11.5} color={C.dim}>v{APP_VERSION}</Txt>
           </View>
 
           <Txt weight="bold" size={10.5} color={C.dim} style={[styles.sectionLbl, { marginTop: 22 }]}>BAĞLI HESAPLAR</Txt>
-          {SOCIALS.map((s) => {
-            const linked = social[s.key];
-            return (
-              <Pressable key={s.key} onPress={() => { haptic.select(); setSocial((p) => ({ ...p, [s.key]: !p[s.key] })); }} style={styles.row}>
-                <View style={styles.socialIcon}>
-                  <Txt weight="extrabold" size={14} color="#fff">{s.icon}</Txt>
+          <View style={styles.group}>
+            {SOCIALS.map((s, i) => {
+              const linked = social[s.key];
+              return (
+                <View key={s.key}>
+                  {i > 0 && <View style={styles.divider} />}
+                  <Pressable onPress={() => { haptic.select(); setSocial((p) => ({ ...p, [s.key]: !p[s.key] })); }} style={[styles.row, styles.rowInGroup]}>
+                    <View style={styles.socialIcon}>
+                      <Txt weight="extrabold" size={14} color="#fff">{s.icon}</Txt>
+                    </View>
+                    <Txt weight="extrabold" size={12.5} color={C.text} style={{ flex: 1 }}>{s.label}</Txt>
+                    {linked ? (
+                      <Pill bg={`${C.green}1A`} color={C.green} border={`${C.green}44`}>✓ Bağlı</Pill>
+                    ) : (
+                      <Pill bg="rgba(255,255,255,.05)" color={C.dim} border={C.line}>Bağlı değil</Pill>
+                    )}
+                  </Pressable>
                 </View>
-                <Txt weight="extrabold" size={12.5} color={C.text} style={{ flex: 1 }}>{s.label}</Txt>
-                {linked ? (
-                  <Pill bg={`${C.green}1A`} color={C.green} border={`${C.green}44`}>✓ Bağlı</Pill>
-                ) : (
-                  <Pill bg="rgba(255,255,255,.05)" color={C.dim} border={C.line}>Bağlı değil</Pill>
-                )}
-              </Pressable>
-            );
-          })}
+              );
+            })}
+          </View>
           <Txt size={10} color={C.dim2} lh={1.5} style={{ marginTop: 10 }}>Bağlı değil olana dokununca ilgili hesaba bağlanma ekranına yönlendirilirsin.</Txt>
 
-          <Pressable onPress={() => { haptic.light(); setLogoutOpen(true); }} style={styles.logoutBtn}>
-            <View style={[styles.rowIcon, { backgroundColor: `${C.red}1A` }]}>
-              <Icon name="door" size={16} color={C.red} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Txt weight="extrabold" size={12.5} color={C.red}>Çıkış Yap</Txt>
-              <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>Hesabından güvenli şekilde çık</Txt>
-            </View>
-            <Icon name="chev" size={14} color={`${C.red}99`} />
-          </Pressable>
+          <Txt weight="bold" size={10.5} color={C.red} style={[styles.sectionLbl, { marginTop: 22 }]}>TEHLİKELİ BÖLGE</Txt>
+          <View style={[styles.group, styles.dangerGroup]}>
+            <Pressable onPress={() => { haptic.light(); setLogoutOpen(true); }} style={[styles.row, styles.rowInGroup]}>
+              <View style={[styles.rowIcon, { backgroundColor: `${C.red}1A` }]}>
+                <Icon name="door" size={16} color={C.red} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Txt weight="extrabold" size={12.5} color={C.red}>Çıkış Yap</Txt>
+                <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>Hesabından güvenli şekilde çık</Txt>
+              </View>
+              <Icon name="chev" size={14} color={`${C.red}99`} />
+            </Pressable>
 
-          <Pressable onPress={() => { haptic.light(); setDelOpen(true); }} style={styles.logoutBtn}>
-            <View style={[styles.rowIcon, { backgroundColor: `${C.red}1A` }]}>
-              <Icon name="trash" size={16} color={C.red} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Txt weight="extrabold" size={12.5} color={C.red}>Hesabımı Sil</Txt>
-              <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>Bu işlem geri alınamaz</Txt>
-            </View>
-            <Icon name="chev" size={14} color={`${C.red}99`} />
-          </Pressable>
+            <View style={styles.divider} />
+
+            <Pressable onPress={() => { haptic.light(); setDelOpen(true); }} style={[styles.row, styles.rowInGroup]}>
+              <View style={[styles.rowIcon, { backgroundColor: `${C.red}1A` }]}>
+                <Icon name="trash" size={16} color={C.red} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Txt weight="extrabold" size={12.5} color={C.red}>Hesabımı Sil</Txt>
+                <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>Bu işlem geri alınamaz</Txt>
+              </View>
+              <Icon name="chev" size={14} color={`${C.red}99`} />
+            </Pressable>
+          </View>
         </ScrollView>
       </SafeAreaView>
 
@@ -347,9 +364,11 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   sectionLbl: { letterSpacing: 0.5, marginBottom: 10 },
-  phoneCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 15, backgroundColor: "rgba(27,21,48,.7)", borderWidth: 1, borderColor: `${C.gold}33` },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 10, padding: 13, borderRadius: 15, backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
-  logoutBtn: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 22, padding: 13, borderRadius: 15, backgroundColor: `${C.red}0E`, borderWidth: 1, borderColor: `${C.red}33` },
+  group: { borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
+  dangerGroup: { borderColor: `${C.red}2E` },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 58 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13 },
+  rowInGroup: { marginTop: 0 },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   socialIcon: { width: 26, height: 26, borderRadius: 8, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center" },
   goldBox: { backgroundColor: `${C.gold}0E`, borderWidth: 1, borderColor: `${C.gold}33`, borderRadius: 14, padding: 14, marginTop: 16 },
