@@ -377,44 +377,44 @@ export default function FeedScreen() {
                 {openCmt === p.id && (
                   <View style={styles.comments}>
                     {p.comments.map((c, ci) => (
-                      <View key={ci} style={{ paddingVertical: 7, paddingLeft: 8 }}>
+                      <View key={ci} style={{ marginTop: ci ? 12 : 0 }}>
                         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 9 }}>
                           <Pressable onPress={() => goProfile(c.publicId, c.who, c.mine)}>
                             <Portrait name={c.who} size={28} photo={c.mine ? userPhoto || undefined : c.photo} />
                           </Pressable>
                           <View style={{ flex: 1, minWidth: 0 }}>
-                            <Txt size={12} color={C.text} lh={1.4}>
-                              <Txt weight="extrabold" size={11.5} color={c.mine ? C.gold2 : C.text} onPress={() => goProfile(c.publicId, c.who, c.mine)}>{c.mine ? userName : c.who} </Txt>
-                              {c.text}
-                            </Txt>
-                            <View style={{ flexDirection: "row", alignItems: "center", gap: 14, marginTop: 4 }}>
-                              <Pressable onPress={() => { setReplyTo(replyTo && replyTo.pid === p.id && replyTo.ci === ci ? null : { pid: p.id, ci }); setReplyText(""); }}>
-                                <Txt weight="bold" size={10.5} color={C.dim2}>Yanıtla</Txt>
+                            <View style={styles.cmtBubble}>
+                              <Txt weight="extrabold" size={11.5} color={c.mine ? C.gold2 : C.text} onPress={() => goProfile(c.publicId, c.who, c.mine)}>{c.mine ? userName : c.who}</Txt>
+                              <Txt size={12} color={C.text} lh={1.4} style={{ marginTop: 1 }}>{c.text}</Txt>
+                            </View>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 5, paddingLeft: 12 }}>
+                              <Pressable onPress={() => { setReplyTo(replyTo && replyTo.pid === p.id && replyTo.ci === ci ? null : { pid: p.id, ci }); setReplyText(""); }} style={styles.cmtActionBtn}>
+                                <Txt weight="bold" size={10} color={C.dim2}>Yanıtla</Txt>
                               </Pressable>
                               {(c.mine || p.mine) && (
-                                <Pressable onPress={() => delComment(p.id, ci)}>
-                                  <Txt weight="bold" size={10.5} color={C.dim2}>Sil</Txt>
+                                <Pressable onPress={() => delComment(p.id, ci)} style={styles.cmtActionBtn}>
+                                  <Txt weight="bold" size={10} color={C.dim2}>Sil</Txt>
                                 </Pressable>
                               )}
                             </View>
                           </View>
                         </View>
                         {c.replies.map((r, ri) => (
-                          <View key={ri} style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, paddingTop: 6, paddingLeft: 30 }}>
+                          <View key={ri} style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 8, paddingLeft: 30 }}>
                             <Pressable onPress={() => goProfile(r.publicId, r.who, r.mine)}>
                               <Portrait name={r.who} size={24} photo={r.mine ? userPhoto || undefined : r.photo} />
                             </Pressable>
                             <View style={{ flex: 1, minWidth: 0 }}>
-                              <Txt size={11.5} color={C.text} lh={1.4}>
-                                <Txt weight="extrabold" size={11} color={r.mine ? C.gold2 : C.text} onPress={() => goProfile(r.publicId, r.who, r.mine)}>{r.mine ? userName : r.who} </Txt>
-                                {r.text}
-                              </Txt>
-                              <View style={{ flexDirection: "row", alignItems: "center", gap: 14, marginTop: 3 }}>
-                                <Pressable onPress={() => { setReplyTo({ pid: p.id, ci }); setReplyText(`@${r.mine ? userName : r.who} `); }} hitSlop={6}>
+                              <View style={styles.cmtBubble}>
+                                <Txt weight="extrabold" size={11} color={r.mine ? C.gold2 : C.text} onPress={() => goProfile(r.publicId, r.who, r.mine)}>{r.mine ? userName : r.who}</Txt>
+                                <Txt size={11.5} color={C.text} lh={1.4} style={{ marginTop: 1 }}>{r.text}</Txt>
+                              </View>
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 5, paddingLeft: 12 }}>
+                                <Pressable onPress={() => { setReplyTo({ pid: p.id, ci }); setReplyText(`@${r.mine ? userName : r.who} `); }} hitSlop={6} style={styles.cmtActionBtn}>
                                   <Txt weight="bold" size={10} color={C.dim2}>Yanıtla</Txt>
                                 </Pressable>
                                 {(r.mine || p.mine) && (
-                                  <Pressable onPress={() => delReply(p.id, ci, ri)} hitSlop={6}>
+                                  <Pressable onPress={() => delReply(p.id, ci, ri)} hitSlop={6} style={styles.cmtActionBtn}>
                                     <Txt weight="bold" size={10} color={C.dim2}>Sil</Txt>
                                   </Pressable>
                                 )}
@@ -423,7 +423,7 @@ export default function FeedScreen() {
                           </View>
                         ))}
                         {replyTo && replyTo.pid === p.id && replyTo.ci === ci && (
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 7, paddingTop: 7, paddingLeft: 30 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 8, paddingLeft: 30 }}>
                             <Portrait name="Sen" size={24} photo={userPhoto || undefined} />
                             <TextInput value={replyText} onChangeText={setReplyText} autoFocus placeholder={`${c.who} kişisine yanıt…`} placeholderTextColor={C.dim2} style={styles.replyInput} />
                             <SendBtn disabled={!replyText.trim()} onPress={() => addReply(p.id, ci)} size={30} />
@@ -431,7 +431,7 @@ export default function FeedScreen() {
                         )}
                       </View>
                     ))}
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, paddingLeft: 8 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: p.comments.length ? 14 : 0 }}>
                       <Portrait name="Sen" size={28} photo={userPhoto || undefined} />
                       <TextInput value={cmtText} onChangeText={setCmtText} placeholder="Yorum yaz…" placeholderTextColor={C.dim2} style={styles.cmtInput} />
                       <SendBtn disabled={!cmtText.trim()} onPress={() => addComment(p.id)} size={34} />
@@ -528,8 +528,10 @@ const styles = StyleSheet.create({
   joinChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 8, paddingHorizontal: 13, borderRadius: 999, backgroundColor: C.gold + "1F", borderWidth: 1, borderColor: C.gold + "44" },
   actionChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   comments: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.line },
-  cmtInput: { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)", borderRadius: 999, paddingVertical: 8, paddingHorizontal: 13, color: C.text, fontSize: 12, fontFamily: "PlusJakartaSans_500Medium" },
-  replyInput: { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)", borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12, color: C.text, fontSize: 11.5, fontFamily: "PlusJakartaSans_500Medium" },
+  cmtBubble: { alignSelf: "flex-start", maxWidth: "100%", backgroundColor: "rgba(255,255,255,.05)", borderRadius: 14, borderTopLeftRadius: 4, paddingVertical: 7, paddingHorizontal: 12 },
+  cmtActionBtn: { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)" },
+  cmtInput: { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 13, color: C.text, fontSize: 12, fontFamily: "PlusJakartaSans_500Medium" },
+  replyInput: { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12, color: C.text, fontSize: 11.5, fontFamily: "PlusJakartaSans_500Medium" },
   toast: { position: "absolute", alignSelf: "center", bottom: 104, backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: C.gold + "55", paddingVertical: 11, paddingHorizontal: 18, borderRadius: 999 },
   menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 4 },
   scopeRow: { flexDirection: "row", alignItems: "center", gap: 13, padding: 14, borderRadius: 16, marginBottom: 10, borderWidth: 1 },
