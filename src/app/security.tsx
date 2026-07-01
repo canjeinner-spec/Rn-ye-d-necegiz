@@ -15,6 +15,15 @@ import { Gradient } from "@/theme/Gradient";
 const PHONE = "+90 532 144 07 88";
 const APP_VERSION = "1.0.0";
 
+/** Türkçe İ/I/ı/i klavye farklarından bağımsız "sil" onay karşılaştırması. */
+function normalizeSil(s: string): string {
+  return s
+    .trim()
+    .replace(/İ/g, "i")
+    .replace(/ı/g, "i")
+    .toUpperCase();
+}
+
 type SocialKey = "twitter" | "apple" | "google";
 const SOCIALS: { key: SocialKey; label: string; icon: string }[] = [
   { key: "twitter", label: "Twitter / X", icon: "𝕏" },
@@ -317,11 +326,11 @@ export default function SecurityScreen() {
             </Pressable>
             <Pressable
               onPress={doDelete}
-              disabled={delConfirmText.trim().toLocaleUpperCase("tr-TR") !== "SİL" || delBusy}
+              disabled={normalizeSil(delConfirmText) !== "SIL" || delBusy}
               style={[
                 styles.btn,
                 { flex: 1, backgroundColor: `${C.red}1A`, borderWidth: 1, borderColor: `${C.red}66` },
-                (delConfirmText.trim().toLocaleUpperCase("tr-TR") !== "SİL" || delBusy) && { opacity: 0.45 },
+                (normalizeSil(delConfirmText) !== "SIL" || delBusy) && { opacity: 0.45 },
               ]}
             >
               <Txt weight="extrabold" size={13} color={C.red}>{delBusy ? "Siliniyor…" : "Hesabımı Sil"}</Txt>
