@@ -90,6 +90,8 @@ export default function ProfileTab() {
   ];
 
   const menu: MenuItem[] = [
+    // Yalnızca yetkili hesaplar (developer / super_admin) görür
+    ...(role !== "user" ? [{ ic: "gear" as IconName, g1: "#F5CE6E", g2: "#B45309", t: "Yönetim", s: "Raporlar ve kullanıcı işlemleri", onPress: () => { haptic.light(); router.navigate("/admin"); } }] : []),
     { ic: "mic", g1: "#A855F7", g2: "#6D28D9", t: "Odam", s: "Kendi sesli sohbet odanı aç", onPress: goMyRoom },
     // MVP: Aron VIP gizli (FEATURES.vip)
     ...(FEATURES.vip ? [{ ic: "crown" as IconName, g1: "#F5CE6E", g2: "#B45309", t: "Aron VIP", s: "Özel ayrıcalıkların kilidini aç", onPress: () => { haptic.light(); router.navigate("/vip"); } }] : []),
