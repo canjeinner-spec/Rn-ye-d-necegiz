@@ -17,6 +17,7 @@ import { block, getBlockState, unblock } from "@/data/remote/blockRepo";
 import { getOrCreateConversation } from "@/data/remote/dmRepo";
 import { follow, getFollowState, unfollow } from "@/data/remote/followRepo";
 import { getPublicProfile, type PublicProfile } from "@/data/remote/profileRepo";
+import { reportUserById } from "@/data/remote/reportRepo";
 import { getVisitorCount, recordVisit } from "@/data/remote/visitRepo";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
@@ -383,7 +384,16 @@ export default function UserProfileScreen() {
                 <>
                   <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.4, marginTop: 6, marginBottom: 7 }}>DETAY (opsiyonel)</Txt>
                   <TextInput value={repDetail} onChangeText={setRepDetail} multiline maxLength={300} placeholder={`${name} hakkında daha fazla bilgi ver...`} placeholderTextColor={C.dim2} style={styles.detailInput} />
-                  <Pressable onPress={() => { haptic.success(); setRepDone(true); }} style={{ marginTop: 12, borderRadius: 14, overflow: "hidden" }}>
+                  <Pressable
+                    onPress={() => {
+                      haptic.success();
+                      setRepDone(true);
+                      if (isSupabaseConfigured && profile && repReason) {
+                        reportUserById(profile.id, repReason, repDetail).catch(() => flash("Rapor gönderilemedi"));
+                      }
+                    }}
+                    style={{ marginTop: 12, borderRadius: 14, overflow: "hidden" }}
+                  >
                     <Gradient colors={["#DC2626", "#7F1D1D"]} deg={135} style={styles.dialogBtn}>
                       <Txt weight="extrabold" size={13} color="#FEE2E2">Raporu Gönder</Txt>
                     </Gradient>

@@ -31,6 +31,7 @@ import { ProfileCard, type ProfileCardUser } from "@/sheets/ProfileCard";
 import { RoomPanel } from "@/sheets/RoomPanel";
 import { RoomStats } from "@/sheets/RoomStats";
 import { type Gift } from "@/data/gifts";
+import { reportRoom } from "@/data/remote/reportRepo";
 import { amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getRoomMembers } from "@/data/remote/roomsRepo";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
@@ -821,7 +822,15 @@ export default function RoomScreen() {
                 <>
                   <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.4, marginTop: 6, marginBottom: 7 }}>DETAY (opsiyonel)</Txt>
                   <TextInput value={reportDetail} onChangeText={setReportDetail} multiline maxLength={300} placeholder="Bu oda hakkında daha fazla bilgi ver..." placeholderTextColor={C.dim2} style={styles.reportDetailInput} />
-                  <Pressable onPress={() => setReportDone(true)} style={{ borderRadius: 14, overflow: "hidden", marginTop: 12 }}>
+                  <Pressable
+                    onPress={() => {
+                      setReportDone(true);
+                      if (isDbRoom && dbId && reportReason) {
+                        reportRoom(dbId, reportReason, reportDetail).catch(() => toast("Rapor gönderilemedi"));
+                      }
+                    }}
+                    style={{ borderRadius: 14, overflow: "hidden", marginTop: 12 }}
+                  >
                     <Gradient colors={["#DC2626", "#7F1D1D"]} deg={135} style={{ paddingVertical: 14, alignItems: "center" }}>
                       <Txt weight="extrabold" size={13} color="#FEE2E2">Raporu Gönder</Txt>
                     </Gradient>

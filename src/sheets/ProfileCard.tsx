@@ -10,7 +10,9 @@ import { Portrait } from "@/components/Portrait";
 import { RolePill } from "@/components/RolePill";
 import { Txt } from "@/components/Txt";
 import { type BadgeItem } from "@/data/badges";
+import { reportUserByPublicId } from "@/data/remote/reportRepo";
 import { type Seat } from "@/data/seed";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { C } from "@/theme/colors";
@@ -166,7 +168,15 @@ export function ProfileCard({
                         <>
                           <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.4, marginTop: 14, marginBottom: 7 }}>DETAY (opsiyonel)</Txt>
                           <TextInput value={repDetail} onChangeText={setRepDetail} multiline maxLength={300} placeholder={`${user.name} hakkında daha fazla bilgi ver...`} placeholderTextColor={C.dim2} style={styles.detailInput} />
-                          <Pressable onPress={() => setRepDone(true)} style={{ borderRadius: 14, overflow: "hidden", marginTop: 12 }}>
+                          <Pressable
+                            onPress={() => {
+                              setRepDone(true);
+                              if (isSupabaseConfigured && user.publicId && repReason) {
+                                reportUserByPublicId(user.publicId, repReason, repDetail).catch(() => {});
+                              }
+                            }}
+                            style={{ borderRadius: 14, overflow: "hidden", marginTop: 12 }}
+                          >
                             <Gradient colors={["#DC2626", "#7F1D1D"]} deg={135} style={{ paddingVertical: 14, alignItems: "center" }}>
                               <Txt weight="extrabold" size={13} color="#FEE2E2">Raporu Gönder</Txt>
                             </Gradient>
