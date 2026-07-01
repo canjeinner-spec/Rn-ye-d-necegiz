@@ -31,6 +31,7 @@ import { ProfileCard, type ProfileCardUser } from "@/sheets/ProfileCard";
 import { RoomPanel } from "@/sheets/RoomPanel";
 import { RoomStats } from "@/sheets/RoomStats";
 import { type Gift } from "@/data/gifts";
+import { getRoomMembers } from "@/data/remote/roomsRepo";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
@@ -40,8 +41,6 @@ import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
-
-const MY_ROLE: "host" | "mod" | "user" = "host";
 
 const SYS_MSGS = ["Oda Sahibi · Oda modu değiştirildi", "Oda Sahibi · Oda imzası değiştirildi"];
 
@@ -212,6 +211,23 @@ export default function RoomScreen() {
   // Gerçek (DB) oda mı? → canlı sohbet + presence
   const dbId = room?.dbId;
   const isDbRoom = !!dbId && isSupabaseConfigured && !!session;
+
+  // Oda içi rolüm: DB odada gerçek üyelikten (sahip→host, yardimci→mod);
+  // mock odada eski demo davranışı (host) korunur.
+  const [myRoomRole, setMyRoomRole] = useState<"host" | "mod" | "user">(isDbRoom ? "user" : "host");
+  useEffect(() => {
+    if (!isDbRoom || !dbId) return;
+    let alive = true;
+    getRoomMembers(dbId)
+      .then(({ myRole }) => {
+        if (!alive) return;
+        setMyRoomRole(myRole === "sahip" ? "host" : myRole === "yardimci" ? "mod" : "user");
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [isDbRoom, dbId]);
+  // Platform yöneticisi (developer/super_admin) oda içinde host yetkisiyle davranır.
+  const MY_ROLE: "host" | "mod" | "user" = privileged ? "host" : myRoomRole;
 
   const [host, setHost] = useState<Seat | null>(() => SEATS.find((s) => s.host) ?? null);
   const [seats, setSeats] = useState<(Seat | null)[]>(() => {

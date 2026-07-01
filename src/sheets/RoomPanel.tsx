@@ -1,6 +1,6 @@
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Animated, { SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,9 +8,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Portrait } from "@/components/Portrait";
 import { Scene } from "@/components/Scene";
 import { Txt } from "@/components/Txt";
+import { getRoomMembers, joinRoomMembership, leaveRoomMembership, removeRoomMember, setRoomMemberRole, type RoomMember, type RoomRole } from "@/data/remote/roomsRepo";
 import { type Room } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
@@ -75,6 +78,51 @@ export function RoomPanel(props: Props) {
   const makeMod = (i: number) => setMembers((ms) => ms.map((m, j) => (j === i ? { ...m, role: "mod" } : m)));
   const makeUser = (i: number) => setMembers((ms) => ms.map((m, j) => (j === i ? { ...m, role: "user" } : m)));
   const kick = (i: number) => { setMembers((ms) => ms.filter((_, j) => j !== i)); setExpanded(null); };
+
+  // ---- Gerçek (DB) oda: kalıcı üyelik + roller (021_oda_uyeleri) ----------
+  const dbId = room.dbId;
+  const live = !!dbId && isSupabaseConfigured;
+  const [dbMembers, setDbMembers] = useState<RoomMember[]>([]);
+  const [myRole, setMyRole] = useState<RoomRole | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const reloadMembers = useCallback(() => {
+    if (!live || !dbId) return;
+    getRoomMembers(dbId)
+      .then(({ members: ms, myRole: r }) => { setDbMembers(ms); setMyRole(r); })
+      .catch((e) => console.warn("[oda-uye]", e?.message || e));
+  }, [live, dbId]);
+  useEffect(() => { reloadMembers(); }, [reloadMembers]);
+
+  const isMember = live ? myRole != null : joined;
+  const toggleJoin = async () => {
+    haptic.light();
+    if (!live || !dbId) { setJoined((j) => !j); return; }
+    if (myRole === "sahip" || busy) return; // sahip ayrılamaz
+    setBusy(true);
+    try {
+      if (myRole) { await leaveRoomMembership(dbId); setMyRole(null); }
+      else { await joinRoomMembership(dbId); setMyRole("uye"); }
+      reloadMembers();
+    } catch (e) {
+      console.warn("[oda-katil]", (e as Error)?.message || e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Canlı üye yönetimi (sunucu da ayrıca doğrular)
+  const canManageLive = myRole === "sahip" || myRole === "yardimci" || canManage;
+  const liveKick = async (m: RoomMember) => {
+    if (!dbId) return;
+    setExpanded(null);
+    try { await removeRoomMember(dbId, m.id); reloadMembers(); } catch (e) { console.warn("[uye-cikar]", (e as Error)?.message || e); }
+  };
+  const liveSetRole = async (m: RoomMember, rol: "yardimci" | "uye") => {
+    if (!dbId) return;
+    setExpanded(null);
+    try { await setRoomMemberRole(dbId, m.id, rol); reloadMembers(); } catch (e) { console.warn("[rol-ata]", (e as Error)?.message || e); }
+  };
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
@@ -167,7 +215,7 @@ export function RoomPanel(props: Props) {
               <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 18, paddingBottom: 24 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
                   <Txt weight="bold" size={13} color={C.dim}>
-                    Üyeler: <Txt weight="bold" size={13} color={C.gold2}>{members.length}</Txt>
+                    Üyeler: <Txt weight="bold" size={13} color={C.gold2}>{live ? dbMembers.length : members.length}</Txt>
                     <Txt weight="bold" size={13} color={C.dim2}>/1000</Txt>
                   </Txt>
                 </View>
@@ -176,7 +224,57 @@ export function RoomPanel(props: Props) {
                   <Txt size={12.5} color={C.dim2}>Kullanıcı adı veya numarası ara</Txt>
                 </View>
 
-                {members.map((m, i) => {
+                {live ? (
+                  dbMembers.length === 0 ? (
+                    <Txt size={12} color={C.dim} align="center" style={{ paddingVertical: 40 }}>Henüz üye yok. İlk katılan sen ol!</Txt>
+                  ) : (
+                    dbMembers.map((m, i) => {
+                      const isOpen = expanded === i;
+                      const canEdit =
+                        m.rol !== "sahip" &&
+                        (myRole === "sahip" || canManage || (myRole === "yardimci" && m.rol === "uye"));
+                      const roleColor = m.rol === "sahip" ? C.gold2 : m.rol === "yardimci" ? C.purple2 : C.dim;
+                      const roleLabel = m.rol === "sahip" ? "Sahip" : m.rol === "yardimci" ? "Yardımcı" : null;
+                      return (
+                        <View key={m.id}>
+                          <Pressable onPress={canEdit ? () => setExpanded(isOpen ? null : i) : undefined} style={styles.memberRow}>
+                            <Portrait name={m.name} size={46} photo={m.photo} />
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                <Txt weight="extrabold" size={13.5} color={m.rol === "sahip" ? C.gold2 : C.text}>{m.name}</Txt>
+                                {roleLabel && (
+                                  <View style={{ borderRadius: 999, paddingVertical: 2, paddingHorizontal: 7, backgroundColor: (m.rol === "sahip" ? C.gold : C.purple2) + "1F", borderWidth: 1, borderColor: (m.rol === "sahip" ? C.gold : C.purple2) + "44" }}>
+                                    <Txt weight="extrabold" size={9} color={roleColor}>{roleLabel}</Txt>
+                                  </View>
+                                )}
+                              </View>
+                              <Txt size={10.5} color={C.dim2} style={{ marginTop: 2 }}>ID: {m.publicId}</Txt>
+                            </View>
+                            {canEdit ? (
+                              <View style={[styles.memberArrow, { backgroundColor: isOpen ? "rgba(245,206,110,.15)" : "rgba(255,255,255,.05)", borderColor: isOpen ? C.gold + "44" : "rgba(255,255,255,.1)" }]}>
+                                <Icon name="chev" size={15} color={isOpen ? C.gold2 : C.dim} />
+                              </View>
+                            ) : (
+                              <Icon name="user" size={18} color={roleColor} />
+                            )}
+                          </Pressable>
+                          {isOpen && canEdit && (
+                            <View style={styles.manageActions}>
+                              <RoleBtn icon="trash" color="#FB7185" label="Çıkar" onPress={() => liveKick(m)} />
+                              {(myRole === "sahip" || canManage) && (
+                                <>
+                                  <RoleBtn icon="user" color={C.gold2} label="Üye Yap" dim={m.rol === "uye"} onPress={() => liveSetRole(m, "uye")} />
+                                  <RoleBtn icon="crown" color="#5EEAD4" label="Yardımcı Yap" dim={m.rol === "yardimci"} onPress={() => liveSetRole(m, "yardimci")} />
+                                </>
+                              )}
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })
+                  )
+                ) : (
+                  members.map((m, i) => {
                   const isOpen = expanded === i;
                   const canEdit = canManage && m.role !== "host";
                   const roleColor = m.role === "host" ? C.gold2 : m.role === "mod" ? C.purple2 : C.dim;
@@ -214,7 +312,8 @@ export function RoomPanel(props: Props) {
                       )}
                     </View>
                   );
-                })}
+                  })
+                )}
               </ScrollView>
             ) : (
               <View style={{ padding: 18, paddingTop: 40, alignItems: "center" }}>
@@ -229,11 +328,11 @@ export function RoomPanel(props: Props) {
             )}
 
             <View style={[styles.footerRow, { paddingBottom: 12 + insets.bottom }]}>
-              <Pressable onPress={() => setJoined((j) => !j)} style={{ flex: 1, borderRadius: 14, overflow: "hidden" }}>
-                {joined ? (
+              <Pressable onPress={toggleJoin} disabled={busy} style={{ flex: 1, borderRadius: 14, overflow: "hidden", opacity: busy ? 0.6 : 1 }}>
+                {isMember ? (
                   <View style={[styles.actBtn, { borderWidth: 1.5, borderColor: C.green + "55", backgroundColor: C.green + "14" }]}>
                     <Icon name="check" size={16} sw={2.5} color="#6EE7B7" />
-                    <Txt weight="extrabold" size={13.5} color="#6EE7B7">Katıldın</Txt>
+                    <Txt weight="extrabold" size={13.5} color="#6EE7B7">{myRole === "sahip" ? "Sahibisin" : "Katıldın"}</Txt>
                   </View>
                 ) : (
                   <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.actBtn}>

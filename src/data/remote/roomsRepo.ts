@@ -128,6 +128,86 @@ export async function sendRoomMessage(odaId: number, text: string): Promise<void
   if (error) throw error;
 }
 
+// ---------------------------------------------------------------------------
+// Oda üyeliği + roller (021_oda_uyeleri.sql)
+// ---------------------------------------------------------------------------
+
+export type RoomRole = "sahip" | "yardimci" | "uye";
+
+export type RoomMember = {
+  id: number;
+  publicId: string;
+  name: string;
+  photo?: string;
+  rol: RoomRole;
+  katilma: string;
+};
+
+/** Oda üyeleri (rol sırasına göre: sahip → yardımcı → üye) + benim rolüm. */
+export async function getRoomMembers(odaId: number): Promise<{ members: RoomMember[]; myRole: RoomRole | null }> {
+  const sb = requireSupabase();
+  const [{ data, error }, me] = await Promise.all([
+    sb.from("oda_uyeleri").select("kullanici_id, rol, katilma_tarihi").eq("oda_id", odaId),
+    getMyProfile().catch(() => null),
+  ]);
+  if (error) throw error;
+  const rows = (data as { kullanici_id: number; rol: RoomRole; katilma_tarihi: string }[]) ?? [];
+  const ids = rows.map((r) => r.kullanici_id);
+  const profs = new Map<number, { public_id: string; kullanici_adi: string; profil_resmi: string | null }>();
+  if (ids.length) {
+    const { data: ps } = await sb.from("profiller").select("id, public_id, kullanici_adi, profil_resmi").in("id", ids);
+    for (const p of (ps as { id: number; public_id: string; kullanici_adi: string; profil_resmi: string | null }[]) ?? []) profs.set(p.id, p);
+  }
+  const order: Record<RoomRole, number> = { sahip: 0, yardimci: 1, uye: 2 };
+  const members = rows
+    .map((r) => {
+      const p = profs.get(r.kullanici_id);
+      return {
+        id: r.kullanici_id,
+        publicId: p?.public_id || "",
+        name: p?.kullanici_adi || "Kullanıcı",
+        photo: p?.profil_resmi || undefined,
+        rol: r.rol,
+        katilma: r.katilma_tarihi,
+      };
+    })
+    .sort((a, b) => order[a.rol] - order[b.rol] || a.katilma.localeCompare(b.katilma));
+  const myRole = me ? (rows.find((r) => r.kullanici_id === me.id)?.rol ?? null) : null;
+  return { members, myRole };
+}
+
+/** Odaya üye ol (kendi adına, 'uye'). Zaten üyeyse sessizce geçer. */
+export async function joinRoomMembership(odaId: number): Promise<void> {
+  const sb = requireSupabase();
+  const me = await getMyProfile();
+  if (!me) throw new Error("Profil bulunamadı.");
+  const { error } = await sb.from("oda_uyeleri").insert({ oda_id: odaId, kullanici_id: me.id, rol: "uye" });
+  if (error && (error as { code?: string }).code !== "23505") throw error;
+}
+
+/** Oda üyeliğinden ayrıl (sahip ayrılamaz — RLS engeller). */
+export async function leaveRoomMembership(odaId: number): Promise<void> {
+  const sb = requireSupabase();
+  const me = await getMyProfile();
+  if (!me) return;
+  const { error } = await sb.from("oda_uyeleri").delete().eq("oda_id", odaId).eq("kullanici_id", me.id);
+  if (error) throw error;
+}
+
+/** Üyeye rol ata ('yardimci' | 'uye') — yalnızca sahip/platform yöneticisi. */
+export async function setRoomMemberRole(odaId: number, userId: number, rol: "yardimci" | "uye"): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("oda_rol_ata", { p_oda_id: odaId, p_hedef: userId, p_rol: rol });
+  if (error) throw error;
+}
+
+/** Üyeyi odadan çıkar — sahip herkesi, yardımcı yalnızca üyeyi. */
+export async function removeRoomMember(odaId: number, userId: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("oda_uye_cikar", { p_oda_id: odaId, p_hedef: userId });
+  if (error) throw error;
+}
+
 /** Yeni oda oluştur (kendi adına). Oluşan Room'u döndürür. */
 export async function createRoom(input: {
   name: string;
