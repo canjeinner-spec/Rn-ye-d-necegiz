@@ -208,6 +208,85 @@ export async function removeRoomMember(odaId: number, userId: number): Promise<v
   if (error) throw error;
 }
 
+// ---------------------------------------------------------------------------
+// Oda yasakları (022_oda_yasaklari.sql)
+// ---------------------------------------------------------------------------
+
+export type RoomBan = {
+  id: number;
+  publicId: string;
+  name: string;
+  photo?: string;
+  by: string;
+  at: number; // epoch ms
+};
+
+/** Kullanıcıyı odadan yasakla (üyeliği de düşer). Yetki sunucuda doğrulanır. */
+export async function banRoomUser(odaId: number, userId: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("oda_yasakla", { p_oda_id: odaId, p_hedef: userId });
+  if (error) throw error;
+}
+
+/** Yasağı kaldır — kullanıcı tekrar üye olabilir. */
+export async function unbanRoomUser(odaId: number, userId: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("oda_yasak_kaldir", { p_oda_id: odaId, p_hedef: userId });
+  if (error) throw error;
+}
+
+/** public_id ile yasakla (koltuk/kart akışları hedefi publicId ile tanır). */
+export async function banRoomUserByPublicId(odaId: number, publicId: string): Promise<void> {
+  const sb = requireSupabase();
+  const { data } = await sb.from("profiller").select("id").eq("public_id", publicId).maybeSingle();
+  const id = (data as { id: number } | null)?.id;
+  if (id == null) throw new Error("Kullanıcı bulunamadı.");
+  await banRoomUser(odaId, id);
+}
+
+/** Odanın yasaklı listesi (yeniden eskiye) — kim, kim tarafından, ne zaman. */
+export async function listRoomBans(odaId: number): Promise<RoomBan[]> {
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from("oda_yasaklari")
+    .select("kullanici_id, yasaklayan_id, yasaklanma_tarihi")
+    .eq("oda_id", odaId)
+    .order("yasaklanma_tarihi", { ascending: false });
+  if (error) throw error;
+  const rows = (data as { kullanici_id: number; yasaklayan_id: number | null; yasaklanma_tarihi: string }[]) ?? [];
+  const ids = [...new Set(rows.flatMap((r) => [r.kullanici_id, r.yasaklayan_id]).filter((x): x is number => x != null))];
+  const profs = new Map<number, { public_id: string; kullanici_adi: string; profil_resmi: string | null }>();
+  if (ids.length) {
+    const { data: ps } = await sb.from("profiller").select("id, public_id, kullanici_adi, profil_resmi").in("id", ids);
+    for (const p of (ps as { id: number; public_id: string; kullanici_adi: string; profil_resmi: string | null }[]) ?? []) profs.set(p.id, p);
+  }
+  return rows.map((r) => {
+    const p = profs.get(r.kullanici_id);
+    return {
+      id: r.kullanici_id,
+      publicId: p?.public_id || "",
+      name: p?.kullanici_adi || "Kullanıcı",
+      photo: p?.profil_resmi || undefined,
+      by: (r.yasaklayan_id != null ? profs.get(r.yasaklayan_id)?.kullanici_adi : undefined) || "Yönetici",
+      at: new Date(r.yasaklanma_tarihi).getTime(),
+    };
+  });
+}
+
+/** Bu odadan yasaklı mıyım? (odaya girişte kontrol) */
+export async function amIBannedFromRoom(odaId: number): Promise<boolean> {
+  const sb = requireSupabase();
+  const me = await getMyProfile().catch(() => null);
+  if (!me) return false;
+  const { data } = await sb
+    .from("oda_yasaklari")
+    .select("kullanici_id")
+    .eq("oda_id", odaId)
+    .eq("kullanici_id", me.id)
+    .maybeSingle();
+  return data != null;
+}
+
 /** Yeni oda oluştur (kendi adına). Oluşan Room'u döndürür. */
 export async function createRoom(input: {
   name: string;

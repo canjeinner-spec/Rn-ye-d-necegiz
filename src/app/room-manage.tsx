@@ -1,12 +1,14 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CenterModal } from "@/components/CenterModal";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
+import { listRoomBans, unbanRoomUser, type RoomBan } from "@/data/remote/roomsRepo";
 import { Icon } from "@/icons/Icon";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
@@ -28,6 +30,24 @@ export default function RoomManageScreen() {
   const { roomName, roomAnnounce, roomLocked, setRoomName, setRoomAnnounce, setRoomLocked, setRoomPass } = useApp();
   const kickedUsers = useApp((s) => s.kickedUsers);
   const unkickFromRoom = useApp((s) => s.unkickFromRoom);
+
+  // DB odada yasaklılar kalıcı (022); mock odada eski geçici liste.
+  const dbId = useApp((s) => s.currentRoom?.dbId);
+  const live = !!dbId && isSupabaseConfigured;
+  const [bans, setBans] = useState<RoomBan[]>([]);
+  const reloadBans = useCallback(() => {
+    if (!live || !dbId) return;
+    listRoomBans(dbId).then(setBans).catch((e) => console.warn("[yasaklar]", e?.message || e));
+  }, [live, dbId]);
+  useEffect(() => { reloadBans(); }, [reloadBans]);
+  const unban = (b: RoomBan) => {
+    haptic.success();
+    setBans((xs) => xs.filter((x) => x.id !== b.id)); // optimistik
+    if (dbId) unbanRoomUser(dbId, b.id).catch(() => reloadBans());
+  };
+  const kickList: { key: string; name: string; photo?: string | null; by: string; at: number; undo: () => void }[] = live
+    ? bans.map((b) => ({ key: `b${b.id}`, name: b.name, photo: b.photo, by: b.by, at: b.at, undo: () => unban(b) }))
+    : kickedUsers.map((k) => ({ key: k.name, name: k.name, photo: k.photo, by: k.by, at: k.at, undo: () => { haptic.success(); unkickFromRoom(k.name); } }));
 
   const [edit, setEdit] = useState<EditField>(null);
   const [tmp, setTmp] = useState("");
@@ -106,22 +126,22 @@ export default function RoomManageScreen() {
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 22, marginBottom: 10 }}>
             <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5 }}>ODADAN ATILANLAR</Txt>
-            {kickedUsers.length > 0 && (
+            {kickList.length > 0 && (
               <View style={styles.countPill}>
-                <Txt weight="extrabold" size={9.5} color={C.red}>{kickedUsers.length}</Txt>
+                <Txt weight="extrabold" size={9.5} color={C.red}>{kickList.length}</Txt>
               </View>
             )}
           </View>
 
-          {kickedUsers.length === 0 ? (
+          {kickList.length === 0 ? (
             <View style={styles.emptyKick}>
               <Icon name="ban" size={17} color={C.dim2} />
               <Txt size={11.5} color={C.dim} style={{ flex: 1 }} lh={1.4}>Odadan atılan kimse yok. Atılan kişiler burada listelenir; listeden silersen tekrar girebilir.</Txt>
             </View>
           ) : (
             <View style={styles.group}>
-              {kickedUsers.map((k, i) => (
-                <View key={k.name}>
+              {kickList.map((k, i) => (
+                <View key={k.key}>
                   {i > 0 && <View style={styles.divider} />}
                   <View style={[styles.row, styles.rowInGroup, { gap: 11 }]}>
                     <Portrait name={k.name} size={40} photo={k.photo || undefined} />
@@ -131,11 +151,7 @@ export default function RoomManageScreen() {
                         <Txt size={10} color={C.red}>{k.by}</Txt> attı · {kickZamani(k.at)}
                       </Txt>
                     </View>
-                    <Pressable
-                      onPress={() => { haptic.success(); unkickFromRoom(k.name); }}
-                      hitSlop={8}
-                      style={styles.unkickBtn}
-                    >
+                    <Pressable onPress={k.undo} hitSlop={8} style={styles.unkickBtn}>
                       <Icon name="unlock" size={13} color={C.green} />
                       <Txt weight="extrabold" size={11} color={C.green}>Geri al</Txt>
                     </Pressable>

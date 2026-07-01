@@ -31,7 +31,7 @@ import { ProfileCard, type ProfileCardUser } from "@/sheets/ProfileCard";
 import { RoomPanel } from "@/sheets/RoomPanel";
 import { RoomStats } from "@/sheets/RoomStats";
 import { type Gift } from "@/data/gifts";
-import { getRoomMembers } from "@/data/remote/roomsRepo";
+import { amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getRoomMembers } from "@/data/remote/roomsRepo";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
@@ -229,6 +229,21 @@ export default function RoomScreen() {
   // Platform yöneticisi (developer/super_admin) oda içinde host yetkisiyle davranır.
   const MY_ROLE: "host" | "mod" | "user" = privileged ? "host" : myRoomRole;
 
+  // Yasaklıysam odaya giremem: bildir ve çık (022_oda_yasaklari).
+  useEffect(() => {
+    if (!isDbRoom || !dbId) return;
+    let alive = true;
+    amIBannedFromRoom(dbId)
+      .then((banned) => {
+        if (!alive || !banned) return;
+        toast("Bu odadan yasaklandın");
+        setTimeout(() => { leaveRoom(); router.back(); }, 1400);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDbRoom, dbId]);
+
   const [host, setHost] = useState<Seat | null>(() => SEATS.find((s) => s.host) ?? null);
   const [seats, setSeats] = useState<(Seat | null)[]>(() => {
     const arr: (Seat | null)[] = Array(8).fill(null);
@@ -401,19 +416,30 @@ export default function RoomScreen() {
     }
     setSeatSheet(idx);
   };
+  // Odadan at: DB odada kalıcı yasak (022), mock odada eski geçici liste.
+  const banOrKick = (t: { name: string; publicId?: string; photo?: string | null }) => {
+    if (isDbRoom && dbId && t.publicId) {
+      banRoomUserByPublicId(dbId, t.publicId).catch((e) => {
+        console.warn("[oda-yasak]", (e as Error)?.message || e);
+        toast((e as Error)?.message || "Yasaklanamadı");
+      });
+    } else {
+      kickFromRoom({ name: t.name, publicId: t.publicId, photo: t.photo }, userName);
+    }
+  };
   const seatActions = (s: Seat) => ({
     onMute: () => setSeats((p) => p.map((t) => (t && t.name === s.name ? { ...t, muted: !t.muted } : t))),
     onKickMic: () => setSeats((p) => p.map((t) => (t && t.name === s.name ? null : t))),
     onKickRoom: () => {
       setSeats((p) => p.map((t) => (t && t.name === s.name ? null : t)));
-      kickFromRoom({ name: s.name, publicId: s.publicId, photo: s.photo }, userName);
+      banOrKick(s);
     },
   });
   const hostActions = () => ({
     onMute: () => setHost((h) => (h ? { ...h, muted: !h.muted } : h)),
     onKickMic: () => setHost(null),
     onKickRoom: () => {
-      if (host) kickFromRoom({ name: host.name, publicId: host.publicId, photo: host.photo }, userName);
+      if (host) banOrKick(host);
       setHost(null);
     },
   });
@@ -443,7 +469,19 @@ export default function RoomScreen() {
     if (m.myOwn || m.name === userName || m.name === "Sen") { openMyCard(); return; }
     const seated = m.uid != null ? null : occupants.find((o) => o.name === m.name);
     if (seated) { setCardUser({ ...seated, viewerRole: MY_ROLE, ...seatActions(seated) }); return; }
-    setCardUser({ name: m.name, muted: false, lv: 0, photo: m.photo, publicId: m.publicId, viewerRole: "user" });
+    // DB odada sohbetteki kullanıcıya (uid biliniyor) yönetici işlemi: kalıcı yasak
+    const uid = m.uid;
+    setCardUser({
+      name: m.name,
+      muted: false,
+      lv: 0,
+      photo: m.photo,
+      publicId: m.publicId,
+      viewerRole: MY_ROLE,
+      onKickRoom: isDbRoom && dbId && uid != null
+        ? () => banRoomUser(dbId, uid).catch((e) => toast((e as Error)?.message || "Yasaklanamadı"))
+        : undefined,
+    });
   };
   const openByName = (name: string) => {
     if (name === "Sen") { openMyCard(); return; }
