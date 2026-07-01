@@ -255,6 +255,8 @@ export default function RoomScreen() {
   });
   const [msgs, setMsgs] = useState<ChatMsg[]>(() => (isDbRoom ? [] : CHAT0));
   const [liveMembers, setLiveMembers] = useState<{ uid: number; name: string; photo?: string; publicId?: string }[]>([]);
+  const [micQueue, setMicQueue] = useState<{ uid: number; name: string; photo?: string; publicId?: string; at: number }[]>([]);
+  const sitFirstEmptyRef = useRef<() => void>(() => {});
   const memberMapRef = useRef<Map<number, { name: string; photo?: string; publicId?: string }>>(new Map());
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
   const chatRef = useRef<ScrollView>(null);
@@ -346,6 +348,18 @@ export default function RoomScreen() {
       }]);
     });
 
+    // Mikrofon sırası — ephemeral (broadcast). El kaldır / vazgeç / onayla.
+    ch.on("broadcast", { event: "mic_queue" }, ({ payload }) => {
+      const p = payload as { kind: "raise" | "lower" | "approve"; uid: number; name?: string; photo?: string; publicId?: string; at?: number };
+      if (!alive || p.uid == null) return;
+      if (p.kind === "raise") {
+        setMicQueue((q) => (q.some((e) => e.uid === p.uid) ? q : [...q, { uid: p.uid, name: p.name || "Kullanıcı", photo: p.photo, publicId: p.publicId, at: p.at ?? Date.now() }]));
+      } else {
+        setMicQueue((q) => q.filter((e) => e.uid !== p.uid));
+        if (p.kind === "approve" && p.uid === myDbId) sitFirstEmptyRef.current();
+      }
+    });
+
     ch.subscribe(async (status) => {
       if (status === "SUBSCRIBED") await ch.track({ uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined });
     });
@@ -396,6 +410,34 @@ export default function RoomScreen() {
     setSeatSheet(null);
     toast("Mikrofondan indin");
   };
+
+  // Sıradan onaylanınca ilk boş (kilitsiz) koltuğa oturt — her render'da güncel state'i görsün diye ref
+  sitFirstEmptyRef.current = () => {
+    if (mySeat !== null) { toast("Zaten mikrofondasın"); return; }
+    const idx = seats.findIndex((s, i) => !s && !seatLocks[i]);
+    if (idx < 0) { toast("Boş koltuk yok"); return; }
+    sitHere(idx);
+    toast("Mikrofona alındın 🎙");
+  };
+
+  // Mikrofon sırası aksiyonları (broadcast; self:true → kendi eventimiz de düşer)
+  const queueSend = (payload: object) => chanRef.current?.send({ type: "broadcast", event: "mic_queue", payload });
+  const raiseHand = () => {
+    if (myDbId == null) return;
+    haptic.light();
+    queueSend({ kind: "raise", uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined, at: Date.now() });
+  };
+  const lowerHand = (uid?: number) => {
+    const u = uid ?? myDbId;
+    if (u == null) return;
+    haptic.light();
+    queueSend({ kind: "lower", uid: u });
+  };
+  const approveHand = (uid: number) => {
+    haptic.success();
+    queueSend({ kind: "approve", uid });
+  };
+  const myRaised = myDbId != null && micQueue.some((e) => e.uid === myDbId);
   const toggleMyMic = () => {
     const next = !micOn;
     haptic.light();
@@ -765,6 +807,13 @@ export default function RoomScreen() {
           memberCount={occupants.length}
           canManage={MY_ROLE === "host"}
           initialTab={panelTab}
+          queue={isDbRoom ? micQueue : undefined}
+          myRaised={myRaised}
+          myUid={myDbId}
+          canModerateQueue={MY_ROLE !== "user"}
+          onRaise={raiseHand}
+          onLower={lowerHand}
+          onApprove={approveHand}
           onManage={() => { setPanelOpen(false); router.navigate("/room-manage"); }}
           onReport={() => { setPanelOpen(false); setReportOpen(true); }}
           onStats={() => { setPanelOpen(false); setStatsOpen(true); }}
