@@ -118,18 +118,25 @@ export default function UserSearchScreen() {
               </Pressable>
             )}
 
-            {results.map((u) => (
-              <Pressable key={u.public_id} onPress={() => openProfile(u)} style={styles.userRow}>
-                <Portrait name={u.kullanici_adi} size={48} ring={C.purple2} photo={u.profil_resmi || undefined} />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Txt weight="extrabold" size={13.5} color={C.text} numberOfLines={1}>{u.kullanici_adi}</Txt>
-                  <Txt weight="semibold" size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>
-                    ID: {u.public_id}{u.seviye_id ? ` · LV.${u.seviye_id}` : ""}
-                  </Txt>
-                </View>
-                <Icon name="chev" size={15} color={C.dim2} />
-              </Pressable>
-            ))}
+            {results.length > 0 && (
+              <View style={styles.group}>
+                {results.map((u, i) => (
+                  <View key={u.public_id}>
+                    {i > 0 && <View style={styles.divider} />}
+                    <Pressable onPress={() => openProfile(u)} style={styles.userRow}>
+                      <Portrait name={u.kullanici_adi} size={48} ring={C.purple2} photo={u.profil_resmi || undefined} />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Txt weight="extrabold" size={13.5} color={C.text} numberOfLines={1}>{u.kullanici_adi}</Txt>
+                        <Txt weight="semibold" size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>
+                          ID: {u.public_id}{u.seviye_id ? ` · LV.${u.seviye_id}` : ""}
+                        </Txt>
+                      </View>
+                      <Icon name="chev" size={15} color={C.dim2} />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            )}
 
             {noResults && (
               <View style={{ alignItems: "center", paddingVertical: 40 }}>
@@ -158,7 +165,9 @@ const styles = StyleSheet.create({
   searchBox: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 16, backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1 },
   searchInput: { flex: 1, color: C.text, fontSize: 14, fontWeight: "600", padding: 0 },
   resultCard: { flexDirection: "row", alignItems: "center", gap: 13, marginBottom: 12, padding: 14, borderRadius: 18, backgroundColor: "rgba(124,58,237,.1)", borderWidth: 1, borderColor: `${C.green}44` },
-  userRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.06)" },
+  group: { borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 74 },
+  userRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 12 },
   sceneThumb: { width: 50, height: 50, borderRadius: 14, overflow: "hidden" },
   greenDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.green },
   notFoundIcon: { width: 56, height: 56, borderRadius: 28, marginBottom: 14, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.12)", borderWidth: 1, borderColor: "rgba(251,113,133,.3)" },

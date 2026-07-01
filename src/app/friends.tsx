@@ -96,53 +96,65 @@ export default function FriendsScreen() {
                 <Txt weight="bold" size={11.5} color={C.dim}>{friends.length} arkadaş · </Txt>
                 <Txt weight="bold" size={11.5} color="#34D399">{onlineCount} çevrimiçi</Txt>
               </View>
-              {filtered.map((f, i) => (
-                <View key={f.name + i} style={styles.row}>
-                  <Portrait name={f.name} size={46} online={f.online} />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Txt weight="extrabold" size={13.5} color={C.text}>{f.name}</Txt>
-                      <Txt weight="extrabold" size={10.5} color="#5EEAD4">LV.{f.lv}</Txt>
+              {filtered.length > 0 && (
+                <View style={styles.group}>
+                  {filtered.map((f, i) => (
+                    <View key={f.name + i}>
+                      {i > 0 && <View style={styles.divider} />}
+                      <View style={styles.row}>
+                        <Portrait name={f.name} size={46} online={f.online} />
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                            <Txt weight="extrabold" size={13.5} color={C.text}>{f.name}</Txt>
+                            <Txt weight="extrabold" size={10.5} color="#5EEAD4">LV.{f.lv}</Txt>
+                          </View>
+                          <Txt weight="semibold" size={10.5} color={f.online ? "#34D399" : C.dim2} style={{ marginTop: 3 }}>{f.last}</Txt>
+                        </View>
+                        <Pressable onPress={() => openChat(f)} style={styles.chatBtn}>
+                          <Icon name="chat" size={17} color="#34D399" />
+                        </Pressable>
+                      </View>
                     </View>
-                    <Txt weight="semibold" size={10.5} color={f.online ? "#34D399" : C.dim2} style={{ marginTop: 3 }}>{f.last}</Txt>
-                  </View>
-                  <Pressable onPress={() => openChat(f)} style={styles.chatBtn}>
-                    <Icon name="chat" size={17} color="#34D399" />
-                  </Pressable>
+                  ))}
                 </View>
-              ))}
+              )}
               {filtered.length === 0 && (
                 <Txt weight="semibold" size={12.5} color={C.dim} align="center" style={{ paddingVertical: 50 }}>{q ? "Arkadaş bulunamadı." : "Henüz arkadaşın yok."}</Txt>
               )}
             </>
           ) : reqs.length > 0 ? (
-            reqs.map((r, i) => (
-              <View key={r.name + i} style={styles.reqRow}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                  <Portrait name={r.name} size={48} />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Txt weight="extrabold" size={13.5} color={C.text}>{r.name}</Txt>
-                      <Txt weight="extrabold" size={10.5} color="#5EEAD4">LV.{r.lv}</Txt>
+            <View style={styles.group}>
+              {reqs.map((r, i) => (
+                <View key={r.name + i}>
+                  {i > 0 && <View style={styles.divider} />}
+                  <View style={styles.reqRow}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                      <Portrait name={r.name} size={48} />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Txt weight="extrabold" size={13.5} color={C.text}>{r.name}</Txt>
+                          <Txt weight="extrabold" size={10.5} color="#5EEAD4">LV.{r.lv}</Txt>
+                        </View>
+                        <Txt weight="semibold" size={10.5} color={C.dim2} style={{ marginTop: 3 }}>{r.when}</Txt>
+                      </View>
                     </View>
-                    <Txt weight="semibold" size={10.5} color={C.dim2} style={{ marginTop: 3 }}>{r.when}</Txt>
+                    {r.note && <Txt size={12} color={C.dim} lh={1.5} style={styles.reqNote}>"{r.note}"</Txt>}
+                    <View style={{ flexDirection: "row", gap: 10, marginTop: 11, marginLeft: 60 }}>
+                      <Pressable onPress={() => accept(i)} style={{ flex: 1, borderRadius: 12, overflow: "hidden" }}>
+                        <Gradient colors={["#34D399", "#059669"]} deg={135} style={styles.reqBtn}>
+                          <Icon name="check" size={15} color="#04231A" sw={3} />
+                          <Txt weight="extrabold" size={12.5} color="#04231A">Kabul Et</Txt>
+                        </Gradient>
+                      </Pressable>
+                      <Pressable onPress={() => reject(i)} style={[styles.reqBtn, { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" }]}>
+                        <Icon name="x" size={15} color={C.dim} />
+                        <Txt weight="extrabold" size={12.5} color={C.dim}>Reddet</Txt>
+                      </Pressable>
+                    </View>
                   </View>
                 </View>
-                {r.note && <Txt size={12} color={C.dim} lh={1.5} style={styles.reqNote}>"{r.note}"</Txt>}
-                <View style={{ flexDirection: "row", gap: 10, marginTop: 11, marginLeft: 60 }}>
-                  <Pressable onPress={() => accept(i)} style={{ flex: 1, borderRadius: 12, overflow: "hidden" }}>
-                    <Gradient colors={["#34D399", "#059669"]} deg={135} style={styles.reqBtn}>
-                      <Icon name="check" size={15} color="#04231A" sw={3} />
-                      <Txt weight="extrabold" size={12.5} color="#04231A">Kabul Et</Txt>
-                    </Gradient>
-                  </Pressable>
-                  <Pressable onPress={() => reject(i)} style={[styles.reqBtn, { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" }]}>
-                    <Icon name="x" size={15} color={C.dim} />
-                    <Txt weight="extrabold" size={12.5} color={C.dim}>Reddet</Txt>
-                  </Pressable>
-                </View>
-              </View>
-            ))
+              ))}
+            </View>
           ) : (
             <View style={{ alignItems: "center", paddingVertical: 60 }}>
               <View style={styles.emptyIcon}>
@@ -173,9 +185,11 @@ const styles = StyleSheet.create({
   reqBadge: { minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 999, backgroundColor: "#F43F5E", alignItems: "center", justifyContent: "center" },
   search: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 14, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)", marginBottom: 14 },
   searchInput: { flex: 1, color: C.text, fontSize: 12.5, padding: 0 },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.05)" },
+  group: { borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 70 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 12 },
   chatBtn: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(52,211,153,.12)", borderWidth: 1, borderColor: "rgba(52,211,153,.3)" },
-  reqRow: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.05)" },
+  reqRow: { paddingVertical: 14, paddingHorizontal: 12 },
   reqNote: { marginTop: 9, marginLeft: 60, fontStyle: "italic" },
   reqBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 11, borderRadius: 12 },
   emptyIcon: { width: 56, height: 56, borderRadius: 18, marginBottom: 14, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)" },

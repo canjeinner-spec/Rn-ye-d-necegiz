@@ -36,6 +36,19 @@ function VisitorRow({ v, i, onPress }: { v: Visitor; i: number; onPress: () => v
   );
 }
 
+function VisitorGroup({ list, keyOffset, onPress }: { list: Visitor[]; keyOffset: number; onPress: (v: Visitor) => void }) {
+  return (
+    <View style={styles.group}>
+      {list.map((v, i) => (
+        <View key={(v.publicId || v.name) + i}>
+          {i > 0 && <View style={styles.divider} />}
+          <VisitorRow v={v} i={i + keyOffset} onPress={() => onPress(v)} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export default function VisitorsScreen() {
   const router = useRouter();
   const session = useApp((s) => s.session);
@@ -95,13 +108,13 @@ export default function VisitorsScreen() {
           {today.length > 0 && (
             <>
               <Txt weight="bold" size={11.5} color={C.dim2} style={styles.sectionLbl}>BUGÜN</Txt>
-              {today.map((v, i) => <VisitorRow key={(v.publicId || v.name) + i} v={v} i={i} onPress={() => openProfile(v)} />)}
+              <VisitorGroup list={today} keyOffset={0} onPress={openProfile} />
             </>
           )}
           {earlier.length > 0 && (
             <>
               <Txt weight="bold" size={11.5} color={C.dim2} style={[styles.sectionLbl, { marginTop: 18 }]}>DAHA ÖNCE</Txt>
-              {earlier.map((v, i) => <VisitorRow key={(v.publicId || v.name) + i} v={v} i={i + 100} onPress={() => openProfile(v)} />)}
+              <VisitorGroup list={earlier} keyOffset={100} onPress={openProfile} />
             </>
           )}
           {visitors.length > 0 && <Txt size={10.5} color={C.dim2} align="center" style={{ marginTop: 16 }}>Son ziyaretçilerin gösteriliyor</Txt>}
@@ -117,6 +130,8 @@ const styles = StyleSheet.create({
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   summary: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 18, marginBottom: 18, backgroundColor: "rgba(168,85,247,.16)", borderWidth: 1, borderColor: "rgba(168,85,247,.25)" },
   summaryIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  sectionLbl: { letterSpacing: 0.5, marginBottom: 4 },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.05)" },
+  sectionLbl: { letterSpacing: 0.5, marginBottom: 8 },
+  group: { borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 72 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 12 },
 });
