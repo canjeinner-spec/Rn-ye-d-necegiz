@@ -3,7 +3,7 @@ import { create } from "zustand";
 
 import { type DMThread } from "@/data/dm";
 import { type Room } from "@/data/seed";
-import { getSession, onAuthChange, signOut } from "@/data/remote/authRepo";
+import { deleteAccount, getSession, onAuthChange, signOut } from "@/data/remote/authRepo";
 import { ensureMyProfile, getMyProfile } from "@/data/remote/profileRepo";
 import { createRoom } from "@/data/remote/roomsRepo";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -45,6 +45,7 @@ type AppState = {
   initAuth: () => void;
   loadProfile: () => Promise<void>;
   signOutApp: () => Promise<void>;
+  deleteAccountApp: () => Promise<void>;
 
   userName: string;
   userBio: string;
@@ -157,6 +158,20 @@ export const useApp = create<AppState>((set, get) => ({
     } catch {
       // ignore
     }
+    set({
+      session: null,
+      girisYapildi: false,
+      publicId: null,
+      dbId: null,
+      userName: "Sen",
+      userBio: "",
+      userPhoto: null,
+      role: "user",
+    });
+  },
+
+  deleteAccountApp: async () => {
+    await deleteAccount(); // hata olursa çağıran yakalayıp UI'da gösterir
     set({
       session: null,
       girisYapildi: false,

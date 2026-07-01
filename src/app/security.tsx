@@ -35,8 +35,12 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
 
 export default function SecurityScreen() {
   const router = useRouter();
-  const { signOutApp } = useApp();
+  const { signOutApp, deleteAccountApp } = useApp();
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
+  const [delConfirmText, setDelConfirmText] = useState("");
+  const [delBusy, setDelBusy] = useState(false);
+  const [delError, setDelError] = useState("");
   const [social, setSocial] = useState<Record<SocialKey, boolean>>({ twitter: false, apple: true, google: false });
   const anyLinked = Object.values(social).some(Boolean);
 
@@ -53,6 +57,21 @@ export default function SecurityScreen() {
   const closePhone = () => { setFlow(null); setCode(""); };
   const closePw = () => { setPwOpen(false); setPw({ cur: "", next: "", rep: "" }); setPwDone(false); };
   const doLogout = async () => { haptic.success(); setLogoutOpen(false); await signOutApp(); router.replace("/onboarding"); };
+
+  const closeDel = () => { setDelOpen(false); setDelConfirmText(""); setDelError(""); setDelBusy(false); };
+  const doDelete = async () => {
+    setDelError("");
+    setDelBusy(true);
+    try {
+      await deleteAccountApp();
+      haptic.success();
+      setDelOpen(false);
+      router.replace("/onboarding");
+    } catch (e) {
+      setDelBusy(false);
+      setDelError(e instanceof Error ? e.message : "Hesap silinemedi. Lütfen tekrar dene.");
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -126,6 +145,17 @@ export default function SecurityScreen() {
             <View style={{ flex: 1 }}>
               <Txt weight="extrabold" size={12.5} color={C.red}>Çıkış Yap</Txt>
               <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>Hesabından güvenli şekilde çık</Txt>
+            </View>
+            <Icon name="chev" size={14} color={`${C.red}99`} />
+          </Pressable>
+
+          <Pressable onPress={() => { haptic.light(); setDelOpen(true); }} style={styles.logoutBtn}>
+            <View style={[styles.rowIcon, { backgroundColor: `${C.red}1A` }]}>
+              <Icon name="trash" size={16} color={C.red} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Txt weight="extrabold" size={12.5} color={C.red}>Hesabımı Sil</Txt>
+              <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>Bu işlem geri alınamaz</Txt>
             </View>
             <Icon name="chev" size={14} color={`${C.red}99`} />
           </Pressable>
@@ -253,6 +283,48 @@ export default function SecurityScreen() {
             </Pressable>
             <Pressable onPress={doLogout} style={[styles.btn, { flex: 1, backgroundColor: `${C.red}1A`, borderWidth: 1, borderColor: `${C.red}66` }]}>
               <Txt weight="extrabold" size={13} color={C.red}>Çıkış Yap</Txt>
+            </Pressable>
+          </View>
+        </View>
+      </CenterModal>
+
+      {/* Hesap silme onayı */}
+      <CenterModal visible={delOpen} onClose={closeDel} dim={0.78}>
+        <View style={[styles.dialog, { alignItems: "center" }]}>
+          <View style={[styles.statusCircle, { backgroundColor: `${C.red}1A`, borderColor: `${C.red}66` }]}>
+            <Icon name="warn" size={26} sw={1.8} color={C.red} />
+          </View>
+          <Txt weight="displayBold" size={17} color="#fff">Hesabını kalıcı olarak sil?</Txt>
+          <Txt size={12} color={C.dim} align="center" lh={1.6} style={{ marginTop: 8 }}>
+            Profilin, gönderilerin, mesajların ve tüm verilerin kalıcı olarak silinir. Bu işlem{" "}
+            <Txt weight="bold" size={12} color={C.red}>geri alınamaz</Txt>.
+          </Txt>
+          <Txt weight="bold" size={10.5} color={C.dim} style={{ marginTop: 16, alignSelf: "flex-start", letterSpacing: 0.5 }}>
+            Onaylamak için "SİL" yaz
+          </Txt>
+          <TextInput
+            value={delConfirmText}
+            onChangeText={setDelConfirmText}
+            autoCapitalize="characters"
+            placeholder="SİL"
+            placeholderTextColor={C.dim2}
+            style={[styles.pwInput, { textAlign: "center", letterSpacing: 2 }]}
+          />
+          {!!delError && <Txt size={10.5} color={C.red} style={{ marginTop: 10 }}>{delError}</Txt>}
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 18, alignSelf: "stretch" }}>
+            <Pressable onPress={closeDel} style={[styles.btn, { flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.line }]}>
+              <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
+            </Pressable>
+            <Pressable
+              onPress={doDelete}
+              disabled={delConfirmText.trim().toLocaleUpperCase("tr-TR") !== "SİL" || delBusy}
+              style={[
+                styles.btn,
+                { flex: 1, backgroundColor: `${C.red}1A`, borderWidth: 1, borderColor: `${C.red}66` },
+                (delConfirmText.trim().toLocaleUpperCase("tr-TR") !== "SİL" || delBusy) && { opacity: 0.45 },
+              ]}
+            >
+              <Txt weight="extrabold" size={13} color={C.red}>{delBusy ? "Siliniyor…" : "Hesabımı Sil"}</Txt>
             </Pressable>
           </View>
         </View>

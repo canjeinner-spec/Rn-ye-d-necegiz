@@ -94,3 +94,11 @@ export async function signOut() {
   if (!supabase) return;
   await supabase.auth.signOut();
 }
+
+/** Hesabı kalıcı olarak sil (kullanicilar + auth.users satırı). Geri alınamaz. */
+export async function deleteAccount(): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("hesabimi_sil");
+  if (error) throw error;
+  await signOut();
+}
