@@ -19,10 +19,23 @@ const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = Boolean(url && anonKey);
 
+/**
+ * `expo-router`'ın statik web export'u (app.json → web.output:"static") Metro
+ * içinde bir Node/SSR geçişi çalıştırır; bu ortamda `window` yok.
+ * `AsyncStorage`'ın web implementasyonu bunu varsaymadan `window`'a dokunup
+ * `ReferenceError: window is not defined` fırlatıyor ve bu, dev sunucusunun
+ * tamamen çökmesine yol açıyordu. SSR geçişinde no-op bir depoya düş.
+ */
+const ssrSafeStorage = {
+  getItem: (key: string) => (typeof window === "undefined" ? Promise.resolve(null) : AsyncStorage.getItem(key)),
+  setItem: (key: string, value: string) => (typeof window === "undefined" ? Promise.resolve() : AsyncStorage.setItem(key, value)),
+  removeItem: (key: string) => (typeof window === "undefined" ? Promise.resolve() : AsyncStorage.removeItem(key)),
+};
+
 export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(url as string, anonKey as string, {
       auth: {
-        storage: AsyncStorage,
+        storage: ssrSafeStorage,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
