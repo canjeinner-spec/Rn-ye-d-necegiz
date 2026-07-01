@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AuthorityTag } from "@/components/AuthorityTag";
@@ -211,6 +211,10 @@ export default function FeedScreen() {
   };
 
   const totalComments = (p: UserPost) => p.comments.reduce((s, c) => s + 1 + c.replies.length, 0);
+  const sharePost = (p: UserPost) => {
+    haptic.light();
+    Share.share({ message: p.body }).catch(() => {});
+  };
 
   return (
     <View style={styles.root}>
@@ -242,7 +246,7 @@ export default function FeedScreen() {
               </View>
             </Pressable>
           ) : (
-            <View style={styles.composer}>
+            <View style={styles.composerCard}>
               <View style={{ flexDirection: "row", gap: 11 }}>
                 <Portrait name="Sen" size={38} photo={userPhoto || undefined} />
                 <TextInput value={text} onChangeText={setText} maxLength={200} multiline autoFocus placeholder="Ne paylaşmak istersin?" placeholderTextColor={C.dim2} style={styles.composerInput} />
@@ -264,7 +268,7 @@ export default function FeedScreen() {
 
           {posts.map((p) =>
             p.type === "system" ? (
-              <View key={p.id} style={styles.postBlock}>
+              <View key={p.id} style={styles.postCard}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                   <Gradient colors={["#F5CE6E", "#B45309"]} deg={135} style={styles.sysIcon}>
                     <Icon name="crown" size={18} color="#3A2A05" />
@@ -286,11 +290,11 @@ export default function FeedScreen() {
                 </Gradient>
               </View>
             ) : (
-              <View key={p.id} style={styles.postBlock}>
+              <View key={p.id} style={styles.postCard}>
                 {p.pinned && (
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 7 }}>
-                    <Icon name="pin" size={12} color={C.gold2} />
-                    <Txt weight="bold" size={10} color={C.gold2}>Sabitlenmiş paylaşım</Txt>
+                  <View style={styles.pinBadge}>
+                    <Icon name="pin" size={11} color={C.gold2} />
+                    <Txt weight="bold" size={10} color={C.gold2}>Sabitlenmiş</Txt>
                   </View>
                 )}
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
@@ -303,7 +307,11 @@ export default function FeedScreen() {
                         {p.vip && <Badge type="vip" size={15} />}
                         <Txt weight="extrabold" size={10} color="#5EEAD4">LV.{p.lv}</Txt>
                       </View>
-                      <Txt size={10} color={C.dim2} style={{ marginTop: 2 }}>{p.when}</Txt>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 }}>
+                        <Txt size={10} color={C.dim2}>{p.when}</Txt>
+                        <Txt size={10} color={C.dim2}>·</Txt>
+                        <ScopeLine scope={p.scope} size={10} />
+                      </View>
                     </View>
                   </Pressable>
                   {p.mine && (
@@ -351,21 +359,19 @@ export default function FeedScreen() {
                   </Pressable>
                 )}
 
-                <View style={{ marginTop: 10 }}>
-                  <ScopeLine scope={p.scope} />
-                </View>
-
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 22, marginTop: 11 }}>
-                  <Pressable onPress={() => toggleLike(p.id)} style={styles.action}>
-                    <Icon name="heart" size={16} color={liked[p.id] ? "#FB7185" : C.dim} fill={liked[p.id] ? "#FB7185" : "none"} />
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 }}>
+                  <Pressable onPress={() => toggleLike(p.id)} style={[styles.actionChip, liked[p.id] && { backgroundColor: "#FB718514", borderColor: "#FB718544" }]}>
+                    <Icon name="heart" size={15} color={liked[p.id] ? "#FB7185" : C.dim} fill={liked[p.id] ? "#FB7185" : "none"} />
                     <Txt weight="bold" size={11.5} color={liked[p.id] ? "#FB7185" : C.dim}>{p.likes}</Txt>
                   </Pressable>
-                  <Pressable onPress={() => setOpenCmt(openCmt === p.id ? null : p.id)} style={styles.action}>
-                    <Icon name="chat" size={16} color={openCmt === p.id ? C.gold2 : C.dim} />
+                  <Pressable onPress={() => setOpenCmt(openCmt === p.id ? null : p.id)} style={[styles.actionChip, openCmt === p.id && { backgroundColor: C.gold + "14", borderColor: C.gold + "44" }]}>
+                    <Icon name="chat" size={15} color={openCmt === p.id ? C.gold2 : C.dim} />
                     <Txt weight="bold" size={11.5} color={openCmt === p.id ? C.gold2 : C.dim}>{totalComments(p)}</Txt>
                   </Pressable>
                   <View style={{ flex: 1 }} />
-                  <Icon name="share" size={16} color={C.dim} />
+                  <Pressable onPress={() => sharePost(p)} style={styles.actionChip}>
+                    <Icon name="share" size={15} color={C.dim} />
+                  </Pressable>
                 </View>
 
                 {openCmt === p.id && (
@@ -508,23 +514,24 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18, paddingTop: 10, paddingBottom: 4 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   bellBadge: { position: "absolute", top: -3, right: -3, minWidth: 16, height: 16, paddingHorizontal: 3.5, borderRadius: 8, backgroundColor: C.red, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: C.bg },
-  composerTrigger: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.07)", marginBottom: 6 },
+  composerTrigger: { flexDirection: "row", alignItems: "center", gap: 11, padding: 13, borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, marginTop: 4, marginBottom: 14 },
   shareChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 13, borderRadius: 999, backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "33" },
-  composer: { paddingTop: 4, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.07)", marginBottom: 6 },
+  composerCard: { padding: 14, borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, marginTop: 4, marginBottom: 14 },
   composerInput: { flex: 1, color: C.text, fontSize: 13.5, fontFamily: "PlusJakartaSans_500Medium", lineHeight: 20, marginTop: 6, minHeight: 44, textAlignVertical: "top" },
-  postBlock: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.06)" },
+  postCard: { padding: 14, borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, marginBottom: 12 },
+  pinBadge: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "33", marginBottom: 10 },
   sysIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   spotlight: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
   editInput: { backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)", borderRadius: 12, padding: 12, color: C.text, fontSize: 13, fontFamily: "PlusJakartaSans_500Medium", minHeight: 70, textAlignVertical: "top" },
   roomCard: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12, padding: 12, borderRadius: 16, backgroundColor: "rgba(124,58,237,.1)", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
   roomThumb: { width: 46, height: 46, borderRadius: 13, overflow: "hidden" },
   joinChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 8, paddingHorizontal: 13, borderRadius: 999, backgroundColor: C.gold + "1F", borderWidth: 1, borderColor: C.gold + "44" },
-  action: { flexDirection: "row", alignItems: "center", gap: 6 },
-  comments: { marginTop: 12, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: C.gold + "26" },
+  actionChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
+  comments: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.line },
   cmtInput: { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)", borderRadius: 999, paddingVertical: 8, paddingHorizontal: 13, color: C.text, fontSize: 12, fontFamily: "PlusJakartaSans_500Medium" },
   replyInput: { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)", borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12, color: C.text, fontSize: 11.5, fontFamily: "PlusJakartaSans_500Medium" },
   toast: { position: "absolute", alignSelf: "center", bottom: 104, backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: C.gold + "55", paddingVertical: 11, paddingHorizontal: 18, borderRadius: 999 },
   menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 4 },
-  scopeRow: { flexDirection: "row", alignItems: "center", gap: 13, padding: 14, borderRadius: 15, marginBottom: 10, borderWidth: 1 },
+  scopeRow: { flexDirection: "row", alignItems: "center", gap: 13, padding: 14, borderRadius: 16, marginBottom: 10, borderWidth: 1 },
   scopeIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
 });
