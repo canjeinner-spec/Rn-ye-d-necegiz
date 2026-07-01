@@ -2,6 +2,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, { FadeIn, FadeOut, Layout } from "react-native-reanimated";
 
 import { AuthorityTag } from "@/components/AuthorityTag";
 import { Badge } from "@/components/Badge";
@@ -290,7 +291,7 @@ export default function FeedScreen() {
                 </Gradient>
               </View>
             ) : (
-              <View key={p.id} style={styles.postCard}>
+              <Animated.View key={p.id} layout={Layout.duration(200)} style={styles.postCard}>
                 {p.pinned && (
                   <View style={styles.pinBadge}>
                     <Icon name="pin" size={11} color={C.gold2} />
@@ -375,7 +376,7 @@ export default function FeedScreen() {
                 </View>
 
                 {openCmt === p.id && (
-                  <View style={styles.comments}>
+                  <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} style={styles.comments}>
                     {p.comments.map((c, ci) => (
                       <View key={ci} style={{ marginTop: ci ? 12 : 0 }}>
                         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 9 }}>
@@ -423,22 +424,22 @@ export default function FeedScreen() {
                           </View>
                         ))}
                         {replyTo && replyTo.pid === p.id && replyTo.ci === ci && (
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 8, paddingLeft: 30 }}>
-                            <Portrait name="Sen" size={24} photo={userPhoto || undefined} />
+                          <Animated.View entering={FadeIn.duration(150)} style={[styles.composeBar, { marginTop: 8, marginLeft: 30 }]}>
+                            <Portrait name="Sen" size={22} photo={userPhoto || undefined} />
                             <TextInput value={replyText} onChangeText={setReplyText} autoFocus placeholder={`${c.who} kişisine yanıt…`} placeholderTextColor={C.dim2} style={styles.replyInput} />
-                            <SendBtn disabled={!replyText.trim()} onPress={() => addReply(p.id, ci)} size={30} />
-                          </View>
+                            <SendBtn disabled={!replyText.trim()} onPress={() => addReply(p.id, ci)} size={28} />
+                          </Animated.View>
                         )}
                       </View>
                     ))}
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: p.comments.length ? 14 : 0 }}>
-                      <Portrait name="Sen" size={28} photo={userPhoto || undefined} />
+                    <View style={[styles.composeBar, { marginTop: p.comments.length ? 14 : 0 }]}>
+                      <Portrait name="Sen" size={26} photo={userPhoto || undefined} />
                       <TextInput value={cmtText} onChangeText={setCmtText} placeholder="Yorum yaz…" placeholderTextColor={C.dim2} style={styles.cmtInput} />
-                      <SendBtn disabled={!cmtText.trim()} onPress={() => addComment(p.id)} size={34} />
+                      <SendBtn disabled={!cmtText.trim()} onPress={() => addComment(p.id)} size={32} />
                     </View>
-                  </View>
+                  </Animated.View>
                 )}
-              </View>
+              </Animated.View>
             )
           )}
         </ScrollView>
@@ -530,8 +531,9 @@ const styles = StyleSheet.create({
   comments: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.line },
   cmtBubble: { alignSelf: "flex-start", maxWidth: "100%", backgroundColor: "rgba(255,255,255,.05)", borderRadius: 14, borderTopLeftRadius: 4, paddingVertical: 7, paddingHorizontal: 12 },
   cmtActionBtn: { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)" },
-  cmtInput: { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 13, color: C.text, fontSize: 12, fontFamily: "PlusJakartaSans_500Medium" },
-  replyInput: { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12, color: C.text, fontSize: 11.5, fontFamily: "PlusJakartaSans_500Medium" },
+  composeBar: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 6 },
+  cmtInput: { flex: 1, color: C.text, fontSize: 12, fontFamily: "PlusJakartaSans_500Medium", paddingHorizontal: 2 },
+  replyInput: { flex: 1, color: C.text, fontSize: 11.5, fontFamily: "PlusJakartaSans_500Medium", paddingHorizontal: 2 },
   toast: { position: "absolute", alignSelf: "center", bottom: 104, backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: C.gold + "55", paddingVertical: 11, paddingHorizontal: 18, borderRadius: 999 },
   menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 4 },
   scopeRow: { flexDirection: "row", alignItems: "center", gap: 13, padding: 14, borderRadius: 16, marginBottom: 10, borderWidth: 1 },
