@@ -83,6 +83,47 @@ export function RoomPanel(props: Props) {
             <Gradient colors={["rgba(22,19,32,0.88)", "rgba(11,10,16,0.94)"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
             <View style={styles.handle} />
 
+            <View style={{ paddingHorizontal: 18, paddingTop: 14 }}>
+              <View style={styles.idCard}>
+                <View style={styles.idThumb}>
+                  {roomPhoto ? <Image source={{ uri: roomPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Txt weight="extrabold" size={15} color="#fff" numberOfLines={1} style={{ flexShrink: 1 }}>{roomName}</Txt>
+                    {locked && <Icon name="lock" size={13} color={C.gold} />}
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
+                    <Txt weight="semibold" size={11} color={C.dim}>ID:{room.id}</Txt>
+                    <Icon name="copy" size={12} color={C.dim2} />
+                  </View>
+                </View>
+                <Pressable onPress={onReport} hitSlop={8} style={styles.reportIconBtn}>
+                  <Icon name="warn" size={16} color="rgba(255,255,255,.5)" />
+                </Pressable>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+                <Pressable onPress={() => setJoined((j) => !j)} style={{ flex: 1, borderRadius: 14, overflow: "hidden" }}>
+                  {joined ? (
+                    <View style={[styles.actBtn, { borderWidth: 1.5, borderColor: C.green + "55", backgroundColor: C.green + "14" }]}>
+                      <Icon name="check" size={16} sw={2.5} color="#6EE7B7" />
+                      <Txt weight="extrabold" size={13.5} color="#6EE7B7">Katıldın</Txt>
+                    </View>
+                  ) : (
+                    <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.actBtn}>
+                      <Icon name="mic" size={16} color="#241A05" />
+                      <Txt weight="extrabold" size={13.5} color="#241A05">Katıl</Txt>
+                    </Gradient>
+                  )}
+                </Pressable>
+                <Pressable onPress={() => setFollowing((f) => !f)} style={[styles.actBtn, { flex: 1, borderWidth: 1.5, borderColor: following ? C.gold : "rgba(255,255,255,.14)", backgroundColor: following ? C.gold + "12" : "rgba(255,255,255,.05)" }]}>
+                  <Icon name={following ? "check" : "heart"} size={16} sw={following ? 2.5 : 1.7} color={following ? C.gold2 : C.text} />
+                  <Txt weight="extrabold" size={13.5} color={following ? C.gold2 : C.text}>{following ? "Takiptesin" : "Takip Et"}</Txt>
+                </Pressable>
+              </View>
+            </View>
+
             <View style={styles.headerRow}>
               <View style={styles.tabbar}>
                 {["Profil", "Üyeler"].map((t, i) => (
@@ -101,46 +142,7 @@ export function RoomPanel(props: Props) {
 
             {tab === 0 ? (
               <View style={{ padding: 18, paddingBottom: 14 + insets.bottom }}>
-                <View style={styles.idCard}>
-                  <View style={styles.idThumb}>
-                    {roomPhoto ? <Image source={{ uri: roomPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Txt weight="extrabold" size={15} color="#fff" numberOfLines={1} style={{ flexShrink: 1 }}>{roomName}</Txt>
-                      {locked && <Icon name="lock" size={13} color={C.gold} />}
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
-                      <Txt weight="semibold" size={11} color={C.dim}>ID:{room.id}</Txt>
-                      <Icon name="copy" size={12} color={C.dim2} />
-                    </View>
-                  </View>
-                  <Pressable onPress={onReport} hitSlop={8} style={styles.reportIconBtn}>
-                    <Icon name="warn" size={16} color="rgba(255,255,255,.5)" />
-                  </Pressable>
-                </View>
-
-                <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
-                  <Pressable onPress={() => setJoined((j) => !j)} style={{ flex: 1, borderRadius: 14, overflow: "hidden" }}>
-                    {joined ? (
-                      <View style={[styles.actBtn, { borderWidth: 1.5, borderColor: C.green + "55", backgroundColor: C.green + "14" }]}>
-                        <Icon name="check" size={16} sw={2.5} color="#6EE7B7" />
-                        <Txt weight="extrabold" size={13.5} color="#6EE7B7">Katıldın</Txt>
-                      </View>
-                    ) : (
-                      <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.actBtn}>
-                        <Icon name="mic" size={16} color="#241A05" />
-                        <Txt weight="extrabold" size={13.5} color="#241A05">Katıl</Txt>
-                      </Gradient>
-                    )}
-                  </Pressable>
-                  <Pressable onPress={() => setFollowing((f) => !f)} style={[styles.actBtn, { flex: 1, borderWidth: 1.5, borderColor: following ? C.gold : "rgba(255,255,255,.14)", backgroundColor: following ? C.gold + "12" : "rgba(255,255,255,.05)" }]}>
-                    <Icon name={following ? "check" : "heart"} size={16} sw={following ? 2.5 : 1.7} color={following ? C.gold2 : C.text} />
-                    <Txt weight="extrabold" size={13.5} color={following ? C.gold2 : C.text}>{following ? "Takiptesin" : "Takip Et"}</Txt>
-                  </Pressable>
-                </View>
-
-                <View style={styles.levelHeader}>
+                <View style={[styles.levelHeader, { paddingTop: 0 }]}>
                   <Txt weight="semibold" size={13.5} color={C.dim}>Level</Txt>
                   <View style={{ flex: 1 }} />
                   <Txt weight="semibold" size={11.5} color="rgba(255,255,255,.45)">{ROOM_XP.toLocaleString("tr-TR")}/{ROOM_NEXT.toLocaleString("tr-TR")}</Txt>
