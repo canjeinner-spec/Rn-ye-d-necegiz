@@ -240,6 +240,7 @@ export default function RoomScreen() {
   const [statsOpen, setStatsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState<string | null>(null);
+  const [reportDetail, setReportDetail] = useState("");
   const [reportDone, setReportDone] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftFx, setGiftFx] = useState<(Gift & { qty: number }) | null>(null);
@@ -724,7 +725,7 @@ export default function RoomScreen() {
 
       {statsOpen && <RoomStats room={room} roomName={roomName} roomPhoto={roomPhoto} onClose={() => setStatsOpen(false)} />}
 
-      <CenterModal visible={reportOpen} onClose={() => { setReportOpen(false); setReportReason(null); setReportDone(false); }}>
+      <CenterModal visible={reportOpen} onClose={() => { setReportOpen(false); setReportReason(null); setReportDetail(""); setReportDone(false); }}>
         <View style={styles.reportCard}>
           {reportDone ? (
             <View style={{ alignItems: "center", paddingVertical: 6 }}>
@@ -733,7 +734,7 @@ export default function RoomScreen() {
               </Gradient>
               <Txt weight="displayBold" size={16} color="#fff">Rapor gönderildi</Txt>
               <Txt size={11.5} color={C.dim} align="center" style={{ marginTop: 8 }}>Ekibimiz en kısa sürede inceleyecek.</Txt>
-              <Pressable onPress={() => { setReportOpen(false); setReportReason(null); setReportDone(false); }} style={{ alignSelf: "stretch", marginTop: 18, borderRadius: 14, overflow: "hidden" }}>
+              <Pressable onPress={() => { setReportOpen(false); setReportReason(null); setReportDetail(""); setReportDone(false); }} style={{ alignSelf: "stretch", marginTop: 18, borderRadius: 14, overflow: "hidden" }}>
                 <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 13, alignItems: "center" }}>
                   <Txt weight="extrabold" size={13} color="#241A05">Tamam</Txt>
                 </Gradient>
@@ -756,11 +757,15 @@ export default function RoomScreen() {
                 );
               })}
               {reportReason && (
-                <Pressable onPress={() => setReportDone(true)} style={{ borderRadius: 14, overflow: "hidden", marginTop: 12 }}>
-                  <Gradient colors={["#DC2626", "#7F1D1D"]} deg={135} style={{ paddingVertical: 14, alignItems: "center" }}>
-                    <Txt weight="extrabold" size={13} color="#FEE2E2">Raporu Gönder</Txt>
-                  </Gradient>
-                </Pressable>
+                <>
+                  <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.4, marginTop: 6, marginBottom: 7 }}>DETAY (opsiyonel)</Txt>
+                  <TextInput value={reportDetail} onChangeText={setReportDetail} multiline maxLength={300} placeholder="Bu oda hakkında daha fazla bilgi ver..." placeholderTextColor={C.dim2} style={styles.reportDetailInput} />
+                  <Pressable onPress={() => setReportDone(true)} style={{ borderRadius: 14, overflow: "hidden", marginTop: 12 }}>
+                    <Gradient colors={["#DC2626", "#7F1D1D"]} deg={135} style={{ paddingVertical: 14, alignItems: "center" }}>
+                      <Txt weight="extrabold" size={13} color="#FEE2E2">Raporu Gönder</Txt>
+                    </Gradient>
+                  </Pressable>
+                </>
               )}
             </>
           )}
@@ -800,7 +805,8 @@ const styles = StyleSheet.create({
   giftMini: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   giftBtnBig: { width: 46, height: 46, alignItems: "center", justifyContent: "center" },
   bubble: { alignSelf: "flex-start", maxWidth: "94%", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 15, borderTopLeftRadius: 5, borderWidth: 1 },
-  reportCard: { backgroundColor: "rgba(26,22,38,0.98)", borderRadius: 22, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
+  reportCard: { backgroundColor: "#181620", borderRadius: 24, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
+  reportDetailInput: { backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 14, color: C.text, fontSize: 12.5, height: 84, textAlignVertical: "top" },
   seat: { width: "25%", alignItems: "center", gap: 5 },
   emptySeat: { width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.02)" },
   seatLock: { position: "absolute", bottom: -2, right: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: "#0A0A0F", borderWidth: 1, borderColor: C.gold + "66", alignItems: "center", justifyContent: "center" },

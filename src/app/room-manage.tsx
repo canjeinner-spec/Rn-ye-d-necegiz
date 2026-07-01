@@ -78,33 +78,37 @@ export default function RoomManageScreen() {
         <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
           <Txt weight="bold" size={10.5} color={C.dim} style={styles.sectionLbl}>ODA BİLGİLERİ</Txt>
 
-          <Pressable onPress={() => openEdit("name", "Oda İsmi", roomName)} style={styles.row}>
-            <View style={[styles.rowIcon, { backgroundColor: "rgba(168,85,247,.15)" }]}>
-              <Icon name="edit" size={15} color="#A78BFA" />
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Txt weight="extrabold" size={12.5} color={C.text}>Oda İsmi</Txt>
-              <Txt size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>{roomName || "—"}</Txt>
-            </View>
-            <Icon name="chev" size={14} color={C.dim2} />
-          </Pressable>
+          <View style={styles.group}>
+            <Pressable onPress={() => openEdit("name", "Oda İsmi", roomName)} style={[styles.row, styles.rowInGroup]}>
+              <View style={[styles.rowIcon, { backgroundColor: `${C.purple2}1A` }]}>
+                <Icon name="edit" size={15} color={C.purple2} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Txt weight="extrabold" size={12.5} color={C.text}>Oda İsmi</Txt>
+                <Txt size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>{roomName || "—"}</Txt>
+              </View>
+              <Icon name="chev" size={14} color={C.dim2} />
+            </Pressable>
 
-          <Pressable onPress={() => openEdit("announce", "Duyuru", roomAnnounce, true)} style={styles.row}>
-            <View style={[styles.rowIcon, { backgroundColor: "rgba(96,165,250,.15)" }]}>
-              <Icon name="chat" size={15} color="#60A5FA" />
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Txt weight="extrabold" size={12.5} color={C.text}>Duyuru</Txt>
-              <Txt size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>{roomAnnounce || "—"}</Txt>
-            </View>
-            <Icon name="chev" size={14} color={C.dim2} />
-          </Pressable>
+            <View style={styles.divider} />
+
+            <Pressable onPress={() => openEdit("announce", "Duyuru", roomAnnounce, true)} style={[styles.row, styles.rowInGroup]}>
+              <View style={[styles.rowIcon, { backgroundColor: `${C.teal}1A` }]}>
+                <Icon name="chat" size={15} color={C.teal} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Txt weight="extrabold" size={12.5} color={C.text}>Duyuru</Txt>
+                <Txt size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>{roomAnnounce || "—"}</Txt>
+              </View>
+              <Icon name="chev" size={14} color={C.dim2} />
+            </Pressable>
+          </View>
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 22, marginBottom: 10 }}>
             <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5 }}>ODADAN ATILANLAR</Txt>
             {kickedUsers.length > 0 && (
               <View style={styles.countPill}>
-                <Txt weight="extrabold" size={9.5} color="#FCA5A5">{kickedUsers.length}</Txt>
+                <Txt weight="extrabold" size={9.5} color={C.red}>{kickedUsers.length}</Txt>
               </View>
             )}
           </View>
@@ -115,41 +119,48 @@ export default function RoomManageScreen() {
               <Txt size={11.5} color={C.dim} style={{ flex: 1 }} lh={1.4}>Odadan atılan kimse yok. Atılan kişiler burada listelenir; listeden silersen tekrar girebilir.</Txt>
             </View>
           ) : (
-            kickedUsers.map((k) => (
-              <View key={k.name} style={styles.kickRow}>
-                <Portrait name={k.name} size={40} photo={k.photo || undefined} />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Txt weight="extrabold" size={12.5} color={C.text} numberOfLines={1}>{k.name}</Txt>
-                  <Txt size={10} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>
-                    <Txt size={10} color="#FCA5A5">{k.by}</Txt> attı · {kickZamani(k.at)}
-                  </Txt>
+            <View style={styles.group}>
+              {kickedUsers.map((k, i) => (
+                <View key={k.name}>
+                  {i > 0 && <View style={styles.divider} />}
+                  <View style={[styles.row, styles.rowInGroup, { gap: 11 }]}>
+                    <Portrait name={k.name} size={40} photo={k.photo || undefined} />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Txt weight="extrabold" size={12.5} color={C.text} numberOfLines={1}>{k.name}</Txt>
+                      <Txt size={10} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>
+                        <Txt size={10} color={C.red}>{k.by}</Txt> attı · {kickZamani(k.at)}
+                      </Txt>
+                    </View>
+                    <Pressable
+                      onPress={() => { haptic.success(); unkickFromRoom(k.name); }}
+                      hitSlop={8}
+                      style={styles.unkickBtn}
+                    >
+                      <Icon name="unlock" size={13} color={C.green} />
+                      <Txt weight="extrabold" size={11} color={C.green}>Geri al</Txt>
+                    </Pressable>
+                  </View>
                 </View>
-                <Pressable
-                  onPress={() => { haptic.success(); unkickFromRoom(k.name); }}
-                  hitSlop={8}
-                  style={styles.unkickBtn}
-                >
-                  <Icon name="unlock" size={13} color="#6EE7B7" />
-                  <Txt weight="extrabold" size={11} color="#6EE7B7">Geri al</Txt>
-                </Pressable>
-              </View>
-            ))
+              ))}
+            </View>
           )}
 
           <Txt weight="bold" size={10.5} color={C.dim} style={[styles.sectionLbl, { marginTop: 22 }]}>GİZLİLİK</Txt>
 
-          <Pressable onPress={toggleLock} style={[styles.row, roomLocked && { borderColor: C.gold + "44", backgroundColor: C.gold + "0F" }]}>
-            <View style={[styles.rowIcon, { backgroundColor: roomLocked ? C.gold + "1A" : "rgba(255,255,255,.06)" }]}>
-              <Icon name={roomLocked ? "lock" : "unlock"} size={15} color={roomLocked ? C.gold : C.dim} />
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Txt weight="extrabold" size={12.5} color={roomLocked ? C.gold2 : C.text}>{roomLocked ? "Oda Kilitli" : "Odayı Kilitle"}</Txt>
-              <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>Şifre ile giriş · listede görünmez</Txt>
-            </View>
-            <View style={[styles.toggle, { backgroundColor: roomLocked ? C.gold : "rgba(255,255,255,.12)", alignItems: roomLocked ? "flex-end" : "flex-start" }]}>
-              <View style={styles.knob} />
-            </View>
-          </Pressable>
+          <View style={styles.group}>
+            <Pressable onPress={toggleLock} style={[styles.row, styles.rowInGroup, roomLocked && { backgroundColor: `${C.gold}0F` }]}>
+              <View style={[styles.rowIcon, { backgroundColor: roomLocked ? `${C.gold}1A` : "rgba(255,255,255,.06)" }]}>
+                <Icon name={roomLocked ? "lock" : "unlock"} size={15} color={roomLocked ? C.gold : C.dim} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Txt weight="extrabold" size={12.5} color={roomLocked ? C.gold2 : C.text}>{roomLocked ? "Oda Kilitli" : "Odayı Kilitle"}</Txt>
+                <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>Şifre ile giriş · listede görünmez</Txt>
+              </View>
+              <View style={[styles.toggle, { backgroundColor: roomLocked ? C.gold : "rgba(255,255,255,.12)", alignItems: roomLocked ? "flex-end" : "flex-start" }]}>
+                <View style={styles.knob} />
+              </View>
+            </Pressable>
+          </View>
         </ScrollView>
       </SafeAreaView>
 
@@ -241,11 +252,13 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   sectionLbl: { letterSpacing: 0.5, marginBottom: 10 },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10, padding: 13, borderRadius: 15, backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
-  countPill: { minWidth: 18, paddingHorizontal: 6, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(248,113,113,.16)", borderWidth: 1, borderColor: "rgba(248,113,113,.3)" },
-  emptyKick: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 15, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: C.line },
-  kickRow: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 10, padding: 11, borderRadius: 15, backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
-  unkickBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 11, borderRadius: 10, backgroundColor: "rgba(52,211,153,.12)", borderWidth: 1, borderColor: "rgba(52,211,153,.28)" },
+  group: { borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 58 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13 },
+  rowInGroup: { marginBottom: 0 },
+  countPill: { minWidth: 18, paddingHorizontal: 6, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: `${C.red}29`, borderWidth: 1, borderColor: `${C.red}4D` },
+  emptyKick: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: C.line },
+  unkickBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 11, borderRadius: 10, backgroundColor: `${C.green}1F`, borderWidth: 1, borderColor: `${C.green}47` },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   toggle: { width: 42, height: 24, borderRadius: 999, padding: 2, justifyContent: "center" },
   knob: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },

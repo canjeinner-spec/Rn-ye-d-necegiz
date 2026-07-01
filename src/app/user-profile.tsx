@@ -103,6 +103,7 @@ export default function UserProfileScreen() {
   const [addMsg, setAddMsg] = useState("");
   const [reportOpen, setReportOpen] = useState(false);
   const [repReason, setRepReason] = useState<string | null>(null);
+  const [repDetail, setRepDetail] = useState("");
   const [repDone, setRepDone] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -347,16 +348,16 @@ export default function UserProfileScreen() {
         </View>
       </CenterModal>
 
-      <CenterModal visible={reportOpen} onClose={() => { setReportOpen(false); setRepReason(null); setRepDone(false); }}>
+      <CenterModal visible={reportOpen} onClose={() => { setReportOpen(false); setRepReason(null); setRepDone(false); setRepDetail(""); }}>
         <View style={styles.dialog}>
           {repDone ? (
             <View style={{ alignItems: "center" }}>
-              <View style={styles.successIcon}>
+              <Gradient colors={[C.green, "#059669"]} deg={135} style={styles.successIcon}>
                 <Icon name="check" size={28} sw={3} color="#04231A" />
-              </View>
+              </Gradient>
               <Txt weight="displayBold" size={16} color="#fff">Rapor Gönderildi</Txt>
               <Txt size={11.5} color={C.dim} align="center" style={{ marginTop: 8 }}>Ekibimiz en kısa sürede inceleyecek.</Txt>
-              <Pressable onPress={() => { setReportOpen(false); setRepReason(null); setRepDone(false); }} style={{ alignSelf: "stretch", marginTop: 18, borderRadius: 14, overflow: "hidden" }}>
+              <Pressable onPress={() => { setReportOpen(false); setRepReason(null); setRepDone(false); setRepDetail(""); }} style={{ alignSelf: "stretch", marginTop: 18, borderRadius: 14, overflow: "hidden" }}>
                 <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.dialogBtn}>
                   <Txt weight="extrabold" size={13} color="#241A05">Kapat</Txt>
                 </Gradient>
@@ -379,11 +380,15 @@ export default function UserProfileScreen() {
                 );
               })}
               {repReason && (
-                <Pressable onPress={() => { haptic.success(); setRepDone(true); }} style={{ marginTop: 8, borderRadius: 14, overflow: "hidden" }}>
-                  <Gradient colors={["#DC2626", "#7F1D1D"]} deg={135} style={styles.dialogBtn}>
-                    <Txt weight="extrabold" size={13} color="#FEE2E2">Raporu Gönder</Txt>
-                  </Gradient>
-                </Pressable>
+                <>
+                  <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.4, marginTop: 6, marginBottom: 7 }}>DETAY (opsiyonel)</Txt>
+                  <TextInput value={repDetail} onChangeText={setRepDetail} multiline maxLength={300} placeholder={`${name} hakkında daha fazla bilgi ver...`} placeholderTextColor={C.dim2} style={styles.detailInput} />
+                  <Pressable onPress={() => { haptic.success(); setRepDone(true); }} style={{ marginTop: 12, borderRadius: 14, overflow: "hidden" }}>
+                    <Gradient colors={["#DC2626", "#7F1D1D"]} deg={135} style={styles.dialogBtn}>
+                      <Txt weight="extrabold" size={13} color="#FEE2E2">Raporu Gönder</Txt>
+                    </Gradient>
+                  </Pressable>
+                </>
               )}
             </>
           )}
@@ -422,4 +427,5 @@ const styles = StyleSheet.create({
   successIcon: { width: 56, height: 56, borderRadius: 28, marginBottom: 14, alignItems: "center", justifyContent: "center", backgroundColor: C.green },
   reason: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 13, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 8 },
   reasonIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.12)", borderWidth: 1, borderColor: "rgba(251,113,133,.25)" },
+  detailInput: { backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 14, color: C.text, fontSize: 12.5, height: 84, textAlignVertical: "top" },
 });
