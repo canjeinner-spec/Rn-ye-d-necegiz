@@ -68,12 +68,14 @@ SELECT o.id, o.olusturan_id, 'sahip'
 ON CONFLICT (oda_id, kullanici_id) DO UPDATE SET rol = 'sahip';
 
 -- ---- Yardımcı: platform yöneticisi mi? -----------------------------------
+-- Not: ekonomi_rolu bir ENUM — ::text ile karşılaştırıyoruz ki enum'da
+-- olmayan bir değer literal olarak parse hatası vermesin (22P02).
 CREATE OR REPLACE FUNCTION public.ben_platform_yoneticisi()
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
     SELECT EXISTS (
         SELECT 1 FROM public.kullanicilar
          WHERE id = public.benim_kullanici_id()
-           AND ekonomi_rolu IN ('developer', 'super_admin')
+           AND ekonomi_rolu::text IN ('developer', 'super_admin')
     );
 $$;
 
