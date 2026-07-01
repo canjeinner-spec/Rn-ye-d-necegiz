@@ -1,5 +1,5 @@
 import { BlurView } from "expo-blur";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import Animated, { SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -55,6 +55,20 @@ function ActionRow({ icon, color, label, onPress }: { icon: IconName; color: str
       <Txt weight="bold" size={12.5} color={color} style={{ flex: 1 }}>{label}</Txt>
       <Icon name="chev" size={14} color={C.dim2} />
     </Pressable>
+  );
+}
+
+function ActionGroup({ children }: { children: ReactNode }) {
+  const items = Array.isArray(children) ? children : [children];
+  return (
+    <View style={styles.actionGroup}>
+      {items.map((child, i) => (
+        <View key={i}>
+          {i > 0 && <View style={styles.actionDivider} />}
+          {child}
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -217,19 +231,23 @@ export function ProfileCard({
                   </View>
 
                   {user.self ? (
-                    <View style={{ gap: 7, marginTop: 16 }}>
-                      <ActionRow icon="user" color={C.text} label="Profilini Görüntüle" onPress={() => { onViewProfile?.(); onClose(); }} />
-                      {user.onLeaveSeat && (
-                        <ActionRow icon="micoff" color={C.red} label="Mikrofondan in" onPress={() => { user.onLeaveSeat?.(); onClose(); }} />
-                      )}
+                    <View style={{ marginTop: 16 }}>
+                      <ActionGroup>
+                        <ActionRow icon="user" color={C.text} label="Profilini Görüntüle" onPress={() => { onViewProfile?.(); onClose(); }} />
+                        {user.onLeaveSeat && (
+                          <ActionRow icon="micoff" color={C.red} label="Mikrofondan in" onPress={() => { user.onLeaveSeat?.(); onClose(); }} />
+                        )}
+                      </ActionGroup>
                     </View>
                   ) : (
-                    <View style={{ gap: 7, marginTop: 16 }}>
-                      <ActionRow icon="user" color={C.text} label="Profilini Görüntüle" onPress={() => { onViewProfile?.(); onClose(); }} />
-                      <ActionRow icon="chat" color={C.text} label="Mesaj Gönder" onPress={() => { onDM?.(user); onClose(); }} />
-                      <ActionRow icon="userAdd" color={followed ? C.dim : C.text} label={followed ? "Takipten Çık" : "Takip Et"} onPress={() => { setFollowed((v) => !v); showToast(followed ? `${user.name} takipten çıkıldı.` : `${user.name} takip edildi.`); }} />
-                      <ActionRow icon="blockuser" color={blocked ? C.dim : C.red} label={blocked ? "Engeli Kaldır" : "Engelle"} onPress={() => { setBlocked((v) => !v); showToast(blocked ? `${user.name} engeli kaldırıldı.` : `${user.name} engellendi.`); }} />
-                      <ActionRow icon="flag" color={C.red} label="Kullanıcıyı Raporla" onPress={() => setReportView(true)} />
+                    <View style={{ marginTop: 16 }}>
+                      <ActionGroup>
+                        <ActionRow icon="user" color={C.text} label="Profilini Görüntüle" onPress={() => { onViewProfile?.(); onClose(); }} />
+                        <ActionRow icon="chat" color={C.text} label="Mesaj Gönder" onPress={() => { onDM?.(user); onClose(); }} />
+                        <ActionRow icon="userAdd" color={followed ? C.dim : C.text} label={followed ? "Takipten Çık" : "Takip Et"} onPress={() => { setFollowed((v) => !v); showToast(followed ? `${user.name} takipten çıkıldı.` : `${user.name} takip edildi.`); }} />
+                        <ActionRow icon="blockuser" color={blocked ? C.dim : C.red} label={blocked ? "Engeli Kaldır" : "Engelle"} onPress={() => { setBlocked((v) => !v); showToast(blocked ? `${user.name} engeli kaldırıldı.` : `${user.name} engellendi.`); }} />
+                        <ActionRow icon="flag" color={C.red} label="Kullanıcıyı Raporla" onPress={() => setReportView(true)} />
+                      </ActionGroup>
                     </View>
                   )}
                 </>
@@ -251,7 +269,9 @@ const styles = StyleSheet.create({
   gearMenu: { position: "absolute", right: 20, top: 56, width: 210, borderRadius: 16, overflow: "hidden", backgroundColor: "rgba(28,24,40,0.98)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)", zIndex: 10 },
   gearItem: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderTopWidth: 1, borderTopColor: C.line },
   idPill: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 4, paddingHorizontal: 11, borderRadius: 999, backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "44" },
-  actionRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
+  actionGroup: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", overflow: "hidden" },
+  actionDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 43 },
+  actionRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
   reasonRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 13, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 8, borderWidth: 1 },
   reasonIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.12)", borderWidth: 1, borderColor: "rgba(251,113,133,.25)" },
   detailInput: { backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 14, color: C.text, fontSize: 12.5, fontFamily: "PlusJakartaSans_500Medium", height: 84, textAlignVertical: "top" },

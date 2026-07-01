@@ -113,8 +113,8 @@ export function RoomPanel(props: Props) {
                       <Icon name="copy" size={12} color={C.dim2} />
                     </View>
                   </View>
-                  <Pressable onPress={onReport} hitSlop={8}>
-                    <Icon name="warn" size={20} color="rgba(255,255,255,.4)" />
+                  <Pressable onPress={onReport} hitSlop={8} style={styles.reportIconBtn}>
+                    <Icon name="warn" size={16} color="rgba(255,255,255,.5)" />
                   </Pressable>
                 </View>
 
@@ -159,16 +159,22 @@ export function RoomPanel(props: Props) {
                   <Icon name="chev" size={14} color={C.dim2} />
                 </Pressable>
 
-                <InfoRow label="Üyeler" right={String(memberCount)} />
-                <InfoRow label="Dil" right="Türkçe" />
-                <InfoRow label="Ülke" right="🇹🇷 Türkiye" />
-                <InfoRow label="Etiket" right={room.official ? "Resmî" : "Sohbet"} />
-                <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
-                  <Txt weight="semibold" size={13.5} color={C.dim}>Duyuru</Txt>
-                  <View style={{ flex: 1 }} />
-                  <Txt weight="semibold" size={12.5} color={C.text} align="right" lh={1.5} style={{ maxWidth: "58%", fontStyle: "italic" }}>
-                    {announce || (room.official ? "Aron'a hoş geldin, keyifli sohbetler!" : "Herkes davetli, saygıyı koru 🌙")}
-                  </Txt>
+                <View style={styles.infoGroup}>
+                  <InfoRow label="Üyeler" right={String(memberCount)} />
+                  <View style={styles.infoDivider} />
+                  <InfoRow label="Dil" right="Türkçe" />
+                  <View style={styles.infoDivider} />
+                  <InfoRow label="Ülke" right="🇹🇷 Türkiye" />
+                  <View style={styles.infoDivider} />
+                  <InfoRow label="Etiket" right={room.official ? "Resmî" : "Sohbet"} />
+                  <View style={styles.infoDivider} />
+                  <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+                    <Txt weight="semibold" size={13.5} color={C.dim}>Duyuru</Txt>
+                    <View style={{ flex: 1 }} />
+                    <Txt weight="semibold" size={12.5} color={C.text} align="right" lh={1.5} style={{ maxWidth: "58%", fontStyle: "italic" }}>
+                      {announce || (room.official ? "Aron'a hoş geldin, keyifli sohbetler!" : "Herkes davetli, saygıyı koru 🌙")}
+                    </Txt>
+                  </View>
                 </View>
               </View>
             ) : (
@@ -242,14 +248,17 @@ const styles = StyleSheet.create({
   tabBtn: { flex: 1, paddingVertical: 14, alignItems: "center" },
   tabUnderline: { position: "absolute", bottom: -1, width: 28, height: 3, borderRadius: 3 },
   gearBtn: { position: "absolute", right: 10, top: 8, width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "44" },
-  idCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 16, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 4 },
+  idCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 16, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 4 },
+  reportIconBtn: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.06)" },
   actBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 12, borderRadius: 14 },
   idThumb: { width: 68, height: 68, borderRadius: 14, overflow: "hidden" },
   levelHeader: { flexDirection: "row", alignItems: "center", paddingTop: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.06)" },
   levelTrack: { height: 4, borderRadius: 4, backgroundColor: "rgba(255,255,255,.08)", marginVertical: 8, overflow: "hidden" },
-  levelBanner: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.07)", marginBottom: 4 },
-  infoRow: { flexDirection: "row", alignItems: "center", paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.06)" },
-  searchRow: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 10, paddingHorizontal: 13, borderRadius: 14, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", marginBottom: 14 },
+  levelBanner: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 14, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 4 },
+  infoGroup: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", paddingHorizontal: 14, marginTop: 4 },
+  infoDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line },
+  infoRow: { flexDirection: "row", alignItems: "center", paddingVertical: 13 },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 10, paddingHorizontal: 13, borderRadius: 14, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 14 },
   memberRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.05)" },
   memberArrow: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   manageActions: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.05)" },
