@@ -83,13 +83,15 @@ export function RoomPanel(props: Props) {
             <Gradient colors={["rgba(22,19,32,0.88)", "rgba(11,10,16,0.94)"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
             <View style={styles.handle} />
 
-            <View style={styles.tabbar}>
-              {["Profil", "Üyeler"].map((t, i) => (
-                <Pressable key={t} onPress={() => setTab(i)} style={styles.tabBtn}>
-                  <Txt weight={i === tab ? "extrabold" : "medium"} size={15} color={i === tab ? "#fff" : "rgba(255,255,255,.42)"}>{t}</Txt>
-                  {i === tab && <Gradient colors={[C.gold, "#C8922B"]} deg={90} style={styles.tabUnderline} />}
-                </Pressable>
-              ))}
+            <View style={styles.headerRow}>
+              <View style={styles.tabbar}>
+                {["Profil", "Üyeler"].map((t, i) => (
+                  <Pressable key={t} onPress={() => setTab(i)} style={styles.tabBtn}>
+                    <Txt weight={i === tab ? "extrabold" : "medium"} size={15} color={i === tab ? "#fff" : "rgba(255,255,255,.42)"}>{t}</Txt>
+                    {i === tab && <Gradient colors={[C.gold, "#C8922B"]} deg={90} style={styles.tabUnderline} />}
+                  </Pressable>
+                ))}
+              </View>
               {canManage && (
                 <Pressable onPress={onManage} style={styles.gearBtn} hitSlop={8}>
                   <Icon name="gear" size={17} color={C.gold} />
@@ -244,10 +246,11 @@ const styles = StyleSheet.create({
   sheetFit: { maxHeight: "90%" },
   sheetFull: { height: "86%" },
   handle: { width: 38, height: 4, borderRadius: 4, backgroundColor: "rgba(255,255,255,.2)", alignSelf: "center", marginTop: 12 },
-  tabbar: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.08)", paddingHorizontal: 8, marginTop: 6 },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.08)", paddingHorizontal: 8, marginTop: 6 },
+  tabbar: { flex: 1, flexDirection: "row" },
   tabBtn: { flex: 1, paddingVertical: 14, alignItems: "center" },
   tabUnderline: { position: "absolute", bottom: -1, width: 28, height: 3, borderRadius: 3 },
-  gearBtn: { position: "absolute", right: 10, top: 8, width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "44" },
+  gearBtn: { width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "44", marginRight: 2 },
   idCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 16, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 4 },
   reportIconBtn: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.06)" },
   actBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 12, borderRadius: 14 },
