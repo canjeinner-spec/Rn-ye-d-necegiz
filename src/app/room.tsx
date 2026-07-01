@@ -246,6 +246,7 @@ export default function RoomScreen() {
   const [giftFx, setGiftFx] = useState<(Gift & { qty: number }) | null>(null);
   const [bigGift, setBigGift] = useState<{ gift: Gift; qty: number } | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [panelTab, setPanelTab] = useState(0);
   const [roomPhoto] = useState<string | null>(room?.photo ?? null);
   const [stub, setStub] = useState<string | null>(null);
 
@@ -463,7 +464,7 @@ export default function RoomScreen() {
               <Pressable onPress={minimize} hitSlop={8} style={{ padding: 2 }}>
                 <Icon name="back" size={22} color="#fff" />
               </Pressable>
-              <Pressable onPress={() => setPanelOpen(true)} style={styles.roomChip}>
+              <Pressable onPress={() => { setPanelTab(0); setPanelOpen(true); }} style={styles.roomChip}>
                 <View style={styles.thumb}>
                   {room.photo ? <Image source={{ uri: room.photo }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
                 </View>
@@ -541,19 +542,24 @@ export default function RoomScreen() {
             </View>
           </View>
 
-          <ScrollView ref={chatRef} onContentSizeChange={() => chatRef.current?.scrollToEnd({ animated: true })} style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 6, gap: 11 }}>
-            <SystemBanner roomName={roomName} />
-            {SYS_MSGS.map((s, i) => (
-              <View key={"sys" + i} style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <Icon name="bell" size={13} color={C.gold2} />
-                <Txt weight="extrabold" size={12} color={C.gold2}>Sistem:</Txt>
-                <Txt size={12.5} color="rgba(255,255,255,.7)">{s}</Txt>
-              </View>
-            ))}
-            {msgs.map((m, i) => (
-              <ChatRow key={i} m={m} userName={userName} userPhoto={userPhoto} privileged={privileged} onSelfPress={openMyCard} onTapUser={openChatUserCard} />
-            ))}
-          </ScrollView>
+          <View style={{ flex: 1 }}>
+            <ScrollView ref={chatRef} onContentSizeChange={() => chatRef.current?.scrollToEnd({ animated: true })} style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 6, gap: 11 }}>
+              <SystemBanner roomName={roomName} />
+              {SYS_MSGS.map((s, i) => (
+                <View key={"sys" + i} style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <Icon name="bell" size={13} color={C.gold2} />
+                  <Txt weight="extrabold" size={12} color={C.gold2}>Sistem:</Txt>
+                  <Txt size={12.5} color="rgba(255,255,255,.7)">{s}</Txt>
+                </View>
+              ))}
+              {msgs.map((m, i) => (
+                <ChatRow key={i} m={m} userName={userName} userPhoto={userPhoto} privileged={privileged} onSelfPress={openMyCard} onTapUser={openChatUserCard} />
+              ))}
+            </ScrollView>
+            <Pressable onPress={() => { haptic.light(); setPanelTab(2); setPanelOpen(true); }} style={styles.micQueueFab} hitSlop={6}>
+              <Icon name="mic" size={18} color={C.gold} />
+            </Pressable>
+          </View>
 
           <View style={styles.bottombar}>
             <Pressable onPress={() => { setSpeakerOn((v) => !v); toast(speakerOn ? "Ses kapatıldı" : "Ses açıldı"); }} style={styles.barIcon}>
@@ -703,6 +709,7 @@ export default function RoomScreen() {
           locked={roomLocked}
           memberCount={occupants.length}
           canManage={MY_ROLE === "host"}
+          initialTab={panelTab}
           onManage={() => { setPanelOpen(false); router.navigate("/room-manage"); }}
           onReport={() => { setPanelOpen(false); setReportOpen(true); }}
           onStats={() => { setPanelOpen(false); setStatsOpen(true); }}
@@ -782,6 +789,7 @@ export default function RoomScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   topbar: { paddingHorizontal: 14, paddingTop: 4, paddingBottom: 6 },
+  micQueueFab: { position: "absolute", right: 12, bottom: 12, width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(20,18,28,.9)", borderWidth: 1, borderColor: C.gold + "55" },
   roomChip: {
     flexDirection: "row",
     alignItems: "center",

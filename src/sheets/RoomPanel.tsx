@@ -29,6 +29,8 @@ type Props = {
   onReport: () => void;
   onStats: () => void;
   onClose: () => void;
+  /** hangi sekmeyle açılsın (varsayılan 0 = Profil; 2 = Mikrofon Sırası) */
+  initialTab?: number;
 };
 
 const ROOM_LV = 29;
@@ -57,9 +59,9 @@ function RoleBtn({ icon, color, label, dim, onPress }: { icon: IconName; color: 
 }
 
 export function RoomPanel(props: Props) {
-  const { room, roomName, roomPhoto, announce, locked, memberCount, canManage, onManage, onReport, onStats, onClose } = props;
+  const { room, roomName, roomPhoto, announce, locked, memberCount, canManage, onManage, onReport, onStats, onClose, initialTab } = props;
   const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState(initialTab ?? 0);
   const [following, setFollowing] = useState(false);
   const [joined, setJoined] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -98,6 +100,11 @@ export function RoomPanel(props: Props) {
                     <Icon name="copy" size={12} color={C.dim2} />
                   </View>
                 </View>
+                {canManage && (
+                  <Pressable onPress={onManage} hitSlop={8} style={styles.gearBtn}>
+                    <Icon name="gear" size={16} color={C.gold} />
+                  </Pressable>
+                )}
                 <Pressable onPress={onReport} hitSlop={8} style={styles.reportIconBtn}>
                   <Icon name="warn" size={16} color="rgba(255,255,255,.5)" />
                 </Pressable>
@@ -106,22 +113,13 @@ export function RoomPanel(props: Props) {
 
             <View style={styles.headerRow}>
               <View style={styles.tabbar}>
-                {["Profil", "Üyeler"].map((t, i) => (
+                {["Profil", "Üyeler", "Sıra"].map((t, i) => (
                   <Pressable key={t} onPress={() => setTab(i)} style={styles.tabBtn}>
                     <Txt weight={i === tab ? "extrabold" : "medium"} size={15} color={i === tab ? "#fff" : "rgba(255,255,255,.42)"}>{t}</Txt>
                     {i === tab && <Gradient colors={[C.gold, "#C8922B"]} deg={90} style={styles.tabUnderline} />}
                   </Pressable>
                 ))}
-                <Pressable onPress={() => setTab(2)} style={styles.tabBtnIcon}>
-                  <Icon name="mic" size={17} color={tab === 2 ? C.gold2 : "rgba(255,255,255,.42)"} />
-                  {tab === 2 && <Gradient colors={[C.gold, "#C8922B"]} deg={90} style={styles.tabUnderline} />}
-                </Pressable>
               </View>
-              {canManage && (
-                <Pressable onPress={onManage} style={styles.gearBtn} hitSlop={8}>
-                  <Icon name="gear" size={17} color={C.gold} />
-                </Pressable>
-              )}
             </View>
 
             {tab === 0 ? (
@@ -265,9 +263,8 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", alignItems: "center", gap: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.08)", paddingHorizontal: 8, marginTop: 6 },
   tabbar: { flex: 1, flexDirection: "row" },
   tabBtn: { flex: 1, paddingVertical: 14, alignItems: "center" },
-  tabBtnIcon: { width: 48, paddingVertical: 14, alignItems: "center" },
   tabUnderline: { position: "absolute", bottom: -1, width: 28, height: 3, borderRadius: 3 },
-  gearBtn: { width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "44", marginRight: 2 },
+  gearBtn: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "44" },
   footerRow: { flexDirection: "row", gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line, paddingHorizontal: 18, paddingTop: 12 },
   queueIcon: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "44" },
   idCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 16, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 4 },
