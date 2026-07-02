@@ -7,6 +7,7 @@ import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { Sheet } from "@/components/Sheet";
 import { Txt } from "@/components/Txt";
 import { getMyBalance, listMyLedger, type LedgerRow as LedgerData } from "@/data/remote/walletRepo";
+import { getCached, setCached } from "@/lib/cache";
 import { LEDGER_ICON, WALLET_LEDGER, type LedgerBirim, type LedgerTx } from "@/data/wallet";
 import { Icon } from "@/icons/Icon";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -84,15 +85,16 @@ export default function WalletScreen() {
   const [tab, setTab] = useState(0);
   const [stub, setStub] = useState<string | null>(null);
 
-  // Gerçek bakiye + işlem defteri (027_cuzdan); ekrana her gelişte tazele
-  const [bal, setBal] = useState<{ elmas: number; altin: number }>({ elmas: 0, altin: 0 });
-  const [ledger, setLedger] = useState<LedgerData[]>([]);
+  // Gerçek bakiye + işlem defteri (027_cuzdan); cache-first (son değeri anında
+  // göster, arkada tazele) — bakiye 0'dan dolmaz, son bilinen görünür.
+  const [bal, setBal] = useState<{ elmas: number; altin: number }>(() => getCached("wallet:bal") ?? { elmas: 0, altin: 0 });
+  const [ledger, setLedger] = useState<LedgerData[]>(() => getCached<LedgerData[]>("wallet:ledger") ?? []);
   useFocusEffect(
     useCallback(() => {
       if (!isSupabaseConfigured) return;
       let alive = true;
-      getMyBalance().then((b) => { if (alive) setBal(b); }).catch(() => {});
-      listMyLedger().then((l) => { if (alive) setLedger(l); }).catch(() => {});
+      getMyBalance().then((b) => { if (alive) { setBal(b); setCached("wallet:bal", b, true); } }).catch(() => {});
+      listMyLedger().then((l) => { if (alive) { setLedger(l); setCached("wallet:ledger", l, true); } }).catch(() => {});
       return () => { alive = false; };
     }, []),
   );

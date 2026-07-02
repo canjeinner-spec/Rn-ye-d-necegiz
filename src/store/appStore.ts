@@ -5,8 +5,10 @@ import { type DMThread } from "@/data/dm";
 import { type Room } from "@/data/seed";
 import { deleteAccount, getMyAccountBan, getSession, onAuthChange, signOut, type AccountBan } from "@/data/remote/authRepo";
 import { ensureMyProfile, getMyProfile } from "@/data/remote/profileRepo";
-import { createRoom } from "@/data/remote/roomsRepo";
+import { createRoom, listRooms } from "@/data/remote/roomsRepo";
+import { listPosts } from "@/data/remote/feedRepo";
 import { addXp } from "@/data/remote/xpRepo";
+import { prefetch, setCached } from "@/lib/cache";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 export type BroadcastData = {
@@ -145,6 +147,9 @@ export const useApp = create<AppState>((set, get) => ({
           get().loadProfile();
           get().enforceAccountBan();
           addXp("gunluk_giris").then((g) => { if (g > 0) get().loadProfile(); });
+          // Başlangıç prefetch: ilk açılan ekranlar (ana/feed) cache'ten anında dolsun.
+          prefetch("rooms:list", () => listRooms(), true);
+          listPosts().then(({ posts }) => setCached("feed:db", posts, true)).catch(() => {});
         }
       })
       .catch(() => set({ bootstrapped: true }));

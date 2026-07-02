@@ -7,6 +7,7 @@ import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import { NOTIF_TABS, NOTIFS, type BildirimKategori, type BildirimItem } from "@/data/notifications";
 import { enrichAvatars, listNotifications, mapNotif, markAllNotifsRead, markNotifRead } from "@/data/remote/notifRepo";
+import { getCached, setCached } from "@/lib/cache";
 import { Icon } from "@/icons/Icon";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
@@ -21,13 +22,14 @@ export default function NotificationsScreen() {
   const session = useApp((s) => s.session);
   const live = isSupabaseConfigured && !!session;
   const [tab, setTab] = useState<TabKey>("all");
-  const [items, setItems] = useState<BildirimItem[]>(live ? [] : NOTIFS);
+  // Cache-first: son bildirimleri anında göster (persist), arkada tazele.
+  const [items, setItems] = useState<BildirimItem[]>(live ? (getCached<BildirimItem[]>("notif:list") ?? []) : NOTIFS);
 
   // DB'den yükle (ekrana her gelişte)
   useFocusEffect(useCallback(() => {
     if (!live) return;
     let alive = true;
-    listNotifications().then((n) => { if (alive) setItems(n); }).catch((e) => console.warn("[notif] list:", e?.message || e));
+    listNotifications().then((n) => { if (alive) { setItems(n); setCached("notif:list", n, true); } }).catch((e) => console.warn("[notif] list:", e?.message || e));
     return () => { alive = false; };
   }, [live]));
 

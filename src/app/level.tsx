@@ -7,6 +7,7 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import { getLevelInfo } from "@/data/remote/xpRepo";
+import { getCached, setCached } from "@/lib/cache";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -31,18 +32,18 @@ export default function LevelScreen() {
   const storeLevel = useApp((s) => s.userLevel);
   const storeXp = useApp((s) => s.userXp);
 
-  // Store'daki değerlerle başla, ekrana gelince DB'den tazele (sonraki eşik dahil)
-  const [info, setInfo] = useState<{ level: number; xp: number; nextAt: number | null; currentAt: number }>({
-    level: storeLevel,
-    xp: storeXp,
-    nextAt: null,
-    currentAt: 0,
+  // Store'daki değerlerle başla (level/xp anında); eşikleri cache'ten seed et,
+  // ekrana gelince DB'den tazele (cache-first — ilerleme çubuğu boş kalmaz).
+  type LevelInfo = { level: number; xp: number; nextAt: number | null; currentAt: number };
+  const [info, setInfo] = useState<LevelInfo>(() => {
+    const c = getCached<LevelInfo>("level:info");
+    return { level: storeLevel, xp: storeXp, nextAt: c?.nextAt ?? null, currentAt: c?.currentAt ?? 0 };
   });
   useFocusEffect(
     useCallback(() => {
       if (!isSupabaseConfigured) return;
       let alive = true;
-      getLevelInfo().then((i) => { if (alive && i) setInfo(i); }).catch(() => {});
+      getLevelInfo().then((i) => { if (alive && i) { setInfo(i); setCached("level:info", i, true); } }).catch(() => {});
       return () => { alive = false; };
     }, []),
   );

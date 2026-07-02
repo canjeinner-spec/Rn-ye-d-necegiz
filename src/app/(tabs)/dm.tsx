@@ -11,6 +11,7 @@ import { Txt } from "@/components/Txt";
 import { DM_THREADS, type DMThread } from "@/data/dm";
 import { DM_ID_OFFSET, listThreads } from "@/data/remote/dmRepo";
 import { getUnreadCount } from "@/data/remote/notifRepo";
+import { getCached, setCached } from "@/lib/cache";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { FEATURES } from "@/lib/features";
@@ -42,7 +43,8 @@ export default function DmTab() {
   const setActiveDM = useApp((s) => s.setActiveDM);
   const session = useApp((s) => s.session);
   const [tab, setTab] = useState(0);
-  const [dbThreads, setDbThreads] = useState<DMThread[]>([]);
+  // Cache-first: son sohbet listesini anında göster (persist), arkada tazele.
+  const [dbThreads, setDbThreads] = useState<DMThread[]>(() => getCached<DMThread[]>("dm:threads") ?? []);
   const [notifUnread, setNotifUnread] = useState(0);
   const [hidden, setHidden] = useState<Set<number>>(new Set());
   const [actionFor, setActionFor] = useState<DMThread | null>(null);
@@ -50,7 +52,7 @@ export default function DmTab() {
 
   const reload = useCallback(() => {
     if (!isSupabaseConfigured || !session) return;
-    listThreads().then(setDbThreads).catch((e) => console.warn("[dm] listThreads:", e?.message || e));
+    listThreads().then((t) => { setDbThreads(t); setCached("dm:threads", t, true); }).catch((e) => console.warn("[dm] listThreads:", e?.message || e));
   }, [session]);
 
   // Ekrana her dönüşte tazele (thread'ler + bildirim sayısı)

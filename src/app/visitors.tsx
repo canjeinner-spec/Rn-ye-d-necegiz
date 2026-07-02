@@ -8,6 +8,7 @@ import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import { VISITORS, type Visitor } from "@/data/visitors";
 import { getMyVisitors } from "@/data/remote/visitRepo";
+import { getCached, setCached } from "@/lib/cache";
 import { Icon } from "@/icons/Icon";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
@@ -53,12 +54,13 @@ export default function VisitorsScreen() {
   const router = useRouter();
   const session = useApp((s) => s.session);
   const live = isSupabaseConfigured && !!session;
-  const [visitors, setVisitors] = useState<Visitor[]>(live ? [] : VISITORS);
+  // Cache-first: son ziyaretçi listesini anında göster (persist), arkada tazele.
+  const [visitors, setVisitors] = useState<Visitor[]>(live ? (getCached<Visitor[]>("visitors:list") ?? []) : VISITORS);
 
   useFocusEffect(useCallback(() => {
     if (!live) return;
     let alive = true;
-    getMyVisitors().then((v) => { if (alive) setVisitors(v); }).catch((e) => console.warn("[visitors]", e?.message || e));
+    getMyVisitors().then((v) => { if (alive) { setVisitors(v); setCached("visitors:list", v, true); } }).catch((e) => console.warn("[visitors]", e?.message || e));
     return () => { alive = false; };
   }, [live]));
 
