@@ -55,9 +55,14 @@ export type AdminUserDetail = {
   xp: number;
   elmas: number;
   altin: number;
+  elmasDondu: boolean;
+  altinDondu: boolean;
   micBanned: boolean;
   micSebep: string | null;
   micBitis: number | null; // epoch ms | null(kalıcı ya da yasak yok)
+  hesapYasakli: boolean;
+  hesapSebep: string | null;
+  hesapBitis: number | null; // epoch ms | null
   raporSayisi: number;
 };
 
@@ -78,14 +83,40 @@ export async function getUserDetail(userId: number): Promise<AdminUserDetail | n
     xp: Number(r.deneyim_puani ?? 0),
     elmas: Number(r.elmas ?? 0),
     altin: Number(r.altin ?? 0),
+    elmasDondu: !!r.elmas_dondu,
+    altinDondu: !!r.altin_dondu,
     micBanned: !!r.mic_yasakli,
     micSebep: r.mic_sebep ?? null,
     micBitis: r.mic_bitis ? new Date(r.mic_bitis).getTime() : null,
+    hesapYasakli: !!r.hesap_yasakli,
+    hesapSebep: r.hesap_sebep ?? null,
+    hesapBitis: r.hesap_bitis ? new Date(r.hesap_bitis).getTime() : null,
     raporSayisi: Number(r.rapor_sayisi ?? 0),
   };
 }
 
-// ---- developer-özel: ID + şifre --------------------------------------------
+// ---- Varlık dondurma (034_dondurma) ----------------------------------------
+/** Elmas/altın dondur (harcama/transfer kilidi) ya da çöz. */
+export async function freezeAsset(userId: number, varlik: "elmas" | "altin", dondur: boolean): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("admin_varlik_dondur", { p_hedef: userId, p_varlik: varlik, p_dondur: dondur });
+  if (error) throw error;
+}
+
+// ---- Hesap (uygulama) yasağı (035_hesap_yasak) -----------------------------
+/** Hesabı uygulamadan yasakla. dakika null → kalıcı. */
+export async function accountBan(userId: number, sebep: string | null, dakika: number | null): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("hesap_yasak_ver", { p_hedef: userId, p_sebep: sebep, p_dakika: dakika });
+  if (error) throw error;
+}
+export async function accountUnban(userId: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("hesap_yasak_kaldir", { p_hedef: userId });
+  if (error) throw error;
+}
+
+// ---- developer-özel: ID + şifre + e-posta ----------------------------------
 export async function changePublicId(userId: number, yeni: string): Promise<void> {
   const sb = requireSupabase();
   const { error } = await sb.rpc("admin_public_id_degistir", { p_hedef: userId, p_yeni: yeni.trim() });
@@ -94,6 +125,90 @@ export async function changePublicId(userId: number, yeni: string): Promise<void
 export async function resetPassword(userId: number, yeni: string): Promise<void> {
   const sb = requireSupabase();
   const { error } = await sb.rpc("admin_sifre_sifirla", { p_hedef: userId, p_yeni: yeni });
+  if (error) throw error;
+}
+export async function changeEmail(userId: number, yeni: string): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("admin_email_degistir", { p_hedef: userId, p_yeni: yeni.trim() });
+  if (error) throw error;
+}
+
+// ---- İşlem geçmişi / denetim izi (033_yonetici_islem) ----------------------
+export type AdminAction = {
+  id: number;
+  islem: string;
+  detay: string | null;
+  at: number; // epoch ms
+  actorId: number | null;
+  actorName: string;
+  actorPublicId: string | null;
+  actorRol: string | null;
+};
+
+/** Bir hedefe (kullanıcı/oda) uygulanan yönetici işlemleri (yeniden eskiye). */
+export async function getActionHistory(hedefTip: "kullanici" | "oda", hedefId: number): Promise<AdminAction[]> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("admin_islem_gecmisi", { p_tip: hedefTip, p_id: hedefId });
+  if (error) throw error;
+  const rows = (Array.isArray(data) ? data : []) as {
+    id: number; islem: string; detay: string | null; tarih: string;
+    yapan_id: number | null; yapan_ad: string | null; yapan_public_id: string | null; yapan_rol: string | null;
+  }[];
+  return rows.map((r) => ({
+    id: r.id,
+    islem: r.islem,
+    detay: r.detay ?? null,
+    at: new Date(r.tarih).getTime(),
+    actorId: r.yapan_id ?? null,
+    actorName: r.yapan_ad || "Bilinmiyor",
+    actorPublicId: r.yapan_public_id ?? null,
+    actorRol: r.yapan_rol ?? null,
+  }));
+}
+
+// ---- Oda düzenleme (036_oda_yonet) -----------------------------------------
+export type AdminRoomEdit = {
+  id: number;
+  publicId: string;
+  ad: string;
+  aciklama: string | null;
+  kategori: string | null;
+  photo?: string;
+  herkeseAcik: boolean;
+  hostName: string;
+  hostPublicId: string | null;
+  uyeSayisi: number;
+  aktifKatilimci: number;
+};
+
+export async function getRoomForEdit(odaId: number): Promise<AdminRoomEdit | null> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("admin_oda_getir", { p_oda: odaId });
+  if (error) throw error;
+  const r = Array.isArray(data) ? data[0] : data;
+  if (!r) return null;
+  return {
+    id: r.id,
+    publicId: r.public_id,
+    ad: r.ad,
+    aciklama: r.aciklama ?? null,
+    kategori: r.kategori ?? null,
+    photo: r.kapak_url || undefined,
+    herkeseAcik: !!r.herkese_acik,
+    hostName: r.sahip_ad || "Kullanıcı",
+    hostPublicId: r.sahip_public_id ?? null,
+    uyeSayisi: Number(r.uye_sayisi ?? 0),
+    aktifKatilimci: Number(r.aktif_katilimci ?? 0),
+  };
+}
+export async function updateRoom(odaId: number, ad: string, aciklama: string): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("admin_oda_guncelle", { p_oda: odaId, p_ad: ad.trim(), p_aciklama: aciklama.trim() || null });
+  if (error) throw error;
+}
+export async function changeRoomPublicId(odaId: number, yeni: string): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("admin_oda_public_id_degistir", { p_oda: odaId, p_yeni: yeni.trim() });
   if (error) throw error;
 }
 
