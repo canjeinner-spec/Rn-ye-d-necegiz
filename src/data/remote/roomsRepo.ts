@@ -273,6 +273,25 @@ export async function listRoomBans(odaId: number): Promise<RoomBan[]> {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Platform mic-yasağı (028_mic_yasak.sql)
+// ---------------------------------------------------------------------------
+
+export type MicBan = { sebep: string | null; bitis: number | null; kalici: boolean };
+
+/** Kendi aktif mic-yasağım (yoksa null). bitis: epoch ms | null (kalıcı). */
+export async function getMyMicBan(): Promise<MicBan | null> {
+  const sb = requireSupabase();
+  const { data } = await sb.rpc("benim_mic_yasagim");
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  return {
+    sebep: row.sebep ?? null,
+    bitis: row.bitis ? new Date(row.bitis).getTime() : null,
+    kalici: !!row.kalici,
+  };
+}
+
 /** Bu odadan yasaklı mıyım? (odaya girişte kontrol) */
 export async function amIBannedFromRoom(odaId: number): Promise<boolean> {
   const sb = requireSupabase();

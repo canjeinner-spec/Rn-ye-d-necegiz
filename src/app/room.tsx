@@ -33,7 +33,7 @@ import { RoomStats } from "@/sheets/RoomStats";
 import { type Gift } from "@/data/gifts";
 import { reportRoom } from "@/data/remote/reportRepo";
 import { addXp } from "@/data/remote/xpRepo";
-import { amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getRoomMembers } from "@/data/remote/roomsRepo";
+import { amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, type MicBan } from "@/data/remote/roomsRepo";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
@@ -231,6 +231,18 @@ export default function RoomScreen() {
   // Platform yöneticisi (developer/super_admin) oda içinde host yetkisiyle davranır.
   const MY_ROLE: "host" | "mod" | "user" = privileged ? "host" : myRoomRole;
 
+  // Platform mic-yasağı: odaya girer/dinler ama yazamaz/mikrofona çıkamaz (028).
+  const [micBan, setMicBan] = useState<MicBan | null>(null);
+  const [micBanModal, setMicBanModal] = useState(false);
+  useEffect(() => {
+    if (!isDbRoom) return;
+    let alive = true;
+    getMyMicBan()
+      .then((b) => { if (!alive) return; setMicBan(b); if (b) setMicBanModal(true); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [isDbRoom]);
+
   // Yasaklıysam odaya giremem: bildir ve çık (022_oda_yasaklari).
   useEffect(() => {
     if (!isDbRoom || !dbId) return;
@@ -379,6 +391,7 @@ export default function RoomScreen() {
 
   const send = () => {
     if (!input.trim()) return;
+    if (micBan) { setMicBanModal(true); return; } // mic yasaklı → yazamaz
     const t = input.trim();
     setInput("");
     if (isDbRoom && chanRef.current) {
@@ -393,6 +406,7 @@ export default function RoomScreen() {
   };
 
   const sitHere = (idx: number) => {
+    if (micBan) { setSeatSheet(null); setMicBanModal(true); return; } // mic yasaklı → koltuğa çıkamaz
     haptic.light();
     setSeats((p) => {
       const arr = [...p];
@@ -428,6 +442,7 @@ export default function RoomScreen() {
   const queueSend = (payload: object) => chanRef.current?.send({ type: "broadcast", event: "mic_queue", payload });
   const raiseHand = () => {
     if (myDbId == null) return;
+    if (micBan) { setMicBanModal(true); return; } // mic yasaklı → el kaldıramaz
     haptic.light();
     queueSend({ kind: "raise", uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined, at: Date.now() });
   };
@@ -895,6 +910,36 @@ export default function RoomScreen() {
         </View>
       </CenterModal>
 
+      {/* Platform mic-yasağı uyarısı (028) */}
+      <CenterModal visible={micBanModal} onClose={() => setMicBanModal(false)} dim={0.82}>
+        <View style={[styles.reportCard, { alignItems: "center" }]}>
+          <View style={styles.micBanIcon}>
+            <Icon name="micoff" size={28} color="#FB7185" />
+          </View>
+          <Txt weight="displayBold" size={17} color="#fff" style={{ marginTop: 14 }}>Mikrofon Yasağın Var</Txt>
+          <Txt size={12} color={C.dim} align="center" lh={1.6} style={{ marginTop: 8 }}>
+            Odaya girip dinleyebilirsin ama mesaj yazamaz ve mikrofona çıkamazsın.
+          </Txt>
+          {!!micBan?.sebep && (
+            <View style={styles.micBanRow}>
+              <Txt weight="bold" size={10.5} color={C.dim2} style={{ letterSpacing: 0.4 }}>SEBEP</Txt>
+              <Txt size={12.5} color={C.text} lh={1.5} style={{ marginTop: 3 }}>{micBan.sebep}</Txt>
+            </View>
+          )}
+          <View style={styles.micBanRow}>
+            <Txt weight="bold" size={10.5} color={C.dim2} style={{ letterSpacing: 0.4 }}>SÜRE</Txt>
+            <Txt weight="extrabold" size={13} color="#FB7185" style={{ marginTop: 3 }}>
+              {micBan?.kalici ? "Kalıcı" : micBan?.bitis ? `Bitiş: ${new Date(micBan.bitis).toLocaleString("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}` : "—"}
+            </Txt>
+          </View>
+          <Pressable onPress={() => setMicBanModal(false)} style={{ alignSelf: "stretch", marginTop: 18, borderRadius: 14, overflow: "hidden" }}>
+            <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 13, alignItems: "center" }}>
+              <Txt weight="extrabold" size={13} color="#241A05">Anladım</Txt>
+            </Gradient>
+          </Pressable>
+        </View>
+      </CenterModal>
+
       {giftFx && <GiftFx gift={giftFx} />}
 
       {bigGift && <BigGiftOverlay gift={bigGift.gift} qty={bigGift.qty} sender="Sen" onDone={() => setBigGift(null)} />}
@@ -905,6 +950,8 @@ export default function RoomScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   topbar: { paddingHorizontal: 14, paddingTop: 4, paddingBottom: 6 },
+  micBanIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.12)", borderWidth: 1, borderColor: "rgba(251,113,133,.3)" },
+  micBanRow: { alignSelf: "stretch", marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line },
   micQueueFab: { position: "absolute", right: 12, bottom: 12, width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(20,18,28,.9)", borderWidth: 1, borderColor: C.gold + "55" },
   roomChip: {
     flexDirection: "row",
