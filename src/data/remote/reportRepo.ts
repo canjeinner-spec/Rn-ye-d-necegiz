@@ -1,7 +1,8 @@
 import { getMyProfile } from "@/data/remote/profileRepo";
 import { requireSupabase } from "@/lib/supabase";
 
-const T = "raporlar";
+// v7 şemasında "raporlar" adında farklı bir tablo zaten var → bizimki "sikayetler"
+const T = "sikayetler";
 
 /** Kullanıcıyı raporla (kullanicilar.id ile). */
 export async function reportUserById(targetUserId: number, neden: string, detay?: string): Promise<void> {

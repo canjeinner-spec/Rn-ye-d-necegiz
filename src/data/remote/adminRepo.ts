@@ -11,7 +11,7 @@ export async function setPlatformRole(userId: number, rol: "user" | "developer" 
 export async function getAdminCounts(): Promise<{ bekleyen: number; kullanici: number }> {
   const sb = requireSupabase();
   const [reports, users] = await Promise.all([
-    sb.from("raporlar").select("id", { count: "exact", head: true }).eq("durum", "bekliyor"),
+    sb.from("sikayetler").select("id", { count: "exact", head: true }).eq("durum", "bekliyor"),
     sb.from("profiller").select("id", { count: "exact", head: true }),
   ]);
   return { bekleyen: reports.count ?? 0, kullanici: users.count ?? 0 };
