@@ -114,30 +114,40 @@ type AppState = {
 let bcTimer: ReturnType<typeof setTimeout> | null = null;
 let authStarted = false;
 
-// --- Canlı hesap-yasağı izleyicisi (037_realtime_yasak) ---------------------
-// Yönetici bir hesabı yasakladığı ANDA cihaz bunu Realtime ile görüp oturumu
-// kapatır ve tam ekran engel gösterir. Eskiden yasak yalnızca açılışta /
-// auth değişiminde kontrol ediliyordu → aktif kullanıcı atılmıyordu.
+// --- Canlı hesap-yasağı izleyicisi ------------------------------------------
+// Yönetici bir hesabı yasakladığı ANDA cihaz bunu görüp oturumu kapatmalı.
+// İKİ katman: (1) Realtime → anında; (2) periyodik yoklama → garanti. hesap_
+// yasaklari RLS'i kısıtlı olduğundan (kişi yalnız kendi satırını görür)
+// Realtime teslimi her ortamda güvenilir değil; kullanıcı ön plandayken
+// arka→ön geçişi de olmaz. Bu yüzden ~10sn'lik yoklama HER durumda yakalar.
 let banChannel: ReturnType<NonNullable<typeof supabase>["channel"]> | null = null;
 let watchedBanDbId: number | null = null;
+let banPollTimer: ReturnType<typeof setInterval> | null = null;
+const BAN_POLL_MS = 10000;
 
-function setupBanWatcher(dbId: number, onChange: () => void) {
-  if (!supabase || watchedBanDbId === dbId) return; // aynı kullanıcı → tekrar abone olma
-  if (banChannel) { supabase.removeChannel(banChannel); banChannel = null; }
-  watchedBanDbId = dbId;
-  banChannel = supabase
-    .channel(`hesap-yasak-${dbId}`)
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "hesap_yasaklari", filter: `kullanici_id=eq.${dbId}` },
-      (payload) => { if (payload.eventType !== "DELETE") onChange(); }, // yasak eklendi/güncellendi → kontrol et
-    )
-    .subscribe();
+function startBanEnforcement(dbId: number, onChange: () => void) {
+  if (!supabase) return;
+  // (1) Realtime — anında
+  if (watchedBanDbId !== dbId) {
+    if (banChannel) { supabase.removeChannel(banChannel); banChannel = null; }
+    watchedBanDbId = dbId;
+    banChannel = supabase
+      .channel(`hesap-yasak-${dbId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "hesap_yasaklari", filter: `kullanici_id=eq.${dbId}` },
+        (payload) => { if (payload.eventType !== "DELETE") onChange(); },
+      )
+      .subscribe();
+  }
+  // (2) Yoklama — garanti (Realtime kaçırırsa en geç ~10sn'de yakalar)
+  if (!banPollTimer) banPollTimer = setInterval(onChange, BAN_POLL_MS);
 }
-function teardownBanWatcher() {
+function stopBanEnforcement() {
   if (supabase && banChannel) supabase.removeChannel(banChannel);
   banChannel = null;
   watchedBanDbId = null;
+  if (banPollTimer) { clearInterval(banPollTimer); banPollTimer = null; }
 }
 
 export const useApp = create<AppState>((set, get) => ({
@@ -171,6 +181,8 @@ export const useApp = create<AppState>((set, get) => ({
         // anında dolar, arkada tazelenir.
         set({ session, girisYapildi: !!session, bootstrapped: true });
         if (session) {
+          // Realtime soketine oturum token'ını ver (RLS'li tablolarda canlı olay için)
+          try { supabase?.realtime.setAuth(session.access_token); } catch { /* yoksay */ }
           get().loadProfile();
           get().enforceAccountBan();
           addXp("gunluk_giris").then((g) => { if (g > 0) get().loadProfile(); });
@@ -184,11 +196,12 @@ export const useApp = create<AppState>((set, get) => ({
     onAuthChange(async (session) => {
       set({ session, girisYapildi: !!session });
       if (session) {
+        try { supabase?.realtime.setAuth(session.access_token); } catch { /* yoksay */ }
         await get().loadProfile();
         await get().enforceAccountBan();
       } else {
         // Çıkış / oturum düştü → profil durumu sıfırlanır (misafir).
-        teardownBanWatcher();
+        stopBanEnforcement();
         set({ profilEksik: null });
       }
     });
@@ -209,7 +222,7 @@ export const useApp = create<AppState>((set, get) => ({
     try {
       const ban = await getMyAccountBan();
       if (ban) {
-        teardownBanWatcher();
+        stopBanEnforcement();
         await signOut().catch(() => {});
         set({
           hesapYasak: ban,
@@ -255,8 +268,8 @@ export const useApp = create<AppState>((set, get) => ({
         role: mapRole(p.ekonomi_rolu),
         profilEksik: isStubName(p.kullanici_adi), // register gerekiyor mu?
       });
-      // dbId belli → hesap yasağını CANLI izle (anında atılma için)
-      if (p.id != null) setupBanWatcher(p.id, () => get().enforceAccountBan());
+      // dbId belli → hesap yasağını CANLI izle (Realtime + yoklama)
+      if (p.id != null) startBanEnforcement(p.id, () => get().enforceAccountBan());
     } catch {
       // sessizce geç — oturum geçerli, profil sonradan yüklenebilir
     }

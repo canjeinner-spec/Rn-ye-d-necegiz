@@ -101,7 +101,11 @@ export type AccountBan = { sebep: string | null; bitis: number | null };
 export async function getMyAccountBan(): Promise<AccountBan | null> {
   if (!supabase) return null;
   const { data, error } = await supabase.rpc("benim_hesap_yasagim");
-  if (error) return null; // RPC yoksa/erişilemezse yasak yok say
+  if (error) {
+    // RPC yoksa (035 çalıştırılmadı) yasak yok say ama uyar → sessiz kilit olmasın
+    console.warn("[hesapYasak] benim_hesap_yasagim RPC hatası:", error.message);
+    return null;
+  }
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) return null;
   return { sebep: row.sebep ?? null, bitis: row.bitis ? new Date(row.bitis).getTime() : null };
