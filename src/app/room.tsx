@@ -32,6 +32,7 @@ import { RoomPanel } from "@/sheets/RoomPanel";
 import { RoomStats } from "@/sheets/RoomStats";
 import { type Gift } from "@/data/gifts";
 import { reportRoom } from "@/data/remote/reportRepo";
+import { addXp } from "@/data/remote/xpRepo";
 import { amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getRoomMembers } from "@/data/remote/roomsRepo";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
@@ -201,7 +202,7 @@ function ActionRow({ icon, color, label, onPress }: { icon: IconName; color: str
 
 export default function RoomScreen() {
   const router = useRouter();
-  const { currentRoom, userPhoto, userName, roomName, roomAnnounce, roomLocked, role, leaveRoom, fireBroadcast, kickFromRoom } = useApp();
+  const { currentRoom, userPhoto, userName, userLevel, roomName, roomAnnounce, roomLocked, role, leaveRoom, fireBroadcast, kickFromRoom } = useApp();
   const session = useApp((s) => s.session);
   const myDbId = useApp((s) => s.dbId);
   const myPublicId = useApp((s) => s.publicId);
@@ -364,6 +365,8 @@ export default function RoomScreen() {
       if (status === "SUBSCRIBED") await ch.track({ uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined });
     });
 
+    addXp("oda_katilim"); // günde 1 kez sayılır (sunucu tavanlar)
+
     return () => { alive = false; chanRef.current = null; ch.untrack(); sb.removeChannel(ch); };
     // userName/userPhoto oturum boyunca sabit; bağımlılığa eklemiyoruz (yeniden abone olmasın)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -383,6 +386,7 @@ export default function RoomScreen() {
       // broadcast dinleyicisine düşer → çift eklemeyiz.
       const time = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
       chanRef.current.send({ type: "broadcast", event: "chat", payload: { uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined, text: t, time } });
+      addXp("oda_mesaj"); // +2/mesaj, günlük tavan sunucuda
       return;
     }
     setMsgs((m) => [...m, { name: "Sen", time: "21:49", text: t, myOwn: true }]);
@@ -393,7 +397,7 @@ export default function RoomScreen() {
     setSeats((p) => {
       const arr = [...p];
       if (mySeat !== null) arr[mySeat] = null;
-      arr[idx] = { name: "Sen", muted: false, lv: 12, speaking: false };
+      arr[idx] = { name: "Sen", muted: false, lv: userLevel, speaking: false };
       return arr;
     });
     const wasNull = mySeat === null;
@@ -492,7 +496,7 @@ export default function RoomScreen() {
     setCardUser({
       name: userName,
       muted,
-      lv: 12,
+      lv: userLevel,
       host: isMine || undefined,
       viewerRole: "user",
       self: true,

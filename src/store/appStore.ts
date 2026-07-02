@@ -6,6 +6,7 @@ import { type Room } from "@/data/seed";
 import { deleteAccount, getSession, onAuthChange, signOut } from "@/data/remote/authRepo";
 import { ensureMyProfile, getMyProfile } from "@/data/remote/profileRepo";
 import { createRoom } from "@/data/remote/roomsRepo";
+import { addXp } from "@/data/remote/xpRepo";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 export type BroadcastData = {
@@ -50,6 +51,8 @@ type AppState = {
   userName: string;
   userBio: string;
   userPhoto: string | null;
+  userLevel: number; // gerçek seviye (kullanicilar.seviye_id)
+  userXp: number; // gerçek deneyim puanı
   isStreamer: boolean;
   role: UserRole;
   hideProfile: boolean;
@@ -119,7 +122,11 @@ export const useApp = create<AppState>((set, get) => ({
     Promise.race([getSession(), timeout])
       .then(async (session) => {
         set({ session, girisYapildi: !!session });
-        if (session) await get().loadProfile();
+        if (session) {
+          await get().loadProfile();
+          // Günlük giriş XP'si (sunucu günde 1 kez sayar); kazandıysa profili tazele
+          addXp("gunluk_giris").then((g) => { if (g > 0) get().loadProfile(); });
+        }
       })
       .catch(() => {})
       .finally(() => set({ bootstrapped: true }));
@@ -148,6 +155,8 @@ export const useApp = create<AppState>((set, get) => ({
         userName: p.kullanici_adi || get().userName,
         userBio: p.biyografi || "",
         userPhoto: p.profil_resmi || null,
+        userLevel: p.seviye_id ?? 1,
+        userXp: p.deneyim_puani ?? 0,
         publicId: p.public_id || null,
         dbId: p.id ?? null,
         role: mapRole(p.ekonomi_rolu),
@@ -171,6 +180,8 @@ export const useApp = create<AppState>((set, get) => ({
       userName: "Sen",
       userBio: "",
       userPhoto: null,
+      userLevel: 1,
+      userXp: 0,
       role: "user",
     });
   },
@@ -185,6 +196,8 @@ export const useApp = create<AppState>((set, get) => ({
       userName: "Sen",
       userBio: "",
       userPhoto: null,
+      userLevel: 1,
+      userXp: 0,
       role: "user",
     });
   },
@@ -192,6 +205,8 @@ export const useApp = create<AppState>((set, get) => ({
   userName: "Sen",
   userBio: "",
   userPhoto: null,
+  userLevel: 1,
+  userXp: 0,
   isStreamer: false,
   role: "user",
   hideProfile: false,

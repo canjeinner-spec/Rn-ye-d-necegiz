@@ -7,6 +7,7 @@ import { Sheet } from "@/components/Sheet";
 import { Txt } from "@/components/Txt";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
+import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
@@ -61,6 +62,7 @@ export function ProfileInfoSheet({
   onClose: () => void;
 }) {
   const title = mode === "lang" ? "Dil Seçimi" : mode === "support" ? "Müşteri Hizmetleri & SSS" : "Rozetlerim";
+  const userLevel = useApp((s) => s.userLevel);
 
   return (
     <Sheet visible={visible} onClose={onClose}>
@@ -81,7 +83,7 @@ export function ProfileInfoSheet({
         <View style={styles.badgeGrid}>
           {BADGES.map(([t, lb]) => (
             <View key={t} style={styles.badgeCell}>
-              <Badge type={t} size={40} lvl={t === "level" ? 12 : undefined} />
+              <Badge type={t} size={40} lvl={t === "level" ? userLevel : undefined} />
               <Txt weight="bold" size={10.5} color={C.text}>{lb}</Txt>
             </View>
           ))}

@@ -34,7 +34,7 @@ type MenuItem = { ic: IconName; g1: string; g2: string; t: string; s?: string; r
 
 export default function ProfileTab() {
   const router = useRouter();
-  const { userName, userBio, userPhoto, setUserPhoto, isStreamer, setStreamer, role, setRole, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
+  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, setStreamer, role, setRole, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
   const [followCounts, setFollowCounts] = useState<{ followers: number; following: number } | null>(null);
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
 
@@ -75,7 +75,7 @@ export default function ProfileTab() {
   const badges: BadgeItem[] = [
     ...(role === "super_admin" ? [{ type: "super_admin" as const }] : role === "developer" ? [{ type: "developer" as const }] : []),
     { type: "vip" },
-    { type: "level", lvl: 12 },
+    { type: "level", lvl: userLevel },
     { type: "agency", meta: { id: "1", name: "Aron Stars", owner: "Ardaowski" } },
     ...(isStreamer ? [{ type: "streamer" as const }] : []),
   ];

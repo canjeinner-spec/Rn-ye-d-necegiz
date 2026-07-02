@@ -1,31 +1,58 @@
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
+import { getLevelInfo } from "@/data/remote/xpRepo";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
-const LV = 12;
-const XP = 2020;
-const NEED = 1180;
-const PCT = Math.round((XP / (XP + NEED)) * 100);
 const R = 52;
 const CIRC = 2 * Math.PI * R;
-const DASH = CIRC * (PCT / 100);
 
+// XP kaynakları (026_xp.sql'deki gerçek değerler)
 const WAYS: { ic: IconName; t: string; s: string; val: string }[] = [
-  { ic: "mic", t: "Odada Kal", s: "10 dakika / 10 Tecrübe", val: "0/300" },
-  { ic: "crown", t: "Hediye Gönder", s: "Aldığın & verdiğin hediyeler", val: "0/300" },
-  { ic: "chat", t: "Sohbet Et", s: "Aktif sohbet · 5 mesaj / 2 Tecrübe", val: "0/200" },
+  { ic: "user", t: "Günlük Giriş", s: "Her gün uygulamayı aç", val: "+20/gün" },
+  { ic: "mic", t: "Odaya Katıl", s: "Bir sesli odaya gir", val: "+10/gün" },
+  { ic: "chat", t: "Sohbet Et", s: "Oda sohbetinde mesaj · 2 Tecrübe", val: "≤40/gün" },
 ];
 
 export default function LevelScreen() {
   const router = useRouter();
+  const userName = useApp((s) => s.userName);
+  const userPhoto = useApp((s) => s.userPhoto);
+  const storeLevel = useApp((s) => s.userLevel);
+  const storeXp = useApp((s) => s.userXp);
+
+  // Store'daki değerlerle başla, ekrana gelince DB'den tazele (sonraki eşik dahil)
+  const [info, setInfo] = useState<{ level: number; xp: number; nextAt: number | null; currentAt: number }>({
+    level: storeLevel,
+    xp: storeXp,
+    nextAt: null,
+    currentAt: 0,
+  });
+  useFocusEffect(
+    useCallback(() => {
+      if (!isSupabaseConfigured) return;
+      let alive = true;
+      getLevelInfo().then((i) => { if (alive && i) setInfo(i); }).catch(() => {});
+      return () => { alive = false; };
+    }, []),
+  );
+
+  const LV = info.level;
+  const XP = info.xp;
+  const NEED = info.nextAt != null ? Math.max(0, info.nextAt - XP) : 0;
+  const span = info.nextAt != null ? Math.max(1, info.nextAt - info.currentAt) : 1;
+  const PCT = info.nextAt != null ? Math.min(100, Math.round(((XP - info.currentAt) / span) * 100)) : 100;
+  const DASH = CIRC * (PCT / 100);
 
   return (
     <View style={styles.root}>
@@ -53,7 +80,7 @@ export default function LevelScreen() {
               <Circle cx={74} cy={74} r={R} fill="none" stroke="rgba(255,255,255,.1)" strokeWidth={5} />
               <Circle cx={74} cy={74} r={R} fill="none" stroke="url(#lvlG)" strokeWidth={5} strokeLinecap="round" strokeDasharray={[DASH, CIRC]} />
             </Svg>
-            <Portrait name="Sen" size={112} ring={C.gold} glow />
+            <Portrait name={userName} size={112} ring={C.gold} glow photo={userPhoto || undefined} />
             <Gradient colors={["#F5CE6E", "#C8922B"]} deg={135} style={styles.lvBand}>
               <Txt weight="displayBold" size={13} color="#3A2A05">LV.{LV}</Txt>
             </Gradient>
@@ -106,8 +133,8 @@ export default function LevelScreen() {
               <Txt weight="displayBold" size={15} color="#fff">Nasıl Level Atlarım</Txt>
             </View>
             <View style={{ flexDirection: "row", flexWrap: "wrap", paddingLeft: 4, marginBottom: 6 }}>
-              <Txt size={11.5} color={C.dim} lh={1.6}>Aron VIP üyesi değilsin; seviyen standart hızda artıyor. (Bugünün üst limiti: </Txt>
-              <Txt weight="bold" size={11.5} color="#FB7185">650</Txt>
+              <Txt size={11.5} color={C.dim} lh={1.6}>Seviyen aktivitene göre artar. (Bugünün üst limiti: </Txt>
+              <Txt weight="bold" size={11.5} color="#FB7185">70</Txt>
               <Txt size={11.5} color={C.dim}> Tecrübe)</Txt>
             </View>
             {WAYS.map((w, i) => (
