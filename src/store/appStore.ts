@@ -194,10 +194,13 @@ export const useApp = create<AppState>((set, get) => ({
     });
 
     // Uygulama ön plana gelince yasağı yeniden kontrol et (Realtime kaçırırsa
-    // ya da arka planda yasaklandıysa yakalar).
-    RNAppState.addEventListener("change", (s) => {
-      if (s === "active" && get().session) get().enforceAccountBan();
-    });
+    // ya da arka planda yasaklandıysa yakalar). SSR/web statik export'ta
+    // AppState olmayabilir → guard.
+    if (RNAppState?.addEventListener) {
+      RNAppState.addEventListener("change", (s) => {
+        if (s === "active" && get().session) get().enforceAccountBan();
+      });
+    }
   },
 
   hesapYasak: null,
