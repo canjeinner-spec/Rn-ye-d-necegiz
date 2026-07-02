@@ -1,3 +1,4 @@
+import { searchProfiles, type PublicProfile } from "@/data/remote/profileRepo";
 import { requireSupabase } from "@/lib/supabase";
 
 /** Platform rolü ata (yalnızca super_admin — 024_platform_rol.sql). */
@@ -35,5 +36,63 @@ export async function micBan(userId: number, sebep: string | null, dakika: numbe
 export async function micUnban(userId: number): Promise<void> {
   const sb = requireSupabase();
   const { error } = await sb.rpc("mic_yasak_kaldir", { p_hedef: userId });
+  if (error) throw error;
+}
+
+// ---- Kullanıcı arama + detay (029_admin_kullanici) -------------------------
+export async function searchUsers(query: string): Promise<PublicProfile[]> {
+  return searchProfiles(query);
+}
+
+export type AdminUserDetail = {
+  id: number;
+  publicId: string;
+  name: string;
+  photo?: string;
+  email: string | null; // yalnızca developer'a dolu gelir
+  rol: "user" | "developer" | "super_admin";
+  level: number;
+  xp: number;
+  elmas: number;
+  altin: number;
+  micBanned: boolean;
+  micSebep: string | null;
+  micBitis: number | null; // epoch ms | null(kalıcı ya da yasak yok)
+  raporSayisi: number;
+};
+
+export async function getUserDetail(userId: number): Promise<AdminUserDetail | null> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("admin_kullanici_getir", { p_hedef: userId });
+  if (error) throw error;
+  const r = Array.isArray(data) ? data[0] : data;
+  if (!r) return null;
+  return {
+    id: r.id,
+    publicId: r.public_id,
+    name: r.kullanici_adi,
+    photo: r.profil_resmi || undefined,
+    email: r.email ?? null,
+    rol: (r.rol as AdminUserDetail["rol"]) ?? "user",
+    level: r.seviye_id ?? 1,
+    xp: Number(r.deneyim_puani ?? 0),
+    elmas: Number(r.elmas ?? 0),
+    altin: Number(r.altin ?? 0),
+    micBanned: !!r.mic_yasakli,
+    micSebep: r.mic_sebep ?? null,
+    micBitis: r.mic_bitis ? new Date(r.mic_bitis).getTime() : null,
+    raporSayisi: Number(r.rapor_sayisi ?? 0),
+  };
+}
+
+// ---- developer-özel: ID + şifre --------------------------------------------
+export async function changePublicId(userId: number, yeni: string): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("admin_public_id_degistir", { p_hedef: userId, p_yeni: yeni.trim() });
+  if (error) throw error;
+}
+export async function resetPassword(userId: number, yeni: string): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("admin_sifre_sifirla", { p_hedef: userId, p_yeni: yeni });
   if (error) throw error;
 }
