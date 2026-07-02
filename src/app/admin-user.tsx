@@ -1,0 +1,255 @@
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { CoinBadge, DiamondBadge } from "@/components/Coins";
+import { Portrait } from "@/components/Portrait";
+import { Txt } from "@/components/Txt";
+import {
+  changePublicId, getUserDetail, grantBalance, micBan, micUnban,
+  resetPassword, setPlatformRole, type AdminUserDetail,
+} from "@/data/remote/adminRepo";
+import { Icon } from "@/icons/Icon";
+import { haptic } from "@/lib/haptics";
+import { useApp } from "@/store/appStore";
+import { C } from "@/theme/colors";
+import { Gradient } from "@/theme/Gradient";
+
+const AYLAR = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+function zaman(at: number) {
+  const d = new Date(at);
+  return `${d.getDate()} ${AYLAR[d.getMonth()]} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+const ROLE_LABEL: Record<string, string> = { user: "Kullanıcı", developer: "Geliştirici", super_admin: "Süper Yönetici" };
+
+export default function AdminUserScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ userId?: string }>();
+  const userId = params.userId ? parseInt(String(params.userId), 10) : NaN;
+  const myRole = useApp((s) => s.role);
+  const isDev = myRole === "developer";
+
+  const [d, setD] = useState<AdminUserDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+
+  // aksiyon girdileri
+  const [amount, setAmount] = useState("");
+  const [asset, setAsset] = useState<"elmas" | "altin">("elmas");
+  const [banReason, setBanReason] = useState("");
+  const [banMin, setBanMin] = useState<number | null | "manual">(60);
+  const [banManual, setBanManual] = useState("");
+  const [newId, setNewId] = useState("");
+  const [newPw, setNewPw] = useState("");
+
+  const flash = (m: string) => { setNote(m); setTimeout(() => setNote(""), 2200); };
+  const load = useCallback(() => {
+    if (!Number.isFinite(userId)) { setErr("Kullanıcı bulunamadı."); setLoading(false); return; }
+    setLoading(true); setErr(null);
+    getUserDetail(userId)
+      .then((r) => { if (r) setD(r); else setErr("Kullanıcı bulunamadı."); })
+      .catch((e) => setErr(e?.message || "Kullanıcı bilgisi alınamadı."))
+      .finally(() => setLoading(false));
+  }, [userId]);
+  useEffect(() => { load(); }, [load]);
+
+  const run = async (fn: () => Promise<void>, ok: string) => {
+    setBusy(true);
+    try { await fn(); flash(ok); load(); }
+    catch (e) { flash((e as Error)?.message || "İşlem başarısız"); }
+    finally { setBusy(false); }
+  };
+  const doGrant = (sign: 1 | -1) => {
+    const n = parseInt(amount, 10);
+    if (!n || n <= 0 || !d) return flash("Geçerli miktar gir");
+    run(() => grantBalance(d.id, asset, sign * n, "Yönetici işlemi"), `${asset === "elmas" ? "Elmas" : "Altın"} ${sign > 0 ? "eklendi" : "düşüldü"}`).then(() => setAmount(""));
+  };
+  const doBan = () => {
+    if (!d) return;
+    const mins = banMin === "manual" ? parseInt(banManual, 10) : banMin;
+    if (banMin === "manual" && (!mins || mins <= 0)) return flash("Süre gir (dakika)");
+    run(() => micBan(d.id, banReason.trim() || null, mins as number | null), "Mic yasağı verildi").then(() => setBanReason(""));
+  };
+
+  return (
+    <View style={styles.root}>
+      <Gradient colors={["#241B0A", "#08080C"]} deg={170} locations={[0, 0.5]} style={StyleSheet.absoluteFill} />
+      <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.iconBtn}>
+            <Icon name="back" size={16} color={C.text} />
+          </Pressable>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Icon name="user" size={16} color={C.gold} />
+            <Txt weight="displayBold" size={16} color="#fff">Kullanıcı Detayı</Txt>
+          </View>
+        </View>
+
+        {loading ? (
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={C.gold} /></View>
+        ) : err || !d ? (
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 30 }}>
+            <Icon name="warn" size={26} color="#FB7185" />
+            <Txt size={12.5} color={C.dim} align="center" lh={1.5}>{err || "Kullanıcı bulunamadı."}</Txt>
+            <Pressable onPress={load} style={[styles.chip, { paddingHorizontal: 18 }]}><Txt weight="bold" size={12} color={C.gold2}>Tekrar dene</Txt></Pressable>
+          </View>
+        ) : (
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 32 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* 1 — Kimlik */}
+            <View style={[styles.group, { padding: 14 }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <Portrait name={d.name} size={54} photo={d.photo} ring={d.rol === "user" ? undefined : C.gold} glow={d.rol !== "user"} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Txt weight="displayBold" size={16} color="#fff" numberOfLines={1}>{d.name}</Txt>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
+                    <Txt weight="semibold" size={11} color={C.dim}>ID: {d.publicId}</Txt>
+                    <View style={styles.rolePill}><Txt weight="extrabold" size={9} color={C.gold2}>{ROLE_LABEL[d.rol] || d.rol}</Txt></View>
+                  </View>
+                </View>
+              </View>
+              {isDev && d.email && (
+                <View style={styles.infoRow}><Txt weight="bold" size={10.5} color={C.dim2}>E-POSTA</Txt><Txt size={12} color={C.text} style={{ marginTop: 2 }}>{d.email}</Txt></View>
+              )}
+            </View>
+
+            {/* 2 — Özet */}
+            <View style={styles.summary}>
+              <View style={styles.sumCol}><DiamondBadge size={15} /><Txt weight="displayBold" size={15} color="#fff">{d.elmas.toLocaleString("tr-TR")}</Txt></View>
+              <View style={styles.sumDiv} />
+              <View style={styles.sumCol}><CoinBadge size={15} /><Txt weight="displayBold" size={15} color="#fff">{d.altin.toLocaleString("tr-TR")}</Txt></View>
+              <View style={styles.sumDiv} />
+              <View style={styles.sumCol}><Txt weight="displayBold" size={15} color="#5EEAD4">LV.{d.level}</Txt></View>
+              <View style={styles.sumDiv} />
+              <View style={styles.sumCol}><Txt weight="displayBold" size={15} color={d.raporSayisi > 0 ? "#FB7185" : "#fff"}>{d.raporSayisi}</Txt><Txt size={8.5} color={C.dim2}>rapor</Txt></View>
+            </View>
+
+            {!!note && <View style={styles.note}><Txt weight="bold" size={11.5} color={C.gold2} align="center">{note}</Txt></View>}
+
+            {/* 3 — Cezai İşlemler (mic yasağı) */}
+            <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>CEZAİ İŞLEMLER — MİKROFON YASAĞI</Txt>
+            {d.micBanned ? (
+              <View style={styles.group}>
+                <View style={styles.gRow}>
+                  <View style={{ flex: 1 }}>
+                    <Txt weight="extrabold" size={12.5} color="#FB7185">Yasaklı</Txt>
+                    <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>
+                      {d.micBitis ? `Bitiş: ${zaman(d.micBitis)}` : "Kalıcı"}{d.micSebep ? ` · ${d.micSebep}` : ""}
+                    </Txt>
+                  </View>
+                  <Pressable disabled={busy} onPress={() => run(() => micUnban(d.id), "Yasak kaldırıldı")} style={[styles.chip, { backgroundColor: `${C.green}14`, borderColor: `${C.green}44` }]}>
+                    <Txt weight="bold" size={10.5} color={C.green}>Kaldır</Txt>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.group}>
+                <View style={{ padding: 12, gap: 8 }}>
+                  <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+                    {([["30dk", 30], ["1s", 60], ["1g", 1440], ["7g", 10080], ["Kalıcı", null], ["Manuel", "manual"]] as const).map(([lb, v]) => (
+                      <Pressable key={lb} onPress={() => setBanMin(v as number | null | "manual")} style={[styles.chip, banMin === v && { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` }]}>
+                        <Txt weight="bold" size={10.5} color={banMin === v ? C.gold2 : C.dim}>{lb}</Txt>
+                      </Pressable>
+                    ))}
+                  </View>
+                  {banMin === "manual" && (
+                    <TextInput value={banManual} onChangeText={setBanManual} keyboardType="number-pad" placeholder="Dakika" placeholderTextColor={C.dim2} style={styles.input} />
+                  )}
+                  <TextInput value={banReason} onChangeText={setBanReason} placeholder="Sebep (opsiyonel)" placeholderTextColor={C.dim2} style={styles.input} />
+                  <Pressable disabled={busy} onPress={doBan} style={styles.dangerBtn}>
+                    <Icon name="micoff" size={14} color="#FB7185" />
+                    <Txt weight="extrabold" size={12} color="#FB7185">Mikrofon Yasağı Ver</Txt>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
+            {/* 4 — Bakiye İşlemi */}
+            <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>BAKİYE İŞLEMİ</Txt>
+            <View style={styles.group}>
+              <View style={{ padding: 12, gap: 8 }}>
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  {(["elmas", "altin"] as const).map((a) => (
+                    <Pressable key={a} onPress={() => setAsset(a)} style={[styles.chip, { flexDirection: "row", gap: 5 }, asset === a && { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` }]}>
+                      {a === "elmas" ? <DiamondBadge size={13} /> : <CoinBadge size={13} />}
+                      <Txt weight="bold" size={10.5} color={asset === a ? C.gold2 : C.dim}>{a === "elmas" ? "Elmas" : "Altın"}</Txt>
+                    </Pressable>
+                  ))}
+                  <TextInput value={amount} onChangeText={setAmount} keyboardType="number-pad" placeholder="Miktar" placeholderTextColor={C.dim2} style={[styles.input, { flex: 1, marginTop: 0 }]} />
+                </View>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <Pressable disabled={busy} onPress={() => doGrant(1)} style={[styles.actBtn, { backgroundColor: `${C.green}14`, borderColor: `${C.green}44` }]}>
+                    <Icon name="plus" size={13} sw={2.5} color={C.green} /><Txt weight="extrabold" size={12} color={C.green}>Ver</Txt>
+                  </Pressable>
+                  <Pressable disabled={busy} onPress={() => doGrant(-1)} style={[styles.actBtn, { backgroundColor: "rgba(251,113,133,.1)", borderColor: "rgba(251,113,133,.3)" }]}>
+                    <Icon name="x" size={13} color="#FB7185" /><Txt weight="extrabold" size={12} color="#FB7185">Al</Txt>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+
+            {/* 5 — Rol & Profil */}
+            <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>ROL & PROFİL</Txt>
+            <View style={styles.group}>
+              <Pressable onPress={() => router.navigate(`/user-profile?publicId=${encodeURIComponent(d.publicId)}&name=${encodeURIComponent(d.name)}`)} style={styles.opRow}>
+                <Icon name="user" size={15} color={C.text} /><Txt weight="bold" size={12.5} color={C.text} style={{ flex: 1 }}>Profili Gör</Txt><Icon name="chev" size={13} color={C.dim2} />
+              </Pressable>
+              <View style={styles.divider} />
+              <Pressable onPress={() => run(() => setPlatformRole(d.id, d.rol === "user" ? "developer" : "user"), "Rol güncellendi")} style={styles.opRow}>
+                <Icon name="crown" size={15} color={C.gold} /><Txt weight="bold" size={12.5} color={C.text} style={{ flex: 1 }}>Rol: {ROLE_LABEL[d.rol]}</Txt>
+                <Txt size={10} color={C.dim2}>{d.rol === "user" ? "→ Geliştirici yap" : "→ Kullanıcı yap"}</Txt>
+              </Pressable>
+            </View>
+
+            {/* 6 — Geliştirici İşlemleri (yalnızca developer) */}
+            {isDev && (
+              <>
+                <Txt weight="bold" size={10.5} color={C.gold} style={styles.lbl}>GELİŞTİRİCİ İŞLEMLERİ</Txt>
+                <View style={styles.group}>
+                  <View style={{ padding: 12, gap: 8 }}>
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                      <TextInput value={newId} onChangeText={setNewId} placeholder={`Yeni ID (mevcut: ${d.publicId})`} placeholderTextColor={C.dim2} style={[styles.input, { flex: 1, marginTop: 0 }]} />
+                      <Pressable disabled={busy || !newId.trim()} onPress={() => run(() => changePublicId(d.id, newId), "ID değişti").then(() => setNewId(""))} style={[styles.actBtn, { flex: 0, paddingHorizontal: 16, opacity: newId.trim() ? 1 : 0.4 }]}>
+                        <Txt weight="extrabold" size={12} color={C.gold2}>Kaydet</Txt>
+                      </Pressable>
+                    </View>
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                      <TextInput value={newPw} onChangeText={setNewPw} placeholder="Yeni şifre (≥6)" placeholderTextColor={C.dim2} secureTextEntry style={[styles.input, { flex: 1, marginTop: 0 }]} />
+                      <Pressable disabled={busy || newPw.length < 6} onPress={() => run(() => resetPassword(d.id, newPw), "Şifre sıfırlandı").then(() => setNewPw(""))} style={[styles.actBtn, { flex: 0, paddingHorizontal: 16, opacity: newPw.length >= 6 ? 1 : 0.4 }]}>
+                        <Txt weight="extrabold" size={12} color={C.gold2}>Sıfırla</Txt>
+                      </Pressable>
+                    </View>
+                  </View>
+                </View>
+              </>
+            )}
+            <View style={{ height: 8 }} />
+          </ScrollView>
+        )}
+      </SafeAreaView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.bg },
+  header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  group: { borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 46 },
+  chip: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center" },
+  rolePill: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 999, backgroundColor: `${C.gold}1A`, borderWidth: 1, borderColor: `${C.gold}44` },
+  summary: { flexDirection: "row", marginTop: 12, borderRadius: 16, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line, paddingVertical: 12 },
+  sumCol: { flex: 1, alignItems: "center", gap: 3 },
+  sumDiv: { width: StyleSheet.hairlineWidth, backgroundColor: C.line },
+  infoRow: { marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line },
+  note: { marginTop: 12, paddingVertical: 9, borderRadius: 12, backgroundColor: `${C.gold}14`, borderWidth: 1, borderColor: `${C.gold}33` },
+  lbl: { letterSpacing: 0.5, marginTop: 18, marginBottom: 8 },
+  gRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12 },
+  opRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 14 },
+  input: { marginTop: 0, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, color: C.text, fontSize: 13, fontFamily: "PlusJakartaSans_500Medium" },
+  actBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 11, borderRadius: 12, borderWidth: 1 },
+  dangerBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 11, borderRadius: 12, backgroundColor: "rgba(251,113,133,.1)", borderWidth: 1, borderColor: "rgba(251,113,133,.3)" },
+});

@@ -33,7 +33,7 @@ import { RoomStats } from "@/sheets/RoomStats";
 import { type Gift } from "@/data/gifts";
 import { reportRoom } from "@/data/remote/reportRepo";
 import { addXp } from "@/data/remote/xpRepo";
-import { amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, type MicBan } from "@/data/remote/roomsRepo";
+import { amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, logRoomMovement, type MicBan } from "@/data/remote/roomsRepo";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
@@ -378,8 +378,12 @@ export default function RoomScreen() {
     });
 
     addXp("oda_katilim"); // günde 1 kez sayılır (sunucu tavanlar)
+    logRoomMovement(dbId, "giris"); // moderasyon geçmişi (best-effort)
 
-    return () => { alive = false; chanRef.current = null; ch.untrack(); sb.removeChannel(ch); };
+    return () => {
+      alive = false; chanRef.current = null; ch.untrack(); sb.removeChannel(ch);
+      logRoomMovement(dbId, "cikis"); // best-effort: uygulama zorla kapanırsa düşmeyebilir
+    };
     // userName/userPhoto oturum boyunca sabit; bağımlılığa eklemiyoruz (yeniden abone olmasın)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDbRoom, dbId, myDbId]);

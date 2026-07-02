@@ -60,6 +60,7 @@ export type ReportRow = {
   raporlayan: string;
   hedef: string; // kullanıcı adı ya da oda adı
   hedefKullaniciId: number | null;
+  hedefOdaId: number | null;
   hedefPublicId?: string;
   odaKatilimcilar?: RoomOccupant[]; // oda raporunda o anki katılımcılar
 };
@@ -104,9 +105,54 @@ export async function listReports(limit = 100): Promise<ReportRow[]> {
       ? profs.get(r.hedef_kullanici_id ?? -1)?.kullanici_adi || "Kullanıcı"
       : odalar.get(r.hedef_oda_id ?? -1) || "Oda",
     hedefKullaniciId: r.hedef_kullanici_id,
+    hedefOdaId: r.hedef_oda_id,
     hedefPublicId: r.hedef_kullanici_id != null ? profs.get(r.hedef_kullanici_id)?.public_id : undefined,
     odaKatilimcilar: Array.isArray(r.oda_katilimcilar) ? r.oda_katilimcilar : undefined,
   }));
+}
+
+/** Tek raporu getir (detay sayfası için). Bulunamazsa null. */
+export async function getReport(id: number): Promise<ReportRow | null> {
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from(T)
+    .select("id, tip, raporlayan_id, hedef_kullanici_id, hedef_oda_id, neden, detay, durum, olusturulma_tarihi, oda_katilimcilar")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  const r = data as {
+    id: number; tip: "kullanici" | "oda"; raporlayan_id: number;
+    hedef_kullanici_id: number | null; hedef_oda_id: number | null;
+    neden: string; detay: string | null; durum: "bekliyor" | "incelendi"; olusturulma_tarihi: string;
+    oda_katilimcilar: RoomOccupant[] | null;
+  } | null;
+  if (!r) return null;
+
+  const userIds = [r.raporlayan_id, r.hedef_kullanici_id].filter((x): x is number => x != null);
+  const profs = new Map<number, { kullanici_adi: string; public_id: string }>();
+  let odaAd = "Oda";
+  if (userIds.length) {
+    const { data: ps } = await sb.from("profiller").select("id, public_id, kullanici_adi").in("id", userIds);
+    for (const p of (ps as { id: number; public_id: string; kullanici_adi: string }[]) ?? []) profs.set(p.id, p);
+  }
+  if (r.hedef_oda_id != null) {
+    const { data: o } = await sb.from("odalar").select("ad").eq("id", r.hedef_oda_id).maybeSingle();
+    odaAd = (o as { ad: string } | null)?.ad || "Oda";
+  }
+  return {
+    id: r.id,
+    tip: r.tip,
+    neden: r.neden,
+    detay: r.detay,
+    durum: r.durum,
+    at: new Date(r.olusturulma_tarihi).getTime(),
+    raporlayan: profs.get(r.raporlayan_id)?.kullanici_adi || "Kullanıcı",
+    hedef: r.tip === "kullanici" ? profs.get(r.hedef_kullanici_id ?? -1)?.kullanici_adi || "Kullanıcı" : odaAd,
+    hedefKullaniciId: r.hedef_kullanici_id,
+    hedefOdaId: r.hedef_oda_id,
+    hedefPublicId: r.hedef_kullanici_id != null ? profs.get(r.hedef_kullanici_id)?.public_id : undefined,
+    odaKatilimcilar: Array.isArray(r.oda_katilimcilar) ? r.oda_katilimcilar : undefined,
+  };
 }
 
 /** Raporu incelendi/bekliyor işaretle (yalnızca yönetici — RLS). */

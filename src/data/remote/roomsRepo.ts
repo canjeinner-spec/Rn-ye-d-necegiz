@@ -306,6 +306,105 @@ export async function amIBannedFromRoom(odaId: number): Promise<boolean> {
   return data != null;
 }
 
+// ---------------------------------------------------------------------------
+// Oda giriş/çıkış kaydı + yönetici rapor detayı (032_oda_hareket.sql)
+// ---------------------------------------------------------------------------
+
+/** Odaya giriş/çıkış kaydı (kendi adına, best-effort). Hata sessizce yutulur. */
+export async function logRoomMovement(odaId: number, tip: "giris" | "cikis"): Promise<void> {
+  const sb = requireSupabase();
+  const me = await getMyProfile().catch(() => null);
+  if (!me) return;
+  await sb.from("oda_hareket_log").insert({ oda_id: odaId, kullanici_id: me.id, tip }).then(
+    () => {},
+    () => {},
+  );
+}
+
+export type RoomMovement = {
+  id: number;
+  uid: number;
+  name: string;
+  photo?: string;
+  publicId?: string;
+  tip: "giris" | "cikis";
+  at: number; // epoch ms
+};
+
+export type RoomReportDetail = {
+  oda: {
+    id: number;
+    publicId: string;
+    name: string;
+    aciklama: string | null;
+    kategori: string | null;
+    photo?: string;
+    hostName: string;
+    uyeSayisi: number;
+    aktifKatilimci: number;
+  } | null;
+  hareketler: RoomMovement[];
+  girenSayisi: number; // benzersiz giren kullanıcı
+  cikanSayisi: number; // benzersiz çıkan kullanıcı
+};
+
+/** Yönetici: oda bilgisi + giriş/çıkış geçmişi (SELECT yalnızca platform yöneticisi — RLS). */
+export async function getRoomReportDetail(odaId: number, limit = 200): Promise<RoomReportDetail> {
+  const sb = requireSupabase();
+  const [odaRes, hareketRes, uyeRes] = await Promise.all([
+    sb.from("odalar").select(SELECT_COLS).eq("id", odaId).maybeSingle(),
+    sb.from("oda_hareket_log").select("id, kullanici_id, tip, tarih").eq("oda_id", odaId).order("id", { ascending: false }).limit(limit),
+    sb.from("oda_uyeleri").select("kullanici_id", { count: "exact", head: true }).eq("oda_id", odaId),
+  ]);
+
+  const oRow = odaRes.data as OdaRow | null;
+  const uyeSayisi = uyeRes.count ?? 0;
+  const hRows = (hareketRes.data as { id: number; kullanici_id: number; tip: "giris" | "cikis"; tarih: string }[]) ?? [];
+
+  // profil eşleme (oda sahibi + hareket kullanıcıları)
+  const ids = [...new Set([...(oRow?.olusturan_id != null ? [oRow.olusturan_id] : []), ...hRows.map((h) => h.kullanici_id)])];
+  const profs = new Map<number, { public_id: string; kullanici_adi: string; profil_resmi: string | null }>();
+  if (ids.length) {
+    const { data: ps } = await sb.from("profiller").select("id, public_id, kullanici_adi, profil_resmi").in("id", ids);
+    for (const p of (ps as { id: number; public_id: string; kullanici_adi: string; profil_resmi: string | null }[]) ?? []) profs.set(p.id, p);
+  }
+
+  const hareketler: RoomMovement[] = hRows.map((h) => {
+    const p = profs.get(h.kullanici_id);
+    return {
+      id: h.id,
+      uid: h.kullanici_id,
+      name: p?.kullanici_adi || "Kullanıcı",
+      photo: p?.profil_resmi || undefined,
+      publicId: p?.public_id,
+      tip: h.tip,
+      at: new Date(h.tarih).getTime(),
+    };
+  });
+
+  const girenSayisi = new Set(hRows.filter((h) => h.tip === "giris").map((h) => h.kullanici_id)).size;
+  const cikanSayisi = new Set(hRows.filter((h) => h.tip === "cikis").map((h) => h.kullanici_id)).size;
+
+  return {
+    oda: oRow
+      ? {
+          id: oRow.id,
+          publicId: oRow.public_id,
+          name: oRow.ad,
+          aciklama: oRow.aciklama,
+          kategori: oRow.kategori,
+          photo: oRow.kapak_url || undefined,
+          hostName: (oRow.olusturan_id != null ? profs.get(oRow.olusturan_id)?.kullanici_adi : undefined) || "Kullanıcı",
+          uyeSayisi,
+          aktifKatilimci: oRow.aktif_katilimci_sayisi,
+        }
+      : null,
+    hareketler,
+    girenSayisi,
+    cikanSayisi,
+  };
+}
+
 /** Yeni oda oluştur (kendi adına). Oluşan Room'u döndürür. */
 export async function createRoom(input: {
   name: string;
