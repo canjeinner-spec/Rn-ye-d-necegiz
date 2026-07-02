@@ -64,6 +64,7 @@ export type AdminUserDetail = {
   hesapSebep: string | null;
   hesapBitis: number | null; // epoch ms | null
   raporSayisi: number;
+  kayitTarihi: number | null; // epoch ms (auth.users.created_at)
 };
 
 export async function getUserDetail(userId: number): Promise<AdminUserDetail | null> {
@@ -92,7 +93,17 @@ export async function getUserDetail(userId: number): Promise<AdminUserDetail | n
     hesapSebep: r.hesap_sebep ?? null,
     hesapBitis: r.hesap_bitis ? new Date(r.hesap_bitis).getTime() : null,
     raporSayisi: Number(r.rapor_sayisi ?? 0),
+    kayitTarihi: r.kayit_tarihi ? new Date(r.kayit_tarihi).getTime() : null,
   };
+}
+
+/** Ad ve/veya avatar güncelle (developer & super_admin). avatar "" → kaldır. */
+export async function updateUserIdentity(userId: number, ad?: string, avatar?: string): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("admin_kullanici_guncelle", {
+    p_hedef: userId, p_ad: ad ?? null, p_avatar: avatar ?? null,
+  });
+  if (error) throw error;
 }
 
 // ---- Varlık dondurma (034_dondurma) ----------------------------------------

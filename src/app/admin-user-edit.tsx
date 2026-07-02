@@ -1,15 +1,18 @@
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
+import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import {
   accountBan, accountUnban, changeEmail, changePublicId, freezeAsset, getActionHistory,
-  getUserDetail, grantBalance, micBan, micUnban, resetPassword, setPlatformRole,
+  getUserDetail, grantBalance, micBan, micUnban, resetPassword, setPlatformRole, updateUserIdentity,
   type AdminAction, type AdminUserDetail,
 } from "@/data/remote/adminRepo";
+import { uploadAvatar } from "@/data/remote/storageRepo";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
@@ -27,6 +30,7 @@ const ISLEM_LABEL: Record<string, string> = {
   varlik_coz: "Dondurma çözüldü", mic_yasak_ver: "Mic yasağı verildi", mic_yasak_kaldir: "Mic yasağı kaldırıldı",
   hesap_yasak_ver: "Hesap yasaklandı", hesap_yasak_kaldir: "Hesap yasağı kaldırıldı", rol_ata: "Rol değiştirildi",
   id_degistir: "ID değiştirildi", sifre_sifirla: "Şifre sıfırlandı", email_degistir: "E-posta değiştirildi",
+  ad_degistir: "Ad değiştirildi", avatar_degistir: "Avatar değiştirildi",
 };
 const SECTION_TITLE: Record<string, string> = { economy: "Ekonomi", penalty: "Cezai İşlemler", identity: "Kimlik & Bilgi", history: "İşlem Geçmişi" };
 
@@ -59,6 +63,7 @@ export default function AdminUserEdit() {
   const [newId, setNewId] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPw, setNewPw] = useState("");
+  const [newName, setNewName] = useState("");
 
   const flash = (m: string) => { setNote(m); setTimeout(() => setNote(""), 2400); };
   const load = useCallback(() => {
@@ -92,6 +97,19 @@ export default function AdminUserEdit() {
     const mins = accMin === "manual" ? parseInt(accManual, 10) : accMin;
     if (accMin === "manual" && (!mins || mins <= 0)) return flash("Süre gir (dakika)");
     run(() => accountBan(d.id, accReason.trim() || null, mins as number | null), "Hesap yasaklandı").then(() => setAccReason(""));
+  };
+  // Avatar: yönetici galeriden seçer → kendi storage klasörüne yükler → URL hedefe yazılır
+  const doAvatar = async () => {
+    if (!d || busy) return;
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.85, base64: true });
+    if (res.canceled || !res.assets[0]?.base64) return;
+    setBusy(true);
+    try {
+      const url = await uploadAvatar(res.assets[0].base64, res.assets[0].uri);
+      await updateUserIdentity(d.id, undefined, url);
+      flash("Avatar güncellendi"); load();
+    } catch (e) { flash((e as Error)?.message || "Avatar yüklenemedi"); }
+    finally { setBusy(false); }
   };
 
   return (
@@ -222,20 +240,56 @@ export default function AdminUserEdit() {
             {/* ================= KİMLİK & BİLGİ ================= */}
             {section === "identity" && (
               <>
-                <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>ROL</Txt>
-                <View style={styles.group}><View style={{ padding: 12, gap: 8 }}>
-                  <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
-                    {(["user", "developer", "super_admin"] as const).map((rl) => (
-                      <Pressable key={rl} disabled={busy || d.rol === rl} onPress={() => run(() => setPlatformRole(d.id, rl), "Rol güncellendi")} style={[styles.chip, d.rol === rl && { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` }]}>
-                        <Txt weight="bold" size={10.5} color={d.rol === rl ? C.gold2 : C.dim}>{ROLE_LABEL[rl]}</Txt>
+                {/* Ad + avatar: developer VE super_admin düzenleyebilir */}
+                <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>AD & AVATAR</Txt>
+                <View style={styles.group}><View style={{ padding: 12, gap: 10 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                    <Portrait name={d.name} size={48} photo={d.photo} />
+                    <View style={{ flex: 1, gap: 6 }}>
+                      <Pressable disabled={busy} onPress={doAvatar} style={[styles.chip, { alignSelf: "flex-start" }]}>
+                        <Icon name="camera" size={12} color={C.gold2} /><Txt weight="bold" size={10.5} color={C.gold2} style={{ marginLeft: 5 }}>Avatarı Değiştir</Txt>
                       </Pressable>
-                    ))}
+                      {!!d.photo && (
+                        <Pressable disabled={busy} onPress={() => run(() => updateUserIdentity(d.id, undefined, ""), "Avatar kaldırıldı")} style={[styles.chip, { alignSelf: "flex-start" }]}>
+                          <Icon name="trash" size={12} color="#FB7185" /><Txt weight="bold" size={10.5} color="#FB7185" style={{ marginLeft: 5 }}>Avatarı Kaldır</Txt>
+                        </Pressable>
+                      )}
+                    </View>
                   </View>
-                  <Txt size={9.5} color={C.dim2} lh={1.4}>Rol atama süper yönetici yetkisi ister; yetkin yoksa işlem reddedilir.</Txt>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TextInput value={newName} onChangeText={setNewName} placeholder={`Mevcut ad: ${d.name}`} placeholderTextColor={C.dim2} style={[styles.input, { flex: 1 }]} />
+                    <Pressable disabled={busy || newName.trim().length < 2} onPress={() => run(() => updateUserIdentity(d.id, newName.trim()), "Ad değişti").then(() => setNewName(""))} style={[styles.actBtn, { flex: 0, paddingHorizontal: 16, opacity: newName.trim().length >= 2 ? 1 : 0.4 }]}><Txt weight="extrabold" size={12} color={C.gold2}>Kaydet</Txt></Pressable>
+                  </View>
                 </View></View>
+
+                {/* Bilgiler: e-posta (görüntüleme herkese) + kayıt tarihi */}
+                <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>BİLGİLER</Txt>
+                <View style={styles.group}>
+                  <View style={{ padding: 12 }}>
+                    <Txt weight="bold" size={10} color={C.dim2}>E-POSTA</Txt>
+                    <Txt size={12.5} color={C.text} style={{ marginTop: 3 }}>{d.email || "—"}</Txt>
+                  </View>
+                  <View style={styles.divider} />
+                  <View style={{ padding: 12 }}>
+                    <Txt weight="bold" size={10} color={C.dim2}>KAYIT TARİHİ</Txt>
+                    <Txt size={12.5} color={C.text} style={{ marginTop: 3 }}>{d.kayitTarihi ? zaman(d.kayitTarihi) : "—"}</Txt>
+                  </View>
+                </View>
 
                 {isDev ? (
                   <>
+                    {/* Rol: yalnızca developer */}
+                    <Txt weight="bold" size={10.5} color={C.gold} style={styles.lbl}>ROL (DEVELOPER)</Txt>
+                    <View style={styles.group}><View style={{ padding: 12, gap: 8 }}>
+                      <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+                        {(["user", "developer", "super_admin"] as const).map((rl) => (
+                          <Pressable key={rl} disabled={busy || d.rol === rl} onPress={() => run(() => setPlatformRole(d.id, rl), "Rol güncellendi")} style={[styles.chip, d.rol === rl && { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` }]}>
+                            <Txt weight="bold" size={10.5} color={d.rol === rl ? C.gold2 : C.dim}>{ROLE_LABEL[rl]}</Txt>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View></View>
+
                     <Txt weight="bold" size={10.5} color={C.gold} style={styles.lbl}>GELİŞTİRİCİ — KİMLİK BİLGİLERİ</Txt>
                     <View style={styles.group}><View style={{ padding: 12, gap: 10 }}>
                       <View style={{ gap: 6 }}>
@@ -247,7 +301,7 @@ export default function AdminUserEdit() {
                       </View>
                       <View style={styles.divider} />
                       <View style={{ gap: 6 }}>
-                        <Txt weight="bold" size={10} color={C.dim2}>E-POSTA</Txt>
+                        <Txt weight="bold" size={10} color={C.dim2}>E-POSTA DÜZENLE</Txt>
                         <View style={{ flexDirection: "row", gap: 8 }}>
                           <TextInput value={newEmail} onChangeText={setNewEmail} autoCapitalize="none" keyboardType="email-address" placeholder={d.email || "yeni@eposta.com"} placeholderTextColor={C.dim2} style={[styles.input, { flex: 1 }]} />
                           <Pressable disabled={busy || !newEmail.includes("@")} onPress={() => run(() => changeEmail(d.id, newEmail), "E-posta değişti").then(() => setNewEmail(""))} style={[styles.actBtn, { flex: 0, paddingHorizontal: 16, opacity: newEmail.includes("@") ? 1 : 0.4 }]}><Txt weight="extrabold" size={12} color={C.gold2}>Kaydet</Txt></Pressable>
@@ -266,7 +320,7 @@ export default function AdminUserEdit() {
                 ) : (
                   <View style={[styles.group, styles.lockedInfo]}>
                     <Icon name="lock" size={14} color={C.dim2} />
-                    <Txt size={11} color={C.dim} style={{ flex: 1 }} lh={1.4}>ID, e-posta ve şifre düzenleme yalnızca geliştirici (developer) yetkisindedir.</Txt>
+                    <Txt size={11} color={C.dim} style={{ flex: 1 }} lh={1.4}>Rol atama, ID, e-posta düzenleme ve şifre sıfırlama yalnızca geliştirici (developer) yetkisindedir.</Txt>
                   </View>
                 )}
               </>

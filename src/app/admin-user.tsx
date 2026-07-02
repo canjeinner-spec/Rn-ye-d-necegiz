@@ -14,6 +14,11 @@ import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
 const ROLE_LABEL: Record<string, string> = { user: "Kullanıcı", developer: "Geliştirici", super_admin: "Süper Yönetici" };
+const AYLAR = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+function kayit(at: number) {
+  const d = new Date(at);
+  return `${d.getDate()} ${AYLAR[d.getMonth()]} ${d.getFullYear()}`;
+}
 
 function SectionRow({ icon, tint, title, sub, danger, onPress }: {
   icon: IconName; tint: string; title: string; sub: string; danger?: boolean; onPress: () => void;
@@ -93,6 +98,8 @@ export default function AdminUserHub() {
                     <Txt weight="semibold" size={11} color={C.dim}>ID: {d.publicId}</Txt>
                     <View style={styles.rolePill}><Txt weight="extrabold" size={9} color={C.gold2}>{ROLE_LABEL[d.rol] || d.rol}</Txt></View>
                   </View>
+                  {!!d.email && <Txt size={10.5} color={C.dim2} style={{ marginTop: 3 }} numberOfLines={1}>{d.email}</Txt>}
+                  {!!d.kayitTarihi && <Txt size={10} color={C.dim2} style={{ marginTop: 2 }}>Kayıt: {kayit(d.kayitTarihi)}</Txt>}
                 </View>
               </View>
               {(d.hesapYasakli || d.micBanned) && (
@@ -123,7 +130,7 @@ export default function AdminUserHub() {
               <View style={styles.divider} />
               <SectionRow icon="ban" tint="#FB7185" title="Cezai İşlemler" sub={cezaSub} danger={d.micBanned || d.hesapYasakli} onPress={() => go("penalty")} />
               <View style={styles.divider} />
-              <SectionRow icon="idcard" tint={C.gold} title="Kimlik & Bilgi" sub={`Rol, ID${d.email ? `, e-posta` : ""}`} onPress={() => go("identity")} />
+              <SectionRow icon="idcard" tint={C.gold} title="Kimlik & Bilgi" sub="Ad, avatar, e-posta, kayıt tarihi" onPress={() => go("identity")} />
               <View style={styles.divider} />
               <SectionRow icon="clipboard" tint={C.purple2} title="İşlem Geçmişi" sub="Kim, ne zaman, kaç kez işlem yaptı" onPress={() => go("history")} />
             </View>
