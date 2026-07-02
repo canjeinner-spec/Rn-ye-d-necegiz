@@ -48,13 +48,18 @@ function UserDetailSheet({ userId, onClose }: { userId: number | null; onClose: 
   const [newId, setNewId] = useState("");
   const [newPw, setNewPw] = useState("");
 
+  const [err, setErr] = useState<string | null>(null);
   const flash = (m: string) => { setNote(m); setTimeout(() => setNote(""), 2200); };
   const load = useCallback(() => {
     if (userId == null) return;
     setLoading(true);
-    getUserDetail(userId).then(setD).catch((e) => flash(e?.message || "Yüklenemedi")).finally(() => setLoading(false));
+    setErr(null);
+    getUserDetail(userId)
+      .then((r) => { if (r) setD(r); else setErr("Kullanıcı bulunamadı."); })
+      .catch((e) => setErr(e?.message || "Kullanıcı bilgisi alınamadı."))
+      .finally(() => setLoading(false));
   }, [userId]);
-  useEffect(() => { if (userId != null) { setD(null); setAmount(""); setBanReason(""); setNewId(""); setNewPw(""); load(); } }, [userId, load]);
+  useEffect(() => { if (userId != null) { setD(null); setErr(null); setAmount(""); setBanReason(""); setNewId(""); setNewPw(""); load(); } }, [userId, load]);
 
   const run = async (fn: () => Promise<void>, ok: string) => {
     setBusy(true);
@@ -77,7 +82,13 @@ function UserDetailSheet({ userId, onClose }: { userId: number | null; onClose: 
 
   return (
     <Sheet visible={userId != null} onClose={onClose}>
-      {loading || !d ? (
+      {err ? (
+        <View style={{ paddingVertical: 30, alignItems: "center", gap: 12 }}>
+          <Icon name="warn" size={26} color="#FB7185" />
+          <Txt size={12.5} color={C.dim} align="center" lh={1.5} style={{ paddingHorizontal: 20 }}>{err}</Txt>
+          <Pressable onPress={load} style={[styles.chip, { paddingHorizontal: 18 }]}><Txt weight="bold" size={12} color={C.gold2}>Tekrar dene</Txt></Pressable>
+        </View>
+      ) : loading || !d ? (
         <View style={{ paddingVertical: 40, alignItems: "center" }}><ActivityIndicator color={C.gold} /></View>
       ) : (
         <ScrollView style={{ maxHeight: 560 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">

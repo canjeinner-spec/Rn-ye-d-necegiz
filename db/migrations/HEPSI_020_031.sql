@@ -7,10 +7,9 @@
 -- İçerik: hesap silme, oda üyeliği/rolleri, kalıcı oda yasağı, şikayet
 -- (sikayetler), platform rol atama, XP/seviye, cüzdan (elmas+altın), mic
 -- yasağı, admin kullanıcı işlemleri (bakiye/mic/ID/şifre), şikayet katılımcı
--- snapshot'ı, yönetici gönderi silme. Her parça idempotent (IF NOT EXISTS /
--- OR REPLACE / DROP POLICY IF EXISTS); tüm ekonomi_rolu karşılaştırmaları
--- ::text (22P02 imkânsız). Şikayet tablosu "sikayetler" (v7 "raporlar" ile
--- çakışmaz).
+-- snapshot'ı, yönetici gönderi silme. Her parça idempotent; tüm ekonomi_rolu
+-- karşılaştırmaları ::text; admin_kullanici_getir sütunları açıkça cast'li
+-- (42804 önlenir). Şikayet tablosu "sikayetler" (v7 "raporlar" ile çakışmaz).
 -- ============================================================================
 
 
@@ -719,15 +718,18 @@ BEGIN
     IF NOT public.ben_platform_yoneticisi() THEN
         RAISE EXCEPTION 'Yetkin yok.';
     END IF;
+    -- Her sütun AÇIKÇA cast edilir: v7'nin VARCHAR/INTEGER kolonları ile
+    -- RETURNS TABLE tip ilanı (TEXT/BIGINT) arasında "42804 structure of query
+    -- does not match" hatasını önler (RPC'nin sonsuz spinner nedeni).
     RETURN QUERY
     SELECT
-        k.id, k.public_id, k.kullanici_adi, k.profil_resmi,
-        CASE WHEN public.ben_developer() THEN k.email ELSE NULL END,   -- e-posta yalnızca developer
-        k.ekonomi_rolu::text, k.seviye_id, COALESCE(k.deneyim_puani, 0),
-        COALESCE(c.elmas, 0), COALESCE(c.altin, 0),
-        (m.kullanici_id IS NOT NULL AND (m.bitis IS NULL OR m.bitis > now())),
-        m.sebep, m.bitis,
-        (SELECT count(*) FROM public.sikayetler s WHERE s.hedef_kullanici_id = k.id)
+        k.id::bigint, k.public_id::text, k.kullanici_adi::text, k.profil_resmi::text,
+        (CASE WHEN public.ben_developer() THEN k.email ELSE NULL END)::text,   -- e-posta yalnızca developer
+        k.ekonomi_rolu::text, k.seviye_id::int, COALESCE(k.deneyim_puani, 0)::bigint,
+        COALESCE(c.elmas, 0)::bigint, COALESCE(c.altin, 0)::bigint,
+        (m.kullanici_id IS NOT NULL AND (m.bitis IS NULL OR m.bitis > now()))::boolean,
+        m.sebep::text, m.bitis::timestamptz,
+        (SELECT count(*) FROM public.sikayetler s WHERE s.hedef_kullanici_id = k.id)::bigint
     FROM public.kullanicilar k
     LEFT JOIN public.cuzdan c ON c.kullanici_id = k.id
     LEFT JOIN public.mic_yasaklari m ON m.kullanici_id = k.id
