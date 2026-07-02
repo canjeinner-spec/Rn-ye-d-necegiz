@@ -1,14 +1,16 @@
 -- ============================================================================
--- HEPSI_020_026.sql — 020..024 + 026 tek dosyada (BİRLEŞİK, idempotent)
+-- HEPSI_020_031.sql — 020..024 + 026..031 tek dosyada (BİRLEŞİK, idempotent)
 -- ----------------------------------------------------------------------------
 -- KULLANIM (Supabase SQL Editor):
 --   1) ÖNCE 025_rol_enum_degerleri.sql'i TEK BAŞINA çalıştır (enum değerleri).
 --   2) SONRA bu dosyayı komple yapıştırıp çalıştır.
--- Bu dosya 020,021,022,023,024,026 içeriklerinin birleşimidir; her parça
--- IF NOT EXISTS / OR REPLACE / DROP POLICY IF EXISTS ile yazıldığı için
--- daha önce kısmen uygulanmış bir veritabanında da güvenle tekrar çalışır.
--- Tüm ekonomi_rolu karşılaştırmaları ::text ile yapılır (22P02 imkânsız).
--- Şikayet tablosu "sikayetler" adını kullanır (v7'deki "raporlar" ile çakışmaz).
+-- İçerik: hesap silme, oda üyeliği/rolleri, kalıcı oda yasağı, şikayet
+-- (sikayetler), platform rol atama, XP/seviye, cüzdan (elmas+altın), mic
+-- yasağı, admin kullanıcı işlemleri (bakiye/mic/ID/şifre), şikayet katılımcı
+-- snapshot'ı, yönetici gönderi silme. Her parça idempotent (IF NOT EXISTS /
+-- OR REPLACE / DROP POLICY IF EXISTS); tüm ekonomi_rolu karşılaştırmaları
+-- ::text (22P02 imkânsız). Şikayet tablosu "sikayetler" (v7 "raporlar" ile
+-- çakışmaz).
 -- ============================================================================
 
 
@@ -470,3 +472,351 @@ BEGIN
 END; $$;
 REVOKE ALL ON FUNCTION public.xp_ekle(TEXT) FROM public;
 GRANT EXECUTE ON FUNCTION public.xp_ekle(TEXT) TO authenticated;
+
+-- ═══════════════════════════ [027_cuzdan.sql] ═══════════════════════════
+
+-- ============================================================================
+-- 027_cuzdan.sql — Cüzdan (elmas + altın) gerçek bakiye + işlem defteri
+-- ----------------------------------------------------------------------------
+-- ÇALIŞTIRMA: 021'den SONRA (Supabase SQL Editor).
+--
+-- Kendi temiz cüzdanımız (schema_v7'nin cuzdanlar/wallet_ledger tabloları
+-- repo'da tanımsız → dokunmuyoruz, dormant kalır). Bundan sonra bakiye
+-- kaynağı BURASI.
+--   • cuzdan: kullanıcı başına elmas + altın bakiyesi (herkes kendi okur).
+--   • cuzdan_hareketleri: işlem defteri (kendi geçmişini okur).
+--   • bakiye_ekle: YÖNETİCİ (developer/super_admin) ver/al.
+--   • bakiye_transfer: KULLANICI → kullanıcı gönderim (tam ekonomi).
+--   • benim_bakiyem: kendi bakiyeni döndürür.
+-- Gerçek parayla elmas SATIN ALMA (IAP) bu dosyada YOK — mağaza gerektirir.
+-- benim_kullanici_id() 003'te, ben_platform_yoneticisi() 021'de tanımlı.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.cuzdan (
+    kullanici_id BIGINT      PRIMARY KEY REFERENCES public.kullanicilar(id) ON DELETE CASCADE,
+    elmas        BIGINT      NOT NULL DEFAULT 0 CHECK (elmas >= 0),
+    altin        BIGINT      NOT NULL DEFAULT 0 CHECK (altin >= 0),
+    guncelleme   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.cuzdan ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.cuzdan FROM anon, authenticated;
+GRANT SELECT (kullanici_id, elmas, altin, guncelleme) ON public.cuzdan TO authenticated;
+
+DROP POLICY IF EXISTS cuzdan_select ON public.cuzdan;
+CREATE POLICY cuzdan_select ON public.cuzdan
+    FOR SELECT TO authenticated
+    USING (kullanici_id = public.benim_kullanici_id() OR public.ben_platform_yoneticisi());
+
+CREATE TABLE IF NOT EXISTS public.cuzdan_hareketleri (
+    id           BIGSERIAL   PRIMARY KEY,
+    kullanici_id BIGINT      NOT NULL REFERENCES public.kullanicilar(id) ON DELETE CASCADE,
+    varlik       TEXT        NOT NULL CHECK (varlik IN ('elmas', 'altin')),
+    miktar       BIGINT      NOT NULL, -- +/-
+    sebep        TEXT,
+    yapan_id     BIGINT      REFERENCES public.kullanicilar(id) ON DELETE SET NULL,
+    tarih        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_cuzdan_hareket_kul ON public.cuzdan_hareketleri (kullanici_id, id DESC);
+ALTER TABLE public.cuzdan_hareketleri ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.cuzdan_hareketleri FROM anon, authenticated;
+GRANT SELECT ON public.cuzdan_hareketleri TO authenticated;
+
+DROP POLICY IF EXISTS cuzdan_hareket_select ON public.cuzdan_hareketleri;
+CREATE POLICY cuzdan_hareket_select ON public.cuzdan_hareketleri
+    FOR SELECT TO authenticated
+    USING (kullanici_id = public.benim_kullanici_id() OR public.ben_platform_yoneticisi());
+
+-- ---- Dahili: bakiye uygula (varlık kolonu dinamik, negatife düşmez) --------
+CREATE OR REPLACE FUNCTION public._bakiye_uygula(p_kul BIGINT, p_varlik TEXT, p_delta BIGINT, p_sebep TEXT, p_yapan BIGINT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    INSERT INTO public.cuzdan (kullanici_id) VALUES (p_kul)
+    ON CONFLICT (kullanici_id) DO NOTHING;
+
+    IF p_varlik = 'elmas' THEN
+        UPDATE public.cuzdan SET elmas = elmas + p_delta, guncelleme = now() WHERE kullanici_id = p_kul;
+    ELSE
+        UPDATE public.cuzdan SET altin = altin + p_delta, guncelleme = now() WHERE kullanici_id = p_kul;
+    END IF;
+
+    INSERT INTO public.cuzdan_hareketleri (kullanici_id, varlik, miktar, sebep, yapan_id)
+    VALUES (p_kul, p_varlik, p_delta, p_sebep, p_yapan);
+END; $$;
+
+-- ---- RPC: yönetici ver/al ---------------------------------------------------
+CREATE OR REPLACE FUNCTION public.bakiye_ekle(p_hedef BIGINT, p_varlik TEXT, p_miktar BIGINT, p_sebep TEXT DEFAULT NULL)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Bakiye işlemi için yönetici olmalısın.';
+    END IF;
+    IF p_varlik NOT IN ('elmas', 'altin') THEN
+        RAISE EXCEPTION 'Geçersiz varlık.';
+    END IF;
+    IF p_miktar = 0 THEN RETURN; END IF;
+    PERFORM public._bakiye_uygula(
+        p_hedef, p_varlik, p_miktar,
+        COALESCE(p_sebep, CASE WHEN p_miktar > 0 THEN 'Yönetici yükledi' ELSE 'Yönetici düştü' END),
+        public.benim_kullanici_id());
+EXCEPTION WHEN check_violation THEN
+    RAISE EXCEPTION 'Bakiye negatife düşemez.';
+END; $$;
+REVOKE ALL ON FUNCTION public.bakiye_ekle(BIGINT, TEXT, BIGINT, TEXT) FROM public;
+GRANT EXECUTE ON FUNCTION public.bakiye_ekle(BIGINT, TEXT, BIGINT, TEXT) TO authenticated;
+
+-- ---- RPC: kullanıcı → kullanıcı transfer ------------------------------------
+CREATE OR REPLACE FUNCTION public.bakiye_transfer(p_hedef BIGINT, p_varlik TEXT, p_miktar BIGINT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_ben BIGINT := public.benim_kullanici_id();
+BEGIN
+    IF v_ben IS NULL THEN RAISE EXCEPTION 'Oturum bulunamadı.'; END IF;
+    IF p_hedef = v_ben THEN RAISE EXCEPTION 'Kendine transfer yapamazsın.'; END IF;
+    IF p_varlik NOT IN ('elmas', 'altin') THEN RAISE EXCEPTION 'Geçersiz varlık.'; END IF;
+    IF p_miktar <= 0 THEN RAISE EXCEPTION 'Miktar pozitif olmalı.'; END IF;
+
+    -- Önce kendinden düş (negatife düşerse check_violation → yetersiz bakiye)
+    BEGIN
+        PERFORM public._bakiye_uygula(v_ben, p_varlik, -p_miktar, 'Transfer (gönderildi)', v_ben);
+    EXCEPTION WHEN check_violation THEN
+        RAISE EXCEPTION 'Yetersiz bakiye.';
+    END;
+    PERFORM public._bakiye_uygula(p_hedef, p_varlik, p_miktar, 'Transfer (alındı)', v_ben);
+END; $$;
+REVOKE ALL ON FUNCTION public.bakiye_transfer(BIGINT, TEXT, BIGINT) FROM public;
+GRANT EXECUTE ON FUNCTION public.bakiye_transfer(BIGINT, TEXT, BIGINT) TO authenticated;
+
+-- ---- RPC: kendi bakiyem -----------------------------------------------------
+CREATE OR REPLACE FUNCTION public.benim_bakiyem()
+RETURNS TABLE (elmas BIGINT, altin BIGINT) LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+    SELECT COALESCE(c.elmas, 0), COALESCE(c.altin, 0)
+      FROM (SELECT public.benim_kullanici_id() AS id) me
+      LEFT JOIN public.cuzdan c ON c.kullanici_id = me.id;
+$$;
+REVOKE ALL ON FUNCTION public.benim_bakiyem() FROM public;
+GRANT EXECUTE ON FUNCTION public.benim_bakiyem() TO authenticated;
+
+-- ═══════════════════════════ [028_mic_yasak.sql] ═══════════════════════════
+
+-- ============================================================================
+-- 028_mic_yasak.sql — Platform geneli mikrofon yasağı (yönetici cezası)
+-- ----------------------------------------------------------------------------
+-- ÇALIŞTIRMA: 021'den SONRA (Supabase SQL Editor).
+--
+-- Oda içi sustur/at (host/yardımcı) ayrı ve o odayla sınırlı (021/022).
+-- BU yasak platform genelidir: yasaklı kullanıcı HER odaya girip dinler ama
+-- HİÇBİR odada yazamaz / mikrofona çıkamaz. Yalnızca developer/super_admin.
+--   • mic_yasaklari: kişi başına tek aktif kayıt; bitis NULL = kalıcı.
+--   • mic_yasak_ver(hedef, sebep, dakika): dakika NULL → kalıcı.
+--   • mic_yasak_kaldir(hedef).
+--   • benim_mic_yasagim(): aktif yasağı (sebep, bitis) döndürür.
+-- benim_kullanici_id() 003, ben_platform_yoneticisi() 021.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.mic_yasaklari (
+    kullanici_id  BIGINT      PRIMARY KEY REFERENCES public.kullanicilar(id) ON DELETE CASCADE,
+    sebep         TEXT,
+    yasaklayan_id BIGINT      REFERENCES public.kullanicilar(id) ON DELETE SET NULL,
+    bitis         TIMESTAMPTZ, -- NULL = kalıcı
+    olusturma     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.mic_yasaklari ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.mic_yasaklari FROM anon, authenticated;
+GRANT SELECT ON public.mic_yasaklari TO authenticated;
+
+-- Herkes okuyabilir (kişi kendi yasağını görebilsin; yönetim listeleyebilsin)
+DROP POLICY IF EXISTS mic_yasak_select ON public.mic_yasaklari;
+CREATE POLICY mic_yasak_select ON public.mic_yasaklari
+    FOR SELECT TO authenticated USING (TRUE);
+
+-- ---- RPC: yasak ver ---------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.mic_yasak_ver(p_hedef BIGINT, p_sebep TEXT DEFAULT NULL, p_dakika INT DEFAULT NULL)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_bitis TIMESTAMPTZ;
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Mic yasağı için yönetici olmalısın.';
+    END IF;
+    IF p_hedef = public.benim_kullanici_id() THEN
+        RAISE EXCEPTION 'Kendine mic yasağı veremezsin.';
+    END IF;
+    IF p_dakika IS NOT NULL THEN
+        IF p_dakika <= 0 THEN RAISE EXCEPTION 'Süre pozitif olmalı (ya da kalıcı için boş bırak).'; END IF;
+        v_bitis := now() + make_interval(mins => p_dakika);
+    END IF;
+    INSERT INTO public.mic_yasaklari (kullanici_id, sebep, yasaklayan_id, bitis)
+    VALUES (p_hedef, p_sebep, public.benim_kullanici_id(), v_bitis)
+    ON CONFLICT (kullanici_id) DO UPDATE
+        SET sebep = EXCLUDED.sebep, yasaklayan_id = EXCLUDED.yasaklayan_id,
+            bitis = EXCLUDED.bitis, olusturma = now();
+END; $$;
+REVOKE ALL ON FUNCTION public.mic_yasak_ver(BIGINT, TEXT, INT) FROM public;
+GRANT EXECUTE ON FUNCTION public.mic_yasak_ver(BIGINT, TEXT, INT) TO authenticated;
+
+-- ---- RPC: yasak kaldır ------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.mic_yasak_kaldir(p_hedef BIGINT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Yasak kaldırma için yönetici olmalısın.';
+    END IF;
+    DELETE FROM public.mic_yasaklari WHERE kullanici_id = p_hedef;
+END; $$;
+REVOKE ALL ON FUNCTION public.mic_yasak_kaldir(BIGINT) FROM public;
+GRANT EXECUTE ON FUNCTION public.mic_yasak_kaldir(BIGINT) TO authenticated;
+
+-- ---- RPC: kendi aktif yasağım (bitmişse yok sayılır) ------------------------
+CREATE OR REPLACE FUNCTION public.benim_mic_yasagim()
+RETURNS TABLE (sebep TEXT, bitis TIMESTAMPTZ, kalici BOOLEAN)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+    SELECT m.sebep, m.bitis, (m.bitis IS NULL)
+      FROM public.mic_yasaklari m
+     WHERE m.kullanici_id = public.benim_kullanici_id()
+       AND (m.bitis IS NULL OR m.bitis > now());
+$$;
+REVOKE ALL ON FUNCTION public.benim_mic_yasagim() FROM public;
+GRANT EXECUTE ON FUNCTION public.benim_mic_yasagim() TO authenticated;
+
+-- ═══════════════════════════ [029_admin_kullanici.sql] ═══════════════════════════
+
+-- ============================================================================
+-- 029_admin_kullanici.sql — Admin kullanıcı detayı + developer-özel işlemler
+-- ----------------------------------------------------------------------------
+-- ÇALIŞTIRMA: 021 + 027 + 028'den SONRA (Supabase SQL Editor).
+--
+--   • ben_developer(): yalnızca 'developer' rolü.
+--   • admin_kullanici_getir(hedef): yönetici; profil + bakiye + rol + seviye/xp
+--     + aktif mic-yasağı + rapor sayısı. E-POSTA YALNIZCA developer'a döner
+--     (super_admin'e NULL).
+--   • admin_public_id_degistir(hedef, yeni): DEVELOPER (benzersizlik kontrolü).
+--   • admin_sifre_sifirla(hedef, yeni): DEVELOPER; auth.users şifresini
+--     pgcrypto ile yeniden yazar (düz metin kimseye gösterilmez).
+-- benim_kullanici_id() 003, ben_platform_yoneticisi() 021.
+-- ============================================================================
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- ---- developer-özel yetki kontrolü -----------------------------------------
+CREATE OR REPLACE FUNCTION public.ben_developer()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.kullanicilar
+         WHERE id = public.benim_kullanici_id()
+           AND ekonomi_rolu::text = 'developer'
+    );
+$$;
+
+-- ---- Admin kullanıcı detayı -------------------------------------------------
+CREATE OR REPLACE FUNCTION public.admin_kullanici_getir(p_hedef BIGINT)
+RETURNS TABLE (
+    id BIGINT, public_id TEXT, kullanici_adi TEXT, profil_resmi TEXT,
+    email TEXT, rol TEXT, seviye_id INT, deneyim_puani BIGINT,
+    elmas BIGINT, altin BIGINT,
+    mic_yasakli BOOLEAN, mic_sebep TEXT, mic_bitis TIMESTAMPTZ,
+    rapor_sayisi BIGINT
+)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Yetkin yok.';
+    END IF;
+    RETURN QUERY
+    SELECT
+        k.id, k.public_id, k.kullanici_adi, k.profil_resmi,
+        CASE WHEN public.ben_developer() THEN k.email ELSE NULL END,   -- e-posta yalnızca developer
+        k.ekonomi_rolu::text, k.seviye_id, COALESCE(k.deneyim_puani, 0),
+        COALESCE(c.elmas, 0), COALESCE(c.altin, 0),
+        (m.kullanici_id IS NOT NULL AND (m.bitis IS NULL OR m.bitis > now())),
+        m.sebep, m.bitis,
+        (SELECT count(*) FROM public.sikayetler s WHERE s.hedef_kullanici_id = k.id)
+    FROM public.kullanicilar k
+    LEFT JOIN public.cuzdan c ON c.kullanici_id = k.id
+    LEFT JOIN public.mic_yasaklari m ON m.kullanici_id = k.id
+    WHERE k.id = p_hedef;
+END; $$;
+REVOKE ALL ON FUNCTION public.admin_kullanici_getir(BIGINT) FROM public;
+GRANT EXECUTE ON FUNCTION public.admin_kullanici_getir(BIGINT) TO authenticated;
+
+-- ---- ID (public_id) düzenle — DEVELOPER ------------------------------------
+CREATE OR REPLACE FUNCTION public.admin_public_id_degistir(p_hedef BIGINT, p_yeni TEXT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    IF NOT public.ben_developer() THEN
+        RAISE EXCEPTION 'Bu işlem yalnızca developer yetkisiyle yapılır.';
+    END IF;
+    IF p_yeni IS NULL OR length(trim(p_yeni)) = 0 THEN
+        RAISE EXCEPTION 'Geçersiz ID.';
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.kullanicilar WHERE public_id = p_yeni AND id <> p_hedef) THEN
+        RAISE EXCEPTION 'Bu ID zaten kullanımda.';
+    END IF;
+    UPDATE public.kullanicilar SET public_id = p_yeni WHERE id = p_hedef;
+END; $$;
+REVOKE ALL ON FUNCTION public.admin_public_id_degistir(BIGINT, TEXT) FROM public;
+GRANT EXECUTE ON FUNCTION public.admin_public_id_degistir(BIGINT, TEXT) TO authenticated;
+
+-- ---- Şifre sıfırla — DEVELOPER ---------------------------------------------
+CREATE OR REPLACE FUNCTION public.admin_sifre_sifirla(p_hedef BIGINT, p_yeni TEXT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp, auth AS $$
+DECLARE v_uid uuid;
+BEGIN
+    IF NOT public.ben_developer() THEN
+        RAISE EXCEPTION 'Bu işlem yalnızca developer yetkisiyle yapılır.';
+    END IF;
+    IF p_yeni IS NULL OR length(p_yeni) < 6 THEN
+        RAISE EXCEPTION 'Şifre en az 6 karakter olmalı.';
+    END IF;
+    SELECT auth_uid INTO v_uid FROM public.kullanicilar WHERE id = p_hedef;
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'Kullanıcının auth kaydı yok.'; END IF;
+    UPDATE auth.users
+       SET encrypted_password = extensions.crypt(p_yeni, extensions.gen_salt('bf'))
+     WHERE id = v_uid;
+END; $$;
+REVOKE ALL ON FUNCTION public.admin_sifre_sifirla(BIGINT, TEXT) FROM public;
+GRANT EXECUTE ON FUNCTION public.admin_sifre_sifirla(BIGINT, TEXT) TO authenticated;
+
+-- ═══════════════════════════ [030_sikayet_katilimci.sql] ═══════════════════════════
+
+-- ============================================================================
+-- 030_sikayet_katilimci.sql — Oda raporuna "o an odadaki katılımcılar" snapshot'ı
+-- ----------------------------------------------------------------------------
+-- ÇALIŞTIRMA: 023'ten SONRA (Supabase SQL Editor).
+--
+-- Bir oda raporlandığında, raporlayan client o anki presence listesini
+-- ([{uid,name,publicId}]) bu kolona yazar. Yönetici rapor detayında kimin
+-- o an odada olduğunu (avatar+ID) görüp işlem yapabilir.
+-- INSERT grant'ine yeni kolon eklenir.
+-- ============================================================================
+
+ALTER TABLE public.sikayetler ADD COLUMN IF NOT EXISTS oda_katilimcilar JSONB;
+
+GRANT INSERT (tip, raporlayan_id, hedef_kullanici_id, hedef_oda_id, neden, detay, oda_katilimcilar)
+    ON public.sikayetler TO authenticated;
+
+-- ═══════════════════════════ [031_admin_icerik.sql] ═══════════════════════════
+
+-- ============================================================================
+-- 031_admin_icerik.sql — Yönetici içerik kontrolü (akışta gönderi silme)
+-- ----------------------------------------------------------------------------
+-- ÇALIŞTIRMA: 008 (gonderi_sil) + 021'den SONRA (Supabase SQL Editor).
+--
+-- Mevcut gonderi_sil (008) sahiplik kontrollüdür (kendi gönderini silersin).
+-- Bu RPC yöneticiye (developer/super_admin) BAŞKASININ gönderisini de
+-- silme yetkisi verir (soft-delete). benim_kullanici_id() 003,
+-- ben_platform_yoneticisi() 021.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.admin_gonderi_sil(p_gonderi_id BIGINT)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_count INTEGER;
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Yetkin yok.';
+    END IF;
+    UPDATE public.gonderiler
+       SET silinmis = TRUE, silinme_tarihi = now()
+     WHERE id = p_gonderi_id AND silinmis = FALSE;
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RETURN v_count > 0;
+END; $$;
+REVOKE ALL ON FUNCTION public.admin_gonderi_sil(BIGINT) FROM public;
+GRANT EXECUTE ON FUNCTION public.admin_gonderi_sil(BIGINT) TO authenticated;

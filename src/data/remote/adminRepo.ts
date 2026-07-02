@@ -96,3 +96,10 @@ export async function resetPassword(userId: number, yeni: string): Promise<void>
   const { error } = await sb.rpc("admin_sifre_sifirla", { p_hedef: userId, p_yeni: yeni });
   if (error) throw error;
 }
+
+// ---- İçerik (031_admin_icerik): yönetici herhangi bir gönderiyi siler ------
+export async function deleteAnyPost(postDbId: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("admin_gonderi_sil", { p_gonderi_id: postDbId });
+  if (error) throw error;
+}

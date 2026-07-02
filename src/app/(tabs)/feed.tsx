@@ -13,6 +13,7 @@ import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { FEED_SEED, SCOPE_LABEL, type FeedPost, type FeedScope } from "@/data/feed";
 import { addComment as addCommentDb, addReply as addReplyDb, createPost, deleteComment, deletePost, editPost, FEED_ID_OFFSET, likePost, listPosts, setPinned, unlikePost } from "@/data/remote/feedRepo";
+import { deleteAnyPost } from "@/data/remote/adminRepo";
 import { getUnreadCount } from "@/data/remote/notifRepo";
 import { ROOMS } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
@@ -154,6 +155,16 @@ export default function FeedScreen() {
     setMenuPost(null);
     note("Paylaşım silindi");
     if (isDb(id)) deletePost(id - FEED_ID_OFFSET).catch(() => note("Silinemedi"));
+  };
+  const adminDelPost = (p: UserPost) => {
+    haptic.medium();
+    setPosts((ps) => ps.filter((x) => x.id !== p.id));
+    setMenuPost(null);
+    note("Yönetici sildi");
+    // DB gönderisiyse yönetici RPC'siyle kalıcı sil (sahiplik şartsız)
+    if (p.id >= FEED_ID_OFFSET && isSupabaseConfigured && useApp.getState().session) {
+      deleteAnyPost(p.id - FEED_ID_OFFSET).catch(() => note("Silinemedi"));
+    }
   };
   const saveEdit = (id: number) => {
     const t = editText.trim();
@@ -315,7 +326,7 @@ export default function FeedScreen() {
                       </View>
                     </View>
                   </Pressable>
-                  {p.mine && (
+                  {(p.mine || privileged) && (
                     <Pressable onPress={() => setMenuPost(p)} style={{ padding: 6 }}>
                       <Icon name="dots" size={18} color={C.dim2} />
                     </Pressable>
@@ -454,25 +465,33 @@ export default function FeedScreen() {
       {/* Post aksiyon menüsü */}
       <Sheet visible={!!menuPost} onClose={() => setMenuPost(null)}>
         {menuPost && (
-          <>
-            <Pressable onPress={() => { setEditId(menuPost.id); setEditText(menuPost.body); setMenuPost(null); }} style={styles.menuItem}>
-              <Icon name="edit" size={16} color={C.text} />
-              <Txt weight="bold" size={13} color={C.text} style={{ flex: 1 }}>Düzenle</Txt>
-            </Pressable>
-            <Pressable onPress={() => togglePin(menuPost.id)} style={styles.menuItem}>
-              <Icon name="pin" size={16} color={C.text} />
-              <Txt weight="bold" size={13} color={C.text} style={{ flex: 1 }}>{menuPost.pinned ? "Sabitlemeyi kaldır" : "Başa sabitle"}</Txt>
-            </Pressable>
-            <Pressable onPress={() => { setScopePost(menuPost.id); setMenuPost(null); }} style={styles.menuItem}>
-              <Icon path={SCOPE_LABEL[menuPost.scope].ic} size={16} color={C.text} />
-              <Txt weight="bold" size={13} color={C.text} style={{ flex: 1 }}>Kimler yanıtlayabilir</Txt>
-              <Icon name="chev" size={13} color={C.dim2} />
-            </Pressable>
-            <Pressable onPress={() => delPost(menuPost.id)} style={styles.menuItem}>
+          menuPost.mine ? (
+            <>
+              <Pressable onPress={() => { setEditId(menuPost.id); setEditText(menuPost.body); setMenuPost(null); }} style={styles.menuItem}>
+                <Icon name="edit" size={16} color={C.text} />
+                <Txt weight="bold" size={13} color={C.text} style={{ flex: 1 }}>Düzenle</Txt>
+              </Pressable>
+              <Pressable onPress={() => togglePin(menuPost.id)} style={styles.menuItem}>
+                <Icon name="pin" size={16} color={C.text} />
+                <Txt weight="bold" size={13} color={C.text} style={{ flex: 1 }}>{menuPost.pinned ? "Sabitlemeyi kaldır" : "Başa sabitle"}</Txt>
+              </Pressable>
+              <Pressable onPress={() => { setScopePost(menuPost.id); setMenuPost(null); }} style={styles.menuItem}>
+                <Icon path={SCOPE_LABEL[menuPost.scope].ic} size={16} color={C.text} />
+                <Txt weight="bold" size={13} color={C.text} style={{ flex: 1 }}>Kimler yanıtlayabilir</Txt>
+                <Icon name="chev" size={13} color={C.dim2} />
+              </Pressable>
+              <Pressable onPress={() => delPost(menuPost.id)} style={styles.menuItem}>
+                <Icon name="trash" size={16} color="#FB7185" />
+                <Txt weight="bold" size={13} color="#FB7185" style={{ flex: 1 }}>Paylaşımı sil</Txt>
+              </Pressable>
+            </>
+          ) : (
+            // Yönetici (developer/super_admin) — başkasının gönderisi
+            <Pressable onPress={() => adminDelPost(menuPost)} style={styles.menuItem}>
               <Icon name="trash" size={16} color="#FB7185" />
-              <Txt weight="bold" size={13} color="#FB7185" style={{ flex: 1 }}>Paylaşımı sil</Txt>
+              <Txt weight="bold" size={13} color="#FB7185" style={{ flex: 1 }}>Yönetici: Paylaşımı sil</Txt>
             </Pressable>
-          </>
+          )
         )}
       </Sheet>
 
