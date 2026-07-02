@@ -34,6 +34,11 @@ function mapRole(ekonomiRolu?: string | null): UserRole {
   return "user";
 }
 
+/** Otomatik oluşturulan stub kullanıcı adı mı (profil henüz tamamlanmadı)? */
+function isStubName(ad?: string | null): boolean {
+  return /^user_\d+$/.test((ad || "").trim());
+}
+
 type AppState = {
   girisYapildi: boolean;
   setGirisYapildi: (v: boolean) => void;
@@ -47,6 +52,10 @@ type AppState = {
   loadProfile: () => Promise<void>;
   signOutApp: () => Promise<void>;
   deleteAccountApp: () => Promise<void>;
+  // Profil yüklendi mi + stub (tamamlanmamış) mı? null = henüz bilinmiyor.
+  // Root navigasyon effect'i yalnızca `false` (yüklendi & tam) olunca
+  // onboarding'den (tabs)'a geçirir — yeni Google kullanıcısını register'da tutar.
+  profilEksik: boolean | null;
 
   // Hesap (uygulama) yasağı — doluysa tam ekran engel gösterilir + oturum kapatılır
   hesapYasak: AccountBan | null;
@@ -110,6 +119,7 @@ export const useApp = create<AppState>((set, get) => ({
   bootstrapped: false,
   publicId: null,
   dbId: null,
+  profilEksik: null,
 
   initAuth: () => {
     if (authStarted) return;
@@ -125,24 +135,28 @@ export const useApp = create<AppState>((set, get) => ({
     // yarışa sokuyoruz: ağ ne olursa olsun uygulama birkaç saniyede açılır.
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000));
     Promise.race([getSession(), timeout])
-      .then(async (session) => {
-        set({ session, girisYapildi: !!session });
+      .then((session) => {
+        // HIZLI BOOTSTRAP: oturum belli olur olmaz uygulamayı aç (splash'ı
+        // profile bağlama — Android'de sonsuz dönme buradan geliyordu). Profil,
+        // yasak ve günlük XP arka planda paralel koşar; ekranlar cache'ten
+        // anında dolar, arkada tazelenir.
+        set({ session, girisYapildi: !!session, bootstrapped: true });
         if (session) {
-          await get().loadProfile();
-          // Hesap yasaklıysa engel göster + çık; XP/işlem çalışmasın
-          if (await get().enforceAccountBan()) return;
-          // Günlük giriş XP'si (sunucu günde 1 kez sayar); kazandıysa profili tazele
+          get().loadProfile();
+          get().enforceAccountBan();
           addXp("gunluk_giris").then((g) => { if (g > 0) get().loadProfile(); });
         }
       })
-      .catch(() => {})
-      .finally(() => set({ bootstrapped: true }));
+      .catch(() => set({ bootstrapped: true }));
 
     onAuthChange(async (session) => {
       set({ session, girisYapildi: !!session });
       if (session) {
         await get().loadProfile();
         await get().enforceAccountBan();
+      } else {
+        // Çıkış / oturum düştü → profil durumu sıfırlanır (misafir).
+        set({ profilEksik: null });
       }
     });
   },
@@ -161,6 +175,7 @@ export const useApp = create<AppState>((set, get) => ({
           publicId: null,
           dbId: null,
           role: "user",
+          profilEksik: null,
           inRoom: false,
           currentRoom: null,
         });
@@ -195,6 +210,7 @@ export const useApp = create<AppState>((set, get) => ({
         publicId: p.public_id || null,
         dbId: p.id ?? null,
         role: mapRole(p.ekonomi_rolu),
+        profilEksik: isStubName(p.kullanici_adi), // register gerekiyor mu?
       });
     } catch {
       // sessizce geç — oturum geçerli, profil sonradan yüklenebilir
@@ -218,6 +234,7 @@ export const useApp = create<AppState>((set, get) => ({
       userLevel: 1,
       userXp: 0,
       role: "user",
+      profilEksik: null,
     });
   },
 
@@ -234,6 +251,7 @@ export const useApp = create<AppState>((set, get) => ({
       userLevel: 1,
       userXp: 0,
       role: "user",
+      profilEksik: null,
     });
   },
 

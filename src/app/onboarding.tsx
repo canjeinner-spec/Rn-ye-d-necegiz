@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { Redirect, useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -32,7 +32,7 @@ function GoldButton({ label, disabled, loading, onPress }: { label: string; disa
 
 export default function Onboarding() {
   const router = useRouter();
-  const { girisYapildi, setGirisYapildi, setUserName, setUserPhoto, loadProfile } = useApp();
+  const { girisYapildi, profilEksik, setGirisYapildi, setUserName, setUserPhoto, loadProfile } = useApp();
 
   const [step, setStep] = useState<Step>("home");
   const [busy, setBusy] = useState(false);
@@ -158,11 +158,17 @@ export default function Onboarding() {
     </Pressable>
   );
 
-  // Açılışta zaten girişliysen (oturum geri yüklendi) ana ekrana git.
-  // Yalnızca "home" adımında — kayıt/giriş akışını (email/register) bozmaz.
-  // Açılışta zaten girişliysen ana ekrana git. busy iken (Google akışı sürerken,
-  // oturum açılıp profil-tamamlama kararı verilmeden) yönlendirme yapma.
-  if (girisYapildi && step === "home" && !busy) return <Redirect href="/" />;
+  // Girişli ama profili stub (user_1234567) → hangi yoldan gelinirse gelinsin
+  // (soğuk açılış dahil) profil tamamlama adımına al. Root AuthGate bu kişiyi
+  // onboarding'de tutar; burada register'a çeviriyoruz.
+  useEffect(() => {
+    if (girisYapildi && profilEksik === true && step === "home" && !busy) setStep("register");
+  }, [girisYapildi, profilEksik, step, busy]);
+
+  // Açılışta zaten girişli VE profili tam ise ana ekrana git. Profil yüklenene
+  // (profilEksik null) ya da stub olduğu (true) sürece yönlendirme yapma; busy
+  // iken (Google akışı sürerken) de bekle. Asıl güvenilir sürücü root AuthGate.
+  if (girisYapildi && profilEksik === false && step === "home" && !busy) return <Redirect href="/" />;
 
   return (
     <View style={styles.root}>
