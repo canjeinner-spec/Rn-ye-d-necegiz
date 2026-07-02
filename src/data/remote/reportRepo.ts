@@ -28,8 +28,10 @@ export async function reportUserByPublicId(publicId: string, neden: string, deta
   await reportUserById(id, neden, detay);
 }
 
-/** Odayı raporla (odalar.id ile). */
-export async function reportRoom(odaId: number, neden: string, detay?: string): Promise<void> {
+export type RoomOccupant = { uid: number; name: string; publicId?: string; photo?: string };
+
+/** Odayı raporla (odalar.id ile). Katılımcı snapshot'ı o anki presence listesi. */
+export async function reportRoom(odaId: number, neden: string, detay?: string, katilimcilar?: RoomOccupant[]): Promise<void> {
   const sb = requireSupabase();
   const me = await getMyProfile();
   if (!me) throw new Error("Profil bulunamadı.");
@@ -39,6 +41,7 @@ export async function reportRoom(odaId: number, neden: string, detay?: string): 
     hedef_oda_id: odaId,
     neden,
     detay: detay?.trim() || null,
+    oda_katilimcilar: katilimcilar && katilimcilar.length ? katilimcilar : null,
   });
   if (error) throw error;
 }
@@ -58,6 +61,7 @@ export type ReportRow = {
   hedef: string; // kullanıcı adı ya da oda adı
   hedefKullaniciId: number | null;
   hedefPublicId?: string;
+  odaKatilimcilar?: RoomOccupant[]; // oda raporunda o anki katılımcılar
 };
 
 /** Raporları listele (yeniden eskiye). Yönetici tümünü, kullanıcı kendininkini görür. */
@@ -65,7 +69,7 @@ export async function listReports(limit = 100): Promise<ReportRow[]> {
   const sb = requireSupabase();
   const { data, error } = await sb
     .from(T)
-    .select("id, tip, raporlayan_id, hedef_kullanici_id, hedef_oda_id, neden, detay, durum, olusturulma_tarihi")
+    .select("id, tip, raporlayan_id, hedef_kullanici_id, hedef_oda_id, neden, detay, durum, olusturulma_tarihi, oda_katilimcilar")
     .order("id", { ascending: false })
     .limit(limit);
   if (error) throw error;
@@ -73,6 +77,7 @@ export async function listReports(limit = 100): Promise<ReportRow[]> {
     id: number; tip: "kullanici" | "oda"; raporlayan_id: number;
     hedef_kullanici_id: number | null; hedef_oda_id: number | null;
     neden: string; detay: string | null; durum: "bekliyor" | "incelendi"; olusturulma_tarihi: string;
+    oda_katilimcilar: RoomOccupant[] | null;
   }[]) ?? [];
 
   const userIds = [...new Set(rows.flatMap((r) => [r.raporlayan_id, r.hedef_kullanici_id]).filter((x): x is number => x != null))];
@@ -100,6 +105,7 @@ export async function listReports(limit = 100): Promise<ReportRow[]> {
       : odalar.get(r.hedef_oda_id ?? -1) || "Oda",
     hedefKullaniciId: r.hedef_kullanici_id,
     hedefPublicId: r.hedef_kullanici_id != null ? profs.get(r.hedef_kullanici_id)?.public_id : undefined,
+    odaKatilimcilar: Array.isArray(r.oda_katilimcilar) ? r.oda_katilimcilar : undefined,
   }));
 }
 

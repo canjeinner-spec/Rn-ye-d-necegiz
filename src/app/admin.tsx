@@ -321,6 +321,22 @@ export default function AdminScreen() {
                           </View>
                           {!!r.detay && <Txt size={10.5} color={C.dim} lh={1.4} style={{ marginTop: 2 }}>{r.detay}</Txt>}
                           <Txt size={9.5} color={C.dim2} style={{ marginTop: 3 }}>{r.raporlayan} raporladı · {zaman(r.at)}</Txt>
+                          {r.tip === "oda" && r.odaKatilimcilar && r.odaKatilimcilar.length > 0 && (
+                            <View style={{ marginTop: 8 }}>
+                              <Txt weight="bold" size={9.5} color={C.dim2} style={{ letterSpacing: 0.3, marginBottom: 6 }}>RAPOR ANINDA ODADA ({r.odaKatilimcilar.length})</Txt>
+                              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                                {r.odaKatilimcilar.map((o) => (
+                                  <Pressable key={o.uid} onPress={() => { haptic.light(); setDetailId(o.uid); }} style={styles.occ}>
+                                    <Portrait name={o.name} size={30} photo={o.photo} />
+                                    <View style={{ minWidth: 0 }}>
+                                      <Txt weight="bold" size={10.5} color={C.text} numberOfLines={1} style={{ maxWidth: 90 }}>{o.name}</Txt>
+                                      {!!o.publicId && <Txt size={8.5} color={C.dim2}>ID: {o.publicId}</Txt>}
+                                    </View>
+                                  </Pressable>
+                                ))}
+                              </View>
+                            </View>
+                          )}
                           <View style={{ flexDirection: "row", gap: 6, marginTop: 7 }}>
                             {r.durum === "bekliyor" && (
                               <Pressable onPress={() => markReviewed(r)} style={[styles.actChip, { backgroundColor: `${C.green}14`, borderColor: `${C.green}44` }]}>
@@ -399,6 +415,7 @@ const styles = StyleSheet.create({
   donePill: { paddingVertical: 2, paddingHorizontal: 7, borderRadius: 999, backgroundColor: `${C.green}14`, borderWidth: 1, borderColor: `${C.green}44` },
   actChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   empty: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: C.line },
+  occ: { flexDirection: "row", alignItems: "center", gap: 7, paddingVertical: 5, paddingHorizontal: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   search: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
   searchInput: { flex: 1, color: C.text, fontSize: 14, fontWeight: "600", padding: 0 },
   // detay sheet

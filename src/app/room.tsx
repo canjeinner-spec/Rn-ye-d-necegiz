@@ -894,7 +894,7 @@ export default function RoomScreen() {
                     onPress={() => {
                       setReportDone(true);
                       if (isDbRoom && dbId && reportReason) {
-                        reportRoom(dbId, reportReason, reportDetail).catch(() => toast("Rapor gönderilemedi"));
+                        reportRoom(dbId, reportReason, reportDetail, liveMembers.map((m) => ({ uid: m.uid, name: m.name, publicId: m.publicId, photo: m.photo }))).catch(() => toast("Rapor gönderilemedi"));
                       }
                     }}
                     style={{ borderRadius: 14, overflow: "hidden", marginTop: 12 }}
