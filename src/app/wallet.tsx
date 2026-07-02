@@ -1,17 +1,45 @@
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { Sheet } from "@/components/Sheet";
 import { Txt } from "@/components/Txt";
+import { getMyBalance, listMyLedger, type LedgerRow as LedgerData } from "@/data/remote/walletRepo";
 import { LEDGER_ICON, WALLET_LEDGER, type LedgerBirim, type LedgerTx } from "@/data/wallet";
 import { Icon } from "@/icons/Icon";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
+
+const AYLAR = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+function ledgerZaman(at: number) {
+  const d = new Date(at);
+  return `${d.getDate()} ${AYLAR[d.getMonth()]} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function RealLedgerRow({ tx }: { tx: LedgerData }) {
+  const pos = tx.miktar > 0;
+  return (
+    <View style={styles.ledgerRow}>
+      <View style={[styles.ledgerIcon, { backgroundColor: (tx.varlik === "elmas" ? "#22D3EE" : "#FBBF24") + "1A", borderColor: (tx.varlik === "elmas" ? "#22D3EE" : "#FBBF24") + "33" }]}>
+        {tx.varlik === "elmas" ? <DiamondBadge size={18} /> : <CoinBadge size={18} />}
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Txt weight="bold" size={12.5} color={C.text} numberOfLines={1}>{tx.sebep || (pos ? "Yükleme" : "Harcama")}</Txt>
+        <Txt weight="semibold" size={10} color={C.dim} style={{ marginTop: 2 }}>{ledgerZaman(tx.at)}</Txt>
+      </View>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+        <Txt weight="extrabold" size={13} color={pos ? "#34D399" : "#FB7185"}>{pos ? "+" : "−"}</Txt>
+        {tx.varlik === "elmas" ? <DiamondBadge size={13} /> : <CoinBadge size={13} />}
+        <Txt weight="extrabold" size={13} color={pos ? "#34D399" : "#FB7185"}>{Math.abs(tx.miktar).toLocaleString("tr-TR")}</Txt>
+      </View>
+    </View>
+  );
+}
 
 function Unit({ birim, size = 13 }: { birim: LedgerBirim; size?: number }) {
   if (birim === "altin") return <CoinBadge size={size} />;
@@ -56,10 +84,21 @@ export default function WalletScreen() {
   const [tab, setTab] = useState(0);
   const [stub, setStub] = useState<string | null>(null);
 
-  const altin = 12400;
-  const diamonds = 860;
-  const promo = 100;
-  const withdrawable = 142.5;
+  // Gerçek bakiye + işlem defteri (027_cuzdan); ekrana her gelişte tazele
+  const [bal, setBal] = useState<{ elmas: number; altin: number }>({ elmas: 0, altin: 0 });
+  const [ledger, setLedger] = useState<LedgerData[]>([]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!isSupabaseConfigured) return;
+      let alive = true;
+      getMyBalance().then((b) => { if (alive) setBal(b); }).catch(() => {});
+      listMyLedger().then((l) => { if (alive) setLedger(l); }).catch(() => {});
+      return () => { alive = false; };
+    }, []),
+  );
+  const altin = bal.altin;
+  const diamonds = bal.elmas;
+  const withdrawable = 142.5; // yayıncı kazancı — IAP/çekim alanı (Faz 6), mock kalır
 
   return (
     <View style={styles.root}>
@@ -138,9 +177,9 @@ export default function WalletScreen() {
                       <DiamondBadge size={17} />
                       <Txt weight="displayBold" size={19} color="#fff">{diamonds.toLocaleString("tr-TR")}</Txt>
                     </StatCard>
-                    <StatCard label="Promosyon" sub="Bonus · hediye için" accent="#A78BFA">
-                      <DiamondBadge size={17} />
-                      <Txt weight="displayBold" size={19} color="#fff">{promo}</Txt>
+                    <StatCard label="Altın" sub="Oda & etkinlik" accent="#FBBF24">
+                      <CoinBadge size={17} />
+                      <Txt weight="displayBold" size={19} color="#fff">{altin.toLocaleString("tr-TR")}</Txt>
                     </StatCard>
                   </>
                 )}
@@ -170,12 +209,20 @@ export default function WalletScreen() {
                   <Txt weight="bold" size={11.5} color={C.purple2}>Tümü ›</Txt>
                 </Pressable>
               </View>
-              {WALLET_LEDGER.slice(0, 3).map((tx) => <LedgerRow key={tx.id} tx={tx} />)}
+              {ledger.length > 0
+                ? ledger.slice(0, 3).map((tx) => <RealLedgerRow key={tx.id} tx={tx} />)
+                : WALLET_LEDGER.slice(0, 3).map((tx) => <LedgerRow key={tx.id} tx={tx} />)}
             </>
           ) : (
             <>
-              {WALLET_LEDGER.map((tx) => <LedgerRow key={tx.id} tx={tx} />)}
-              <Txt size={10.5} color={C.dim2} align="center" style={{ marginTop: 16 }}>Tüm işlemler · wallet_ledger</Txt>
+              {ledger.length > 0 ? (
+                ledger.map((tx) => <RealLedgerRow key={tx.id} tx={tx} />)
+              ) : (
+                <>
+                  {WALLET_LEDGER.map((tx) => <LedgerRow key={tx.id} tx={tx} />)}
+                  <Txt size={10.5} color={C.dim2} align="center" style={{ marginTop: 16 }}>Henüz gerçek işlem yok — örnek gösteriliyor.</Txt>
+                </>
+              )}
             </>
           )}
         </ScrollView>
