@@ -1,5 +1,5 @@
 -- ============================================================================
--- HEPSI_020_032.sql — 020..024 + 026..032 tek dosyada (BİRLEŞİK, idempotent)
+-- HEPSI_020_036.sql — 020..024 + 026..036 tek dosyada (BİRLEŞİK, idempotent)
 -- ----------------------------------------------------------------------------
 -- KULLANIM (Supabase SQL Editor):
 --   1) ÖNCE 025_rol_enum_degerleri.sql'i TEK BAŞINA çalıştır (enum değerleri).
@@ -7,9 +7,12 @@
 -- İçerik: hesap silme, oda üyeliği/rolleri, kalıcı oda yasağı, şikayet
 -- (sikayetler), platform rol atama, XP/seviye, cüzdan (elmas+altın), mic
 -- yasağı, admin kullanıcı işlemleri (bakiye/mic/ID/şifre), şikayet katılımcı
--- snapshot'ı, yönetici gönderi silme, oda giriş/çıkış kaydı (moderasyon).
+-- snapshot'ı, yönetici gönderi silme, oda giriş/çıkış kaydı (moderasyon),
+-- yönetici işlem günlüğü (denetim izi) + e-posta düzenleme, elmas/altın
+-- dondurma, hesap (uygulama) yasağı, oda düzenleme (ad/açıklama/ID).
 -- Her parça idempotent; tüm ekonomi_rolu karşılaştırmaları ::text;
--- admin_kullanici_getir sütunları açıkça cast'li (42804 önlenir). Şikayet
+-- admin_kullanici_getir sütunları açıkça cast'li (42804 önlenir) ve 036'da
+-- dondurma+hesap-yasak kolonlarıyla DROP+CREATE ile yeniden tanımlı. Şikayet
 -- tablosu "sikayetler" (v7 "raporlar" ile çakışmaz).
 -- ============================================================================
 
@@ -871,3 +874,510 @@ DROP POLICY IF EXISTS oda_hareket_select ON public.oda_hareket_log;
 CREATE POLICY oda_hareket_select ON public.oda_hareket_log
     FOR SELECT TO authenticated
     USING (public.ben_platform_yoneticisi());
+
+
+-- ═══════════════════════════ [033_yonetici_islem.sql] ═══════════════════════════
+
+-- ============================================================================
+-- 033_yonetici_islem.sql — Yönetici işlem günlüğü (denetim izi) + e-posta düzenleme
+-- ----------------------------------------------------------------------------
+-- ÇALIŞTIRMA: 024 + 027 + 028 + 029'dan SONRA (Supabase SQL Editor).
+--
+-- Her yönetici işlemini (bakiye, mic yasağı, rol, ID, şifre, e-posta, oda…)
+-- kim yaptı / kime / ne zaman kaydeder. Kullanıcı detayında "kaç kez işlem
+-- yapıldı, kimler yaptı, ID kaç kez değişti" bundan türetilir.
+--   • yonetici_islem_log: SELECT yalnızca platform yöneticisi; yazma yalnızca
+--     SECURITY DEFINER RPC içinden (_yonetici_log) → sahtelenemez.
+--   • Mevcut RPC'ler (bakiye_ekle, mic_yasak_ver/kaldir, platform_rol_ata,
+--     admin_public_id_degistir, admin_sifre_sifirla) log yazacak şekilde
+--     yeniden tanımlanır (idempotent — CREATE OR REPLACE).
+--   • admin_email_degistir(hedef, yeni): DEVELOPER; auth.users + kullanicilar.
+-- benim_kullanici_id() 003, ben_platform_yoneticisi() 021, ben_developer() 029.
+-- ============================================================================
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE IF NOT EXISTS public.yonetici_islem_log (
+    id         BIGSERIAL   PRIMARY KEY,
+    yapan_id   BIGINT      REFERENCES public.kullanicilar(id) ON DELETE SET NULL,
+    hedef_tip  TEXT        NOT NULL CHECK (hedef_tip IN ('kullanici', 'oda')),
+    hedef_id   BIGINT      NOT NULL,
+    islem      TEXT        NOT NULL,
+    detay      TEXT,
+    tarih      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_yonetici_log_hedef ON public.yonetici_islem_log (hedef_tip, hedef_id, id DESC);
+
+ALTER TABLE public.yonetici_islem_log ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.yonetici_islem_log FROM anon, authenticated;
+GRANT SELECT ON public.yonetici_islem_log TO authenticated;
+
+DROP POLICY IF EXISTS yonetici_log_select ON public.yonetici_islem_log;
+CREATE POLICY yonetici_log_select ON public.yonetici_islem_log
+    FOR SELECT TO authenticated
+    USING (public.ben_platform_yoneticisi());
+
+-- ---- Dahili: log yaz (yapan = oturum sahibi) -------------------------------
+CREATE OR REPLACE FUNCTION public._yonetici_log(p_tip TEXT, p_id BIGINT, p_islem TEXT, p_detay TEXT DEFAULT NULL)
+RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+    INSERT INTO public.yonetici_islem_log (yapan_id, hedef_tip, hedef_id, islem, detay)
+    VALUES (public.benim_kullanici_id(), p_tip, p_id, p_islem, p_detay);
+$$;
+
+-- ---- İşlem geçmişi okuyucu (yönetici) --------------------------------------
+CREATE OR REPLACE FUNCTION public.admin_islem_gecmisi(p_tip TEXT, p_id BIGINT, p_limit INT DEFAULT 100)
+RETURNS TABLE (
+    id BIGINT, islem TEXT, detay TEXT, tarih TIMESTAMPTZ,
+    yapan_id BIGINT, yapan_ad TEXT, yapan_public_id TEXT, yapan_rol TEXT
+)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Yetkin yok.';
+    END IF;
+    RETURN QUERY
+    SELECT l.id::bigint, l.islem::text, l.detay::text, l.tarih::timestamptz,
+           l.yapan_id::bigint, k.kullanici_adi::text, k.public_id::text, k.ekonomi_rolu::text
+      FROM public.yonetici_islem_log l
+      LEFT JOIN public.kullanicilar k ON k.id = l.yapan_id
+     WHERE l.hedef_tip = p_tip AND l.hedef_id = p_id
+     ORDER BY l.id DESC
+     LIMIT p_limit;
+END; $$;
+REVOKE ALL ON FUNCTION public.admin_islem_gecmisi(TEXT, BIGINT, INT) FROM public;
+GRANT EXECUTE ON FUNCTION public.admin_islem_gecmisi(TEXT, BIGINT, INT) TO authenticated;
+
+-- ============================================================================
+-- Mevcut RPC'leri log yazacak şekilde YENİDEN TANIMLA (idempotent)
+-- ============================================================================
+
+-- bakiye ver/al (027) + log
+CREATE OR REPLACE FUNCTION public.bakiye_ekle(p_hedef BIGINT, p_varlik TEXT, p_miktar BIGINT, p_sebep TEXT DEFAULT NULL)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Bakiye işlemi için yönetici olmalısın.';
+    END IF;
+    IF p_varlik NOT IN ('elmas', 'altin') THEN
+        RAISE EXCEPTION 'Geçersiz varlık.';
+    END IF;
+    IF p_miktar = 0 THEN RETURN; END IF;
+    PERFORM public._bakiye_uygula(
+        p_hedef, p_varlik, p_miktar,
+        COALESCE(p_sebep, CASE WHEN p_miktar > 0 THEN 'Yönetici yükledi' ELSE 'Yönetici düştü' END),
+        public.benim_kullanici_id());
+    PERFORM public._yonetici_log('kullanici', p_hedef,
+        CASE WHEN p_miktar > 0 THEN 'bakiye_ekle' ELSE 'bakiye_dus' END,
+        (CASE WHEN p_varlik = 'elmas' THEN 'Elmas ' ELSE 'Altın ' END) || abs(p_miktar)::text
+        || COALESCE(' · ' || p_sebep, ''));
+EXCEPTION WHEN check_violation THEN
+    RAISE EXCEPTION 'Bakiye negatife düşemez.';
+END; $$;
+
+-- mic yasağı ver (028) + log
+CREATE OR REPLACE FUNCTION public.mic_yasak_ver(p_hedef BIGINT, p_sebep TEXT DEFAULT NULL, p_dakika INT DEFAULT NULL)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_bitis TIMESTAMPTZ;
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Mic yasağı için yönetici olmalısın.';
+    END IF;
+    IF p_hedef = public.benim_kullanici_id() THEN
+        RAISE EXCEPTION 'Kendine mic yasağı veremezsin.';
+    END IF;
+    IF p_dakika IS NOT NULL THEN
+        IF p_dakika <= 0 THEN RAISE EXCEPTION 'Süre pozitif olmalı (ya da kalıcı için boş bırak).'; END IF;
+        v_bitis := now() + make_interval(mins => p_dakika);
+    END IF;
+    INSERT INTO public.mic_yasaklari (kullanici_id, sebep, yasaklayan_id, bitis)
+    VALUES (p_hedef, p_sebep, public.benim_kullanici_id(), v_bitis)
+    ON CONFLICT (kullanici_id) DO UPDATE
+        SET sebep = EXCLUDED.sebep, yasaklayan_id = EXCLUDED.yasaklayan_id,
+            bitis = EXCLUDED.bitis, olusturma = now();
+    PERFORM public._yonetici_log('kullanici', p_hedef, 'mic_yasak_ver',
+        (CASE WHEN v_bitis IS NULL THEN 'Kalıcı' ELSE to_char(v_bitis, 'YYYY-MM-DD HH24:MI') END)
+        || COALESCE(' · ' || p_sebep, ''));
+END; $$;
+
+-- mic yasağı kaldır (028) + log
+CREATE OR REPLACE FUNCTION public.mic_yasak_kaldir(p_hedef BIGINT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Yasak kaldırma için yönetici olmalısın.';
+    END IF;
+    DELETE FROM public.mic_yasaklari WHERE kullanici_id = p_hedef;
+    PERFORM public._yonetici_log('kullanici', p_hedef, 'mic_yasak_kaldir', NULL);
+END; $$;
+
+-- platform rol ata (024) + log
+CREATE OR REPLACE FUNCTION public.platform_rol_ata(p_hedef BIGINT, p_rol TEXT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_benim TEXT;
+BEGIN
+    IF p_rol NOT IN ('user', 'developer', 'super_admin')
+       OR NOT EXISTS (
+           SELECT 1 FROM pg_enum e
+             JOIN pg_type t ON t.oid = e.enumtypid
+            WHERE t.typname = 'ekonomi_rolu' AND e.enumlabel = p_rol
+       ) THEN
+        RAISE EXCEPTION 'Geçersiz rol: % (025_rol_enum_degerleri.sql çalıştırıldı mı?)', p_rol;
+    END IF;
+    SELECT ekonomi_rolu::text INTO v_benim FROM public.kullanicilar
+     WHERE id = public.benim_kullanici_id();
+    IF v_benim IS DISTINCT FROM 'super_admin' THEN
+        RAISE EXCEPTION 'Rol atamak için süper yönetici olmalısın.';
+    END IF;
+    IF p_hedef = public.benim_kullanici_id() THEN
+        RAISE EXCEPTION 'Kendi rolünü değiştiremezsin.';
+    END IF;
+    UPDATE public.kullanicilar SET ekonomi_rolu = p_rol::public.ekonomi_rolu WHERE id = p_hedef;
+    PERFORM public._yonetici_log('kullanici', p_hedef, 'rol_ata', 'Yeni rol: ' || p_rol);
+END; $$;
+
+-- ID (public_id) düzenle (029) + log
+CREATE OR REPLACE FUNCTION public.admin_public_id_degistir(p_hedef BIGINT, p_yeni TEXT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_eski TEXT;
+BEGIN
+    IF NOT public.ben_developer() THEN
+        RAISE EXCEPTION 'Bu işlem yalnızca developer yetkisiyle yapılır.';
+    END IF;
+    IF p_yeni IS NULL OR length(trim(p_yeni)) = 0 THEN
+        RAISE EXCEPTION 'Geçersiz ID.';
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.kullanicilar WHERE public_id = p_yeni AND id <> p_hedef) THEN
+        RAISE EXCEPTION 'Bu ID zaten kullanımda.';
+    END IF;
+    SELECT public_id INTO v_eski FROM public.kullanicilar WHERE id = p_hedef;
+    UPDATE public.kullanicilar SET public_id = p_yeni WHERE id = p_hedef;
+    PERFORM public._yonetici_log('kullanici', p_hedef, 'id_degistir',
+        COALESCE(v_eski, '?') || ' → ' || p_yeni);
+END; $$;
+
+-- şifre sıfırla (029) + log (şifre içeriği loglanmaz)
+CREATE OR REPLACE FUNCTION public.admin_sifre_sifirla(p_hedef BIGINT, p_yeni TEXT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp, auth AS $$
+DECLARE v_uid uuid;
+BEGIN
+    IF NOT public.ben_developer() THEN
+        RAISE EXCEPTION 'Bu işlem yalnızca developer yetkisiyle yapılır.';
+    END IF;
+    IF p_yeni IS NULL OR length(p_yeni) < 6 THEN
+        RAISE EXCEPTION 'Şifre en az 6 karakter olmalı.';
+    END IF;
+    SELECT auth_uid INTO v_uid FROM public.kullanicilar WHERE id = p_hedef;
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'Kullanıcının auth kaydı yok.'; END IF;
+    UPDATE auth.users
+       SET encrypted_password = extensions.crypt(p_yeni, extensions.gen_salt('bf'))
+     WHERE id = v_uid;
+    PERFORM public._yonetici_log('kullanici', p_hedef, 'sifre_sifirla', NULL);
+END; $$;
+
+-- ---- E-posta düzenle — DEVELOPER -------------------------------------------
+CREATE OR REPLACE FUNCTION public.admin_email_degistir(p_hedef BIGINT, p_yeni TEXT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp, auth AS $$
+DECLARE v_uid uuid; v_eski TEXT;
+BEGIN
+    IF NOT public.ben_developer() THEN
+        RAISE EXCEPTION 'Bu işlem yalnızca developer yetkisiyle yapılır.';
+    END IF;
+    IF p_yeni IS NULL OR position('@' in p_yeni) = 0 THEN
+        RAISE EXCEPTION 'Geçersiz e-posta.';
+    END IF;
+    IF EXISTS (SELECT 1 FROM auth.users WHERE email = lower(trim(p_yeni)) AND id <> (SELECT auth_uid FROM public.kullanicilar WHERE id = p_hedef)) THEN
+        RAISE EXCEPTION 'Bu e-posta zaten kullanımda.';
+    END IF;
+    SELECT auth_uid, email INTO v_uid, v_eski FROM public.kullanicilar WHERE id = p_hedef;
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'Kullanıcının auth kaydı yok.'; END IF;
+    UPDATE auth.users
+       SET email = lower(trim(p_yeni)),
+           email_confirmed_at = COALESCE(email_confirmed_at, now())
+     WHERE id = v_uid;
+    UPDATE public.kullanicilar SET email = lower(trim(p_yeni)) WHERE id = p_hedef;
+    PERFORM public._yonetici_log('kullanici', p_hedef, 'email_degistir',
+        COALESCE(v_eski, '?') || ' → ' || lower(trim(p_yeni)));
+END; $$;
+REVOKE ALL ON FUNCTION public.admin_email_degistir(BIGINT, TEXT) FROM public;
+GRANT EXECUTE ON FUNCTION public.admin_email_degistir(BIGINT, TEXT) TO authenticated;
+
+
+-- ═══════════════════════════ [034_dondurma.sql] ═══════════════════════════
+
+-- ============================================================================
+-- 034_dondurma.sql — Elmas / altın dondurma (yönetici cezası)
+-- ----------------------------------------------------------------------------
+-- ÇALIŞTIRMA: 027 + 033'ten SONRA (Supabase SQL Editor).
+--
+-- Dondurulan varlık: kullanıcı o varlığı HARCAYAMAZ / TRANSFER EDEMEZ
+-- (alabilir, görebilir; sadece gönderim kilitlenir). Yönetici işlemleri
+-- (bakiye_ekle) dondurmadan etkilenmez. Yalnızca developer/super_admin.
+--   • cuzdan.elmas_dondu / altin_dondu bayrakları.
+--   • admin_varlik_dondur(hedef, varlik, dondur): aç/kapat + log.
+--   • bakiye_transfer: gönderen tarafın varlığı donduysa reddeder.
+-- benim_kullanici_id() 003, ben_platform_yoneticisi() 021, _yonetici_log 033.
+-- ============================================================================
+
+ALTER TABLE public.cuzdan ADD COLUMN IF NOT EXISTS elmas_dondu BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.cuzdan ADD COLUMN IF NOT EXISTS altin_dondu BOOLEAN NOT NULL DEFAULT FALSE;
+GRANT SELECT (kullanici_id, elmas, altin, elmas_dondu, altin_dondu, guncelleme) ON public.cuzdan TO authenticated;
+
+-- ---- RPC: varlık dondur/çöz (yönetici) -------------------------------------
+CREATE OR REPLACE FUNCTION public.admin_varlik_dondur(p_hedef BIGINT, p_varlik TEXT, p_dondur BOOLEAN)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Dondurma işlemi için yönetici olmalısın.';
+    END IF;
+    IF p_varlik NOT IN ('elmas', 'altin') THEN
+        RAISE EXCEPTION 'Geçersiz varlık.';
+    END IF;
+    INSERT INTO public.cuzdan (kullanici_id) VALUES (p_hedef)
+    ON CONFLICT (kullanici_id) DO NOTHING;
+    IF p_varlik = 'elmas' THEN
+        UPDATE public.cuzdan SET elmas_dondu = p_dondur, guncelleme = now() WHERE kullanici_id = p_hedef;
+    ELSE
+        UPDATE public.cuzdan SET altin_dondu = p_dondur, guncelleme = now() WHERE kullanici_id = p_hedef;
+    END IF;
+    PERFORM public._yonetici_log('kullanici', p_hedef,
+        CASE WHEN p_dondur THEN 'varlik_dondur' ELSE 'varlik_coz' END,
+        CASE WHEN p_varlik = 'elmas' THEN 'Elmas' ELSE 'Altın' END);
+END; $$;
+REVOKE ALL ON FUNCTION public.admin_varlik_dondur(BIGINT, TEXT, BOOLEAN) FROM public;
+GRANT EXECUTE ON FUNCTION public.admin_varlik_dondur(BIGINT, TEXT, BOOLEAN) TO authenticated;
+
+-- ---- RPC: transfer — dondurma kontrolüyle (027'yi override eder) ------------
+CREATE OR REPLACE FUNCTION public.bakiye_transfer(p_hedef BIGINT, p_varlik TEXT, p_miktar BIGINT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_ben BIGINT := public.benim_kullanici_id(); v_dondu BOOLEAN;
+BEGIN
+    IF v_ben IS NULL THEN RAISE EXCEPTION 'Oturum bulunamadı.'; END IF;
+    IF p_hedef = v_ben THEN RAISE EXCEPTION 'Kendine transfer yapamazsın.'; END IF;
+    IF p_varlik NOT IN ('elmas', 'altin') THEN RAISE EXCEPTION 'Geçersiz varlık.'; END IF;
+    IF p_miktar <= 0 THEN RAISE EXCEPTION 'Miktar pozitif olmalı.'; END IF;
+
+    SELECT CASE WHEN p_varlik = 'elmas' THEN elmas_dondu ELSE altin_dondu END
+      INTO v_dondu FROM public.cuzdan WHERE kullanici_id = v_ben;
+    IF COALESCE(v_dondu, FALSE) THEN
+        RAISE EXCEPTION '% bakiyen donduruldu; harcayamazsın.',
+            CASE WHEN p_varlik = 'elmas' THEN 'Elmas' ELSE 'Altın' END;
+    END IF;
+
+    BEGIN
+        PERFORM public._bakiye_uygula(v_ben, p_varlik, -p_miktar, 'Transfer (gönderildi)', v_ben);
+    EXCEPTION WHEN check_violation THEN
+        RAISE EXCEPTION 'Yetersiz bakiye.';
+    END;
+    PERFORM public._bakiye_uygula(p_hedef, p_varlik, p_miktar, 'Transfer (alındı)', v_ben);
+END; $$;
+
+
+-- ═══════════════════════════ [035_hesap_yasak.sql] ═══════════════════════════
+
+-- ============================================================================
+-- 035_hesap_yasak.sql — Hesap (uygulama geneli) yasağı
+-- ----------------------------------------------------------------------------
+-- ÇALIŞTIRMA: 021 + 033'ten SONRA (Supabase SQL Editor).
+--
+-- Mic yasağından farkı: mic yasaklı kullanıcı odaya girip dinleyebilir; HESAP
+-- yasaklı kullanıcı uygulamayı HİÇ kullanamaz — açılışta tam ekran engelle
+-- karşılaşır ve oturumu kapatılır. Yalnızca developer/super_admin.
+--   • hesap_yasaklari: kişi başına tek aktif kayıt; bitis NULL = kalıcı.
+--   • hesap_yasak_ver(hedef, sebep, dakika) / hesap_yasak_kaldir(hedef).
+--   • benim_hesap_yasagim(): aktif yasağı (sebep, bitis) döndürür — açılışta
+--     istemci bunu okur; doluysa engel gösterip çıkış yapar.
+-- benim_kullanici_id() 003, ben_platform_yoneticisi() 021, _yonetici_log 033.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.hesap_yasaklari (
+    kullanici_id  BIGINT      PRIMARY KEY REFERENCES public.kullanicilar(id) ON DELETE CASCADE,
+    sebep         TEXT,
+    yasaklayan_id BIGINT      REFERENCES public.kullanicilar(id) ON DELETE SET NULL,
+    bitis         TIMESTAMPTZ, -- NULL = kalıcı
+    olusturma     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.hesap_yasaklari ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.hesap_yasaklari FROM anon, authenticated;
+GRANT SELECT ON public.hesap_yasaklari TO authenticated;
+
+-- Kişi kendi yasağını görür (engel ekranı için); yönetici hepsini görür.
+DROP POLICY IF EXISTS hesap_yasak_select ON public.hesap_yasaklari;
+CREATE POLICY hesap_yasak_select ON public.hesap_yasaklari
+    FOR SELECT TO authenticated
+    USING (kullanici_id = public.benim_kullanici_id() OR public.ben_platform_yoneticisi());
+
+-- ---- RPC: hesap yasağı ver --------------------------------------------------
+CREATE OR REPLACE FUNCTION public.hesap_yasak_ver(p_hedef BIGINT, p_sebep TEXT DEFAULT NULL, p_dakika INT DEFAULT NULL)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_bitis TIMESTAMPTZ; v_hedef TEXT;
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Hesap yasağı için yönetici olmalısın.';
+    END IF;
+    IF p_hedef = public.benim_kullanici_id() THEN
+        RAISE EXCEPTION 'Kendini yasaklayamazsın.';
+    END IF;
+    -- Yöneticiyi yalnızca developer yasaklayabilir (super_admin süper_admin/dev yasaklayamaz)
+    SELECT ekonomi_rolu::text INTO v_hedef FROM public.kullanicilar WHERE id = p_hedef;
+    IF v_hedef IN ('developer', 'super_admin') AND NOT public.ben_developer() THEN
+        RAISE EXCEPTION 'Yöneticiyi yalnızca developer yasaklayabilir.';
+    END IF;
+    IF p_dakika IS NOT NULL THEN
+        IF p_dakika <= 0 THEN RAISE EXCEPTION 'Süre pozitif olmalı (ya da kalıcı için boş bırak).'; END IF;
+        v_bitis := now() + make_interval(mins => p_dakika);
+    END IF;
+    INSERT INTO public.hesap_yasaklari (kullanici_id, sebep, yasaklayan_id, bitis)
+    VALUES (p_hedef, p_sebep, public.benim_kullanici_id(), v_bitis)
+    ON CONFLICT (kullanici_id) DO UPDATE
+        SET sebep = EXCLUDED.sebep, yasaklayan_id = EXCLUDED.yasaklayan_id,
+            bitis = EXCLUDED.bitis, olusturma = now();
+    PERFORM public._yonetici_log('kullanici', p_hedef, 'hesap_yasak_ver',
+        (CASE WHEN v_bitis IS NULL THEN 'Kalıcı' ELSE to_char(v_bitis, 'YYYY-MM-DD HH24:MI') END)
+        || COALESCE(' · ' || p_sebep, ''));
+END; $$;
+REVOKE ALL ON FUNCTION public.hesap_yasak_ver(BIGINT, TEXT, INT) FROM public;
+GRANT EXECUTE ON FUNCTION public.hesap_yasak_ver(BIGINT, TEXT, INT) TO authenticated;
+
+-- ---- RPC: hesap yasağı kaldır -----------------------------------------------
+CREATE OR REPLACE FUNCTION public.hesap_yasak_kaldir(p_hedef BIGINT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Yasak kaldırma için yönetici olmalısın.';
+    END IF;
+    DELETE FROM public.hesap_yasaklari WHERE kullanici_id = p_hedef;
+    PERFORM public._yonetici_log('kullanici', p_hedef, 'hesap_yasak_kaldir', NULL);
+END; $$;
+REVOKE ALL ON FUNCTION public.hesap_yasak_kaldir(BIGINT) FROM public;
+GRANT EXECUTE ON FUNCTION public.hesap_yasak_kaldir(BIGINT) TO authenticated;
+
+-- ---- RPC: kendi aktif hesap yasağım (bitmişse yok sayılır) ------------------
+CREATE OR REPLACE FUNCTION public.benim_hesap_yasagim()
+RETURNS TABLE (sebep TEXT, bitis TIMESTAMPTZ, kalici BOOLEAN)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+    SELECT h.sebep, h.bitis, (h.bitis IS NULL)
+      FROM public.hesap_yasaklari h
+     WHERE h.kullanici_id = public.benim_kullanici_id()
+       AND (h.bitis IS NULL OR h.bitis > now());
+$$;
+REVOKE ALL ON FUNCTION public.benim_hesap_yasagim() FROM public;
+GRANT EXECUTE ON FUNCTION public.benim_hesap_yasagim() TO authenticated;
+
+
+-- ═══════════════════════════ [036_oda_yonet.sql] ═══════════════════════════
+
+-- ============================================================================
+-- 036_oda_yonet.sql — Yönetici oda düzenleme + genişletilmiş kullanıcı detayı
+-- ----------------------------------------------------------------------------
+-- ÇALIŞTIRMA: 029 + 033 + 034 + 035'ten SONRA (Supabase SQL Editor).
+--
+--   • admin_oda_getir(oda): yönetici; oda bilgisi (özel oda dahil).
+--   • admin_oda_guncelle(oda, ad, aciklama): yönetici düzenler + log.
+--   • admin_oda_public_id_degistir(oda, yeni): DEVELOPER + log.
+--   • admin_kullanici_getir: 029'daki sürümü DROP edip dondurma bayrakları +
+--     hesap yasağı kolonlarıyla YENİDEN tanımlar (dönüş imzası değişti).
+-- benim_kullanici_id() 003, ben_platform_yoneticisi() 021, ben_developer() 029,
+-- _yonetici_log 033.
+-- ============================================================================
+
+-- ---- Oda getir (yönetici — özel oda dahil) ---------------------------------
+CREATE OR REPLACE FUNCTION public.admin_oda_getir(p_oda BIGINT)
+RETURNS TABLE (
+    id BIGINT, public_id TEXT, ad TEXT, aciklama TEXT, kategori TEXT, kapak_url TEXT,
+    herkese_acik BOOLEAN, olusturan_id BIGINT, sahip_ad TEXT, sahip_public_id TEXT,
+    uye_sayisi BIGINT, aktif_katilimci INT
+)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Yetkin yok.';
+    END IF;
+    RETURN QUERY
+    SELECT o.id::bigint, o.public_id::text, o.ad::text, o.aciklama::text, o.kategori::text, o.kapak_url::text,
+           o.herkese_acik::boolean, o.olusturan_id::bigint, k.kullanici_adi::text, k.public_id::text,
+           (SELECT count(*) FROM public.oda_uyeleri u WHERE u.oda_id = o.id)::bigint,
+           o.aktif_katilimci_sayisi::int
+      FROM public.odalar o
+      LEFT JOIN public.kullanicilar k ON k.id = o.olusturan_id
+     WHERE o.id = p_oda;
+END; $$;
+REVOKE ALL ON FUNCTION public.admin_oda_getir(BIGINT) FROM public;
+GRANT EXECUTE ON FUNCTION public.admin_oda_getir(BIGINT) TO authenticated;
+
+-- ---- Oda güncelle (ad + açıklama) — yönetici -------------------------------
+CREATE OR REPLACE FUNCTION public.admin_oda_guncelle(p_oda BIGINT, p_ad TEXT, p_aciklama TEXT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Yetkin yok.';
+    END IF;
+    IF p_ad IS NULL OR length(trim(p_ad)) = 0 THEN
+        RAISE EXCEPTION 'Oda adı boş olamaz.';
+    END IF;
+    UPDATE public.odalar
+       SET ad = trim(p_ad), aciklama = NULLIF(trim(COALESCE(p_aciklama, '')), '')
+     WHERE id = p_oda;
+    PERFORM public._yonetici_log('oda', p_oda, 'oda_guncelle', 'Ad: ' || trim(p_ad));
+END; $$;
+REVOKE ALL ON FUNCTION public.admin_oda_guncelle(BIGINT, TEXT, TEXT) FROM public;
+GRANT EXECUTE ON FUNCTION public.admin_oda_guncelle(BIGINT, TEXT, TEXT) TO authenticated;
+
+-- ---- Oda ID (public_id) düzenle — DEVELOPER --------------------------------
+CREATE OR REPLACE FUNCTION public.admin_oda_public_id_degistir(p_oda BIGINT, p_yeni TEXT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_eski TEXT;
+BEGIN
+    IF NOT public.ben_developer() THEN
+        RAISE EXCEPTION 'Oda ID değişimi yalnızca developer yetkisiyle yapılır.';
+    END IF;
+    IF p_yeni IS NULL OR length(trim(p_yeni)) = 0 THEN
+        RAISE EXCEPTION 'Geçersiz ID.';
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.odalar WHERE public_id = trim(p_yeni) AND id <> p_oda) THEN
+        RAISE EXCEPTION 'Bu oda ID zaten kullanımda.';
+    END IF;
+    SELECT public_id INTO v_eski FROM public.odalar WHERE id = p_oda;
+    UPDATE public.odalar SET public_id = trim(p_yeni) WHERE id = p_oda;
+    PERFORM public._yonetici_log('oda', p_oda, 'oda_id_degistir', COALESCE(v_eski, '?') || ' → ' || trim(p_yeni));
+END; $$;
+REVOKE ALL ON FUNCTION public.admin_oda_public_id_degistir(BIGINT, TEXT) FROM public;
+GRANT EXECUTE ON FUNCTION public.admin_oda_public_id_degistir(BIGINT, TEXT) TO authenticated;
+
+-- ============================================================================
+-- admin_kullanici_getir — dondurma + hesap yasağı kolonlarıyla (imza değişti)
+-- ============================================================================
+DROP FUNCTION IF EXISTS public.admin_kullanici_getir(BIGINT);
+CREATE FUNCTION public.admin_kullanici_getir(p_hedef BIGINT)
+RETURNS TABLE (
+    id BIGINT, public_id TEXT, kullanici_adi TEXT, profil_resmi TEXT,
+    email TEXT, rol TEXT, seviye_id INT, deneyim_puani BIGINT,
+    elmas BIGINT, altin BIGINT, elmas_dondu BOOLEAN, altin_dondu BOOLEAN,
+    mic_yasakli BOOLEAN, mic_sebep TEXT, mic_bitis TIMESTAMPTZ,
+    hesap_yasakli BOOLEAN, hesap_sebep TEXT, hesap_bitis TIMESTAMPTZ,
+    rapor_sayisi BIGINT
+)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN
+        RAISE EXCEPTION 'Yetkin yok.';
+    END IF;
+    RETURN QUERY
+    SELECT
+        k.id::bigint, k.public_id::text, k.kullanici_adi::text, k.profil_resmi::text,
+        (CASE WHEN public.ben_developer() THEN k.email ELSE NULL END)::text,
+        k.ekonomi_rolu::text, k.seviye_id::int, COALESCE(k.deneyim_puani, 0)::bigint,
+        COALESCE(c.elmas, 0)::bigint, COALESCE(c.altin, 0)::bigint,
+        COALESCE(c.elmas_dondu, FALSE)::boolean, COALESCE(c.altin_dondu, FALSE)::boolean,
+        (m.kullanici_id IS NOT NULL AND (m.bitis IS NULL OR m.bitis > now()))::boolean,
+        m.sebep::text, m.bitis::timestamptz,
+        (h.kullanici_id IS NOT NULL AND (h.bitis IS NULL OR h.bitis > now()))::boolean,
+        h.sebep::text, h.bitis::timestamptz,
+        (SELECT count(*) FROM public.sikayetler s WHERE s.hedef_kullanici_id = k.id)::bigint
+    FROM public.kullanicilar k
+    LEFT JOIN public.cuzdan c ON c.kullanici_id = k.id
+    LEFT JOIN public.mic_yasaklari m ON m.kullanici_id = k.id
+    LEFT JOIN public.hesap_yasaklari h ON h.kullanici_id = k.id
+    WHERE k.id = p_hedef;
+END; $$;
+REVOKE ALL ON FUNCTION public.admin_kullanici_getir(BIGINT) FROM public;
+GRANT EXECUTE ON FUNCTION public.admin_kullanici_getir(BIGINT) TO authenticated;

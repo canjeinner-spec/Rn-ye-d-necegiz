@@ -47,6 +47,7 @@ export default function AdminRoomReportScreen() {
   useEffect(() => { load(); }, [load]);
 
   const openUser = (uid: number) => { haptic.light(); router.navigate(`/admin-user?userId=${uid}`); };
+  const openEdit = () => { haptic.light(); router.navigate(`/admin-room-edit?odaId=${odaId}`); };
 
   const markReviewed = () => {
     if (!report) return;
@@ -57,6 +58,11 @@ export default function AdminRoomReportScreen() {
 
   const oda = detail?.oda;
   const snapshot = report?.odaKatilimcilar ?? [];
+
+  // Rapor anından itibaren hareket (rapor zamanı biliniyorsa)
+  const sinceMoves = report ? (detail?.hareketler ?? []).filter((h) => h.at >= report.at) : [];
+  const girenSonra = new Set(sinceMoves.filter((h) => h.tip === "giris").map((h) => h.uid)).size;
+  const cikanSonra = new Set(sinceMoves.filter((h) => h.tip === "cikis").map((h) => h.uid)).size;
 
   return (
     <View style={styles.root}>
@@ -103,7 +109,14 @@ export default function AdminRoomReportScreen() {
             )}
 
             {/* Oda bilgileri */}
-            <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>ODA BİLGİLERİ</Txt>
+            <View style={[styles.lbl, { flexDirection: "row", alignItems: "center" }]}>
+              <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5, flex: 1 }}>ODA BİLGİLERİ</Txt>
+              {oda && (
+                <Pressable onPress={openEdit} style={styles.actChip}>
+                  <Icon name="edit" size={11} color={C.gold} /><Txt weight="bold" size={10} color={C.gold}>Düzenle</Txt>
+                </Pressable>
+              )}
+            </View>
             {oda ? (
               <View style={styles.group}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 13 }}>
@@ -124,6 +137,18 @@ export default function AdminRoomReportScreen() {
                   <View style={styles.metricDiv} />
                   <View style={styles.metricCol}><Txt weight="displayBold" size={16} color="#FB7185">{detail?.cikanSayisi ?? 0}</Txt><Txt size={9} color={C.dim2}>çıkan</Txt></View>
                 </View>
+                {report && (
+                  <>
+                    <View style={styles.divider} />
+                    <View style={styles.sinceRow}>
+                      <Icon name="flag" size={12} color={C.purple2} />
+                      <Txt size={10.5} color={C.dim} style={{ flex: 1 }} lh={1.4}>Rapordan beri</Txt>
+                      <Txt weight="bold" size={11} color="#5EEAD4">{girenSonra} giren</Txt>
+                      <Txt size={10} color={C.dim2}>·</Txt>
+                      <Txt weight="bold" size={11} color="#FB7185">{cikanSonra} çıkan</Txt>
+                    </View>
+                  </>
+                )}
               </View>
             ) : (
               <View style={styles.empty}><Icon name="warn" size={16} color={C.dim} /><Txt size={11.5} color={C.dim} style={{ flex: 1 }} lh={1.4}>Oda silinmiş ya da erişilemiyor.</Txt></View>
@@ -204,6 +229,7 @@ const styles = StyleSheet.create({
   donePill: { paddingVertical: 2, paddingHorizontal: 7, borderRadius: 999, backgroundColor: `${C.green}14`, borderWidth: 1, borderColor: `${C.green}44` },
   lbl: { letterSpacing: 0.5, marginTop: 18, marginBottom: 8 },
   metrics: { flexDirection: "row", paddingVertical: 12 },
+  sinceRow: { flexDirection: "row", alignItems: "center", gap: 7, paddingVertical: 10, paddingHorizontal: 14 },
   metricCol: { flex: 1, alignItems: "center", gap: 3 },
   metricDiv: { width: StyleSheet.hairlineWidth, backgroundColor: C.line },
   personRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, paddingHorizontal: 12 },

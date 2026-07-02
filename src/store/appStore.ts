@@ -3,7 +3,7 @@ import { create } from "zustand";
 
 import { type DMThread } from "@/data/dm";
 import { type Room } from "@/data/seed";
-import { deleteAccount, getSession, onAuthChange, signOut } from "@/data/remote/authRepo";
+import { deleteAccount, getMyAccountBan, getSession, onAuthChange, signOut, type AccountBan } from "@/data/remote/authRepo";
 import { ensureMyProfile, getMyProfile } from "@/data/remote/profileRepo";
 import { createRoom } from "@/data/remote/roomsRepo";
 import { addXp } from "@/data/remote/xpRepo";
@@ -47,6 +47,11 @@ type AppState = {
   loadProfile: () => Promise<void>;
   signOutApp: () => Promise<void>;
   deleteAccountApp: () => Promise<void>;
+
+  // Hesap (uygulama) yasağı — doluysa tam ekran engel gösterilir + oturum kapatılır
+  hesapYasak: AccountBan | null;
+  enforceAccountBan: () => Promise<boolean>;
+  clearHesapYasak: () => void;
 
   userName: string;
   userBio: string;
@@ -124,6 +129,8 @@ export const useApp = create<AppState>((set, get) => ({
         set({ session, girisYapildi: !!session });
         if (session) {
           await get().loadProfile();
+          // Hesap yasaklıysa engel göster + çık; XP/işlem çalışmasın
+          if (await get().enforceAccountBan()) return;
           // Günlük giriş XP'si (sunucu günde 1 kez sayar); kazandıysa profili tazele
           addXp("gunluk_giris").then((g) => { if (g > 0) get().loadProfile(); });
         }
@@ -133,8 +140,36 @@ export const useApp = create<AppState>((set, get) => ({
 
     onAuthChange(async (session) => {
       set({ session, girisYapildi: !!session });
-      if (session) await get().loadProfile();
+      if (session) {
+        await get().loadProfile();
+        await get().enforceAccountBan();
+      }
     });
+  },
+
+  hesapYasak: null,
+  clearHesapYasak: () => set({ hesapYasak: null }),
+  enforceAccountBan: async () => {
+    try {
+      const ban = await getMyAccountBan();
+      if (ban) {
+        await signOut().catch(() => {});
+        set({
+          hesapYasak: ban,
+          session: null,
+          girisYapildi: false,
+          publicId: null,
+          dbId: null,
+          role: "user",
+          inRoom: false,
+          currentRoom: null,
+        });
+        return true;
+      }
+    } catch {
+      // sessizce geç — yasak kontrolü başarısızsa kullanıcıyı kilitlemeyiz
+    }
+    return false;
   },
 
   loadProfile: async () => {

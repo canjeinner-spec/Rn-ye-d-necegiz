@@ -95,6 +95,18 @@ export async function signOut() {
   await supabase.auth.signOut();
 }
 
+export type AccountBan = { sebep: string | null; bitis: number | null };
+
+/** Kendi aktif hesap (uygulama) yasağım (yoksa null). bitis: epoch ms | null(kalıcı). */
+export async function getMyAccountBan(): Promise<AccountBan | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc("benim_hesap_yasagim");
+  if (error) return null; // RPC yoksa/erişilemezse yasak yok say
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  return { sebep: row.sebep ?? null, bitis: row.bitis ? new Date(row.bitis).getTime() : null };
+}
+
 /** Hesabı kalıcı olarak sil (kullanicilar + auth.users satırı). Geri alınamaz. */
 export async function deleteAccount(): Promise<void> {
   const sb = requireSupabase();
