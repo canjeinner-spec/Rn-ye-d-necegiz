@@ -1,4 +1,5 @@
 import { type Session } from "@supabase/supabase-js";
+import { AppState as RNAppState } from "react-native";
 import { create } from "zustand";
 
 import { type DMThread } from "@/data/dm";
@@ -9,7 +10,7 @@ import { createRoom, listRooms } from "@/data/remote/roomsRepo";
 import { listPosts } from "@/data/remote/feedRepo";
 import { addXp } from "@/data/remote/xpRepo";
 import { prefetch, setCached } from "@/lib/cache";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export type BroadcastData = {
   sender: string;
@@ -113,6 +114,32 @@ type AppState = {
 let bcTimer: ReturnType<typeof setTimeout> | null = null;
 let authStarted = false;
 
+// --- Canlı hesap-yasağı izleyicisi (037_realtime_yasak) ---------------------
+// Yönetici bir hesabı yasakladığı ANDA cihaz bunu Realtime ile görüp oturumu
+// kapatır ve tam ekran engel gösterir. Eskiden yasak yalnızca açılışta /
+// auth değişiminde kontrol ediliyordu → aktif kullanıcı atılmıyordu.
+let banChannel: ReturnType<NonNullable<typeof supabase>["channel"]> | null = null;
+let watchedBanDbId: number | null = null;
+
+function setupBanWatcher(dbId: number, onChange: () => void) {
+  if (!supabase || watchedBanDbId === dbId) return; // aynı kullanıcı → tekrar abone olma
+  if (banChannel) { supabase.removeChannel(banChannel); banChannel = null; }
+  watchedBanDbId = dbId;
+  banChannel = supabase
+    .channel(`hesap-yasak-${dbId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "hesap_yasaklari", filter: `kullanici_id=eq.${dbId}` },
+      (payload) => { if (payload.eventType !== "DELETE") onChange(); }, // yasak eklendi/güncellendi → kontrol et
+    )
+    .subscribe();
+}
+function teardownBanWatcher() {
+  if (supabase && banChannel) supabase.removeChannel(banChannel);
+  banChannel = null;
+  watchedBanDbId = null;
+}
+
 export const useApp = create<AppState>((set, get) => ({
   girisYapildi: false,
   setGirisYapildi: (v) => set({ girisYapildi: v }),
@@ -161,8 +188,15 @@ export const useApp = create<AppState>((set, get) => ({
         await get().enforceAccountBan();
       } else {
         // Çıkış / oturum düştü → profil durumu sıfırlanır (misafir).
+        teardownBanWatcher();
         set({ profilEksik: null });
       }
+    });
+
+    // Uygulama ön plana gelince yasağı yeniden kontrol et (Realtime kaçırırsa
+    // ya da arka planda yasaklandıysa yakalar).
+    RNAppState.addEventListener("change", (s) => {
+      if (s === "active" && get().session) get().enforceAccountBan();
     });
   },
 
@@ -172,6 +206,7 @@ export const useApp = create<AppState>((set, get) => ({
     try {
       const ban = await getMyAccountBan();
       if (ban) {
+        teardownBanWatcher();
         await signOut().catch(() => {});
         set({
           hesapYasak: ban,
@@ -217,6 +252,8 @@ export const useApp = create<AppState>((set, get) => ({
         role: mapRole(p.ekonomi_rolu),
         profilEksik: isStubName(p.kullanici_adi), // register gerekiyor mu?
       });
+      // dbId belli → hesap yasağını CANLI izle (anında atılma için)
+      if (p.id != null) setupBanWatcher(p.id, () => get().enforceAccountBan());
     } catch {
       // sessizce geç — oturum geçerli, profil sonradan yüklenebilir
     }

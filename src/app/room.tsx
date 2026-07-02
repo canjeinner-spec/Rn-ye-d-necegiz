@@ -243,6 +243,22 @@ export default function RoomScreen() {
     return () => { alive = false; };
   }, [isDbRoom]);
 
+  // Mic yasağı CANLI (037_realtime_yasak): yönetici yasaklarsa/kaldırırsa oda
+  // içindeyken anında yansısın (yeniden girmeyi beklemeden).
+  useEffect(() => {
+    const sb = supabase;
+    if (!isDbRoom || !sb || myDbId == null) return;
+    const ch = sb
+      .channel(`mic-yasak-${myDbId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "mic_yasaklari", filter: `kullanici_id=eq.${myDbId}` },
+        () => { getMyMicBan().then((b) => { setMicBan(b); if (b) setMicBanModal(true); }).catch(() => {}); },
+      )
+      .subscribe();
+    return () => { sb.removeChannel(ch); };
+  }, [isDbRoom, myDbId]);
+
   // Yasaklıysam odaya giremem: bildir ve çık (022_oda_yasaklari).
   useEffect(() => {
     if (!isDbRoom || !dbId) return;
