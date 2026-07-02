@@ -15,6 +15,7 @@ import { FEED_SEED, SCOPE_LABEL, type FeedPost, type FeedScope } from "@/data/fe
 import { addComment as addCommentDb, addReply as addReplyDb, createPost, deleteComment, deletePost, editPost, FEED_ID_OFFSET, likePost, listPosts, setPinned, unlikePost } from "@/data/remote/feedRepo";
 import { deleteAnyPost } from "@/data/remote/adminRepo";
 import { getUnreadCount } from "@/data/remote/notifRepo";
+import { getCached, setCached } from "@/lib/cache";
 import { ROOMS } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -55,7 +56,11 @@ export default function FeedScreen() {
   const [composer, setComposer] = useState(false);
   const [text, setText] = useState("");
   const [sharing, setSharing] = useState(false);
-  const [posts, setPosts] = useState<FeedPost[]>(FEED_SEED);
+  // Cache-first: son DB gönderilerini (persist) seed ile birleştirip ANINDA göster.
+  const [posts, setPosts] = useState<FeedPost[]>(() => {
+    const cached = getCached<FeedPost[]>("feed:db");
+    return cached && cached.length ? [...cached, ...FEED_SEED] : FEED_SEED;
+  });
   const [notifUnread, setNotifUnread] = useState(0);
 
   // Bildirim çanı için okunmamış sayısı (ekrana her gelişte)
@@ -76,6 +81,7 @@ export default function FeedScreen() {
       listPosts()
         .then(({ posts: db, likedIds }) => {
           if (!alive) return;
+          setCached("feed:db", db, true); // soğuk açılışta anında görünsün
           setPosts([...db, ...FEED_SEED]);
           setLiked((prev) => { const next = { ...prev }; for (const id of likedIds) next[id] = true; return next; });
         })

@@ -18,6 +18,7 @@ import { type IconName } from "@/icons/paths";
 import { getFollowCounts } from "@/data/remote/followRepo";
 import { getVisitorCount } from "@/data/remote/visitRepo";
 import { updateMyProfile } from "@/data/remote/profileRepo";
+import { useCachedResource } from "@/lib/cache";
 import { uploadAvatar } from "@/data/remote/storageRepo";
 import { FEATURES } from "@/lib/features";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -35,18 +36,17 @@ type MenuItem = { ic: IconName; g1: string; g2: string; t: string; s?: string; r
 export default function ProfileTab() {
   const router = useRouter();
   const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, setStreamer, role, setRole, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
-  const [followCounts, setFollowCounts] = useState<{ followers: number; following: number } | null>(null);
-  const [visitorCount, setVisitorCount] = useState<number | null>(null);
 
-  // Ekrana her gelişte profili + takip/ziyaret sayaçlarını DB'den tazele.
-  useFocusEffect(useCallback(() => {
-    if (!session) return;
-    loadProfile();
-    if (dbId) {
-      getFollowCounts(dbId).then(setFollowCounts).catch(() => {});
-      getVisitorCount(dbId).then(setVisitorCount).catch(() => {});
-    }
-  }, [session, loadProfile, dbId]));
+  // Cache-first sayaçlar: son bilinen değeri ANINDA göster (persist), arkada tazele.
+  const { data: followCounts } = useCachedResource<{ followers: number; following: number }>(
+    `follow:${dbId ?? "?"}`, () => getFollowCounts(dbId as number), { persist: true, enabled: !!session && !!dbId },
+  );
+  const { data: visitorCount } = useCachedResource<number>(
+    `visitors:${dbId ?? "?"}`, () => getVisitorCount(dbId as number), { persist: true, enabled: !!session && !!dbId },
+  );
+
+  // Ekrana her gelişte profili tazele (store'dan zaten anında render ediliyor).
+  useFocusEffect(useCallback(() => { if (session) loadProfile(); }, [session, loadProfile]));
   const [lang, setLang] = useState("Türkçe");
   const privileged = role !== "user";
   const [editOpen, setEditOpen] = useState(false);

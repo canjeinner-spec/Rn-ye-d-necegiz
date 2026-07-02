@@ -8,13 +8,14 @@ const BUCKET = "avatars";
  */
 export async function uploadAvatar(base64: string, uri: string): Promise<string> {
   const sb = requireSupabase();
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) throw new Error("Oturum yok.");
+  const { data: sess } = await sb.auth.getSession(); // yerel (ağ round-trip'i yok)
+  const uid = sess.session?.user?.id;
+  if (!uid) throw new Error("Oturum yok.");
 
   const extRaw = (uri.split("?")[0].split(".").pop() || "jpg").toLowerCase();
   const ext = extRaw === "png" ? "png" : extRaw === "webp" ? "webp" : "jpg";
   const contentType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
-  const path = `${auth.user.id}/${Date.now()}.${ext}`;
+  const path = `${uid}/${Date.now()}.${ext}`;
 
   const bytes = base64ToBytes(base64);
   const { error } = await sb.storage.from(BUCKET).upload(path, bytes, { contentType, upsert: true });

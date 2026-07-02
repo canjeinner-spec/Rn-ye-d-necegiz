@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
-import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useRouter } from "expo-router";
+import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -14,6 +14,7 @@ import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { PEOPLE } from "@/data/people";
 import { listRooms } from "@/data/remote/roomsRepo";
+import { useCachedResource } from "@/lib/cache";
 import { ROOMS, type Room } from "@/data/seed";
 import { RoomPasswordGate } from "@/sheets/RoomPasswordGate";
 import { Icon } from "@/icons/Icon";
@@ -94,16 +95,13 @@ export default function Home() {
   const privileged = role !== "user";
   const [tab, setTab] = useState(0);
   const [gateRoom, setGateRoom] = useState<Room | null>(null);
-  const [dbRooms, setDbRooms] = useState<Room[]>([]);
 
-  // Gerçek odaları DB'den yükle; ekrana her dönüşte tazele (yeni açılan oda görünsün).
-  useFocusEffect(
-    useCallback(() => {
-      if (!isSupabaseConfigured) return;
-      let alive = true;
-      listRooms().then((r) => { if (alive) setDbRooms(r); }).catch((e) => console.warn("[home] listRooms:", e?.message || e));
-      return () => { alive = false; };
-    }, []),
+  // Cache-first: son oda listesini ANINDA göster (persist → soğuk açılışta bile),
+  // arkada tazele. useFocusEffect revalidate cache hook'unun içinde.
+  const { data: dbRooms = [] } = useCachedResource<Room[]>(
+    "rooms:list",
+    () => listRooms(),
+    { persist: true, enabled: isSupabaseConfigured },
   );
 
   // DB odaları üstte; mock odalar (MVP'de ekranı canlı tutar) altta. Aynı ID tekrarını ele.
