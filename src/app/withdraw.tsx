@@ -1,9 +1,10 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { DiamondBadge } from "@/components/Coins";
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { Pill } from "@/components/Pill";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
@@ -45,7 +46,7 @@ export default function WithdrawScreen() {
     <View style={styles.root}>
       <Gradient colors={["#0C2A1E", "#08080C"]} deg={170} locations={[0, 0.5]} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAware>
           <View style={styles.header}>
             <Pressable onPress={() => router.back()} style={styles.iconBtn}>
               <Icon name="back" size={16} color={C.text} />
@@ -133,7 +134,7 @@ export default function WithdrawScreen() {
               </Gradient>
             </Pressable>
           </ScrollView>
-        </KeyboardAvoidingView>
+        </KeyboardAware>
       </SafeAreaView>
 
       <CenterModal visible={confirm && !!found && !done} onClose={() => setConfirm(false)} dim={0.75}>

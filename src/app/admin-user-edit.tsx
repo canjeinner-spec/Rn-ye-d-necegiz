@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View }
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import {
@@ -116,6 +117,7 @@ export default function AdminUserEdit() {
     <View style={styles.root}>
       <Gradient colors={["#241B0A", "#08080C"]} deg={170} locations={[0, 0.5]} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
+        <KeyboardAware>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}><Icon name="back" size={16} color={C.text} /></Pressable>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -363,6 +365,7 @@ export default function AdminUserEdit() {
             )}
           </ScrollView>
         )}
+        </KeyboardAware>
       </SafeAreaView>
     </View>
   );

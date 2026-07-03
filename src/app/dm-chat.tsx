@@ -1,10 +1,11 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { DiamondBadge } from "@/components/Coins";
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
 import { OfficialAvatar, SystemAvatar } from "@/components/SpecialAvatars";
 import { Txt } from "@/components/Txt";
@@ -219,7 +220,7 @@ export default function DMChatScreen() {
   return (
     <View style={styles.root}>
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAware>
           <View style={styles.chatHeader}>
             <IconBtn name="back" onPress={back} />
             <Pressable onPress={openPeerProfile} style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 11 }}>
@@ -294,7 +295,7 @@ export default function DMChatScreen() {
               </Pressable>
             </View>
           )}
-        </KeyboardAvoidingView>
+        </KeyboardAware>
       </SafeAreaView>
 
       <GiftSheet visible={giftOpen} onClose={() => setGiftOpen(false)} recipients={[{ name: peer.name, muted: false, lv: 0 }]} coins={860} onSend={sendGift} />

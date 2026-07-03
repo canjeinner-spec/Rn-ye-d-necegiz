@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import {
@@ -64,6 +65,7 @@ export default function AdminRoomEdit() {
     <View style={styles.root}>
       <Gradient colors={["#241B0A", "#08080C"]} deg={170} locations={[0, 0.5]} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
+        <KeyboardAware>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}><Icon name="back" size={16} color={C.text} /></Pressable>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -153,6 +155,7 @@ export default function AdminRoomEdit() {
             )}
           </ScrollView>
         )}
+        </KeyboardAware>
       </SafeAreaView>
     </View>
   );

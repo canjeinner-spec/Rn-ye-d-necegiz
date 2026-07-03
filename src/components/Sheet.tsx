@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } fr
 import Animated, { SlideInDown, SlideOutDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { GlassPanel } from "@/theme/GlassPanel";
 
 type SheetProps = {
@@ -18,7 +19,8 @@ export function Sheet({ visible, onClose, children, contentStyle, maxHeightRatio
 
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <KeyboardAware behavior="padding" style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View entering={SlideInDown.duration(280)} exiting={SlideOutDown.duration(200)} style={{ maxHeight: `${maxHeightRatio * 100}%` }}>
           <Pressable>
             <GlassPanel sheet radius={28} style={[styles.box, { paddingBottom: 22 + insets.bottom }, contentStyle]}>
@@ -27,7 +29,7 @@ export function Sheet({ visible, onClose, children, contentStyle, maxHeightRatio
             </GlassPanel>
           </Pressable>
         </Animated.View>
-      </Pressable>
+      </KeyboardAware>
     </Modal>
   );
 }

@@ -252,7 +252,7 @@ export default function FeedScreen() {
 
         <Tabs items={["Akış", "Takip Edilen"]} active={tab} set={setTab} />
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 110 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 110 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
           {/* Composer */}
           {!composer ? (
             <Pressable onPress={() => setComposer(true)} style={styles.composerTrigger}>

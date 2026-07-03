@@ -1,9 +1,10 @@
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import { Icon } from "@/icons/Icon";
@@ -102,7 +103,7 @@ export default function SupportScreen() {
   return (
     <View style={styles.root}>
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAware>
           <View style={styles.header}>
             <Pressable onPress={() => router.back()} style={styles.iconBtn}>
               <Icon name="back" size={16} color={C.text} />
@@ -206,7 +207,7 @@ export default function SupportScreen() {
               </Gradient>
             </Pressable>
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardAware>
       </SafeAreaView>
     </View>
   );

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AuthorityTag } from "@/components/AuthorityTag";
 import { BadgeInfoCard, BadgeRow } from "@/components/BadgeRow";
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
 import { RolePill } from "@/components/RolePill";
 import { Txt } from "@/components/Txt";
@@ -122,7 +123,8 @@ export function ProfileCard({
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <KeyboardAware behavior="padding" style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View entering={SlideInDown.duration(280)} style={styles.sheet}>
           <Pressable>
             <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
@@ -266,7 +268,7 @@ export function ProfileCard({
           </Pressable>
         </Animated.View>
         {badgeInfo && <BadgeInfoCard info={badgeInfo} onClose={() => setBadgeInfo(null)} />}
-      </Pressable>
+      </KeyboardAware>
     </Modal>
   );
 }

@@ -2,10 +2,11 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { Redirect, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AronMark } from "@/components/AronMark";
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { Txt } from "@/components/Txt";
 import { PRESET_AVATARS } from "@/data/onboarding";
 import { signInWithEmail, signInWithGoogle, signUpWithEmail } from "@/data/remote/authRepo";
@@ -174,7 +175,7 @@ export default function Onboarding() {
     <View style={styles.root}>
       <Gradient colors={["#17121F", "#050507"]} deg={180} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAware>
 
           {step === "home" && (
             <View style={styles.center}>
@@ -306,7 +307,7 @@ export default function Onboarding() {
               </View>
             </ScrollView>
           )}
-        </KeyboardAvoidingView>
+        </KeyboardAware>
       </SafeAreaView>
     </View>
   );

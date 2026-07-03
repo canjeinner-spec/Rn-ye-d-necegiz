@@ -1,5 +1,6 @@
 import { type BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { BlurView } from "expo-blur";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -10,6 +11,9 @@ import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 import { Txt } from "./Txt";
+
+// iOS 26+ liquid glass; değilse (Android / eski iOS) BlurView fallback'ine düşer.
+const LIQUID = isLiquidGlassAvailable();
 
 const META: Record<string, { ic: IconName; label: string; badge?: string }> = {
   index: { ic: "home", label: "Odalar" },
@@ -25,9 +29,15 @@ export function BottomNav({ state, navigation }: BottomTabBarProps) {
   return (
     <View style={[styles.wrap, { paddingBottom: 12 + insets.bottom }]} pointerEvents="box-none">
       <Gradient colors={["rgba(8,8,12,0)", "rgba(8,8,12,0.35)"]} deg={180} style={StyleSheet.absoluteFill} pointerEvents="none" />
-      <View style={styles.capsule}>
-        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-        <Gradient colors={["rgba(40,36,55,0.34)", "rgba(16,14,22,0.42)"]} deg={180} style={StyleSheet.absoluteFill} pointerEvents="none" />
+      <View style={[styles.capsule, LIQUID && styles.capsuleGlass]}>
+        {LIQUID ? (
+          <GlassView glassEffectStyle="regular" tintColor="rgba(20,18,28,0.4)" colorScheme="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+        ) : (
+          <>
+            <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+            <Gradient colors={["rgba(40,36,55,0.34)", "rgba(16,14,22,0.42)"]} deg={180} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          </>
+        )}
         <View style={styles.glint} pointerEvents="none" />
         {state.routes.map((route, i) => {
           const meta = META[route.name];
@@ -80,6 +90,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,.16)",
     backgroundColor: "rgba(20,18,28,0.4)",
   },
+  // Liquid glass modunda solid arka planı kaldır; malzemeyi GlassView verir.
+  capsuleGlass: { backgroundColor: "transparent" },
   glint: { position: "absolute", top: 0, left: "22%", right: "22%", height: 1, backgroundColor: "rgba(255,255,255,.5)" },
   item: { flex: 1, alignItems: "center", paddingVertical: 7, borderRadius: 999 },
   activePill: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: 999, backgroundColor: "rgba(232,179,65,0.1)", borderWidth: 1, borderColor: "rgba(232,179,65,0.22)" },

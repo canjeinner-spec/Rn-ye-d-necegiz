@@ -2,7 +2,6 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -17,6 +16,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTim
 
 import { AuthorityTag } from "@/components/AuthorityTag";
 import { CenterModal } from "@/components/CenterModal";
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { BigGiftOverlay } from "@/components/BigGiftOverlay";
 import { GiftFx } from "@/components/GiftFx";
 import { Pill } from "@/components/Pill";
@@ -647,7 +647,7 @@ export default function RoomScreen() {
       {/* Mat & ferah oda zemini (renkli Scene yerine) */}
       <Gradient colors={["#1E1E22", "#161619", "#0F0F11"]} deg={180} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAware>
           <View style={styles.topbar}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <Pressable onPress={minimize} hitSlop={8} style={{ padding: 2 }}>
@@ -777,7 +777,7 @@ export default function RoomScreen() {
               </Pressable>
             )}
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardAware>
 
         {seatToast !== "" && (
           <View style={styles.toast}>
