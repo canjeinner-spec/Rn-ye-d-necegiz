@@ -4,6 +4,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } 
 
 import { Txt } from "@/components/Txt";
 import { type Room } from "@/data/seed";
+import { verifyRoomPassword } from "@/data/remote/roomsRepo";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
@@ -23,9 +24,14 @@ export function RoomPasswordGate({ room, onClose, onPass }: { room: Room; onClos
     shake.value = withSequence(withTiming(-8, { duration: 50 }), withTiming(8, { duration: 50 }), withTiming(-6, { duration: 50 }), withTiming(0, { duration: 50 }));
     setTimeout(() => setErr(false), 600);
   };
-  const submit = (v: string) => {
+  const submit = async (v: string) => {
     if (v.length !== 4) return;
-    if (v === room.pass) { haptic.success(); onPass(); } else fail();
+    // Gerçek oda → sunucuda hash doğrula; mock oda → client değeri (yedek).
+    if (room.dbId != null) {
+      try {
+        if (await verifyRoomPassword(room.dbId, v)) { haptic.success(); onPass(); } else fail();
+      } catch { fail(); }
+    } else if (v === room.pass) { haptic.success(); onPass(); } else fail();
   };
   const press = (k: string) => {
     if (k === "⌫") { setVal((p) => p.slice(0, -1)); return; }

@@ -20,8 +20,8 @@ type OdaRow = {
   olusturulma_tarihi: string;
 };
 
-const SCENES: SceneKind[] = ["official", "club", "lounge", "night", "fire"];
-function toScene(kategori: string | null): SceneKind {
+export const SCENES: SceneKind[] = ["official", "club", "lounge", "night", "fire"];
+export function toScene(kategori: string | null): SceneKind {
   return kategori && (SCENES as string[]).includes(kategori) ? (kategori as SceneKind) : "club";
 }
 
@@ -41,6 +41,7 @@ function mapRoom(r: OdaRow, hostName: string, myId: number | null): Room {
     owner: myId != null && r.olusturan_id === myId,
     crowd: [],
     photo: r.kapak_url || undefined,
+    announce: r.aciklama || undefined,
   };
 }
 
@@ -403,6 +404,35 @@ export async function getRoomReportDetail(odaId: number, limit = 200): Promise<R
     girenSayisi,
     cikanSayisi,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Oda ayarları (sahip) — tema/kapak/isim/duyuru + parola (039_oda_ayar.sql)
+// ---------------------------------------------------------------------------
+
+/** Sahip: oda ayarlarını güncelle (RLS sahibi doğrular). herkese_acik'a dokunmaz. */
+export async function updateRoomSettings(
+  odaId: number,
+  patch: { ad?: string; aciklama?: string | null; kategori?: string; kapak_url?: string | null },
+): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.from("odalar").update(patch).eq("id", odaId);
+  if (error) throw error;
+}
+
+/** Sahip: oda parolası belirle (kilitler) ya da null → kaldırır (açar). */
+export async function setRoomPassword(odaId: number, parola: string | null): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("oda_parola_belirle", { p_oda: odaId, p_parola: parola });
+  if (error) throw error;
+}
+
+/** Giriş kapısı: parolayı doğrula (sifre_hash gizli; RPC boolean döner). */
+export async function verifyRoomPassword(odaId: number, parola: string): Promise<boolean> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("oda_parola_dogrula", { p_oda: odaId, p_parola: parola });
+  if (error) throw error;
+  return !!data;
 }
 
 /** Yeni oda oluştur (kendi adına). Oluşan Room'u döndürür. */

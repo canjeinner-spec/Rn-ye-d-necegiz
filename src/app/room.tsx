@@ -33,7 +33,7 @@ import { RoomStats } from "@/sheets/RoomStats";
 import { type Gift } from "@/data/gifts";
 import { reportRoom } from "@/data/remote/reportRepo";
 import { addXp } from "@/data/remote/xpRepo";
-import { amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, logRoomMovement, type MicBan } from "@/data/remote/roomsRepo";
+import { amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, logRoomMovement, toScene, type MicBan } from "@/data/remote/roomsRepo";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
@@ -202,7 +202,7 @@ function ActionRow({ icon, color, label, onPress }: { icon: IconName; color: str
 
 export default function RoomScreen() {
   const router = useRouter();
-  const { currentRoom, userPhoto, userName, userLevel, roomName, roomAnnounce, roomLocked, role, leaveRoom, fireBroadcast, kickFromRoom } = useApp();
+  const { currentRoom, userPhoto, userName, userLevel, roomName, roomAnnounce, roomLocked, role, leaveRoom, fireBroadcast, kickFromRoom, patchCurrentRoom } = useApp();
   const session = useApp((s) => s.session);
   const myDbId = useApp((s) => s.dbId);
   const myPublicId = useApp((s) => s.publicId);
@@ -310,7 +310,8 @@ export default function RoomScreen() {
   const [bigGift, setBigGift] = useState<{ gift: Gift; qty: number } | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [panelTab, setPanelTab] = useState(0);
-  const [roomPhoto] = useState<string | null>(room?.photo ?? null);
+  // currentRoom'a bağlı (donuk değil) → sahip kapak/tema değiştirince canlı yansır.
+  const roomPhoto = room?.photo ?? null;
   const [stub, setStub] = useState<string | null>(null);
 
   const sendGift = (g: Gift, qty: number, recipient: string) => {
@@ -333,6 +334,31 @@ export default function RoomScreen() {
     ? liveMembers.map((m) => ({ key: "u" + m.uid, name: m.name, photo: m.uid === myDbId ? userPhoto || undefined : m.photo }))
     : occupants.map((o, i) => ({ key: (o.name || "u") + i, name: o.name, photo: o.name === "Sen" ? userPhoto || undefined : undefined }));
   const crowdCount = isDbRoom ? liveMembers.length : occupants.length;
+
+  // Oda ayarları CANLI (039): sahip tema/kapak/isim/duyuru değiştirince odadakiler
+  // yeniden girmeden görsün. (Herkese açık oda; kilitli odada RLS gereği yalnız sahip.)
+  useEffect(() => {
+    const sb = supabase;
+    if (!isDbRoom || !dbId || !sb) return;
+    const ch = sb
+      .channel(`oda-ayar-${dbId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "odalar", filter: `id=eq.${dbId}` },
+        ({ new: row }) => {
+          const r = row as { ad?: string; aciklama?: string | null; kategori?: string | null; kapak_url?: string | null; herkese_acik?: boolean };
+          patchCurrentRoom({
+            name: r.ad,
+            announce: r.aciklama || undefined,
+            scene: toScene(r.kategori ?? null),
+            photo: r.kapak_url || undefined,
+            locked: r.herkese_acik === undefined ? undefined : !r.herkese_acik,
+          });
+        },
+      )
+      .subscribe();
+    return () => { sb.removeChannel(ch); };
+  }, [isDbRoom, dbId, patchCurrentRoom]);
 
   // Gerçek oda: Realtime presence + ANLIK sohbet (Broadcast — DB'ye yazmaz,
   // geçmiş tutmaz; sonradan giren/çıkıp-giren temiz sohbetle başlar).

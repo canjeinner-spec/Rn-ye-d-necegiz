@@ -102,6 +102,7 @@ type AppState = {
   setStreamer: (v: boolean) => void;
 
   enterRoom: (r: Room) => void;
+  patchCurrentRoom: (p: Partial<Room>) => void;
   leaveRoom: () => void;
   makeMyRoom: () => Room;
   openMyRoom: () => Room;
@@ -360,11 +361,18 @@ export const useApp = create<AppState>((set, get) => ({
       currentRoom: r,
       inRoom: true,
       roomName: r.name,
-      roomAnnounce: r.official ? "Resmî odaya hoş geldiniz! Lütfen nazik olun, keyifli sohbetler dileriz." : "Herkes davetli, saygıyı koru 🌙",
+      roomAnnounce: r.announce || (r.official ? "Resmî odaya hoş geldiniz! Lütfen nazik olun, keyifli sohbetler dileriz." : "Herkes davetli, saygıyı koru 🌙"),
       roomLocked: !!r.locked,
       roomPass: r.pass || "",
       kickedUsers: [],
     }),
+  // Canlı ayar güncellemesi: odadayken tema/kapak/isim/duyuru değişince yansıt.
+  patchCurrentRoom: (p) =>
+    set((s) => ({
+      currentRoom: s.currentRoom ? { ...s.currentRoom, ...p } : s.currentRoom,
+      ...(p.name != null ? { roomName: p.name } : {}),
+      ...(p.announce != null ? { roomAnnounce: p.announce } : {}),
+    })),
   leaveRoom: () => set({ inRoom: false, currentRoom: null }),
 
   makeMyRoom: () => {

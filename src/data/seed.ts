@@ -17,6 +17,7 @@ export type Room = {
   owner?: boolean;
   crowd: string[];
   photo?: string;
+  announce?: string; // odalar.aciklama (oda duyurusu)
   badges?: RoomBadgeItem[];
   friends?: number;
   daily?: number;
