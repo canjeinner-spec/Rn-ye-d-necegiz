@@ -1,4 +1,3 @@
-import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -7,21 +6,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CenterModal } from "@/components/CenterModal";
 import { Portrait } from "@/components/Portrait";
-import { Scene, type SceneKind } from "@/components/Scene";
+import { Scene } from "@/components/Scene";
 import { Txt } from "@/components/Txt";
 import { listRoomBans, setRoomPassword, unbanRoomUser, updateRoomSettings, type RoomBan } from "@/data/remote/roomsRepo";
-import { uploadAvatar } from "@/data/remote/storageRepo";
 import { Icon } from "@/icons/Icon";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
-
-const THEMES: { key: SceneKind; label: string }[] = [
-  { key: "official", label: "Resmî" }, { key: "club", label: "Kulüp" }, { key: "lounge", label: "Lounge" },
-  { key: "night", label: "Gece" }, { key: "fire", label: "Ateş" },
-];
+import { THEME_LABEL } from "./room-manage-edit";
 
 const AYLAR = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 function kickZamani(at: number) {
@@ -46,7 +40,6 @@ export default function RoomManageScreen() {
   const dbId = currentRoom?.dbId;
   const live = !!dbId && isSupabaseConfigured;
   const isOwner = !!currentRoom?.owner; // ayar düzenleme yalnız sahip (RLS de zorlar)
-  const [busy, setBusy] = useState(false);
   const [bans, setBans] = useState<RoomBan[]>([]);
   const reloadBans = useCallback(() => {
     if (!live || !dbId) return;
@@ -101,33 +94,6 @@ export default function RoomManageScreen() {
     if (live && dbId) { patchCurrentRoom({ locked: true }); try { await setRoomPassword(dbId, pass); } catch { /* RLS/ağ */ } }
     setPass("");
   };
-  // Tema (kategori → sahne arka planı) — kalıcı
-  const pickTheme = (k: SceneKind) => {
-    if (!dbId) return;
-    haptic.select();
-    patchCurrentRoom({ scene: k });
-    updateRoomSettings(dbId, { kategori: k }).catch(() => {});
-  };
-  // Kapak fotoğrafı — galeriden yükle / kaldır
-  const pickCover = async () => {
-    if (!dbId || busy) return;
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [16, 9], quality: 0.85, base64: true });
-    if (res.canceled || !res.assets[0]?.base64) return;
-    setBusy(true);
-    try {
-      const url = await uploadAvatar(res.assets[0].base64, res.assets[0].uri);
-      patchCurrentRoom({ photo: url });
-      await updateRoomSettings(dbId, { kapak_url: url });
-    } catch { /* yüklenemezse yoksay */ }
-    finally { setBusy(false); }
-  };
-  const removeCover = () => {
-    if (!dbId) return;
-    haptic.light();
-    patchCurrentRoom({ photo: undefined });
-    updateRoomSettings(dbId, { kapak_url: null }).catch(() => {});
-  };
-
   return (
     <View style={styles.root}>
       <Gradient colors={["#16121F", "#08080C"]} deg={170} locations={[0, 0.5]} style={StyleSheet.absoluteFill} />
@@ -146,6 +112,36 @@ export default function RoomManageScreen() {
           <Txt weight="bold" size={10.5} color={C.dim} style={styles.sectionLbl}>ODA BİLGİLERİ</Txt>
 
           <View style={styles.group}>
+            {live && isOwner && (
+              <>
+                <Pressable onPress={() => router.navigate("/room-manage-edit?section=avatar")} style={[styles.row, styles.rowInGroup]}>
+                  <View style={styles.avatarThumb}>
+                    {currentRoom?.photo ? <Image source={{ uri: currentRoom.photo }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={currentRoom?.scene ?? "club"} />}
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Txt weight="extrabold" size={12.5} color={C.text}>Avatar</Txt>
+                    <Txt size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>{currentRoom?.photo ? "Kapak fotoğrafı ayarlı" : "Henüz kapak yok"}</Txt>
+                  </View>
+                  <Icon name="chev" size={14} color={C.dim2} />
+                </Pressable>
+
+                <View style={styles.divider} />
+
+                <Pressable onPress={() => router.navigate("/room-manage-edit?section=tema")} style={[styles.row, styles.rowInGroup]}>
+                  <View style={[styles.avatarThumb, { alignItems: "center", justifyContent: "center" }]}>
+                    <Scene kind={currentRoom?.scene ?? "club"} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Txt weight="extrabold" size={12.5} color={C.text}>Tema</Txt>
+                    <Txt size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>{THEME_LABEL[currentRoom?.scene ?? "club"]}</Txt>
+                  </View>
+                  <Icon name="chev" size={14} color={C.dim2} />
+                </Pressable>
+
+                <View style={styles.divider} />
+              </>
+            )}
+
             <Pressable onPress={() => openEdit("name", "Oda İsmi", roomName)} style={[styles.row, styles.rowInGroup]}>
               <View style={[styles.rowIcon, { backgroundColor: `${C.purple2}1A` }]}>
                 <Icon name="edit" size={15} color={C.purple2} />
@@ -170,45 +166,6 @@ export default function RoomManageScreen() {
               <Icon name="chev" size={14} color={C.dim2} />
             </Pressable>
           </View>
-
-          {live && isOwner && (
-            <>
-              <Txt weight="bold" size={10.5} color={C.dim} style={[styles.sectionLbl, { marginTop: 22 }]}>TEMA / ARKA PLAN</Txt>
-              <View style={styles.themeRow}>
-                {THEMES.map((t) => {
-                  const on = currentRoom?.scene === t.key;
-                  return (
-                    <Pressable key={t.key} onPress={() => pickTheme(t.key)} style={{ flex: 1, alignItems: "center", gap: 5 }}>
-                      <View style={[styles.themeCell, on && { borderColor: C.gold, borderWidth: 2 }]}>
-                        <Scene kind={t.key} />
-                        {on && <View style={styles.themeCheck}><Icon name="check" size={11} sw={2.5} color="#3A2A05" /></View>}
-                      </View>
-                      <Txt weight={on ? "extrabold" : "semibold"} size={9.5} color={on ? C.gold2 : C.dim}>{t.label}</Txt>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <Txt weight="bold" size={10.5} color={C.dim} style={[styles.sectionLbl, { marginTop: 22 }]}>KAPAK FOTOĞRAFI</Txt>
-              <View style={styles.group}>
-                <View style={{ padding: 13, gap: 11 }}>
-                  <View style={styles.coverPreview}>
-                    {currentRoom?.photo ? <Image source={{ uri: currentRoom.photo }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={currentRoom?.scene ?? "club"} />}
-                  </View>
-                  <View style={{ flexDirection: "row", gap: 9 }}>
-                    <Pressable disabled={busy} onPress={pickCover} style={[styles.coverBtn, { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` }]}>
-                      <Icon name="camera" size={14} color={C.gold2} /><Txt weight="bold" size={12} color={C.gold2}>{busy ? "Yükleniyor…" : currentRoom?.photo ? "Değiştir" : "Kapak Seç"}</Txt>
-                    </Pressable>
-                    {!!currentRoom?.photo && (
-                      <Pressable disabled={busy} onPress={removeCover} style={[styles.coverBtn, { flex: 0, paddingHorizontal: 16, backgroundColor: "rgba(251,113,133,.1)", borderColor: "rgba(251,113,133,.3)" }]}>
-                        <Icon name="trash" size={13} color="#FB7185" /><Txt weight="bold" size={12} color="#FB7185">Kaldır</Txt>
-                      </Pressable>
-                    )}
-                  </View>
-                </View>
-              </View>
-            </>
-          )}
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 22, marginBottom: 10 }}>
             <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5 }}>ODADAN ATILANLAR</Txt>
@@ -362,11 +319,7 @@ const styles = StyleSheet.create({
   emptyKick: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: C.line },
   unkickBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 11, borderRadius: 10, backgroundColor: `${C.green}1F`, borderWidth: 1, borderColor: `${C.green}47` },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  themeRow: { flexDirection: "row", gap: 8 },
-  themeCell: { width: "100%", aspectRatio: 1, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: C.line, position: "relative" },
-  themeCheck: { position: "absolute", top: 4, right: 4, width: 18, height: 18, borderRadius: 9, backgroundColor: C.gold, alignItems: "center", justifyContent: "center" },
-  coverPreview: { width: "100%", aspectRatio: 16 / 9, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.04)" },
-  coverBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 11, borderRadius: 12, borderWidth: 1 },
+  avatarThumb: { width: 34, height: 34, borderRadius: 10, overflow: "hidden", backgroundColor: "rgba(255,255,255,.04)" },
   toggle: { width: 42, height: 24, borderRadius: 999, padding: 2, justifyContent: "center" },
   knob: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },
   dialog: { borderRadius: 24, padding: 22, backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
