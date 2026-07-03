@@ -213,36 +213,74 @@ dmGift: false           → DM sohbet kutusu hediye butonu
 mağaza, VIP, envanter) **tamamen mock** — gerçek hediye→oda→altın defteri
 kurulmadı. Kullanıcı bilinçli olarak bunu **erteledi** (bkz. §9).
 
-## 8) Bilinen Ortam Kısıtları (ÖNEMLİ — tekrar araştırma!)
+## 8) Bilinen Ortam Kısıtları (ÖNEMLİ — tekrar araştırma, token/zaman kaybetme!)
 
-Bu proje **Claude Code on the web** (bulut sandbox) üzerinde geliştiriliyor.
-Kullanıcının fiziksel telefonu bu sandbox'a **doğrudan bağlanamıyor** —
-aşağıdaki gerçekler tekrar keşfedilmesin diye buraya yazıldı:
+Proje **Expo SDK 54** ile başlatıldı ve **Claude Code on the web** (bulut
+sandbox) üzerinde geliştiriliyor. Kullanıcının fiziksel telefonu bu sandbox'a
+**doğrudan bağlanamıyor**, bir tünel gerekiyor. İki farklı tünel mekanizması
+**zaten denendi ve ikisi de bu sandbox'ta engelli** — aşağıdaki tespit tekrar
+yapılmasın diye komutlarıyla birlikte yazıldı.
 
-- **`expo start --tunnel` (ngrok) ÇALIŞMAZ.** Sandbox'ın zorunlu egress
-  proxy'si ngrok'un sertifika-pinning'ini desteklemiyor (proxy dokümanında
-  açıkça "desteklenmiyor, atlatmaya çalışma" diyor). Her denemede
-  "ngrok tunnel took too long to connect" hatasıyla düşer ve **Metro'yu da
-  beraberinde götürür**.
-- **Expo'nun kendi WebSocket tüneli de (`wss://boltexpo.dev`,
-  `EXPO_FORCE_WEBCONTAINER_ENV=1` ile zorlanabilir) ÇALIŞMAZ** — aynı proxy
-  WebSocket upgrade'i desteklemiyor + domain allowlist'te değil, istek
-  sessizce timeout ile düşüyor.
-- **Metro tünelsiz (`npx expo start`, `--tunnel` OLMADAN) yerelde
-  (localhost:8081) mükemmel çalışıyor** — bundle, tsc, her şey sorunsuz.
-  Ama bu haliyle **kullanıcının telefonuna dışarıdan görünmüyor** (bu bulut
-  ortamının resmi bir "port önizleme/port-forward" mekanizması da yok —
-  docs'ta böyle bir özellik belgelenmemiş).
-- **Sonuç / doğru çözüm yolu:** Kod zaten GitHub'a push'lu. Kullanıcı gerçek
-  cihaz testi için ya (a) bu session'ı `claude --teleport` ile kendi
-  bilgisayarına çekmeli, ya da (b) dalı kendi makinesinde `git pull` edip
-  `npm install && npx expo start --tunnel` ile **kendi** internetinden
-  çalıştırmalı. İkisi de kendi gerçek internet erişimleri olduğu için
-  ngrok/boltexpo orada sorunsuz çalışır.
-- Bu ortamın network access seviyesi (Trusted/Full/Custom) Claude Code web
-  arayüzünden environment ayarlarından değiştirilebilir ama sertifika-pinning
-  (ngrok) ve WebSocket-upgrade kısıtları muhtemelen "Full" seçilse bile aşılamaz
-  (proxy seviyesinde protokol kısıtı, domain allowlist sorunu değil).
+### Metro'yu başlatma komutları (hızlı referans)
+
+```bash
+# 1) Tünelsiz — SADECE bu sandbox içi test için (tsc/bundle doğrulama).
+#    Kullanıcının telefonuna DIŞARIDAN GÖRÜNMEZ.
+npx expo start --clear
+
+# 2) ngrok tüneli (Expo'nun VARSAYILANI) — BU SANDBOX'TA ÇALIŞMAZ, deneme.
+npx expo start --tunnel
+
+# 3) "Bolt" / Expo'nun kendi WebSocket tüneli (ngrok yerine) — BU SANDBOX'TA
+#    YİNE ÇALIŞMAZ ama komut budur, bir daha @expo/cli kaynağını didiklemeye
+#    gerek yok:
+EXPO_FORCE_WEBCONTAINER_ENV=1 npx expo start --tunnel
+```
+
+**"Bolt" tam olarak nedir:** ngrok değil — Expo CLI'nin kendi içinde gizli
+bir mekanizma. `@expo/cli`'de `envIsWebcontainer()` true dönerse (bunu
+`EXPO_FORCE_WEBCONTAINER_ENV=1` env değişkeni tetikler), tünel sağlayıcısı
+olarak ngrok (`AsyncNgrok`) yerine **`AsyncWsTunnel`** (`@expo/ws-tunnel`
+paketi) kullanılır — bu da **`wss://boltexpo.dev`**'e WebSocket bağlantısı
+açar (koddaki gerçek hostname budur, "Bolt" adı buradan geliyor). Normalde
+StackBlitz gibi tarayıcı-içi WebContainer ortamları için var, ama ngrok
+binary/hesap gerektirmediği için herhangi bir kısıtlı ağda ilk denenecek
+alternatiftir.
+
+**Bu sandbox'taki durum (ikisi de test edildi, ikisi de ÇALIŞMIYOR):**
+- `--tunnel` (ngrok): "ngrok tunnel took too long to connect" hatasıyla düşer
+  ve **Metro'yu da beraberinde götürür**. Kök neden: sandbox'ın zorunlu egress
+  proxy'si ngrok'un sertifika-pinning'ini desteklemiyor (proxy dokümanı
+  `/root/.ccr/README.md` açıkça "desteklenmiyor, atlatmaya çalışma" diyor).
+- `EXPO_FORCE_WEBCONTAINER_ENV=1 --tunnel` (Bolt/ws-tunnel): `boltexpo.dev`'e
+  proxy üzerinden `curl` ile bağlantı denendi, **12 saniyede timeout** —
+  domain allowlist'te değil + aynı proxy WebSocket upgrade'i muhtemelen
+  protokol seviyesinde desteklemiyor. İstek proxy'nin hata loguna bile
+  düşmüyor (sessizce yutuluyor).
+- **Metro tünelsiz (`npx expo start`, komut 1) yerelde (localhost:8081)
+  mükemmel çalışıyor** — bundle, tsc, her şey sorunsuz. Ama bu haliyle
+  **kullanıcının telefonuna dışarıdan görünmüyor** (bu bulut ortamının resmi
+  bir "port önizleme/port-forward" mekanizması da yok — docs'ta böyle bir
+  özellik belgelenmemiş).
+
+**Sonuç / doğru çözüm yolu:** Kod zaten GitHub'a push'lu. Kullanıcı gerçek
+cihaz testi için ya (a) bu session'ı `claude --teleport` ile kendi
+bilgisayarına çekmeli, ya da (b) dalı kendi makinesinde `git pull` edip
+`npm install && npx expo start --tunnel` ile **kendi** internetinden
+çalıştırmalı. Kendi bilgisayarında zorunlu egress proxy'si olmadığı için
+ngrok (varsayılan, komut 2) orada sorunsuz çalışır — Bolt'a (komut 3) hiç
+gerek kalmaz.
+
+**Yeni oturumda bu ortamda tekrar denenecekse:** önce komut 1 ile Metro'nun
+sağlıklı olduğunu doğrula (tsc/bundle), sonra sırayla komut 3 → komut 2 dene
+(Bolt önce, çünkü hesap/binary gerektirmiyor) — ama muhtemelen ikisi de yine
+başarısız olacak, zaman kaybetmemek için doğrudan teleport/lokal çalıştırma
+önerisine geç.
+
+Bu ortamın network access seviyesi (Trusted/Full/Custom) Claude Code web
+arayüzünden environment ayarlarından değiştirilebilir ama sertifika-pinning
+(ngrok) ve WebSocket-upgrade kısıtları muhtemelen "Full" seçilse bile aşılamaz
+(proxy seviyesinde protokol kısıtı, domain allowlist sorunu değil).
 
 ## 9) Ertelenen / Bilinçli Olarak Yapılmayan İşler
 
