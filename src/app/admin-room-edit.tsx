@@ -94,6 +94,10 @@ export default function AdminRoomEdit() {
               </View>
             </View>
 
+            <Pressable onPress={() => { haptic.light(); router.navigate(`/admin-mesaj?tip=oda&odaId=${odaId}`); }} style={[styles.group, { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 14, marginTop: 12 }]}>
+              <Icon name="mega" size={15} color={C.gold2} /><Txt weight="bold" size={12.5} color={C.text} style={{ flex: 1 }}>Mesaj / Uyarı Gönder</Txt><Icon name="chev" size={13} color={C.dim2} />
+            </Pressable>
+
             {/* Oda bilgileri */}
             <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>ODA BİLGİLERİ</Txt>
             <View style={styles.group}><View style={{ padding: 12, gap: 10 }}>

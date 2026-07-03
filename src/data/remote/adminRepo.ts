@@ -212,6 +212,22 @@ export async function getRoomForEdit(odaId: number): Promise<AdminRoomEdit | nul
     aktifKatilimci: Number(r.aktif_katilimci ?? 0),
   };
 }
+export type AdminRoomHit = { id: number; publicId: string | null; ad: string; photo?: string };
+/** İsim veya public ID ile oda ara (odaya mesaj hedefi seçimi için). */
+export async function searchRooms(query: string): Promise<AdminRoomHit[]> {
+  const sb = requireSupabase();
+  const q = query.trim();
+  if (!q) return [];
+  const { data, error } = await sb
+    .from("odalar")
+    .select("id, public_id, ad, kapak_url")
+    .or(`ad.ilike.%${q}%,public_id.ilike.%${q}%`)
+    .limit(20);
+  if (error) throw error;
+  return ((data as { id: number; public_id: string | null; ad: string; kapak_url: string | null }[]) ?? []).map((r) => ({
+    id: r.id, publicId: r.public_id, ad: r.ad, photo: r.kapak_url || undefined,
+  }));
+}
 export async function updateRoom(odaId: number, ad: string, aciklama: string): Promise<void> {
   const sb = requireSupabase();
   const { error } = await sb.rpc("admin_oda_guncelle", { p_oda: odaId, p_ad: ad.trim(), p_aciklama: aciklama.trim() || null });

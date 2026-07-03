@@ -133,6 +133,7 @@ function ChatRow({
   onSelfPress: () => void;
   onTapUser?: (m: ChatMsg) => void;
 }) {
+  if (m.sys) return <SystemNotice m={m} />;
   const role = m.host ? ("host" as const) : m.mod ? ("mod" as const) : null;
   const isMe = !!m.myOwn || m.name === "Sen";
   const displayName = isMe ? userName : m.name;
@@ -173,6 +174,23 @@ function ChatRow({
           </View>
         )}
       </View>
+    </View>
+  );
+}
+
+/** Yönetici sistem mesajı / uyarısı — canlı sohbet baloncuğu (mesaj: altın, uyarı: kırmızı). */
+function SystemNotice({ m }: { m: ChatMsg }) {
+  const uyari = m.sys === "uyari";
+  const c = uyari ? "#FB7185" : C.gold2;
+  return (
+    <View style={[styles.sysNotice, { borderColor: c + "55", backgroundColor: c + "14" }]}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: m.baslik ? 4 : 0 }}>
+        <Icon name={uyari ? "flag" : "mega"} size={13} color={c} />
+        <Txt weight="extrabold" size={10.5} color={c} style={{ letterSpacing: 0.5 }}>{uyari ? "RESMÎ UYARI" : "SİSTEM MESAJI"}</Txt>
+        <Txt size={9} color={C.dim2} style={{ marginLeft: "auto" }}>{m.time}</Txt>
+      </View>
+      {!!m.baslik && <Txt weight="extrabold" size={12.5} color="#fff" style={{ marginBottom: 2 }}>{m.baslik}</Txt>}
+      <Txt size={12} color="rgba(255,255,255,.85)" lh={1.45}>{m.text}</Txt>
     </View>
   );
 }
@@ -400,6 +418,15 @@ export default function RoomScreen() {
         photo: mine ? userPhoto || undefined : p.photo,
         uid: p.uid,
         publicId: mine ? myPublicId || undefined : p.publicId,
+      }]);
+    });
+
+    // Yönetici sistem mesajı / uyarısı — o an içeridekilere canlı baloncuk.
+    ch.on("broadcast", { event: "system" }, ({ payload }) => {
+      const p = payload as { tur?: "mesaj" | "uyari"; baslik?: string; text: string; time?: string };
+      if (alive) setMsgs((prev) => [...prev, {
+        name: "Sistem", time: p.time || new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
+        text: p.text, sys: p.tur === "uyari" ? "uyari" : "mesaj", baslik: p.baslik,
       }]);
     });
 
@@ -1022,6 +1049,7 @@ const styles = StyleSheet.create({
   giftMini: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   giftBtnBig: { width: 46, height: 46, alignItems: "center", justifyContent: "center" },
   bubble: { alignSelf: "flex-start", maxWidth: "94%", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 15, borderTopLeftRadius: 5, borderWidth: 1 },
+  sysNotice: { borderRadius: 14, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12 },
   reportCard: { backgroundColor: "#181620", borderRadius: 24, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
   reportDetailInput: { backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 14, color: C.text, fontSize: 12.5, height: 84, textAlignVertical: "top" },
   seat: { width: "25%", alignItems: "center", gap: 5 },

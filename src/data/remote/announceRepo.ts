@@ -61,23 +61,58 @@ export async function deleteBanner(id: number): Promise<void> {
   if (error) throw error;
 }
 
-// ── Sistem duyuruları (DM resmi/sistem thread + herkese gönderim) ───────────
+// ── Sistem duyuruları (DM resmi/sistem thread + herkese/kişiye/odaya gönderim) ─
 export type AnnounceKanal = "aron" | "sistem";
-export type Announcement = { id: number; kanal: AnnounceKanal; baslik: string; icerik: string; foto?: string; at: number };
+/** Normal sistem mesajı mı, resmî uyarı mı. */
+export type MesajTur = "mesaj" | "uyari";
+export type Announcement = { id: number; kanal: AnnounceKanal; baslik: string; icerik: string; foto?: string; tur: MesajTur; at: number };
 
-/** Bir kanaldaki duyurular (yeniden eskiye). DM resmi/sistem sohbeti buradan okur. */
+/** Bir kanaldaki duyurular (yeniden eskiye). RLS gereği global + bana gelenler döner. */
 export async function listAnnouncements(kanal: AnnounceKanal, limit = 50): Promise<Announcement[]> {
   const sb = requireSupabase();
   const { data, error } = await sb
     .from("sistem_duyurulari")
-    .select("id, kanal, baslik, icerik, foto_url, olusturma")
+    .select("id, kanal, baslik, icerik, foto_url, tur, olusturma")
     .eq("kanal", kanal)
     .order("id", { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return ((data as { id: number; kanal: AnnounceKanal; baslik: string; icerik: string; foto_url: string | null; olusturma: string }[]) ?? []).map((r) => ({
-    id: r.id, kanal: r.kanal, baslik: r.baslik, icerik: r.icerik, foto: r.foto_url || undefined, at: new Date(r.olusturma).getTime(),
+  return ((data as { id: number; kanal: AnnounceKanal; baslik: string; icerik: string; foto_url: string | null; tur: MesajTur | null; olusturma: string }[]) ?? []).map((r) => ({
+    id: r.id, kanal: r.kanal, baslik: r.baslik, icerik: r.icerik, foto: r.foto_url || undefined, tur: r.tur || "mesaj", at: new Date(r.olusturma).getTime(),
   }));
+}
+
+/** Kişiye özel sistem/resmî mesaj ya da uyarı gönder (yönetici). */
+export async function sendToUser(hedefId: number, kanal: AnnounceKanal, baslik: string, icerik: string, tur: MesajTur = "mesaj", foto?: string, bildirim = true): Promise<number> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("kisiye_mesaj_gonder", {
+    p_hedef: hedefId, p_kanal: kanal, p_baslik: baslik.trim(), p_icerik: icerik.trim(), p_tur: tur, p_foto: foto ?? null, p_bildirim: bildirim,
+  });
+  if (error) throw error;
+  return data as number;
+}
+
+/** Odaya mesaj/uyarı: sahibe kalıcı kopya + bildirim (RPC) ve o an içeridekilere canlı yayın. */
+export async function sendToRoom(odaId: number, baslik: string, icerik: string, tur: MesajTur = "mesaj", bildirim = true): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("odaya_mesaj_gonder", {
+    p_oda: odaId, p_baslik: baslik.trim(), p_icerik: icerik.trim(), p_tur: tur, p_bildirim: bildirim,
+  });
+  if (error) throw error;
+  await broadcastRoomSystem(odaId, tur, baslik.trim(), icerik.trim());
+}
+
+/** O an odada bulunanlara canlı sistem baloncuğu (room-<id> broadcast kanalı). */
+async function broadcastRoomSystem(odaId: number, tur: MesajTur, baslik: string, icerik: string): Promise<void> {
+  const sb = requireSupabase();
+  const ch = sb.channel(`room-${odaId}`);
+  await new Promise<void>((resolve) => {
+    ch.subscribe((status) => { if (status === "SUBSCRIBED") resolve(); });
+    setTimeout(resolve, 2500); // yayına giremezsek yine de bırak
+  });
+  const time = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  await ch.send({ type: "broadcast", event: "system", payload: { tur, baslik, text: icerik, time } });
+  setTimeout(() => sb.removeChannel(ch), 800);
 }
 
 /** Herkese duyuru gönder (yönetici). bildirim=true → bildirim çanına da fan-out. */

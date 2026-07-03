@@ -135,6 +135,10 @@ export default function AdminUserHub() {
               <SectionRow icon="clipboard" tint={C.purple2} title="İşlem Geçmişi" sub="Kim, ne zaman, kaç kez işlem yaptı" onPress={() => go("history")} />
             </View>
 
+            <Pressable onPress={() => { haptic.light(); router.navigate(`/admin-mesaj?tip=kisi&userId=${userId}`); }} style={[styles.group, styles.profileBtn]}>
+              <Icon name="mega" size={15} color={C.gold2} /><Txt weight="bold" size={12.5} color={C.text} style={{ flex: 1 }}>Mesaj / Uyarı Gönder</Txt><Icon name="chev" size={13} color={C.dim2} />
+            </Pressable>
+
             <Pressable onPress={() => { haptic.light(); router.navigate(`/user-profile?publicId=${encodeURIComponent(d.publicId)}&name=${encodeURIComponent(d.name)}`); }} style={[styles.group, styles.profileBtn]}>
               <Icon name="user" size={15} color={C.text} /><Txt weight="bold" size={12.5} color={C.text} style={{ flex: 1 }}>Herkese Açık Profili Gör</Txt><Icon name="chev" size={13} color={C.dim2} />
             </Pressable>

@@ -138,9 +138,9 @@ export default function DMChatScreen() {
       return `${d.getDate()}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     };
     // Gerçek duyurular varsa onları; yoksa mock (yer tutucu) göster.
-    const posts: { date: string; text: string; icon?: string; title?: string; foto?: string }[] =
+    const posts: { date: string; text: string; icon?: string; title?: string; foto?: string; uyari?: boolean }[] =
       announcements && announcements.length
-        ? announcements.map((a) => ({ date: duyuruTarih(a.at), text: a.icerik, title: a.baslik, icon: "🔔", foto: a.foto }))
+        ? announcements.map((a) => ({ date: duyuruTarih(a.at), text: a.icerik, title: a.baslik, icon: "🔔", foto: a.foto, uyari: a.tur === "uyari" }))
         : isSystem ? SYSTEM_POSTS : ARON_POSTS;
     return (
       <View style={styles.root}>
@@ -166,7 +166,13 @@ export default function DMChatScreen() {
                 </View>
                 <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
                   {isSystem ? <SystemAvatar size={38} /> : <OfficialAvatar size={38} />}
-                  <View style={styles.bcCard}>
+                  <View style={[styles.bcCard, p.uyari && { borderColor: "rgba(251,113,133,.5)", backgroundColor: "rgba(251,113,133,.08)" }]}>
+                    {p.uyari && (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 7 }}>
+                        <Icon name="flag" size={13} color="#FB7185" />
+                        <Txt weight="extrabold" size={10.5} color="#FB7185" style={{ letterSpacing: 0.5 }}>RESMÎ UYARI</Txt>
+                      </View>
+                    )}
                     {isSystem && p.title && (
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 7 }}>
                         <Txt size={16}>{p.icon}</Txt>
