@@ -213,74 +213,73 @@ dmGift: false           → DM sohbet kutusu hediye butonu
 mağaza, VIP, envanter) **tamamen mock** — gerçek hediye→oda→altın defteri
 kurulmadı. Kullanıcı bilinçli olarak bunu **erteledi** (bkz. §9).
 
-## 8) Bilinen Ortam Kısıtları (ÖNEMLİ — tekrar araştırma, token/zaman kaybetme!)
+## 8) Bilinen Ortam Kısıtları + ÇALIŞAN Tünel Çözümü (ÖNEMLİ — token/zaman kaybetme!)
 
 Proje **Expo SDK 54** ile başlatıldı ve **Claude Code on the web** (bulut
 sandbox) üzerinde geliştiriliyor. Kullanıcının fiziksel telefonu bu sandbox'a
-**doğrudan bağlanamıyor**, bir tünel gerekiyor. İki farklı tünel mekanizması
-**zaten denendi ve ikisi de bu sandbox'ta engelli** — aşağıdaki tespit tekrar
-yapılmasın diye komutlarıyla birlikte yazıldı.
+**tünel olmadan doğrudan bağlanamıyor**. İki mekanizma denendi:
 
-### Metro'yu başlatma komutları (hızlı referans)
+### ✅ ÇALIŞAN komut — "Bolt" (Expo'nun kendi WebSocket tüneli)
 
 ```bash
-# 1) Tünelsiz — SADECE bu sandbox içi test için (tsc/bundle doğrulama).
-#    Kullanıcının telefonuna DIŞARIDAN GÖRÜNMEZ.
-npx expo start --clear
-
-# 2) ngrok tüneli (Expo'nun VARSAYILANI) — BU SANDBOX'TA ÇALIŞMAZ, deneme.
-npx expo start --tunnel
-
-# 3) "Bolt" / Expo'nun kendi WebSocket tüneli (ngrok yerine) — BU SANDBOX'TA
-#    YİNE ÇALIŞMAZ ama komut budur, bir daha @expo/cli kaynağını didiklemeye
-#    gerek yok:
-EXPO_FORCE_WEBCONTAINER_ENV=1 npx expo start --tunnel
+EXPO_FORCE_WEBCONTAINER_ENV=1 npx expo start
 ```
 
+**`--tunnel` bayrağına GEREK YOK** — `EXPO_FORCE_WEBCONTAINER_ENV=1` tek
+başına yeterli (nedeni aşağıda). Bu ortamda **doğrulandı ve çalışıyor**:
+- Metro şunu basıyor: `Waiting on http://<rastgele-alt-alan-adı>.boltexpo.dev`
+- O alt alan adına gerçek `curl` isteği → **200 OK, ~180ms**.
+- Gerçek uygulama bundle'ı (6.2MB) o URL üzerinden **2 saniyede** indi —
+  uçtan uca doğrulandı, sadece "URL basıyor" değil, gerçekten çalışıyor.
+- Expo Go'da açılacak bağlantı: Metro'nun bastığı `http://` adresindeki
+  şemayı `exp://` yap → **`exp://<alt-alan-adı>.boltexpo.dev`**
+  (her yeni `expo start` çalıştırmasında alt alan adı DEĞİŞİR, o session'da
+  Metro'nun bastığı satırdan oku).
+
 **"Bolt" tam olarak nedir:** ngrok değil — Expo CLI'nin kendi içinde gizli
-bir mekanizma. `@expo/cli`'de `envIsWebcontainer()` true dönerse (bunu
-`EXPO_FORCE_WEBCONTAINER_ENV=1` env değişkeni tetikler), tünel sağlayıcısı
-olarak ngrok (`AsyncNgrok`) yerine **`AsyncWsTunnel`** (`@expo/ws-tunnel`
-paketi) kullanılır — bu da **`wss://boltexpo.dev`**'e WebSocket bağlantısı
-açar (koddaki gerçek hostname budur, "Bolt" adı buradan geliyor). Normalde
-StackBlitz gibi tarayıcı-içi WebContainer ortamları için var, ama ngrok
-binary/hesap gerektirmediği için herhangi bir kısıtlı ağda ilk denenecek
-alternatiftir.
+bir mekanizma. `@expo/cli`'nin `BundlerDevServer.js` dosyasında:
+```js
+if (hostType === 'tunnel' && ...) { tünel başlat }
+else if (envIsWebcontainer()) { tünel başlat }   // ← --tunnel'dan BAĞIMSIZ çalışır!
+...
+this.tunnel = envIsWebcontainer()
+  ? new AsyncWsTunnel(...)   // "Bolt" — wss://boltexpo.dev
+  : new AsyncNgrok(...);     // varsayılan — ngrok
+```
+`envIsWebcontainer()` → `EXPO_FORCE_WEBCONTAINER_ENV=1` env değişkeniyle
+tetiklenir ve `--tunnel` bayrağından TAMAMEN BAĞIMSIZ olarak da tüneli
+başlatır (`else if` kolu). Normalde StackBlitz gibi tarayıcı-içi WebContainer
+ortamları için var; ngrok binary/hesap gerektirmiyor, bu yüzden kısıtlı ağlarda
+ilk denenecek/tercih edilecek yöntem.
 
-**Bu sandbox'taki durum (ikisi de test edildi, ikisi de ÇALIŞMIYOR):**
-- `--tunnel` (ngrok): "ngrok tunnel took too long to connect" hatasıyla düşer
-  ve **Metro'yu da beraberinde götürür**. Kök neden: sandbox'ın zorunlu egress
-  proxy'si ngrok'un sertifika-pinning'ini desteklemiyor (proxy dokümanı
-  `/root/.ccr/README.md` açıkça "desteklenmiyor, atlatmaya çalışma" diyor).
-- `EXPO_FORCE_WEBCONTAINER_ENV=1 --tunnel` (Bolt/ws-tunnel): `boltexpo.dev`'e
-  proxy üzerinden `curl` ile bağlantı denendi, **12 saniyede timeout** —
-  domain allowlist'te değil + aynı proxy WebSocket upgrade'i muhtemelen
-  protokol seviyesinde desteklemiyor. İstek proxy'nin hata loguna bile
-  düşmüyor (sessizce yutuluyor).
-- **Metro tünelsiz (`npx expo start`, komut 1) yerelde (localhost:8081)
-  mükemmel çalışıyor** — bundle, tsc, her şey sorunsuz. Ama bu haliyle
-  **kullanıcının telefonuna dışarıdan görünmüyor** (bu bulut ortamının resmi
-  bir "port önizleme/port-forward" mekanizması da yok — docs'ta böyle bir
-  özellik belgelenmemiş).
+### ❌ ÇALIŞMAYAN komut — ngrok (Expo'nun varsayılanı)
 
-**Sonuç / doğru çözüm yolu:** Kod zaten GitHub'a push'lu. Kullanıcı gerçek
-cihaz testi için ya (a) bu session'ı `claude --teleport` ile kendi
-bilgisayarına çekmeli, ya da (b) dalı kendi makinesinde `git pull` edip
-`npm install && npx expo start --tunnel` ile **kendi** internetinden
-çalıştırmalı. Kendi bilgisayarında zorunlu egress proxy'si olmadığı için
-ngrok (varsayılan, komut 2) orada sorunsuz çalışır — Bolt'a (komut 3) hiç
-gerek kalmaz.
+```bash
+npx expo start --tunnel
+```
+"ngrok tunnel took too long to connect" hatasıyla düşer ve **Metro'yu da
+beraberinde götürür**. Kök neden: sandbox'ın zorunlu egress proxy'si ngrok'un
+sertifika-pinning'ini desteklemiyor (`/root/.ccr/README.md` açıkça
+"desteklenmiyor, atlatmaya çalışma" diyor). **Bolt çalıştığı için buna hiç
+gerek yok, bu komutu bir daha deneme.**
 
-**Yeni oturumda bu ortamda tekrar denenecekse:** önce komut 1 ile Metro'nun
-sağlıklı olduğunu doğrula (tsc/bundle), sonra sırayla komut 3 → komut 2 dene
-(Bolt önce, çünkü hesap/binary gerektirmiyor) — ama muhtemelen ikisi de yine
-başarısız olacak, zaman kaybetmemek için doğrudan teleport/lokal çalıştırma
-önerisine geç.
+### Özet — üç komut, ne zaman hangisi
 
-Bu ortamın network access seviyesi (Trusted/Full/Custom) Claude Code web
-arayüzünden environment ayarlarından değiştirilebilir ama sertifika-pinning
-(ngrok) ve WebSocket-upgrade kısıtları muhtemelen "Full" seçilse bile aşılamaz
-(proxy seviyesinde protokol kısıtı, domain allowlist sorunu değil).
+```bash
+# Telefonla/cihazla dışarıdan bağlanmak için — BUNU KULLAN:
+EXPO_FORCE_WEBCONTAINER_ENV=1 npx expo start
+
+# Sadece bu sandbox içi hızlı doğrulama (tsc/bundle), dışarıdan görünmez:
+npx expo start --clear
+
+# ngrok — bu sandbox'ta ÇALIŞMAZ, denemeye gerek yok (Bolt zaten çalışıyor):
+npx expo start --tunnel
+```
+
+Kullanıcının kendi bilgisayarında çalıştırırken (`claude --teleport` ya da
+`git pull` sonrası) zorunlu egress proxy'si olmadığı için ngrok (`--tunnel`,
+varsayılan) da sorunsuz çalışır — orada Bolt'a gerek yok, ama Bolt komutu
+oradan da çalışır (evrensel, Expo'nun resmi CLI'sinde yerleşik).
 
 ## 9) Ertelenen / Bilinçli Olarak Yapılmayan İşler
 
