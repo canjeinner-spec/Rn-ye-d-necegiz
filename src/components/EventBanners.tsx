@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Dimensions, FlatList, Pressable, StyleSheet, View } from "react-native";
 
 import { AronMark } from "@/components/AronMark";
-import { CenterModal } from "@/components/CenterModal";
 import { Txt } from "@/components/Txt";
 import { EVENT_BANNERS, type EventBanner } from "@/data/banners";
 import { listBanners, type Banner as DBBanner } from "@/data/remote/announceRepo";
@@ -106,7 +105,6 @@ export function EventBanners() {
   const ref = useRef<FlatList<EventBanner>>(null);
   const [idx, setIdx] = useState(0);
   const idxRef = useRef(0);
-  const [detail, setDetail] = useState<DBBanner | null>(null);
 
   const { data: dbBanners } = useCachedResource<DBBanner[]>("banners:list", () => listBanners(), { persist: true, enabled: isSupabaseConfigured });
 
@@ -126,7 +124,7 @@ export function EventBanners() {
 
   const onPress = (item: DisplayBanner) => {
     haptic.light();
-    if (item._detail) { setDetail(item._detail); return; }
+    if (item._detail) { router.navigate(`/banner-detay?id=${item._detail.id}` as never); return; }
     router.navigate((item.route ?? `/event?id=${item.id}`) as never);
   };
 
@@ -152,17 +150,6 @@ export function EventBanners() {
           <View key={b.id} style={[styles.dot, i === idx && styles.dotActive]} />
         ))}
       </View>
-
-      <CenterModal visible={!!detail} onClose={() => setDetail(null)}>
-        <View style={styles.detailCard}>
-          {!!detail?.foto && <View style={styles.detailImg}><Image source={{ uri: detail.foto }} style={StyleSheet.absoluteFill} contentFit="cover" /></View>}
-          <Txt weight="displayBold" size={17} color="#fff" style={{ marginTop: detail?.foto ? 14 : 0 }}>{detail?.baslik}</Txt>
-          {!!detail?.aciklama && <Txt size={12.5} color={C.dim} lh={1.55} style={{ marginTop: 8 }}>{detail.aciklama}</Txt>}
-          <Pressable onPress={() => setDetail(null)} style={styles.detailBtn}>
-            <Txt weight="extrabold" size={13} color={C.text}>Kapat</Txt>
-          </Pressable>
-        </View>
-      </CenterModal>
     </View>
   );
 }
@@ -176,7 +163,4 @@ const styles = StyleSheet.create({
   dots: { flexDirection: "row", justifyContent: "center", gap: 5, marginTop: 9, flexWrap: "wrap", paddingHorizontal: 20 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,.22)" },
   dotActive: { width: 16, backgroundColor: C.gold },
-  detailCard: { borderRadius: 22, padding: 20, backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
-  detailImg: { width: "100%", aspectRatio: 16 / 9, borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: C.line },
-  detailBtn: { marginTop: 18, paddingVertical: 13, borderRadius: 14, alignItems: "center", backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
 });

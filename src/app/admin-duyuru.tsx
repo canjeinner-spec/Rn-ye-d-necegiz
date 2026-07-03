@@ -7,8 +7,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Txt } from "@/components/Txt";
 import {
-  createBanner, deleteBanner, listBanners, sendAnnouncement,
-  type AnnounceKanal, type Banner,
+  deleteBanner, listBanners, sendAnnouncement,
+  type AnnounceKanal, type Banner, type BannerSablon,
 } from "@/data/remote/announceRepo";
 import { uploadAvatar } from "@/data/remote/storageRepo";
 import { Icon } from "@/icons/Icon";
@@ -16,6 +16,9 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
+
+const SABLON_AD: Record<BannerSablon, string> = { duyuru: "DUYURU", bakim: "BAKIM", etkinlik: "ETKİNLİK" };
+const SABLON_IC = { duyuru: "mega", bakim: "gear", etkinlik: "gift" } as const;
 
 async function pickPhoto(): Promise<{ url: string } | null> {
   const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [16, 9], quality: 0.85, base64: true });
@@ -31,11 +34,6 @@ export default function AdminDuyuru() {
   const [note, setNote] = useState("");
   const flash = (m: string) => { setNote(m); setTimeout(() => setNote(""), 2600); };
 
-  // banner ekleme
-  const [bBaslik, setBBaslik] = useState("");
-  const [bAciklama, setBAciklama] = useState("");
-  const [bFoto, setBFoto] = useState<string | null>(null);
-
   // duyuru composer
   const [kanal, setKanal] = useState<AnnounceKanal>("aron");
   const [dBaslik, setDBaslik] = useState("");
@@ -49,26 +47,10 @@ export default function AdminDuyuru() {
   }, []);
   useFocusEffect(useCallback(() => { reload(); }, [reload]));
 
-  const addBanner = async () => {
-    if (!bBaslik.trim() || busy) return flash(bBaslik.trim() ? "" : "Başlık gir");
-    setBusy(true);
-    try {
-      await createBanner(bBaslik, bAciklama || undefined, bFoto || undefined, banners.length);
-      setBBaslik(""); setBAciklama(""); setBFoto(null);
-      flash("Banner eklendi"); reload();
-    } catch (e) { flash((e as Error)?.message || "Eklenemedi"); }
-    finally { setBusy(false); }
-  };
   const removeBanner = async (id: number) => {
     haptic.light();
     setBanners((xs) => xs.filter((x) => x.id !== id)); // optimistik
     try { await deleteBanner(id); } catch { reload(); }
-  };
-  const pickBannerPhoto = async () => {
-    if (busy) return;
-    setBusy(true);
-    try { const r = await pickPhoto(); if (r) setBFoto(r.url); } catch { flash("Foto yüklenemedi"); }
-    finally { setBusy(false); }
   };
   const pickDuyuruPhoto = async () => {
     if (busy) return;
@@ -135,21 +117,10 @@ export default function AdminDuyuru() {
           </View></View>
 
           {/* ===== BANNER YÖNETİMİ ===== */}
-          <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>BANNER EKLE (ODA LİSTESİ ÜSTÜ)</Txt>
-          <View style={styles.group}><View style={{ padding: 12, gap: 10 }}>
-            <TextInput value={bBaslik} onChangeText={setBBaslik} placeholder="Banner başlığı" placeholderTextColor={C.dim2} style={styles.input} />
-            <TextInput value={bAciklama} onChangeText={setBAciklama} placeholder="Açıklama (ops.)" placeholderTextColor={C.dim2} style={styles.input} />
-            <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-              <Pressable disabled={busy} onPress={pickBannerPhoto} style={[styles.chip, { flexDirection: "row", gap: 5 }]}>
-                <Icon name="camera" size={12} color={C.gold2} /><Txt weight="bold" size={10.5} color={C.gold2}>{bFoto ? "Foto değiştir" : "Foto ekle"}</Txt>
-              </Pressable>
-              {!!bFoto && <Pressable onPress={() => setBFoto(null)}><Icon name="x" size={14} color="#FB7185" /></Pressable>}
-            </View>
-            {!!bFoto && <View style={styles.preview}><Image source={{ uri: bFoto }} style={StyleSheet.absoluteFill} contentFit="cover" /></View>}
-            <Pressable disabled={busy || !bBaslik.trim()} onPress={addBanner} style={[styles.addBtn, { opacity: !busy && bBaslik.trim() ? 1 : 0.45 }]}>
-              <Icon name="plus" size={14} sw={2.5} color={C.gold2} /><Txt weight="extrabold" size={12.5} color={C.gold2}>Banner Ekle</Txt>
-            </Pressable>
-          </View></View>
+          <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>BANNER'LAR (ODA LİSTESİ ÜSTÜ)</Txt>
+          <Pressable onPress={() => router.navigate("/admin-banner-edit")} style={styles.addBtn}>
+            <Icon name="plus" size={14} sw={2.5} color={C.gold2} /><Txt weight="extrabold" size={12.5} color={C.gold2}>Yeni Banner (şablon seç)</Txt>
+          </Pressable>
 
           <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>MEVCUT BANNER'LAR ({banners.length})</Txt>
           {banners.length === 0 ? (
@@ -159,18 +130,22 @@ export default function AdminDuyuru() {
               {banners.map((b, i) => (
                 <View key={b.id}>
                   {i > 0 && <View style={styles.divider} />}
-                  <View style={styles.bannerRow}>
+                  <Pressable onPress={() => router.navigate(`/admin-banner-edit?id=${b.id}`)} style={styles.bannerRow}>
                     <View style={styles.bThumb}>
-                      {b.foto ? <Image source={{ uri: b.foto }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Icon name="mega" size={16} color={C.dim2} />}
+                      {b.foto ? <Image source={{ uri: b.foto }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Icon name={SABLON_IC[b.sablon]} size={16} color={C.dim2} />}
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Txt weight="extrabold" size={12.5} color={C.text} numberOfLines={1}>{b.baslik}</Txt>
-                      {!!b.aciklama && <Txt size={10.5} color={C.dim} numberOfLines={2} lh={1.3} style={{ marginTop: 2 }}>{b.aciklama}</Txt>}
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <View style={styles.sablonBadge}><Txt weight="bold" size={8} color={C.gold2} style={{ letterSpacing: 0.5 }}>{SABLON_AD[b.sablon]}</Txt></View>
+                      </View>
+                      <Txt weight="extrabold" size={12.5} color={C.text} numberOfLines={1} style={{ marginTop: 3 }}>{b.baslik}</Txt>
+                      {!!b.aciklama && <Txt size={10.5} color={C.dim} numberOfLines={1} lh={1.3} style={{ marginTop: 1 }}>{b.aciklama}</Txt>}
                     </View>
                     <Pressable onPress={() => removeBanner(b.id)} hitSlop={8} style={styles.delBtn}>
                       <Icon name="trash" size={13} color="#FB7185" />
                     </Pressable>
-                  </View>
+                    <Icon name="chev" size={15} color={C.dim2} />
+                  </Pressable>
                 </View>
               ))}
             </View>
@@ -196,7 +171,8 @@ const styles = StyleSheet.create({
   sendBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 12, borderRadius: 12, backgroundColor: C.gold2 },
   addBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 11, borderRadius: 12, backgroundColor: `${C.gold}14`, borderWidth: 1, borderColor: `${C.gold}44` },
   empty: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: C.line },
-  bannerRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },
+  bannerRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12 },
   bThumb: { width: 46, height: 46, borderRadius: 10, overflow: "hidden", backgroundColor: "rgba(255,255,255,.04)", alignItems: "center", justifyContent: "center" },
+  sablonBadge: { alignSelf: "flex-start", paddingVertical: 1.5, paddingHorizontal: 6, borderRadius: 5, backgroundColor: `${C.gold}14`, borderWidth: 1, borderColor: `${C.gold}33` },
   delBtn: { width: 32, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.1)", borderWidth: 1, borderColor: "rgba(251,113,133,.28)" },
 });
