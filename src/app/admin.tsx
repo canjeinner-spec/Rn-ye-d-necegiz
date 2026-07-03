@@ -99,6 +99,15 @@ export default function AdminScreen() {
             </View>
           </View>
 
+          <Pressable onPress={() => { haptic.light(); router.navigate("/admin-duyuru"); }} style={styles.launchRow}>
+            <View style={[styles.rowIcon, { backgroundColor: `${C.gold}1A` }]}><Icon name="mega" size={16} color={C.gold} /></View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Txt weight="extrabold" size={13} color={C.text}>Duyuru & Banner</Txt>
+              <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>Herkese duyuru gönder · banner ekle/sil</Txt>
+            </View>
+            <Icon name="chev" size={15} color={C.dim2} />
+          </Pressable>
+
           {mainTab === 0 ? (
             <>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 20, marginBottom: 10 }}>
@@ -209,6 +218,7 @@ const styles = StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 46 },
   row: { flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 13 },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  launchRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12, padding: 13, borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
   userRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 12 },
   donePill: { paddingVertical: 2, paddingHorizontal: 7, borderRadius: 999, backgroundColor: `${C.green}14`, borderWidth: 1, borderColor: `${C.green}44` },
   actChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
