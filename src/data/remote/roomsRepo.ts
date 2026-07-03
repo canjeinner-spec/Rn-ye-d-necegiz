@@ -79,6 +79,27 @@ export async function listRooms(limit = 50): Promise<Room[]> {
   return rows.map((r) => mapRoom(r, hosts.get(r.olusturan_id ?? -1) || "Kullanıcı", me?.id ?? null));
 }
 
+/**
+ * Kendi oluşturduğum oda (varsa, en yenisi). "myRoom" istemcide kalıcı
+ * değildi — her reload'da unutulup tekrar oluşturuluyordu (yinelenen satırlar,
+ * eski düzenlemeler ulaşılamaz kalıyordu). Bu, tekrar oluşturmadan önce
+ * kontrol edilir (get-or-create) ve açılışta durumu buradan yeniden yükler.
+ */
+export async function getMyRoom(): Promise<Room | null> {
+  const sb = requireSupabase();
+  const me = await getMyProfile();
+  if (!me) return null;
+  const { data, error } = await sb
+    .from("odalar")
+    .select(SELECT_COLS)
+    .eq("olusturan_id", me.id)
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapRoom(data as OdaRow, me.kullanici_adi, me.id) : null;
+}
+
 /** 6 haneli benzersiz oda ID'si (çakışmada birkaç kez dener). */
 function genRoomId(): string {
   return String(Math.floor(100000 + Math.random() * 899999));

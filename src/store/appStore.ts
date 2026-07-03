@@ -6,7 +6,7 @@ import { type DMThread } from "@/data/dm";
 import { type Room } from "@/data/seed";
 import { deleteAccount, getMyAccountBan, getSession, onAuthChange, signOut, type AccountBan } from "@/data/remote/authRepo";
 import { ensureMyProfile, getMyProfile } from "@/data/remote/profileRepo";
-import { createRoom, listRooms } from "@/data/remote/roomsRepo";
+import { createRoom, getMyRoom, listRooms } from "@/data/remote/roomsRepo";
 import { listPosts } from "@/data/remote/feedRepo";
 import { addXp } from "@/data/remote/xpRepo";
 import { prefetch, setCached } from "@/lib/cache";
@@ -190,6 +190,10 @@ export const useApp = create<AppState>((set, get) => ({
           // Başlangıç prefetch: ilk açılan ekranlar (ana/feed) cache'ten anında dolsun.
           prefetch("rooms:list", () => listRooms(), true);
           listPosts().then(({ posts }) => setCached("feed:db", posts, true)).catch(() => {});
+          // Kendi odam DB'den yeniden yüklenir — eskiden bu hiç yapılmıyordu,
+          // her reload'da unutulup "Oluştur"a basınca yeni bir oda satırı
+          // ekleniyordu (önceki düzenlemeler ulaşılamaz kalıyordu).
+          getMyRoom().then((r) => { if (r) set({ myRoom: r }); }).catch(() => {});
         }
       })
       .catch(() => set({ bootstrapped: true }));
@@ -200,10 +204,11 @@ export const useApp = create<AppState>((set, get) => ({
         try { supabase?.realtime.setAuth(session.access_token); } catch { /* yoksay */ }
         await get().loadProfile();
         await get().enforceAccountBan();
+        getMyRoom().then((r) => { if (r) set({ myRoom: r }); }).catch(() => {});
       } else {
         // Çıkış / oturum düştü → profil durumu sıfırlanır (misafir).
         stopBanEnforcement();
-        set({ profilEksik: null });
+        set({ profilEksik: null, myRoom: null });
       }
     });
 
@@ -294,6 +299,7 @@ export const useApp = create<AppState>((set, get) => ({
       userXp: 0,
       role: "user",
       profilEksik: null,
+      myRoom: null,
     });
   },
 
@@ -311,6 +317,7 @@ export const useApp = create<AppState>((set, get) => ({
       userXp: 0,
       role: "user",
       profilEksik: null,
+      myRoom: null,
     });
   },
 
@@ -408,7 +415,9 @@ export const useApp = create<AppState>((set, get) => ({
     const { userName, userPhoto, enterRoom, makeMyRoom } = get();
     if (isSupabaseConfigured && get().session) {
       try {
-        const r = await createRoom({ name: `${userName} Odası`, photo: userPhoto || null });
+        // Önce DB'de zaten var mı kontrol et (get-or-create) — aksi halde her
+        // "Oluştur" tıklaması yeni bir oda satırı ekler, öncekiler unutulurdu.
+        const r = (await getMyRoom()) ?? (await createRoom({ name: `${userName} Odası`, photo: userPhoto || null }));
         set({ myRoom: r });
         enterRoom(r);
         return r;
