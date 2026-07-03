@@ -10,6 +10,7 @@ import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { DM_THREADS, type DMThread } from "@/data/dm";
 import { DM_ID_OFFSET, listThreads } from "@/data/remote/dmRepo";
+import { listAnnouncements } from "@/data/remote/announceRepo";
 import { getUnreadCount } from "@/data/remote/notifRepo";
 import { getCached, setCached } from "@/lib/cache";
 import { Icon } from "@/icons/Icon";
@@ -35,8 +36,12 @@ function Avatar({ d }: { d: DMThread }) {
   return <Portrait name={d.name} size={48} online={d.online} photo={d.photo} />;
 }
 
-// Resmi (Aron) + Sistem kanalları mock kalır; gerçek kişiler DB'den gelir.
+// Resmi (Aron) + Sistem kanalları; önizleme gerçek son duyurudan gelir.
 const SPECIAL_THREADS = DM_THREADS.filter((d) => d.official || d.system);
+function kisaZaman(at: number) {
+  const d = new Date(at);
+  return `${d.getDate()}/${String(d.getMonth() + 1).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
 
 export default function DmTab() {
   const router = useRouter();
@@ -49,10 +54,18 @@ export default function DmTab() {
   const [hidden, setHidden] = useState<Set<number>>(new Set());
   const [actionFor, setActionFor] = useState<DMThread | null>(null);
   const [stub, setStub] = useState<string | null>(null);
+  const [special, setSpecial] = useState<DMThread[]>(SPECIAL_THREADS);
 
   const reload = useCallback(() => {
     if (!isSupabaseConfigured || !session) return;
     listThreads().then((t) => { setDbThreads(t); setCached("dm:threads", t, true); }).catch((e) => console.warn("[dm] listThreads:", e?.message || e));
+    // Resmi/sistem thread önizlemesi = ilgili kanaldaki son duyuru
+    Promise.all([listAnnouncements("aron", 1).catch(() => []), listAnnouncements("sistem", 1).catch(() => [])]).then(([a, s]) => {
+      setSpecial(SPECIAL_THREADS.map((t) => {
+        const latest = t.official ? a[0] : t.system ? s[0] : undefined;
+        return latest ? { ...t, last: latest.baslik, time: kisaZaman(latest.at) } : t;
+      }));
+    }).catch(() => {});
   }, [session]);
 
   // Ekrana her dönüşte tazele (thread'ler + bildirim sayısı)
@@ -87,7 +100,7 @@ export default function DmTab() {
     return () => { sb.removeChannel(ch); };
   }, [session, reload]);
 
-  const threads = [...SPECIAL_THREADS, ...dbThreads].filter((d) => !hidden.has(d.id));
+  const threads = [...special, ...dbThreads].filter((d) => !hidden.has(d.id));
   const filtered = threads.filter((d) => (tab === 0 ? true : tab === 1 ? d.unread > 0 : d.online));
 
   const openChat = (d: DMThread) => {

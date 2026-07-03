@@ -1,11 +1,15 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Dimensions, FlatList, Pressable, StyleSheet, View } from "react-native";
 
 import { AronMark } from "@/components/AronMark";
+import { CenterModal } from "@/components/CenterModal";
 import { Txt } from "@/components/Txt";
 import { EVENT_BANNERS, type EventBanner } from "@/data/banners";
+import { listBanners, type Banner as DBBanner } from "@/data/remote/announceRepo";
+import { useCachedResource } from "@/lib/cache";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
@@ -18,15 +22,22 @@ const BANNER_IMG: Record<string, number> = {
   guncelleme: require("../../assets/images/update-banner.png"),
 };
 
+// Kalıcı olarak gösterilen bilgilendirme banner'ları (uygulama kimliği).
+const INFO_BANNERS = EVENT_BANNERS.filter((b) => b.kind === "about" || b.kind === "update");
+
+// DB banner → gösterim tipi (foto varsa tam-kaplama, yoksa gradyan + başlık).
+type DisplayBanner = EventBanner & { _detail?: DBBanner };
+function toDisplay(b: DBBanner): DisplayBanner {
+  return { id: `db-${b.id}`, title: b.baslik, subtitle: b.aciklama, date: "", c1: "#2A2350", c2: "#161029", accent: "#FDE68A", kind: "event", image: b.foto, _detail: b };
+}
+
 /** Bilgilendirme banner'ı (Biz Kimiz? / Gelecek Güncelleme) — emblem + parıltı, premium görünüm */
 function InfoBanner({ b }: { b: EventBanner }) {
   const tag = b.kind === "update" ? "YAKINDA" : "HİKÂYE";
   return (
     <View style={styles.banner}>
       <Gradient colors={[b.c1, b.c2]} deg={125} style={StyleSheet.absoluteFill} />
-      {/* köşe parıltısı (accent rengine göre) */}
       <View style={[styles.glow, { backgroundColor: b.accent + "26" }]} pointerEvents="none" />
-      {/* üst parlaklık */}
       <Gradient colors={["rgba(255,255,255,.14)", "rgba(255,255,255,0)"]} deg={150} locations={[0, 0.55]} style={StyleSheet.absoluteFill} pointerEvents="none" />
       <View style={{ flexDirection: "row", alignItems: "center", gap: 13, paddingHorizontal: 16 }}>
         {b.kind === "update" ? (
@@ -75,12 +86,15 @@ function Banner({ b, onPress }: { b: EventBanner; onPress: () => void }) {
               <Gradient colors={["rgba(255,255,255,.28)", "rgba(255,255,255,0)"]} deg={155} locations={[0, 0.6]} style={StyleSheet.absoluteFill} pointerEvents="none" />
             </>
           )}
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Txt size={16}>✦</Txt>
-            <Txt weight="displayBold" size={18} color={b.accent} align="center" style={styles.title}>{b.title}</Txt>
-            <Txt size={16}>✦</Txt>
+          <View style={{ paddingHorizontal: 18 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "center" }}>
+              <Txt size={16}>✦</Txt>
+              <Txt weight="displayBold" size={18} color={b.accent} align="center" style={styles.title} numberOfLines={1}>{b.title}</Txt>
+              <Txt size={16}>✦</Txt>
+            </View>
+            {!!b.subtitle && <Txt weight="semibold" size={11} color="rgba(255,255,255,.9)" align="center" numberOfLines={1} style={{ marginTop: 6 }}>{b.subtitle}</Txt>}
+            {!!b.date && <Txt weight="bold" size={10} color="rgba(255,255,255,.92)" align="center" style={{ marginTop: 6 }}>{b.date}</Txt>}
           </View>
-          {!!b.date && <Txt weight="bold" size={10} color="rgba(255,255,255,.92)" align="center" style={{ marginTop: 6 }}>{b.date}</Txt>}
         </View>
       )}
     </Pressable>
@@ -92,22 +106,35 @@ export function EventBanners() {
   const ref = useRef<FlatList<EventBanner>>(null);
   const [idx, setIdx] = useState(0);
   const idxRef = useRef(0);
+  const [detail, setDetail] = useState<DBBanner | null>(null);
+
+  const { data: dbBanners } = useCachedResource<DBBanner[]>("banners:list", () => listBanners(), { persist: true, enabled: isSupabaseConfigured });
+
+  // Dinamik banner'lar önce, sonra kalıcı bilgilendirme banner'ları.
+  const items = useMemo<DisplayBanner[]>(() => [...(dbBanners ?? []).map(toDisplay), ...INFO_BANNERS], [dbBanners]);
 
   useEffect(() => {
+    if (items.length <= 1) return;
     const t = setInterval(() => {
-      const n = (idxRef.current + 1) % EVENT_BANNERS.length;
+      const n = (idxRef.current + 1) % items.length;
       idxRef.current = n;
       setIdx(n);
       ref.current?.scrollToOffset({ offset: n * SCREEN, animated: true });
     }, 3800);
     return () => clearInterval(t);
-  }, []);
+  }, [items.length]);
+
+  const onPress = (item: DisplayBanner) => {
+    haptic.light();
+    if (item._detail) { setDetail(item._detail); return; }
+    router.navigate((item.route ?? `/event?id=${item.id}`) as never);
+  };
 
   return (
     <View style={{ paddingTop: 10 }}>
       <FlatList
         ref={ref}
-        data={EVENT_BANNERS}
+        data={items}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -118,15 +145,24 @@ export function EventBanners() {
           idxRef.current = i;
           setIdx(i);
         }}
-        renderItem={({ item }) => (
-          <Banner b={item} onPress={() => { haptic.light(); router.navigate((item.route ?? `/event?id=${item.id}`) as never); }} />
-        )}
+        renderItem={({ item }) => <Banner b={item} onPress={() => onPress(item)} />}
       />
       <View style={styles.dots}>
-        {EVENT_BANNERS.map((b, i) => (
+        {items.map((b, i) => (
           <View key={b.id} style={[styles.dot, i === idx && styles.dotActive]} />
         ))}
       </View>
+
+      <CenterModal visible={!!detail} onClose={() => setDetail(null)}>
+        <View style={styles.detailCard}>
+          {!!detail?.foto && <View style={styles.detailImg}><Image source={{ uri: detail.foto }} style={StyleSheet.absoluteFill} contentFit="cover" /></View>}
+          <Txt weight="displayBold" size={17} color="#fff" style={{ marginTop: detail?.foto ? 14 : 0 }}>{detail?.baslik}</Txt>
+          {!!detail?.aciklama && <Txt size={12.5} color={C.dim} lh={1.55} style={{ marginTop: 8 }}>{detail.aciklama}</Txt>}
+          <Pressable onPress={() => setDetail(null)} style={styles.detailBtn}>
+            <Txt weight="extrabold" size={13} color={C.text}>Kapat</Txt>
+          </Pressable>
+        </View>
+      </CenterModal>
     </View>
   );
 }
@@ -136,8 +172,11 @@ const styles = StyleSheet.create({
   glow: { position: "absolute", right: -28, top: -34, width: 150, height: 150, borderRadius: 75 },
   emblem: { width: 62, height: 62, borderRadius: 19, overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.2)" },
   tag: { paddingVertical: 1.5, paddingHorizontal: 6, borderRadius: 5 },
-  title: { textShadowColor: "rgba(0,0,0,.45)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
-  dots: { flexDirection: "row", justifyContent: "center", gap: 5, marginTop: 9 },
+  title: { textShadowColor: "rgba(0,0,0,.45)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4, flexShrink: 1 },
+  dots: { flexDirection: "row", justifyContent: "center", gap: 5, marginTop: 9, flexWrap: "wrap", paddingHorizontal: 20 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,.22)" },
   dotActive: { width: 16, backgroundColor: C.gold },
+  detailCard: { borderRadius: 22, padding: 20, backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
+  detailImg: { width: "100%", aspectRatio: 16 / 9, borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: C.line },
+  detailBtn: { marginTop: 18, paddingVertical: 13, borderRadius: 14, alignItems: "center", backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
 });

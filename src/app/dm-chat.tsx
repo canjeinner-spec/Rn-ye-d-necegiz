@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
@@ -9,6 +10,7 @@ import { OfficialAvatar, SystemAvatar } from "@/components/SpecialAvatars";
 import { Txt } from "@/components/Txt";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { ARON_POSTS, SYSTEM_POSTS } from "@/data/dm";
+import { listAnnouncements, type Announcement } from "@/data/remote/announceRepo";
 import { getBlockStateByPublicId, unblock } from "@/data/remote/blockRepo";
 import { getMessages, mapRealtimeMessage, markRead, sendMessage } from "@/data/remote/dmRepo";
 import { type Gift } from "@/data/gifts";
@@ -51,6 +53,15 @@ export default function DMChatScreen() {
   const [input, setInput] = useState("");
   const [giftOpen, setGiftOpen] = useState(false);
   const [block, setBlock] = useState<{ iBlocked: boolean; blockedByThem: boolean; targetId: number | null } | null>(null);
+
+  // Resmi/sistem hesabı → gerçek duyuruları yükle (kanal: system→'sistem', official→'aron')
+  const [announcements, setAnnouncements] = useState<Announcement[] | null>(null);
+  useEffect(() => {
+    if (!isSupabaseConfigured || !(peer?.official || peer?.system)) return;
+    let alive = true;
+    listAnnouncements(peer.system ? "sistem" : "aron").then((a) => { if (alive) setAnnouncements(a); }).catch(() => {});
+    return () => { alive = false; };
+  }, [peer?.official, peer?.system]);
 
   // Engel durumunu yükle (gerçek kişi sohbeti; resmi/sistem hariç)
   useEffect(() => {
@@ -122,7 +133,15 @@ export default function DMChatScreen() {
   // ── Resmi / Sistem yayın akışı ──
   if (peer.official || peer.system) {
     const isSystem = !!peer.system;
-    const posts: { date: string; text: string; icon?: string; title?: string }[] = isSystem ? SYSTEM_POSTS : ARON_POSTS;
+    const duyuruTarih = (at: number) => {
+      const d = new Date(at);
+      return `${d.getDate()}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    };
+    // Gerçek duyurular varsa onları; yoksa mock (yer tutucu) göster.
+    const posts: { date: string; text: string; icon?: string; title?: string; foto?: string }[] =
+      announcements && announcements.length
+        ? announcements.map((a) => ({ date: duyuruTarih(a.at), text: a.icerik, title: a.baslik, icon: "🔔", foto: a.foto }))
+        : isSystem ? SYSTEM_POSTS : ARON_POSTS;
     return (
       <View style={styles.root}>
         <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
@@ -154,6 +173,8 @@ export default function DMChatScreen() {
                         <Txt weight="extrabold" size={12.5} color={C.text}>{p.title}</Txt>
                       </View>
                     )}
+                    {!isSystem && p.title && <Txt weight="extrabold" size={13} color={C.text} style={{ marginBottom: 6 }}>{p.title}</Txt>}
+                    {!!p.foto && <View style={styles.bcFoto}><Image source={{ uri: p.foto }} style={StyleSheet.absoluteFill} contentFit="cover" /></View>}
                     <Txt size={12.5} color="#DBD9E2" lh={1.55}>{p.text}</Txt>
                     {!isSystem && (
                       <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 10, paddingTop: 9, borderTopWidth: 1, borderTopColor: C.line }}>
@@ -283,6 +304,7 @@ const styles = StyleSheet.create({
   verify: { width: 15, height: 15, borderRadius: 8, backgroundColor: "#3B82F6", alignItems: "center", justifyContent: "center" },
   dateTag: { backgroundColor: "rgba(255,255,255,.05)", paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999, overflow: "hidden" },
   bcCard: { flex: 1, backgroundColor: C.card2, borderWidth: 1, borderColor: C.line, borderRadius: 18, borderTopLeftRadius: 6, padding: 14 },
+  bcFoto: { width: "100%", aspectRatio: 16 / 9, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: C.line, marginBottom: 9, backgroundColor: "rgba(255,255,255,.04)" },
   csBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingVertical: 15, borderRadius: 999 },
   bubble: { paddingVertical: 9, paddingHorizontal: 13, borderRadius: 16 },
   bubbleThem: { alignSelf: "flex-start", maxWidth: "76%", backgroundColor: C.card2, borderWidth: 1, borderColor: C.line, borderTopLeftRadius: 5 },
