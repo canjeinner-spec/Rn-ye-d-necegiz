@@ -1,7 +1,8 @@
 import { Image } from "expo-image";
 import { Text, View } from "react-native";
 
-import { OZEL_ID_TEMA_RENK, ozelIdTier, type OzelIdKart } from "@/data/specialId";
+import { IdNameplate, type NameplateFrame } from "@/components/IdNameplate";
+import { OZEL_ID_TEMA_RENK, type OzelIdKart } from "@/data/specialId";
 import { Gradient } from "@/theme/Gradient";
 import { Font } from "@/theme/fonts";
 
@@ -166,24 +167,26 @@ export function IdKapsul({ theme, id, size = 13 }: { theme: OzelIdKart; id: stri
 }
 
 /**
- * ÖZEL ID akıllı gösterim — basamak sayısına göre otomatik seçer:
- *   ≤5 → tam kart · 6-7 → kapsül · 8+ → düz ID metni.
- * theme atanmamışsa (kart/kapsül için gerekli) düz ID döner.
+ * ÖZEL ID gösterim — tip'e göre:
+ *   premium → banner çerçevesi (IdNameplate, ID panele yazılır)
+ *   kapsul  → kart amblemi + renk-uyumlu hap (IdKapsul)
+ * tema yoksa düz ID metni.
  */
 export function OzelIdGosterim({
   id,
-  theme,
-  kartWidth = 210,
-  kapsulSize = 13,
+  tip,
+  tema,
+  premiumWidth = 220,
+  kapsulSize = 12,
 }: {
   id: string;
-  theme?: OzelIdKart | null;
-  kartWidth?: number;
+  tip?: "premium" | "kapsul" | null;
+  tema?: string | null;
+  premiumWidth?: number;
   kapsulSize?: number;
 }) {
-  const tier = ozelIdTier(id);
-  if (theme && tier === "kart") return <OzelIdKart frame={theme} id={id} width={kartWidth} />;
-  if (theme && tier === "kapsul") return <IdKapsul theme={theme} id={id} size={kapsulSize} />;
+  if (tip === "premium" && tema) return <IdNameplate frame={tema as NameplateFrame} text={id} width={premiumWidth} />;
+  if (tip === "kapsul" && tema) return <IdKapsul theme={tema as OzelIdKart} id={id} size={kapsulSize} />;
   return (
     <Text style={{ fontFamily: Font.extrabold, fontSize: kapsulSize, color: "#F5CE6E", letterSpacing: 1 }}>
       {id}

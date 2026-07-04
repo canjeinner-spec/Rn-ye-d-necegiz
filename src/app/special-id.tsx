@@ -3,7 +3,8 @@ import { type ReactNode, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { IdKapsul, OzelIdGosterim, OzelIdKart as OzelIdKartView } from "@/components/OzelId";
+import { IdNameplate, NAMEPLATE_FRAMES } from "@/components/IdNameplate";
+import { OzelIdGosterim, OzelIdKart as OzelIdKartView } from "@/components/OzelId";
 import { ThroneCard } from "@/components/ThroneCard";
 import { Txt } from "@/components/Txt";
 import {
@@ -11,7 +12,6 @@ import {
   OZEL_ID_KART_ADI,
   THRONE_SUPER,
   THRONE_T2,
-  type OzelIdKart,
 } from "@/data/specialId";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
@@ -46,12 +46,12 @@ function SectionTitle({ children }: { children: ReactNode }) {
 // Özel ID kimliği: tip seç (Premium kart 1-5 hane / Kapsül 6-7 hane) →
 // istediğin ID'yi gir → tema seç → profil önizlemesi → Onayla → store'a yaz.
 function KapsulBolumu() {
-  const { ozelId, ozelIdKart, setOzelIdKart, setOzelId, betaTester } = useApp();
-  const claimed = ozelId != null && ozelIdKart != null;
+  const { ozelId, ozelIdTip, ozelIdTema, setOzelIdKimlik, betaTester } = useApp();
+  const claimed = ozelId != null && ozelIdTip != null && ozelIdTema != null;
   const [duzenle, setDuzenle] = useState(false);
-  const [tip, setTip] = useState<"premium" | "kapsul">("kapsul");
+  const [tip, setTip] = useState<"premium" | "kapsul">(ozelIdTip ?? "kapsul");
   const [idText, setIdText] = useState(ozelId ?? "");
-  const [tema, setTema] = useState<OzelIdKart | null>(ozelIdKart);
+  const [tema, setTema] = useState<string | null>(ozelIdTema);
 
   const maxLen = tip === "premium" ? 5 : 7;
   const idGecerli = tip === "premium" ? idText.length >= 1 && idText.length <= 5 : idText.length >= 6 && idText.length <= 7;
@@ -61,6 +61,7 @@ function KapsulBolumu() {
     haptic.select();
     setTip(t);
     setIdText((v) => v.slice(0, t === "premium" ? 5 : 7));
+    setTema(null); // premium (banner) ve kapsül (kart) havuzları farklı — sıfırla
   };
 
   // Zaten tanımlı → mevcut kimlik + Değiştir / Kaldır
@@ -69,16 +70,13 @@ function KapsulBolumu() {
       <View style={{ alignItems: "center", marginTop: 16 }}>
         <Txt weight="bold" size={12} color={C.gold2}>Özel ID Kimliğin</Txt>
         <View style={{ marginTop: 14 }}>
-          <OzelIdGosterim id={ozelId!} theme={ozelIdKart} kartWidth={230} kapsulSize={17} />
+          <OzelIdGosterim id={ozelId!} tip={ozelIdTip} tema={ozelIdTema} premiumWidth={250} kapsulSize={16} />
         </View>
-        <Txt weight="semibold" size={10.5} color={C.dim} style={{ marginTop: 10 }}>
-          {OZEL_ID_KART_ADI[ozelIdKart!].title} · {OZEL_ID_KART_ADI[ozelIdKart!].sub}
-        </Txt>
-        <View style={{ flexDirection: "row", gap: 20, marginTop: 14 }}>
-          <Pressable onPress={() => { haptic.light(); setTip(ozelId!.length <= 5 ? "premium" : "kapsul"); setIdText(ozelId!); setTema(ozelIdKart); setDuzenle(true); }}>
+        <View style={{ flexDirection: "row", gap: 20, marginTop: 16 }}>
+          <Pressable onPress={() => { haptic.light(); setTip(ozelIdTip!); setIdText(ozelId!); setTema(ozelIdTema); setDuzenle(true); }}>
             <Txt weight="extrabold" size={12} color={C.gold2}>Değiştir ↻</Txt>
           </Pressable>
-          <Pressable onPress={() => { haptic.light(); setOzelId(null); setOzelIdKart(null); setIdText(""); setTema(null); }}>
+          <Pressable onPress={() => { haptic.light(); setOzelIdKimlik(null, null, null); setIdText(""); setTema(null); }}>
             <Txt weight="extrabold" size={12} color={C.dim}>Kaldır</Txt>
           </Pressable>
         </View>
@@ -97,7 +95,7 @@ function KapsulBolumu() {
         </View>
       )}
 
-      {/* Tip seçimi */}
+      {/* Tip seçimi — Premium = banner çerçeve, Kapsül = kart teması */}
       <View style={styles.tipRow}>
         {([["kapsul", "Kapsül · 6-7 hane"], ["premium", "Premium · 1-5 hane"]] as const).map(([t, l]) => {
           const on = tip === t;
@@ -128,37 +126,46 @@ function KapsulBolumu() {
         </Txt>
       )}
 
-      {/* Tema seçimi — kart görselleri */}
+      {/* Tema seçimi — Premium: banner çerçeveleri · Kapsül: kart temaları */}
       <Txt weight="bold" size={12} color={C.gold2} style={{ marginTop: 16, marginBottom: 4 }}>Tema Seç</Txt>
-      <View style={styles.kapsulGrid}>
-        {OZEL_ID_KARTLARI.map((k) => {
-          const on = tema === k;
-          return (
-            <Pressable
-              key={k}
-              onPress={() => { haptic.select(); setTema(k); }}
-              style={[styles.kapsulCell, on && { borderColor: C.gold2, backgroundColor: "rgba(245,206,110,.12)" }]}
-            >
-              <OzelIdKartView frame={k} id="" width={92} />
-              <Txt weight="bold" size={8} color={on ? C.gold2 : C.dim2} align="center">{OZEL_ID_KART_ADI[k].sub}</Txt>
-            </Pressable>
-          );
-        })}
-      </View>
+      {tip === "premium" ? (
+        <View style={styles.bannerGrid}>
+          {NAMEPLATE_FRAMES.map((f) => {
+            const on = tema === f;
+            return (
+              <Pressable key={f} onPress={() => { haptic.select(); setTema(f); }} style={[styles.bannerCell, on && { borderColor: C.gold2, backgroundColor: "rgba(245,206,110,.12)" }]}>
+                <IdNameplate frame={f} text={idText || "12345"} width={150} />
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={styles.kapsulGrid}>
+          {OZEL_ID_KARTLARI.map((k) => {
+            const on = tema === k;
+            return (
+              <Pressable key={k} onPress={() => { haptic.select(); setTema(k); }} style={[styles.kapsulCell, on && { borderColor: C.gold2, backgroundColor: "rgba(245,206,110,.12)" }]}>
+                <OzelIdKartView frame={k} id="" width={92} />
+                <Txt weight="bold" size={8} color={on ? C.gold2 : C.dim2} align="center">{OZEL_ID_KART_ADI[k].sub}</Txt>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
 
       {/* Önizleme */}
       {hazir && (
         <View style={{ alignItems: "center", marginTop: 18 }}>
           <Txt weight="semibold" size={11} color={C.dim}>Profilinde böyle görünecek:</Txt>
           <View style={{ marginTop: 12 }}>
-            <OzelIdGosterim id={idText} theme={tema} kartWidth={230} kapsulSize={17} />
+            <OzelIdGosterim id={idText} tip={tip} tema={tema} premiumWidth={250} kapsulSize={16} />
           </View>
         </View>
       )}
 
       <Pressable
         disabled={!hazir}
-        onPress={() => { haptic.light(); setOzelId(idText); setOzelIdKart(tema); setDuzenle(false); }}
+        onPress={() => { haptic.light(); setOzelIdKimlik(idText, tip, tema); setDuzenle(false); }}
         style={{ marginTop: 18, borderRadius: 999, overflow: "hidden", opacity: hazir ? 1 : 0.4 }}
       >
         <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.uploadBtn}>
@@ -290,6 +297,8 @@ const styles = StyleSheet.create({
   betaNote: { flexDirection: "row", alignItems: "center", gap: 8, padding: 11, borderRadius: 12, backgroundColor: "rgba(245,206,110,.08)", borderWidth: 1, borderColor: `${C.gold}44`, marginBottom: 6 },
   kapsulGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginTop: 12 },
   kapsulCell: { width: 104, alignItems: "center", gap: 3, paddingVertical: 6, paddingHorizontal: 4, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.03)" },
+  bannerGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginTop: 12 },
+  bannerCell: { alignItems: "center", padding: 6, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.03)" },
   tipRow: { flexDirection: "row", gap: 8, marginTop: 14 },
   tipBtn: { flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.03)" },
   idInput: { height: 46, borderRadius: 12, borderWidth: 1, borderColor: `${C.gold}44`, backgroundColor: "rgba(0,0,0,.3)", paddingHorizontal: 16, color: "#fff", fontSize: 18, letterSpacing: 2, fontFamily: "PlusJakartaSans_800ExtraBold" },

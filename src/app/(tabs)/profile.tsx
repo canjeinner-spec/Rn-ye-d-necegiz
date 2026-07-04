@@ -36,7 +36,7 @@ type MenuItem = { ic: IconName; g1: string; g2: string; t: string; s?: string; r
 
 export default function ProfileTab() {
   const router = useRouter();
-  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, setStreamer, betaTester, setBetaTester, ozelId, ozelIdKart, role, setRole, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
+  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, setStreamer, betaTester, setBetaTester, ozelId, ozelIdTip, ozelIdTema, role, setRole, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
 
   // Cache-first sayaçlar: son bilinen değeri ANINDA göster (persist), arkada tazele.
   const { data: followCounts } = useCachedResource<{ followers: number; following: number }>(
@@ -151,9 +151,9 @@ export default function ProfileTab() {
                   </View>
                 )}
               </View>
-              {ozelId && ozelIdKart ? (
-                <Pressable onPress={() => { haptic.light(); router.navigate("/special-id"); }} style={{ marginTop: 5, alignSelf: "flex-start" }}>
-                  <OzelIdGosterim id={ozelId} theme={ozelIdKart} kartWidth={150} kapsulSize={13} />
+              {ozelId && ozelIdTip && ozelIdTema ? (
+                <Pressable onPress={() => { haptic.light(); router.navigate("/special-id"); }} style={{ marginTop: 4, alignSelf: "flex-start" }}>
+                  <OzelIdGosterim id={ozelId} tip={ozelIdTip} tema={ozelIdTema} premiumWidth={150} kapsulSize={10} />
                 </Pressable>
               ) : (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
