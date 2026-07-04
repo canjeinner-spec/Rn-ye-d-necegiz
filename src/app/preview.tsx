@@ -5,7 +5,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BadgeRow } from "@/components/BadgeRow";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { Eq } from "@/components/Eq";
+import { IdNameplate, NAMEPLATE_FRAMES } from "@/components/IdNameplate";
 import { Pill } from "@/components/Pill";
+import { PngBadge, type PngBadgeName } from "@/components/PngBadge";
 import { Portrait } from "@/components/Portrait";
 import { RolePill } from "@/components/RolePill";
 import { Scene } from "@/components/Scene";
@@ -28,6 +30,14 @@ const DEMO_BADGES: BadgeItem[] = [
 ];
 
 const PEOPLE_NAMES = ["Mervee", "Zeno Sv.", "Lunas", "Ender", "Furkan", "Sen"];
+
+const DEMO_PNG_BADGES: PngBadgeName[] = [
+  "role_developer", "role_super_admin", "role_admin", "role_moderator", "role_streamer",
+  "role_vip", "role_vip_hukumdar", "level_bronze", "level_silver", "level_gold",
+  "level_platinum", "level_diamond", "level_legendary", "special_beta_tester",
+];
+
+const DEMO_IDS = ["ARDA", "888888", "ARON", "V.I.P", "100000", "ZENO"];
 
 /**
  * Geçici temel-katman önizlemesi. Navigasyon iskeleti (Aşama 2) ile değiştirilecek.
@@ -132,6 +142,24 @@ export default function Index() {
               BlurView + gradyan + glint çizgisi
             </Txt>
           </GlassPanel>
+
+          <Txt weight="bold" size={13} color={C.dim} style={styles.label}>
+            Premium rozetler (normalize — tıkla → bilgi kartı)
+          </Txt>
+          <View style={styles.rowWrap}>
+            {DEMO_PNG_BADGES.map((n) => (
+              <PngBadge key={n} name={n} size={40} />
+            ))}
+          </View>
+
+          <Txt weight="bold" size={13} color={C.dim} style={styles.label}>
+            Özel ID nameplate ({NAMEPLATE_FRAMES.length} çerçeve)
+          </Txt>
+          <View style={{ paddingHorizontal: 18, gap: 10 }}>
+            {NAMEPLATE_FRAMES.map((f, i) => (
+              <IdNameplate key={f} frame={f} text={DEMO_IDS[i % DEMO_IDS.length]} width={280} />
+            ))}
+          </View>
         </ScrollView>
       </SafeAreaView>
     </View>

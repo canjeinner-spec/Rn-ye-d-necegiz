@@ -1,4 +1,10 @@
 import { Image } from "expo-image";
+import { useState } from "react";
+import { Pressable } from "react-native";
+
+import { BADGE_INFO } from "@/data/badgeInfo";
+import { haptic } from "@/lib/haptics";
+import { BadgeInfoModal } from "./BadgeInfoModal";
 
 const IMG = {
   level_bronze: require("@/assets/badges/level/level_bronze.png"),
@@ -25,7 +31,24 @@ const IMG = {
 
 export type PngBadgeName = keyof typeof IMG;
 
-/** Premium PNG rozet seti (level/role/room/special) — kullanıcının kendi ürettiği gerçek sanat eseri. */
-export function PngBadge({ name, size = 48 }: { name: PngBadgeName; size?: number }) {
-  return <Image source={IMG[name]} style={{ width: size, height: size }} contentFit="contain" />;
+/**
+ * Premium PNG rozet — kullanıcının kendi ürettiği gerçek sanat eseri.
+ * Tıklanınca liquid-glass bilgi kartı açılır (info=false ile kapatılabilir).
+ */
+export function PngBadge({ name, size = 48, info = true }: { name: PngBadgeName; size?: number; info?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const meta = BADGE_INFO[name];
+
+  if (!info || !meta) {
+    return <Image source={IMG[name]} style={{ width: size, height: size }} contentFit="contain" />;
+  }
+
+  return (
+    <>
+      <Pressable hitSlop={4} onPress={() => { haptic.light(); setOpen(true); }}>
+        <Image source={IMG[name]} style={{ width: size, height: size }} contentFit="contain" />
+      </Pressable>
+      <BadgeInfoModal visible={open} onClose={() => setOpen(false)} source={IMG[name]} info={meta} />
+    </>
+  );
 }

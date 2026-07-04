@@ -292,8 +292,57 @@ oradan da çalışır (evrensel, Expo'nun resmi CLI'sinde yerleşik).
 - Yukarıdaki §7'deki tüm `false` feature flag'ler = bilinçli olarak MVP
   dışında bırakılan, ama kodu hazır duran özellikler.
 
+## 9.5) Rozet Sistemi (Premium PNG Setleri) — Güncel Durum
+
+Tüm rozetler kullanıcının **kendi ürettiği gerçek sanat eseri** (GPT görselleri),
+Node+pngjs ile piksel-hassas kırpılıp `assets/badges/` altına konur. **ASLA
+elle SVG çizilmez** — kullanıcı bunu açıkça reddetti.
+
+### Klasör düzeni (`assets/badges/`)
+- `level/` (6): level_bronze/silver/gold/platinum/diamond/legendary — seviye rütbeleri.
+- `role/` (7): developer, super_admin, admin, moderator, streamer, vip, vip_hukumdar.
+- `special/` (1): beta_tester.
+- `room/` (36): hiyerarşik oda rozetleri (weekly_champion, room_owner, legendary…).
+- `nameplate/` (30): **özel ID nameplate çerçeveleri** (nameplate_01…30).
+
+### Aşama 1 — level/role/special NORMALİZE edildi (BU OTURUM)
+Sorun: her rozetin içeriği tuval içinde farklı boyut/konumdaydı (dolgu %74–100,
+dikey merkez 0.44–0.54) → "bazı büyük bazı küçük, VIP bir tık üstte". Çözüm:
+`scratchpad/normalize-badges.js` her PNG'yi gerçek içerik bbox'ına trim eder,
+ortalar, uzun kenarı tuvalin **%90'ına** ölçekler. Sonuç: hepsi merkez
+(0.500, 0.500), tek standart dolgu. **Bu script yalnızca level/role/special'a
+uygulandı; oda rozetleri (room/) kullanıcı isteğiyle şimdilik dokunulmadı.**
+Yeni bir sheet kırpılırsa bu normalize adımı standart olmalı.
+
+### Aşama 2 — Özel ID nameplate sistemi (BU OTURUM — TEMEL kuruldu)
+- Kaynak: 6×5 = 30 çerçeve sheet'i (`9b259511-…png`, 1672×941).
+- Kırpma: `scratchpad/nameplates/crop.js` — **kenar flood-fill** ile yalnızca
+  dış siyah boşluğu şeffaf yapar (luminance chroma-key DEĞİL — o, iç koyu
+  paneli delerdi). En-boy korunur (~3:1), genişlik 1000px'e normalize.
+- Bileşen: `src/components/IdNameplate.tsx` — `<IdNameplate frame text width/>`
+  çerçeveyi çizer + metni iç panele oturtur (`adjustsFontSizeToFit`, displayBold,
+  gölge). İç panel dikdörtgeni frame'e göre oran olarak tanımlı; soldaki
+  madalyonlu 5 çerçevede (01,02,03,11,23) metin sağa kayar.
+- **YAPILACAK (sonraki oturum):** (a) her frame için iç-panel oranlarını cihazda
+  görüp ince ayarla; (b) DB'ye "atanan nameplate" kolonu + admin-user'da atama
+  UI; (c) profil/ID gösteriminde nameplate'i bağla. Şu an sadece `preview.tsx`
+  galerisinde 30'u da örnek metinle görünüyor.
+
+### Aşama 3 — Rozet bilgi kartı (BU OTURUM — tamam)
+- `src/components/BadgeInfoModal.tsx` — liquid-glass (BlurView) merkez modal:
+  büyük rozet + glow + İngilizce başlık + Türkçe açıklama.
+- `src/data/badgeInfo.ts` — her PngBadge için {title(EN), sub, desc(TR), tint}.
+- `PngBadge` artık **kendi kendine tıklanabilir** (`info` prop'u ile kapatılır):
+  profile/user-profile/admin-user/rank'ta ekstra tel bağlama gerekmez, tıkla →
+  kart açılır. Room rozetleri (RoomBadge) henüz tıklanabilir DEĞİL.
+
 ## 10) Şu An Kaldığımız Yer
 
+- **Bu oturumda yapıldı:** (§9.5) Rozet Aşama 1 (level/role/special normalize —
+  hizalama/boyut standardı, VIP dikey merkez düzeltildi), Aşama 2 (30 özel ID
+  nameplate kırpıldı + `IdNameplate` bileşeni + preview galerisi), Aşama 3
+  (rozet tıkla → liquid-glass bilgi kartı). `npx tsc --noEmit` temiz, web export
+  başarılı. Oda rozetleri kullanıcı isteğiyle bu turda değiştirilmedi.
 - **Son commit:** `3f592d4` — "Tab bar cilası + Android klavye düzeltmesi"
   (dal: `claude/metro-recovery-1xc2kq`, origin ile senkron, çalışma ağacı
   temiz).
