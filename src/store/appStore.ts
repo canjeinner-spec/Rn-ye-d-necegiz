@@ -74,11 +74,13 @@ type AppState = {
   isStreamer: boolean;
   betaTester: boolean; // demo — beta rozeti göstermek için (kalıcı DB alanı yok)
   ozelIdKart: OzelIdKart | null; // seçilen ÖZEL ID teması (demo — DB alanı sonra)
+  ozelId: string | null; // kullanıcının belirlediği özel ID numarası (kart≤5 / kapsül 6-7)
   role: UserRole;
   hideProfile: boolean;
   setRole: (r: UserRole) => void;
   setBetaTester: (v: boolean) => void;
   setOzelIdKart: (k: OzelIdKart | null) => void;
+  setOzelId: (id: string | null) => void;
   setHideProfile: (v: boolean) => void;
   myRoom: Room | null;
   currentRoom: Room | null;
@@ -334,6 +336,7 @@ export const useApp = create<AppState>((set, get) => ({
   isStreamer: false,
   betaTester: false,
   ozelIdKart: null,
+  ozelId: null,
   role: "user",
   hideProfile: false,
   setRole: (r) => set({ role: r }),
@@ -371,6 +374,7 @@ export const useApp = create<AppState>((set, get) => ({
   setStreamer: (v) => set({ isStreamer: v }),
   setBetaTester: (v) => set({ betaTester: v }),
   setOzelIdKart: (k) => set({ ozelIdKart: k }),
+  setOzelId: (id) => set({ ozelId: id }),
 
   enterRoom: (r) =>
     set({

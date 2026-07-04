@@ -8,6 +8,7 @@ import { AgencyBadge } from "@/components/AgencyEmblem";
 import { AuthorityTag } from "@/components/AuthorityTag";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { MenuIcon } from "@/components/MenuIcon";
+import { OzelIdGosterim } from "@/components/OzelId";
 import { PngBadge } from "@/components/PngBadge";
 import { Portrait } from "@/components/Portrait";
 import { TileIcon, type TileType } from "@/components/TileIcon";
@@ -35,7 +36,7 @@ type MenuItem = { ic: IconName; g1: string; g2: string; t: string; s?: string; r
 
 export default function ProfileTab() {
   const router = useRouter();
-  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, setStreamer, betaTester, setBetaTester, ozelIdKart, role, setRole, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
+  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, setStreamer, betaTester, setBetaTester, ozelId, ozelIdKart, role, setRole, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
 
   // Cache-first sayaçlar: son bilinen değeri ANINDA göster (persist), arkada tazele.
   const { data: followCounts } = useCachedResource<{ followers: number; following: number }>(
@@ -168,8 +169,15 @@ export default function ProfileTab() {
             {betaTester && <PngBadge name="special_beta_tester" size={28} />}
           </View>
 
+          {/* Tanımlı ÖZEL ID — kart (≤5 hane) veya kapsül (6-7). Dokun → düzenle */}
+          {ozelId && ozelIdKart && (
+            <Pressable onPress={() => { haptic.light(); router.navigate("/special-id"); }} style={{ marginTop: 12, alignSelf: "flex-start" }}>
+              <OzelIdGosterim id={ozelId} theme={ozelIdKart} kartWidth={210} kapsulSize={15} />
+            </Pressable>
+          )}
+
           {/* Beta Tester hakkı: kapsül kimliğini henüz almadıysa yönlendir (alınca kaybolur) */}
-          {betaTester && !ozelIdKart && (
+          {betaTester && !ozelId && (
             <Pressable onPress={() => { haptic.light(); router.navigate("/special-id"); }} style={styles.kapsulHatirlat}>
               <Txt size={15}>🎖️</Txt>
               <Txt weight="semibold" size={11} color={C.gold2} style={{ flex: 1 }} lh={1.4}>
