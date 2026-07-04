@@ -103,11 +103,11 @@ export default function AdminUserHub() {
                   {!!d.email && <Txt size={10.5} color={C.dim2} style={{ marginTop: 3 }} numberOfLines={1}>{d.email}</Txt>}
                   {!!d.kayitTarihi && <Txt size={10} color={C.dim2} style={{ marginTop: 2 }}>Kayıt: {kayit(d.kayitTarihi)}</Txt>}
                 </View>
-                {/* Premium rozetler — gerçek boyutta */}
+                {/* Premium rozetler — eski SVG boyutunda */}
                 <View style={{ flexDirection: "row", gap: 6 }}>
-                  {d.rol === "developer" && <PngBadge name="role_developer" size={44} />}
-                  {d.rol === "super_admin" && <PngBadge name="role_super_admin" size={44} />}
-                  <PngBadge name={levelTierBadge(d.level)} size={44} />
+                  {d.rol === "developer" && <PngBadge name="role_developer" size={28} />}
+                  {d.rol === "super_admin" && <PngBadge name="role_super_admin" size={28} />}
+                  <PngBadge name={levelTierBadge(d.level)} size={28} />
                 </View>
               </View>
               {(d.hesapYasakli || d.micBanned) && (

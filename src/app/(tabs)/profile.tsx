@@ -8,7 +8,6 @@ import { AgencyBadge } from "@/components/AgencyEmblem";
 import { AuthorityTag } from "@/components/AuthorityTag";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { MenuIcon } from "@/components/MenuIcon";
-import { Pill } from "@/components/Pill";
 import { PngBadge } from "@/components/PngBadge";
 import { Portrait } from "@/components/Portrait";
 import { TileIcon, type TileType } from "@/components/TileIcon";
@@ -158,19 +157,15 @@ export default function ProfileTab() {
             </View>
           </View>
 
-          {/* Rozet vitrini — tek satır, premium PNG set, gerçek boyutta */}
+          {/* Rozet vitrini — tek satır, premium PNG set, eski SVG boyutunda */}
           <View style={styles.premiumRow}>
-            {role === "developer" && <PngBadge name="role_developer" size={44} />}
-            {role === "super_admin" && <PngBadge name="role_super_admin" size={44} />}
-            <PngBadge name="role_vip" size={44} />
-            <PngBadge name={levelTierBadge(userLevel)} size={44} />
-            <AgencyBadge size={44} />
-            {isStreamer && <PngBadge name="role_streamer" size={44} />}
-            {betaTester && <PngBadge name="special_beta_tester" size={44} />}
-          </View>
-
-          <View style={{ marginTop: 10 }}>
-            <Pill bg="rgba(255,255,255,.05)" color={C.dim} border={C.line}>🇹🇷 Türkiye</Pill>
+            {role === "developer" && <PngBadge name="role_developer" size={28} />}
+            {role === "super_admin" && <PngBadge name="role_super_admin" size={28} />}
+            <PngBadge name="role_vip" size={28} />
+            <PngBadge name={levelTierBadge(userLevel)} size={28} />
+            <AgencyBadge size={28} />
+            {isStreamer && <PngBadge name="role_streamer" size={28} />}
+            {betaTester && <PngBadge name="special_beta_tester" size={28} />}
           </View>
 
           {!!userBio && <Txt size={12} color={C.dim} lh={1.5} style={{ marginTop: 10 }}>{userBio}</Txt>}
@@ -261,7 +256,7 @@ const styles = StyleSheet.create({
   cover: { height: 104, position: "relative" },
   editBtn: { position: "absolute", right: 14, bottom: 12, width: 34, height: 34, borderRadius: 12, backgroundColor: "rgba(0,0,0,.3)", alignItems: "center", justifyContent: "center" },
   camBadge: { position: "absolute", right: 0, bottom: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: C.gold2, borderWidth: 2.5, borderColor: "#08080C", alignItems: "center", justifyContent: "center" },
-  premiumRow: { flexDirection: "row", gap: 10, marginTop: 12, alignItems: "center", flexWrap: "wrap" },
+  premiumRow: { flexDirection: "row", gap: 6, marginTop: 12, alignItems: "center", flexWrap: "wrap" },
   tileRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 18, backgroundColor: "rgba(255,255,255,.03)", borderRadius: 20, paddingVertical: 16, paddingHorizontal: 8 },
   wallet: { flexDirection: "row", alignItems: "center", marginTop: 16, backgroundColor: "rgba(255,255,255,.03)", borderRadius: 20, padding: 16 },
   streamerToggle: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderStyle: "dashed", borderColor: C.line, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14 },

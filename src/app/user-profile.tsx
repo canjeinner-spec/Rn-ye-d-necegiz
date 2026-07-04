@@ -164,12 +164,12 @@ export default function UserProfileScreen() {
           <View style={{ alignItems: "center", marginTop: -46, paddingHorizontal: 18 }}>
             <Portrait name={name} size={92} ring={C.gold} glow frameBorder="#0A0A0F" photo={photo} />
             <Txt weight="displayBold" size={18} color="#fff" style={{ marginTop: 10 }}>{name}</Txt>
-            {/* Rozet vitrini — tek satır, premium PNG set, gerçek boyutta */}
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
-              <PngBadge name="role_vip" size={44} />
-              <PngBadge name={levelTierBadge(lv)} size={44} />
-              <AgencyBadge size={44} />
-              <PngBadge name="role_streamer" size={44} />
+            {/* Rozet vitrini — tek satır, premium PNG set, eski SVG boyutunda */}
+            <View style={{ flexDirection: "row", gap: 6, marginTop: 9, alignItems: "center", flexWrap: "wrap" }}>
+              <PngBadge name="role_vip" size={26} />
+              <PngBadge name={levelTierBadge(lv)} size={26} />
+              <AgencyBadge size={26} />
+              <PngBadge name="role_streamer" size={26} />
             </View>
             <Pressable onPress={copyId} style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
               <Txt weight="semibold" size={11.5} color={C.dim}>ID: {id}</Txt>
