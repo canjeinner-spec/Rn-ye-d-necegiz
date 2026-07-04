@@ -12,6 +12,7 @@ const IMG = {
   role_admin: require("@/assets/badges/role/admin.png"),
   role_moderator: require("@/assets/badges/role/moderator.png"),
   role_streamer: require("@/assets/badges/role/streamer.png"),
+  role_vip: require("@/assets/badges/role/vip.png"),
   role_vip_hukumdar: require("@/assets/badges/role/vip_hukumdar.png"),
   room_weekly_champion: require("@/assets/badges/room/weekly_champion.png"),
   room_rank_silver: require("@/assets/badges/room/rank_silver.png"),
@@ -24,7 +25,7 @@ const IMG = {
 
 export type PngBadgeName = keyof typeof IMG;
 
-/** Yeni premium PNG rozet seti (level/role/room/special) — gerçek 1024px asset, kod-üretimi. */
+/** Premium PNG rozet seti (level/role/room/special) — kullanıcının kendi ürettiği gerçek sanat eseri. */
 export function PngBadge({ name, size = 48 }: { name: PngBadgeName; size?: number }) {
   return <Image source={IMG[name]} style={{ width: size, height: size }} contentFit="contain" />;
 }

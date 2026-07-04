@@ -171,7 +171,7 @@ export default function ProfileTab() {
             <Pill bg="rgba(255,255,255,.05)" color={C.dim} border={C.line}>🇹🇷 Türkiye</Pill>
           </View>
 
-          {/* Premium rozet vitrini — yeni PNG set (level/role/beta), gerçek boyutta */}
+          {/* Premium rozet vitrini — gerçek boyutta */}
           <View style={styles.premiumRow}>
             <PngBadge name={levelTierBadge(userLevel)} size={52} />
             {role === "developer" && <PngBadge name="role_developer" size={52} />}
