@@ -303,7 +303,9 @@ elle SVG çizilmez** — kullanıcı bunu açıkça reddetti.
 - `role/` (7): developer, super_admin, admin, moderator, streamer, vip, vip_hukumdar.
 - `special/` (1): beta_tester.
 - `room/` (36): hiyerarşik oda rozetleri (weekly_champion, room_owner, legendary…).
-- `nameplate/` (30): **özel ID nameplate çerçeveleri** (nameplate_01…30).
+- `idcard/` (25): **kapsül** tema kartları (bronze…star) — 6-7 hane özel ID.
+- `premium/` (60): **premium** hazır banner'lar (ID baked) — ≤5 hane özel ID.
+- `nameplate/` (30): eski nameplate çerçeveleri — özel ID'de artık KULLANILMIYOR.
 
 ### Aşama 1 — level/role/special NORMALİZE edildi (BU OTURUM)
 Sorun: her rozetin içeriği tuval içinde farklı boyut/konumdaydı (dolgu %74–100,
@@ -328,67 +330,80 @@ Yeni bir sheet kırpılırsa bu normalize adımı standart olmalı.
   UI; (c) profil/ID gösteriminde nameplate'i bağla. Şu an sadece `preview.tsx`
   galerisinde 30'u da örnek metinle görünüyor.
 
-### Aşama 2b — ÖZEL ID KART HİYERARŞİSİ (BU OTURUM — asıl yön bu)
-Kullanıcı nameplate yerine **ID-kart formatına** geçti (solda kişi foto slotu +
-sağda ID metni). Kural **basamak sayısına** göre (`src/data/specialId.ts`):
-- **≤5 basamak** (100, 8888, 54321) → **premium KART**. 25 tema (bronze…star),
-  admin bir tema ATAR, ID metni kartın üzerine yazılır.
-- **6–7 basamak** (123456, 1234567) → **ID KAPSÜLÜ** (süslü çerçeve yok).
-- **8+** → düz numara, özel görünüm yok.
-- Yardımcılar: `ozelIdTier(id)`, `idBasamak(id)`, `OZEL_ID_KARTLARI` (25),
-  `OZEL_ID_KART_ADI` (title EN + sub TR). Eşikler: `OZEL_ID_KART_MAX=5`,
-  `OZEL_ID_KAPSUL_MAX=7`. **Not:** `specialId.ts`'te zaten olan pazar/tier
-  sistemi (super/t1/t2, SPECIAL_ID_DATA, THRONE_*) KORUNDU, üstüne eklendi.
-- Assetler: `assets/badges/idcard/*.png` (25 adet, 900px genişlik, ~1.9:1).
-  Kaynak `4aaa47e0-…png` (1536×1024, 5×5, etiketli). Kırpma:
-  `scratchpad/idcards/crop.js` — kenar flood-fill + **kart/etiket boşluğu
-  tespiti** (`cardBottom`: alt %58'den itibaren ilk tam-genişlik şeffaf bant =
-  kart altı; etiket metni atılır) + üst/yan kesikli-ayraç inset'i.
-- Bileşenler (`src/components/OzelId.tsx`): `<OzelIdKart frame id photo width/>`
-  (çerçeve + ID metni metin-bandına + opsiyonel foto kişi slotuna) ve
-  `<IdKapsul id/>` (6–7 basamak için elle stillenmiş premium kapsül — UI chrome).
-  Slot oranları (PHOTO_RECT/TEXT_RECT) tüm kartlarda ortak varsayılan; gold ve
-  celestial'da doğrulandı (gövde konumu kanatlı/kanatsız fark etmeksizin tutuyor).
-- **Kapsül = kartın kapsül hâli:** 6-7 basamak kullanıcı için, o temanın kartının
-  küçük hâli "rozet" olarak başta + temanın rengiyle **birebir uyumlu** hap içinde
-  ID (`IdKapsul theme id`). 25 tema rengi elle ayarlandı (`OZEL_ID_TEMA_RENK` —
-  otomatik örnekleme altın çerçeveye takılıyordu). `OzelIdGosterim id theme` akıllı
-  seçer: ≤5 kart, 6-7 kapsül, 8+ düz.
-- **Beta Tester kapsül hakkı akışı (BU OTURUM — frontend tam):**
-  - `appStore.ozelIdKart` (demo, betaTester gibi — DB alanı sonraki iş).
-  - `special-id.tsx` "Profilim" → **KapsulBolumu**: 25 tema grid → seç → canlı
-    profil önizleme (`IdKapsul`) → **Onayla** → store'a yaz. Zaten seçiliyse mevcut
-    kapsül + "Değiştir". Beta ise ücretsiz-hak notu üstte.
-  - `profile.tsx`: `betaTester && !ozelIdKart` ise **yönlendirme banner'ı** →
-    dokun → `/special-id`. Kapsül alınınca banner **kaybolur** (bir daha nag yok).
-- **YAPILACAK (sonraki oturum):** (a) **DB kalıcılığı**: `profiller.ozel_id_kart`
-  kolonu + repo + gerçek beta bayrağı (şu an betaTester demo, DB'de yok) →
-  onaylanınca DB'ye yaz; (b) hatırlatmayı **profil banner yerine Sistem DM'ine**
-  taşı (kullanıcı DM istedi — bu tur banner ile yapıldı); (c) admin-user'da kart
-  atama UI (≤5 basamak premium kartlar için); (d) profil/kullanıcı-profil/oda ID
-  gösteriminde `OzelIdGosterim` bağla; (e) kanatlı kartlarda slot oranı ince ayar.
-  Şu an `preview.tsx`'te hiyerarşi + 25 kart + renk-uyumlu kapsüller görünüyor.
+### Aşama 2b — ÖZEL ID HİYERARŞİSİ (BU OTURUM — NİHAİ DURUM)
+Basamak sayısına göre iki katman (+düz). `src/data/specialId.ts` +
+`src/components/OzelId.tsx` + `src/components/PremiumBanner.tsx`:
 
-### Aşama 3 — Rozet bilgi kartı (BU OTURUM — tamam)
-- `src/components/BadgeInfoModal.tsx` — liquid-glass (BlurView) merkez modal:
-  büyük rozet + glow + İngilizce başlık + Türkçe açıklama.
-- `src/data/badgeInfo.ts` — her PngBadge için {title(EN), sub, desc(TR), tint}.
-- `PngBadge` artık **kendi kendine tıklanabilir** (`info` prop'u ile kapatılır):
-  profile/user-profile/admin-user/rank'ta ekstra tel bağlama gerekmez, tıkla →
-  kart açılır. Room rozetleri (RoomBadge) henüz tıklanabilir DEĞİL.
+- **PREMIUM (≤5 hane):** 60 **hazır banner** — ÖZEL ID + numara GÖRSELE **baked**
+  (üzerine yazı yazılmıyor). Kullanıcı **listeden seçer** (hakkı varsa).
+  `assets/badges/premium/premium_01..60.png`. Bileşen `PremiumBanner frame width`
+  + `PREMIUM_FRAMES` (60) + `PREMIUM_NUM` (baked numaralar, kopyalama/bilgi için).
+  Kaynak `3346a73d-…png` (1536×1024, 6×10). Kırpma `scratchpad/premium/crop.js`:
+  flood BG_T=22 (sadece siyah) + küçük-bileşen filtresi (kanat uçları KORUNUR).
+- **KAPSÜL (6-7 hane):** 25 kart teması — amblem + temanın rengiyle **birebir
+  uyumlu** hap içinde ID. `IdKapsul theme id` + `OZEL_ID_TEMA_RENK` (25 renk elle).
+  `assets/badges/idcard/*.png` (900px). Kırpma `scratchpad/idcards/crop.js`:
+  flood BG_T=**20** (koyu çerçeveler şeytan/gölge/doğa YENMEZ), luminance rampası
+  YOK (yarı-saydamlık olmasın), küçük-bileşen filtresi (ayraç noktaları) +
+  `cardBottom` (etiket kesimi). Kaynak `4aaa47e0-…png`.
+- **8+ hane:** düz numara. (Yeni kayıtlar 9+ hane olacak — YAPILACAK.)
+- Yardımcılar: `ozelIdTier(id)`, `idBasamak(id)`, `OZEL_ID_KARTLARI` (25),
+  `OZEL_ID_KART_ADI`, `OZEL_ID_TEMA_RENK`. Eşik: `OZEL_ID_KART_MAX=5`,
+  `OZEL_ID_KAPSUL_MAX=7`. **Not:** eski pazar/tier (super/t1/t2, THRONE_*) KORUNDU.
+- **appStore (demo — DB alanı YOK, sonraki iş):** `ozelId` (numara) +
+  `ozelIdTip` ("premium"/"kapsul") + `ozelIdTema` (banner ya da kart anahtarı) +
+  `setOzelIdKimlik(id,tip,tema)`.
+- `OzelIdGosterim id tip tema` → premium: PremiumBanner görseli · kapsul: IdKapsul.
+- **special-id.tsx** `KapsulBolumu`: tip seç → Kapsül: ID gir (6-7) + kart teması ·
+  Premium: listeden banner seç (ID baked). Canlı önizleme + **Onayla** →
+  `setOzelIdKimlik`. Zaten varsa **Değiştir/Kaldır**. Eski "Özel ID Havuzu"
+  (sabit chip'ler) KALDIRILDI.
+- **profile.tsx:** düz "ID:" satırı yerine **özel ID** (premium width 88 /
+  kapsül size 8) + kopyalama ikonu; tıkla → **OzelIdInfoModal** (bilgi penceresi,
+  sayfaya gitmez). `betaTester && özel-id yok` → yönlendirme banner'ı →
+  `/special-id` (alınca kaybolur). **Ajans rozeti** vitrinden kaldırıldı.
+- **Sağ '>' oku** → `/user-profile?self=1` (kendi profilini PUBLIC görünümde
+  önizle). user-profile **self** modda: aksiyon barı gizli, ajans/streamer rozeti
+  yok, **yetki rozeti** (developer/super_admin) DB `ekonomi_rolu`'ndan (self için
+  store rolü) EN BAŞTA, düz ID yerine özel ID.
+
+### Aşama 3 — Bilgi pencereleri (BU OTURUM — NİHAİ)
+- `BadgeInfoModal.tsx` (PngBadge tıkla) + `OzelIdInfoModal.tsx` (özel ID tıkla):
+  liquid-glass, **baya saydam**, küçük (rozete göre boyut), **buton YOK**;
+  birkaç saniye (`AUTO_MS`) ya da **herhangi dokunuşta** kapanır; **FadeIn ile
+  aydınlanarak** açılır, Modal fade ile **kararak** kapanır. Font/metne dokunulmadı.
+- `PngBadge` kendi kendine tıklanabilir; `src/data/badgeInfo.ts` metin kaynağı.
+
+### Artık KULLANILMAYAN (özel ID için) — temizlenebilir
+- `assets/badges/nameplate/` (30) + `IdNameplate.tsx`: premium 60 baked banner'a
+  geçince özel ID'de kullanımdan kalktı; yalnızca `preview.tsx` galerisinde duruyor.
+- `OzelIdKart` bileşeni (kart üstüne ID plakası): premium için artık yok; kart
+  GÖRSELİ sadece kapsül tema-seçici thumbnail'lerinde + IdKapsul ambleminde.
 
 ## 10) Şu An Kaldığımız Yer
 
-- **Bu oturumda yapıldı:** (§9.5) Rozet Aşama 1 (level/role/special normalize —
-  hizalama/boyut standardı, VIP dikey merkez düzeltildi), Aşama 2 (30 özel ID
-  nameplate) + **Aşama 2b (25 ÖZEL ID KART + basamak-tabanlı hiyerarşi —
-  ≤5=kart, 6-7=kapsül; `specialId.ts`+`OzelId.tsx`)**, Aşama 3 (rozet tıkla →
-  liquid-glass bilgi kartı). `npx tsc --noEmit` temiz, web export başarılı. Oda
-  rozetleri kullanıcı isteğiyle bu turda değiştirilmedi. **Sonraki adım:** ÖZEL
-  ID kartını DB + admin atama + profil gösterimine bağlamak (§Aşama 2b sonu).
-- **Son commit:** `3f592d4` — "Tab bar cilası + Android klavye düzeltmesi"
-  (dal: `claude/metro-recovery-1xc2kq`, origin ile senkron, çalışma ağacı
-  temiz).
+- **Bu oturumda yapıldı (§9.5 ÖZEL ID SİSTEMİ — frontend tam):**
+  - Aşama 1: level/role/special rozetleri normalize (hiza/boyut, VIP merkez).
+  - Aşama 2b: **premium (≤5, 60 baked banner, listeden seç)** + **kapsül (6-7,
+    25 kart teması + renk-uyumlu hap)** + düz (8+). appStore `ozelId/ozelIdTip/
+    ozelIdTema` (demo). special-id claim akışı, profil gösterimi + kopyalama,
+    beta yönlendirme banner'ı, sağ '>' oku → public self-önizleme (yetki DB'den).
+  - Aşama 3: bilgi pencereleri (saydam, butonsuz, oto/dokunuş kapanır, fade).
+  - `npx tsc --noEmit` temiz, `npx expo export --platform web` başarılı (her commit).
+  - Oda rozetleri kullanıcı isteğiyle bu turda DEĞİŞTİRİLMEDİ.
+- **SONRAKİ İŞ = kullanıcının 1-2-3'ü (BACKEND):**
+  1. **DB'ye bağla:** `profiller`'a `ozel_id` + `ozel_id_tip` + `ozel_id_tema`
+     kolonları + gerçek **beta** bayrağı; TÜM rozetler (vip/level/beta/özel-id)
+     DB'den oku/yaz; onaylanınca DB'ye yaz. Özel ID sayfasını isteğe göre ayarla.
+  2. **Sistem DM hatırlatması:** beta + kapsül yok tespit edilir edilmez (DB
+     okuması) OTOMATİK sistem DM'i at (idempotent — bir kez); profil banner'ı
+     yerine. Yönlendirmeyle kullanıcı kendi alır.
+  3. **Yeni kayıt 9+ hane:** kayıt olan kullanıcılara 9+ basamaklı public_id ata
+     (özel ID ≤7 nadir/anlamlı olsun).
+  4. admin-user'da premium/kapsül **atama + entitlement** ("hakkı varsa").
+- **Son commit:** `2ec9611` — "Public profil önizleme: önizleme notu kaldır,
+  ajans/streamer çıkar, yetki+özel ID" (dal: `claude/metro-recovery-1xc2kq`,
+  origin ile senkron).
 - **`npx tsc --noEmit`:** temiz (0 hata) — bu commit'te doğrulandı.
 - **Android + iOS bundle:** ikisi de sorunsuz derleniyor (bu sandbox'ta
   localhost:8081 üzerinden test edildi).
