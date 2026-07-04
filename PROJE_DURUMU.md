@@ -404,9 +404,14 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 - **special-id:** claim **yetki-kilitli** — hak yoksa "Özel ID hakkın yok",
   yalnız hak edilen tip sekmesi; Onayla → `setOzelId` RPC (hata gösterir); Kaldır
   → `clearOzelId`. Profildeki beta yönlendirme banner'ı **fallback** olarak kaldı.
-- **YAPILACAK (kalan):** admin-user'da beta/premium **toggle UI** (RPC
-  `admin_hak_ata` hazır; adminRepo + admin-user-edit bağlanacak) +
-  `admin_kullanici_getir`'e beta/premium/ozel_id kolonlarını ekleme (görünürlük).
+- **Admin atama (TAMAM):** `047_ozel_id_admin.sql` `admin_kullanici_haklar` (oku)
+  + 044 `admin_hak_ata` (yaz); `adminRepo.getUserHaklar/setUserHak`;
+  `admin-user-edit` Kimlik bölümünde **"ÖZEL ID HAKLARI"** — Beta Tester /
+  Premium Hak ver-al toggle'ları (yönetici). Birleşik: `HEPSI_020_047.sql`.
+- **YAPILACAK (kalan, küçük):** profildeki "Demo · Beta Tester" toggle'ı artık
+  DB'den geldiği için loadProfile ile geçersiz kalıyor — istenirse kaldırılır ya
+  da developer için admin_hak_ata(self)'e bağlanır. Sistem DM mesajına tıklayınca
+  /special-id derin-linki (şimdilik profil banner'ı yönlendiriyor).
 
 ## 10) Şu An Kaldığımız Yer
 

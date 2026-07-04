@@ -10,7 +10,8 @@ import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import {
   accountBan, accountUnban, changeEmail, changePublicId, freezeAsset, getActionHistory,
-  getUserDetail, grantBalance, micBan, micUnban, resetPassword, setPlatformRole, updateUserIdentity,
+  getUserDetail, getUserHaklar, grantBalance, micBan, micUnban, resetPassword, setPlatformRole,
+  setUserHak, updateUserIdentity,
   type AdminAction, type AdminUserDetail,
 } from "@/data/remote/adminRepo";
 import { uploadAvatar } from "@/data/remote/storageRepo";
@@ -46,6 +47,7 @@ export default function AdminUserEdit() {
   const isDev = myRole === "developer";
 
   const [d, setD] = useState<AdminUserDetail | null>(null);
+  const [haklar, setHaklar] = useState<{ beta_tester: boolean; premium_hak: boolean; ozel_id: string | null; ozel_id_tip: string | null } | null>(null);
   const [history, setHistory] = useState<AdminAction[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -71,6 +73,7 @@ export default function AdminUserEdit() {
     if (!Number.isFinite(userId)) { setErr("Kullanıcı bulunamadı."); setLoading(false); return; }
     setLoading(true); setErr(null);
     const jobs: Promise<unknown>[] = [getUserDetail(userId).then((r) => { if (r) setD(r); else setErr("Kullanıcı bulunamadı."); })];
+    if (section === "identity") jobs.push(getUserHaklar(userId).then(setHaklar).catch(() => setHaklar(null)));
     if (section === "history") jobs.push(getActionHistory("kullanici", userId).then(setHistory).catch(() => setHistory([])));
     Promise.all(jobs).catch((e) => setErr((e as Error)?.message || "Bilgi alınamadı.")).finally(() => setLoading(false));
   }, [userId, section]);
@@ -277,6 +280,28 @@ export default function AdminUserEdit() {
                     <Txt size={12.5} color={C.text} style={{ marginTop: 3 }}>{d.kayitTarihi ? zaman(d.kayitTarihi) : "—"}</Txt>
                   </View>
                 </View>
+
+                {/* Özel ID hakları: beta = kapsül, premium = premium kart. Yalnız yönetici verir. */}
+                <Txt weight="bold" size={10.5} color={C.gold} style={styles.lbl}>ÖZEL ID HAKLARI</Txt>
+                <View style={styles.group}><View style={{ padding: 12, gap: 10 }}>
+                  {([["beta_tester", "Beta Tester", "Kapsül ID (6-7 hane) hakkı"], ["premium_hak", "Premium Hak", "Premium ID (≤5 hane) hakkı"]] as const).map(([alan, baslik, alt]) => {
+                    const acik = alan === "beta_tester" ? !!haklar?.beta_tester : !!haklar?.premium_hak;
+                    return (
+                      <View key={alan} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                        <View style={{ flex: 1 }}>
+                          <Txt weight="bold" size={12} color={C.text}>{baslik}</Txt>
+                          <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>{alt}</Txt>
+                        </View>
+                        <Pressable disabled={busy || !haklar} onPress={() => run(() => setUserHak(d.id, alan, !acik), acik ? `${baslik} kaldırıldı` : `${baslik} verildi`)} style={[styles.chip, acik && { backgroundColor: `${C.green}18`, borderColor: `${C.green}55` }]}>
+                          <Txt weight="extrabold" size={10.5} color={acik ? "#6EE7B7" : C.dim}>{acik ? "Hak Var ✓" : "Hak Ver"}</Txt>
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                  {haklar?.ozel_id && (
+                    <Txt size={10} color={C.dim2}>Mevcut özel ID: {haklar.ozel_id} ({haklar.ozel_id_tip === "premium" ? "premium" : "kapsül"})</Txt>
+                  )}
+                </View></View>
 
                 {isDev ? (
                   <>

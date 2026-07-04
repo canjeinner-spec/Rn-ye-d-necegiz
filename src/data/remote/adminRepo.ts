@@ -8,6 +8,22 @@ export async function setPlatformRole(userId: number, rol: "user" | "developer" 
   if (error) throw error;
 }
 
+/** Kullanıcının özel-ID hak durumu (yönetici — 047). */
+export async function getUserHaklar(userId: number): Promise<{ beta_tester: boolean; premium_hak: boolean; ozel_id: string | null; ozel_id_tip: string | null }> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("admin_kullanici_haklar", { p_hedef: userId });
+  if (error) throw error;
+  const r = (data as { beta_tester: boolean; premium_hak: boolean; ozel_id: string | null; ozel_id_tip: string | null }[])?.[0];
+  return r ?? { beta_tester: false, premium_hak: false, ozel_id: null, ozel_id_tip: null };
+}
+
+/** beta_tester / premium_hak ver-al (yalnızca yönetici — 044 admin_hak_ata). */
+export async function setUserHak(userId: number, alan: "beta_tester" | "premium_hak", deger: boolean): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("admin_hak_ata", { p_hedef: userId, p_alan: alan, p_deger: deger });
+  if (error) throw error;
+}
+
 /** Yönetim ekranı üst sayıları. */
 export async function getAdminCounts(): Promise<{ bekleyen: number; kullanici: number }> {
   const sb = requireSupabase();
