@@ -151,10 +151,16 @@ export default function ProfileTab() {
                   </View>
                 )}
               </View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
-                <Txt weight="semibold" size={10.5} color={C.dim}>ID: {publicId || "—"}</Txt>
-                <Icon name="copy" size={12} color={C.dim2} />
-              </View>
+              {ozelId && ozelIdKart ? (
+                <Pressable onPress={() => { haptic.light(); router.navigate("/special-id"); }} style={{ marginTop: 5, alignSelf: "flex-start" }}>
+                  <OzelIdGosterim id={ozelId} theme={ozelIdKart} kartWidth={150} kapsulSize={13} />
+                </Pressable>
+              ) : (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
+                  <Txt weight="semibold" size={10.5} color={C.dim}>ID: {publicId || "—"}</Txt>
+                  <Icon name="copy" size={12} color={C.dim2} />
+                </View>
+              )}
             </View>
           </View>
 
@@ -168,13 +174,6 @@ export default function ProfileTab() {
             {isStreamer && <PngBadge name="role_streamer" size={28} />}
             {betaTester && <PngBadge name="special_beta_tester" size={28} />}
           </View>
-
-          {/* Tanımlı ÖZEL ID — kart (≤5 hane) veya kapsül (6-7). Dokun → düzenle */}
-          {ozelId && ozelIdKart && (
-            <Pressable onPress={() => { haptic.light(); router.navigate("/special-id"); }} style={{ marginTop: 12, alignSelf: "flex-start" }}>
-              <OzelIdGosterim id={ozelId} theme={ozelIdKart} kartWidth={210} kapsulSize={15} />
-            </Pressable>
-          )}
 
           {/* Beta Tester hakkı: kapsül kimliğini henüz almadıysa yönlendir (alınca kaybolur) */}
           {betaTester && !ozelId && (

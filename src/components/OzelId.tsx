@@ -40,12 +40,14 @@ export const OZEL_ID_KART_KAYNAK = CARD;
 // düzeni ortak: solda kişi ikonu, sağda metin bantları. Kanatlı kartlarda
 // gövde biraz dar; varsayılan çoğunu tutar, gerekirse frame'e özel geçilebilir.
 const PHOTO_RECT = { l: 0.235, r: 0.4, t: 0.42, b: 0.74 };
-const TEXT_RECT = { l: 0.47, r: 0.79, t: 0.42, b: 0.72 };
+// ID plakası: kartların sağ metin-bandı bölgesi (kişi ikonunun sağı). Baked
+// bantların üstüne temiz bir "plaka" oturur — her kartta okunaklı/tutarlı.
+const PLATE_RECT = { l: 0.47, r: 0.8, t: 0.44, b: 0.65 };
 const CARD_RATIO = 1.9; // ortalama en-boy (yükseklik = genişlik / oran)
 
 /**
- * Premium ÖZEL ID kartı (≤5 basamak). Çerçeve çizilir, ID metni kart üzerine
- * (metin bandına) yazılır; opsiyonel foto kişi slotuna oturur.
+ * Premium ÖZEL ID kartı (≤5 basamak). Çerçeve çizilir, ID metni sağ metin
+ * bandına ince temalı bir plakayla yazılır; opsiyonel foto kişi slotuna oturur.
  */
 export function OzelIdKart({
   frame,
@@ -59,7 +61,9 @@ export function OzelIdKart({
   width?: number;
 }) {
   const height = width / CARD_RATIO;
-  const tx = TEXT_RECT, px = PHOTO_RECT;
+  const t = OZEL_ID_TEMA_RENK[frame];
+  const px = PHOTO_RECT, pl = PLATE_RECT;
+  const plateH = height * (pl.b - pl.t);
   return (
     <View style={{ width, height }}>
       <Image source={CARD[frame]} style={{ width, height }} contentFit="contain" />
@@ -79,35 +83,42 @@ export function OzelIdKart({
         />
       )}
 
-      <View
-        style={{
-          position: "absolute",
-          left: width * tx.l,
-          top: height * tx.t,
-          width: width * (tx.r - tx.l),
-          height: height * (tx.b - tx.t),
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-        pointerEvents="none"
-      >
-        <Text
-          numberOfLines={1}
-          adjustsFontSizeToFit
+      {!!id && (
+        <View
           style={{
-            fontFamily: Font.displayBold,
-            fontSize: height * 0.2,
-            color: "#FFF7E6",
-            letterSpacing: 1,
-            includeFontPadding: false,
-            textShadowColor: "rgba(0,0,0,.55)",
-            textShadowOffset: { width: 0, height: 1 },
-            textShadowRadius: 3,
+            position: "absolute",
+            left: width * pl.l,
+            top: height * pl.t,
+            width: width * (pl.r - pl.l),
+            height: plateH,
+            borderRadius: plateH * 0.32,
+            backgroundColor: "rgba(8,6,10,0.62)",
+            borderWidth: 1,
+            borderColor: t.accent,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: plateH * 0.3,
           }}
+          pointerEvents="none"
         >
-          {id}
-        </Text>
-      </View>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={{
+              fontFamily: Font.displayBold,
+              fontSize: plateH * 0.62,
+              color: t.accent,
+              letterSpacing: 1.5,
+              includeFontPadding: false,
+              textShadowColor: "rgba(0,0,0,.7)",
+              textShadowOffset: { width: 0, height: 1 },
+              textShadowRadius: 2,
+            }}
+          >
+            {id}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
