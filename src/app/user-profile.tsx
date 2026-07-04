@@ -4,8 +4,8 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AgencyBadge } from "@/components/AgencyEmblem";
 import { CenterModal } from "@/components/CenterModal";
+import { OzelIdGosterim } from "@/components/OzelId";
 import { PngBadge } from "@/components/PngBadge";
 import { levelTierBadge } from "@/data/badges";
 import { Portrait } from "@/components/Portrait";
@@ -42,6 +42,10 @@ export default function UserProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const setActiveDM = useApp((s) => s.setActiveDM);
+  const myRole = useApp((s) => s.role);
+  const myOzelId = useApp((s) => s.ozelId);
+  const myOzelIdTip = useApp((s) => s.ozelIdTip);
+  const myOzelIdTema = useApp((s) => s.ozelIdTema);
   const params = useLocalSearchParams<{ name?: string; lv?: string; publicId?: string; self?: string }>();
   const self = params.self === "1"; // kendi profilini public görünümde önizleme
 
@@ -88,6 +92,8 @@ export default function UserProfileScreen() {
   const name = profile?.kullanici_adi || params.name || "Kullanıcı";
   const lv = profile?.seviye_id ?? (Number(params.lv) || 28);
   const id = profile?.public_id || params.publicId || "1149663822";
+  // Yetki rozeti DB'den: self ise store rolü, değilse DB ekonomi_rolu.
+  const dbRole = self ? myRole : profile?.ekonomi_rolu === "developer" ? "developer" : profile?.ekonomi_rolu === "super_admin" ? "super_admin" : "user";
   const photo = profile?.profil_resmi || undefined;
   const bio = profile?.biyografi || null;
   const gender = profile?.cinsiyet || null; // 'e' | 'k' | null
@@ -165,18 +171,25 @@ export default function UserProfileScreen() {
           <View style={{ alignItems: "center", marginTop: -46, paddingHorizontal: 18 }}>
             <Portrait name={name} size={92} ring={C.gold} glow frameBorder="#0A0A0F" photo={photo} />
             <Txt weight="displayBold" size={18} color="#fff" style={{ marginTop: 10 }}>{name}</Txt>
-            {/* Rozet vitrini — tek satır, premium PNG set, eski SVG boyutunda */}
+            {/* Rozet vitrini — yetki (DB) + vip + level. Ajans/streamer kaldırıldı. */}
             <View style={{ flexDirection: "row", gap: 6, marginTop: 9, alignItems: "center", flexWrap: "wrap" }}>
+              {dbRole === "developer" && <PngBadge name="role_developer" size={26} />}
+              {dbRole === "super_admin" && <PngBadge name="role_super_admin" size={26} />}
               <PngBadge name="role_vip" size={26} />
               <PngBadge name={levelTierBadge(lv)} size={26} />
-              <AgencyBadge size={26} />
-              <PngBadge name="role_streamer" size={26} />
             </View>
-            <Pressable onPress={copyId} style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
-              <Txt weight="semibold" size={11.5} color={C.dim}>ID: {id}</Txt>
-              <Icon name="copy" size={12} color={C.dim2} />
-              {copied && <Txt weight="bold" size={9.5} color={C.green}>Kopyalandı</Txt>}
-            </Pressable>
+            {self && myOzelId && myOzelIdTip && myOzelIdTema ? (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
+                <OzelIdGosterim id={myOzelId} tip={myOzelIdTip} tema={myOzelIdTema} premiumWidth={92} kapsulSize={9} />
+                <Icon name="copy" size={12} color={C.dim2} />
+              </View>
+            ) : (
+              <Pressable onPress={copyId} style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
+                <Txt weight="semibold" size={11.5} color={C.dim}>ID: {id}</Txt>
+                <Icon name="copy" size={12} color={C.dim2} />
+                {copied && <Txt weight="bold" size={9.5} color={C.green}>Kopyalandı</Txt>}
+              </Pressable>
+            )}
             <View style={{ flexDirection: "row", gap: 14, marginTop: 11, alignItems: "center" }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                 <Txt weight="extrabold" size={12} color="#5EEAD4">LV.{lv}</Txt>
@@ -268,14 +281,9 @@ export default function UserProfileScreen() {
           </>
         )}
 
+        {!self && (
         <View style={[styles.actionBar, { paddingBottom: 14 + insets.bottom }]}>
-          {self ? (
-            // Kendi profilin — herkes böyle görüyor (aksiyon yok)
-            <View style={styles.blockNotice}>
-              <Icon name="eye" size={15} color={C.gold2} />
-              <Txt weight="bold" size={12.5} color={C.gold2} numberOfLines={1} style={{ flexShrink: 1 }}>Önizleme · Profilin başkalarına böyle görünüyor</Txt>
-            </View>
-          ) : blockedByThem ? (
+          {blockedByThem ? (
             // Karşı taraf engellemiş → salt bilgilendirme (tek satır)
             <View style={styles.blockNotice}>
               <Icon name="blockuser" size={15} color={C.dim} />
@@ -325,6 +333,7 @@ export default function UserProfileScreen() {
             </>
           )}
         </View>
+        )}
 
         {!!toast && (
           <Animated.View entering={FadeIn} exiting={FadeOut} style={[styles.toast, { bottom: 96 + insets.bottom }]}>
