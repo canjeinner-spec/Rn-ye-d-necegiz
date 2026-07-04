@@ -3,18 +3,23 @@ import { type ReactNode, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { IdKapsul } from "@/components/OzelId";
 import { ThroneCard } from "@/components/ThroneCard";
 import { Txt } from "@/components/Txt";
 import {
+  OZEL_ID_KARTLARI,
+  OZEL_ID_KART_ADI,
   SPECIAL_ID_DATA,
   THRONE_SUPER,
   THRONE_T2,
   tierBadgeColor,
   tierLabel,
+  type OzelIdKart,
   type SpecialTier,
 } from "@/data/specialId";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
+import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
@@ -49,6 +54,84 @@ function IdChip({ id, tier }: { id: string; tier: SpecialTier }) {
         <Txt weight="displayBold" size={8} color="#fff">ID</Txt>
       </Gradient>
       <Txt weight="displayBold" size={15} color={C.gold2} style={{ letterSpacing: 1 }}>{id}</Txt>
+    </View>
+  );
+}
+
+// Kapsül kimliği seçimi — beta tester'ın hak kazandığı ücretsiz kapsül.
+// Seç → profil önizlemesi → Onayla → store'a yaz (bir daha hatırlatma yok).
+function KapsulBolumu() {
+  const { publicId, ozelIdKart, setOzelIdKart, betaTester } = useApp();
+  const myId = publicId || "886644";
+  const [sec, setSec] = useState<OzelIdKart | null>(ozelIdKart);
+  const [duzenle, setDuzenle] = useState(false);
+  const seciliVar = ozelIdKart != null && !duzenle;
+
+  if (seciliVar) {
+    return (
+      <View style={{ alignItems: "center", marginTop: 16 }}>
+        <Txt weight="bold" size={12} color={C.gold2}>Kapsül Kimliğin</Txt>
+        <View style={{ marginTop: 12 }}>
+          <IdKapsul theme={ozelIdKart!} id={myId} size={16} />
+        </View>
+        <Txt weight="semibold" size={10.5} color={C.dim} style={{ marginTop: 8 }}>
+          {OZEL_ID_KART_ADI[ozelIdKart!].title} · {OZEL_ID_KART_ADI[ozelIdKart!].sub}
+        </Txt>
+        <Pressable onPress={() => { haptic.light(); setSec(ozelIdKart); setDuzenle(true); }} style={{ marginTop: 12 }}>
+          <Txt weight="extrabold" size={12} color={C.gold2}>Değiştir ↻</Txt>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ marginTop: 16 }}>
+      {betaTester && (
+        <View style={styles.betaNote}>
+          <Txt size={14}>🎖️</Txt>
+          <Txt weight="semibold" size={11} color={C.gold2} style={{ flex: 1 }} lh={1.4}>
+            Beta Tester olarak <Txt weight="extrabold" size={11} color={C.gold2}>ücretsiz</Txt> bir kapsül kimlik hakkın var. Aşağıdan bir tema seç.
+          </Txt>
+        </View>
+      )}
+
+      <Txt weight="bold" size={12} color={C.gold2} align="center" style={{ marginTop: 6 }}>Kapsül Temanı Seç</Txt>
+      <View style={styles.kapsulGrid}>
+        {OZEL_ID_KARTLARI.map((k) => {
+          const on = sec === k;
+          return (
+            <Pressable
+              key={k}
+              onPress={() => { haptic.select(); setSec(k); }}
+              style={[styles.kapsulCell, on && { borderColor: C.gold2, backgroundColor: "rgba(245,206,110,.12)" }]}
+            >
+              <IdKapsul theme={k} id={myId} size={9} />
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {sec && (
+        <View style={{ alignItems: "center", marginTop: 16 }}>
+          <Txt weight="semibold" size={11} color={C.dim}>Profilinde böyle görünecek:</Txt>
+          <View style={{ marginTop: 10 }}>
+            <IdKapsul theme={sec} id={myId} size={16} />
+          </View>
+          <Txt weight="semibold" size={10.5} color={C.dim2} style={{ marginTop: 8 }}>
+            {OZEL_ID_KART_ADI[sec].title}
+          </Txt>
+        </View>
+      )}
+
+      <Pressable
+        disabled={!sec}
+        onPress={() => { haptic.light(); setOzelIdKart(sec); setDuzenle(false); }}
+        style={{ marginTop: 18, borderRadius: 999, overflow: "hidden", opacity: sec ? 1 : 0.4 }}
+      >
+        <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.uploadBtn}>
+          <Txt weight="displayBold" size={14} color="#3A2A05" style={{ letterSpacing: 0.5 }}>Onayla</Txt>
+        </Gradient>
+      </Pressable>
     </View>
   );
 }
@@ -125,11 +208,8 @@ export default function SpecialIdScreen() {
                   <Txt weight="bold" size={12} color={C.gold2}>Benim ID'm</Txt>
                   <Txt weight="displayBold" size={22} color="#fff" style={{ marginTop: 6, letterSpacing: 1 }}>4407</Txt>
                 </View>
-                <View style={{ alignItems: "center", marginTop: 16 }}>
-                  <Txt weight="bold" size={12} color={C.gold2}>Benim Özel ID'm</Txt>
-                  <Gradient colors={["transparent", `${C.gold}66`, "transparent"]} deg={90} style={styles.profileDivider} />
-                  <Txt weight="semibold" size={11} color={C.dim} style={{ marginTop: 8 }}>Henüz özel ID'n yok</Txt>
-                </View>
+                <Gradient colors={["transparent", `${C.gold}66`, "transparent"]} deg={90} style={styles.profileDivider} />
+                <KapsulBolumu />
                 <View style={styles.statGrid}>
                   {([["Bu Ay Yüklenen Altın", "0"], ["Bu Ayki Seviye", "Yok"], ["Bu Ayki Sıralama", "0"], ["Geçen Ayki Seviye", "Yok"]] as const).map(([l, v]) => (
                     <View key={l} style={styles.statRow}>
@@ -194,4 +274,7 @@ const styles = StyleSheet.create({
   statVal: { minWidth: 54, paddingVertical: 7, borderRadius: 8, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: C.line, alignItems: "center" },
   uploadBtn: { paddingVertical: 15, alignItems: "center" },
   throneGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 18, columnGap: 14 },
+  betaNote: { flexDirection: "row", alignItems: "center", gap: 8, padding: 11, borderRadius: 12, backgroundColor: "rgba(245,206,110,.08)", borderWidth: 1, borderColor: `${C.gold}44`, marginBottom: 6 },
+  kapsulGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginTop: 12 },
+  kapsulCell: { paddingVertical: 6, paddingHorizontal: 8, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.03)" },
 });

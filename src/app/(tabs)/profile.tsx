@@ -35,7 +35,7 @@ type MenuItem = { ic: IconName; g1: string; g2: string; t: string; s?: string; r
 
 export default function ProfileTab() {
   const router = useRouter();
-  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, setStreamer, betaTester, setBetaTester, role, setRole, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
+  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, setStreamer, betaTester, setBetaTester, ozelIdKart, role, setRole, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
 
   // Cache-first sayaçlar: son bilinen değeri ANINDA göster (persist), arkada tazele.
   const { data: followCounts } = useCachedResource<{ followers: number; following: number }>(
@@ -168,6 +168,17 @@ export default function ProfileTab() {
             {betaTester && <PngBadge name="special_beta_tester" size={28} />}
           </View>
 
+          {/* Beta Tester hakkı: kapsül kimliğini henüz almadıysa yönlendir (alınca kaybolur) */}
+          {betaTester && !ozelIdKart && (
+            <Pressable onPress={() => { haptic.light(); router.navigate("/special-id"); }} style={styles.kapsulHatirlat}>
+              <Txt size={15}>🎖️</Txt>
+              <Txt weight="semibold" size={11} color={C.gold2} style={{ flex: 1 }} lh={1.4}>
+                Beta Tester olarak ücretsiz <Txt weight="extrabold" size={11} color={C.gold2}>Kapsül Kimlik</Txt> hakkın var. Almak için dokun.
+              </Txt>
+              <Icon name="chev" size={16} color={C.gold2} />
+            </Pressable>
+          )}
+
           {!!userBio && <Txt size={12} color={C.dim} lh={1.5} style={{ marginTop: 10 }}>{userBio}</Txt>}
 
           <View style={{ flexDirection: "row", marginTop: 16 }}>
@@ -260,6 +271,7 @@ const styles = StyleSheet.create({
   tileRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 18, backgroundColor: "rgba(255,255,255,.03)", borderRadius: 20, paddingVertical: 16, paddingHorizontal: 8 },
   wallet: { flexDirection: "row", alignItems: "center", marginTop: 16, backgroundColor: "rgba(255,255,255,.03)", borderRadius: 20, padding: 16 },
   streamerToggle: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderStyle: "dashed", borderColor: C.line, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14 },
+  kapsulHatirlat: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 12, backgroundColor: "rgba(245,206,110,.08)", borderWidth: 1, borderColor: "rgba(232,179,65,.4)", borderRadius: 14, paddingVertical: 11, paddingHorizontal: 13 },
   roleRow: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 10, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderStyle: "dashed", borderColor: C.line, borderRadius: 14, paddingVertical: 8, paddingHorizontal: 14 },
   roleChip: { paddingVertical: 5, paddingHorizontal: 11, borderRadius: 999, borderWidth: 1 },
   hiddenPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "44", borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8 },

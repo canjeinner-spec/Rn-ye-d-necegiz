@@ -4,6 +4,7 @@ import { create } from "zustand";
 
 import { type DMThread } from "@/data/dm";
 import { type Room } from "@/data/seed";
+import { type OzelIdKart } from "@/data/specialId";
 import { deleteAccount, getMyAccountBan, getSession, onAuthChange, signOut, type AccountBan } from "@/data/remote/authRepo";
 import { ensureMyProfile, getMyProfile } from "@/data/remote/profileRepo";
 import { createRoom, getMyRoom, listRooms } from "@/data/remote/roomsRepo";
@@ -72,10 +73,12 @@ type AppState = {
   userXp: number; // gerçek deneyim puanı
   isStreamer: boolean;
   betaTester: boolean; // demo — beta rozeti göstermek için (kalıcı DB alanı yok)
+  ozelIdKart: OzelIdKart | null; // seçilen ÖZEL ID teması (demo — DB alanı sonra)
   role: UserRole;
   hideProfile: boolean;
   setRole: (r: UserRole) => void;
   setBetaTester: (v: boolean) => void;
+  setOzelIdKart: (k: OzelIdKart | null) => void;
   setHideProfile: (v: boolean) => void;
   myRoom: Room | null;
   currentRoom: Room | null;
@@ -330,6 +333,7 @@ export const useApp = create<AppState>((set, get) => ({
   userXp: 0,
   isStreamer: false,
   betaTester: false,
+  ozelIdKart: null,
   role: "user",
   hideProfile: false,
   setRole: (r) => set({ role: r }),
@@ -366,6 +370,7 @@ export const useApp = create<AppState>((set, get) => ({
   setUserPhoto: (p) => set({ userPhoto: p }),
   setStreamer: (v) => set({ isStreamer: v }),
   setBetaTester: (v) => set({ betaTester: v }),
+  setOzelIdKart: (k) => set({ ozelIdKart: k }),
 
   enterRoom: (r) =>
     set({

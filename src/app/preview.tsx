@@ -164,10 +164,14 @@ export default function Index() {
               <OzelIdKart frame="celestial" id="54321" width={210} />
               <OzelIdKart frame="dragon" id="100" width={210} />
             </View>
-            <Txt weight="semibold" size={11} color={C.dim2} style={{ marginTop: 6 }}>6–7 basamak → ID kapsülü:</Txt>
-            <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
-              <IdKapsul id="123456" />
-              <IdKapsul id="1234567" />
+            <Txt weight="semibold" size={11} color={C.dim2} style={{ marginTop: 6 }}>6–7 basamak → temaya renk-uyumlu kapsül:</Txt>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+              <IdKapsul theme="gold" id="123456" />
+              <IdKapsul theme="dragon" id="1234567" />
+              <IdKapsul theme="ice" id="654321" />
+              <IdKapsul theme="emerald" id="998877" />
+              <IdKapsul theme="demon" id="112233" />
+              <IdKapsul theme="cyber" id="456789" />
             </View>
           </View>
 

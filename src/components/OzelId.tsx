@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { Text, View } from "react-native";
 
-import { type OzelIdKart } from "@/data/specialId";
+import { OZEL_ID_TEMA_RENK, ozelIdTier, type OzelIdKart } from "@/data/specialId";
 import { Gradient } from "@/theme/Gradient";
 import { Font } from "@/theme/fonts";
 
@@ -113,37 +113,69 @@ export function OzelIdKart({
 }
 
 /**
- * ID kapsülü (6–7 basamak). Süslü çerçeve yok — ID rakamı premium bir
- * kapsülün içine alınır. UI chrome (elle stillenmiş), sanat eseri değil.
+ * ID kapsülü (6–7 basamak). Başta o temanın kart amblemi (gerçek sanat),
+ * ardından temanın rengiyle BİREBİR uyumlu kapsülün içinde ID. Kart çerçevesi
+ * yok; kartın küçük hâli "rozet" olarak başta durur.
  */
-export function IdKapsul({ id, size = 13 }: { id: string; size?: number }) {
+export function IdKapsul({ theme, id, size = 13 }: { theme: OzelIdKart; id: string; size?: number }) {
+  const t = OZEL_ID_TEMA_RENK[theme];
+  const emblemH = size * 2.15;
   return (
-    <Gradient
-      colors={["#3A2E12", "#1A1508"]}
-      deg={180}
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 5,
-        paddingVertical: size * 0.28,
-        paddingHorizontal: size * 0.72,
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: "#E8B34155",
-      }}
-    >
-      <View style={{ width: size * 0.34, height: size * 0.34, borderRadius: 999, backgroundColor: "#E8B341" }} />
-      <Text
+    <View style={{ flexDirection: "row", alignItems: "center", gap: -size * 0.25 }}>
+      {/* baştaki rozet = o temanın kartının küçük hâli */}
+      <Image source={CARD[theme]} style={{ width: emblemH * 1.9, height: emblemH }} contentFit="contain" />
+      <Gradient
+        colors={t.g}
+        deg={180}
         style={{
-          fontFamily: Font.extrabold,
-          fontSize: size,
-          color: "#F5CE6E",
-          letterSpacing: 1.5,
-          includeFontPadding: false,
+          alignItems: "center",
+          justifyContent: "center",
+          paddingVertical: size * 0.26,
+          paddingLeft: size * 0.9,
+          paddingRight: size * 0.72,
+          borderRadius: 999,
+          borderWidth: 1,
+          borderColor: t.accent,
         }}
       >
-        {id}
-      </Text>
-    </Gradient>
+        <Text
+          style={{
+            fontFamily: Font.extrabold,
+            fontSize: size,
+            color: t.ink,
+            letterSpacing: 1.2,
+            includeFontPadding: false,
+          }}
+        >
+          {id}
+        </Text>
+      </Gradient>
+    </View>
+  );
+}
+
+/**
+ * ÖZEL ID akıllı gösterim — basamak sayısına göre otomatik seçer:
+ *   ≤5 → tam kart · 6-7 → kapsül · 8+ → düz ID metni.
+ * theme atanmamışsa (kart/kapsül için gerekli) düz ID döner.
+ */
+export function OzelIdGosterim({
+  id,
+  theme,
+  kartWidth = 210,
+  kapsulSize = 13,
+}: {
+  id: string;
+  theme?: OzelIdKart | null;
+  kartWidth?: number;
+  kapsulSize?: number;
+}) {
+  const tier = ozelIdTier(id);
+  if (theme && tier === "kart") return <OzelIdKart frame={theme} id={id} width={kartWidth} />;
+  if (theme && tier === "kapsul") return <IdKapsul theme={theme} id={id} size={kapsulSize} />;
+  return (
+    <Text style={{ fontFamily: Font.extrabold, fontSize: kapsulSize, color: "#F5CE6E", letterSpacing: 1 }}>
+      {id}
+    </Text>
   );
 }

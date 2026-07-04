@@ -349,11 +349,25 @@ sağda ID metni). Kural **basamak sayısına** göre (`src/data/specialId.ts`):
   `<IdKapsul id/>` (6–7 basamak için elle stillenmiş premium kapsül — UI chrome).
   Slot oranları (PHOTO_RECT/TEXT_RECT) tüm kartlarda ortak varsayılan; gold ve
   celestial'da doğrulandı (gövde konumu kanatlı/kanatsız fark etmeksizin tutuyor).
-- **YAPILACAK (sonraki oturum):** (a) DB'ye kullanıcının atanan `ozel_id_kart`
-  kolonu + admin-user'da atama UI; (b) profil/kullanıcı-profil/oda-sohbetinde
-  ID gösteriminde `ozelIdTier`'a göre kart/kapsül bağla; (c) kanatlı birkaç
-  kartta slot oranını cihazda görüp ince ayar. Şu an `preview.tsx`'te hiyerarşi
-  demosu + 25 kartın tamamı görünüyor.
+- **Kapsül = kartın kapsül hâli:** 6-7 basamak kullanıcı için, o temanın kartının
+  küçük hâli "rozet" olarak başta + temanın rengiyle **birebir uyumlu** hap içinde
+  ID (`IdKapsul theme id`). 25 tema rengi elle ayarlandı (`OZEL_ID_TEMA_RENK` —
+  otomatik örnekleme altın çerçeveye takılıyordu). `OzelIdGosterim id theme` akıllı
+  seçer: ≤5 kart, 6-7 kapsül, 8+ düz.
+- **Beta Tester kapsül hakkı akışı (BU OTURUM — frontend tam):**
+  - `appStore.ozelIdKart` (demo, betaTester gibi — DB alanı sonraki iş).
+  - `special-id.tsx` "Profilim" → **KapsulBolumu**: 25 tema grid → seç → canlı
+    profil önizleme (`IdKapsul`) → **Onayla** → store'a yaz. Zaten seçiliyse mevcut
+    kapsül + "Değiştir". Beta ise ücretsiz-hak notu üstte.
+  - `profile.tsx`: `betaTester && !ozelIdKart` ise **yönlendirme banner'ı** →
+    dokun → `/special-id`. Kapsül alınınca banner **kaybolur** (bir daha nag yok).
+- **YAPILACAK (sonraki oturum):** (a) **DB kalıcılığı**: `profiller.ozel_id_kart`
+  kolonu + repo + gerçek beta bayrağı (şu an betaTester demo, DB'de yok) →
+  onaylanınca DB'ye yaz; (b) hatırlatmayı **profil banner yerine Sistem DM'ine**
+  taşı (kullanıcı DM istedi — bu tur banner ile yapıldı); (c) admin-user'da kart
+  atama UI (≤5 basamak premium kartlar için); (d) profil/kullanıcı-profil/oda ID
+  gösteriminde `OzelIdGosterim` bağla; (e) kanatlı kartlarda slot oranı ince ayar.
+  Şu an `preview.tsx`'te hiyerarşi + 25 kart + renk-uyumlu kapsüller görünüyor.
 
 ### Aşama 3 — Rozet bilgi kartı (BU OTURUM — tamam)
 - `src/components/BadgeInfoModal.tsx` — liquid-glass (BlurView) merkez modal:
