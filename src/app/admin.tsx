@@ -181,7 +181,7 @@ export default function AdminScreen() {
                         <Portrait name={u.kullanici_adi} size={44} photo={u.profil_resmi || undefined} ring={u.ekonomi_rolu !== "user" ? C.gold : undefined} />
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{u.kullanici_adi}</Txt>
-                          <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>ID: {u.public_id}{u.seviye_id ? ` · LV.${u.seviye_id}` : ""}</Txt>
+                          <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>ID: {u.ozel_id || u.public_id}{u.seviye_id ? ` · LV.${u.seviye_id}` : ""}</Txt>
                         </View>
                         <Icon name="chev" size={15} color={C.dim2} />
                       </Pressable>

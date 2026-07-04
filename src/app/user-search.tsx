@@ -128,7 +128,7 @@ export default function UserSearchScreen() {
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Txt weight="extrabold" size={13.5} color={C.text} numberOfLines={1}>{u.kullanici_adi}</Txt>
                         <Txt weight="semibold" size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>
-                          ID: {u.public_id}{u.seviye_id ? ` · LV.${u.seviye_id}` : ""}
+                          ID: {u.ozel_id || u.public_id}{u.seviye_id ? ` · LV.${u.seviye_id}` : ""}
                         </Txt>
                       </View>
                       <Icon name="chev" size={15} color={C.dim2} />

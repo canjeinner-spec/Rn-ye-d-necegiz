@@ -37,7 +37,7 @@ type MenuItem = { ic: IconName; g1: string; g2: string; t: string; s?: string; r
 export default function ProfileTab() {
   const router = useRouter();
   const [ozelIdInfo, setOzelIdInfo] = useState(false);
-  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, setStreamer, betaTester, setBetaTester, ozelId, ozelIdTip, ozelIdTema, role, setRole, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
+  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, betaTester, ozelId, ozelIdTip, ozelIdTema, role, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
 
   // Cache-first sayaçlar: son bilinen değeri ANINDA göster (persist), arkada tazele.
   const { data: followCounts } = useCachedResource<{ followers: number; following: number }>(
@@ -231,33 +231,6 @@ export default function ProfileTab() {
             </View>
           </Pressable>
 
-          <Pressable onPress={() => { haptic.light(); setStreamer(!isStreamer); }} style={styles.streamerToggle}>
-            <Txt weight="semibold" size={11} color={C.dim} style={{ flex: 1 }}>Demo · Yayıncı hesabı</Txt>
-            <View style={[styles.toggle, { backgroundColor: isStreamer ? C.green : "rgba(255,255,255,.12)", alignItems: isStreamer ? "flex-end" : "flex-start" }]}>
-              <View style={styles.knob} />
-            </View>
-          </Pressable>
-
-          <Pressable onPress={() => { haptic.light(); setBetaTester(!betaTester); }} style={styles.streamerToggle}>
-            <Txt weight="semibold" size={11} color={C.dim} style={{ flex: 1 }}>Demo · Beta Tester rozeti</Txt>
-            <View style={[styles.toggle, { backgroundColor: betaTester ? C.teal : "rgba(255,255,255,.12)", alignItems: betaTester ? "flex-end" : "flex-start" }]}>
-              <View style={styles.knob} />
-            </View>
-          </Pressable>
-
-          <View style={styles.roleRow}>
-            <Txt weight="semibold" size={11} color={C.dim} style={{ flex: 1 }}>Demo · Rol</Txt>
-            {(["user", "developer", "super_admin"] as const).map((r) => {
-              const on = role === r;
-              const col = r === "super_admin" ? "#EF4444" : r === "developer" ? "#A78BFA" : C.dim;
-              return (
-                <Pressable key={r} onPress={() => { haptic.select(); setRole(r); }} style={[styles.roleChip, { borderColor: on ? col : C.line, backgroundColor: on ? col + "1F" : "transparent" }]}>
-                  <Txt weight="extrabold" size={10} color={on ? col : C.dim2}>{r === "user" ? "Üye" : r === "developer" ? "Dev" : "Admin"}</Txt>
-                </Pressable>
-              );
-            })}
-          </View>
-
           {privileged && (
             <Pressable onPress={() => { haptic.light(); setHideProfile(!hideProfile); }} style={styles.streamerToggle}>
               <Icon name="eye" size={15} color={hideProfile ? C.gold2 : C.dim} />
@@ -299,8 +272,6 @@ const styles = StyleSheet.create({
   wallet: { flexDirection: "row", alignItems: "center", marginTop: 16, backgroundColor: "rgba(255,255,255,.03)", borderRadius: 20, padding: 16 },
   streamerToggle: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderStyle: "dashed", borderColor: C.line, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14 },
   kapsulHatirlat: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 12, backgroundColor: "rgba(245,206,110,.08)", borderWidth: 1, borderColor: "rgba(232,179,65,.4)", borderRadius: 14, paddingVertical: 11, paddingHorizontal: 13 },
-  roleRow: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 10, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderStyle: "dashed", borderColor: C.line, borderRadius: 14, paddingVertical: 8, paddingHorizontal: 14 },
-  roleChip: { paddingVertical: 5, paddingHorizontal: 11, borderRadius: 999, borderWidth: 1 },
   hiddenPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "44", borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8 },
   toggle: { width: 38, height: 22, borderRadius: 999, padding: 2, justifyContent: "center" },
   knob: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#fff" },
