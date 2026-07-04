@@ -33,12 +33,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_kullanicilar_ozel_id
 GRANT SELECT (ozel_id, ozel_id_tip, ozel_id_tema, beta_tester, premium_hak)
     ON public.kullanicilar TO authenticated;
 
--- ---- 3) profiller view'ini özel ID kolonlarıyla yeniden oluştur -------------
+-- ---- 3) profiller view'ine özel ID kolonlarını EKLE ------------------------
+-- NOT: CREATE OR REPLACE VIEW mevcut kolonların sıra/adını DEĞİŞTİREMEZ; yeni
+-- kolonlar yalnızca SONA eklenir. Bu yüzden özgün 12 kolon aynen korunur,
+-- ozel_id* en sona eklenir (view'de sıra önemsiz — repo isimle seçer).
 CREATE OR REPLACE VIEW public.profiller WITH (security_invoker = off) AS
 SELECT
     id, public_id, kullanici_adi, profil_resmi, biyografi,
     cinsiyet, ulke, sehir, seviye_id, deneyim_puani, durum,
-    ekonomi_rolu, ozel_id, ozel_id_tip, ozel_id_tema, olusturulma_tarihi
+    ekonomi_rolu, olusturulma_tarihi,
+    ozel_id, ozel_id_tip, ozel_id_tema
 FROM public.kullanicilar
 WHERE silinmis = FALSE;
 GRANT SELECT ON public.profiller TO authenticated, anon;
@@ -120,7 +124,7 @@ BEGIN
 
     PERFORM public._yonetici_log('kullanici', p_hedef,
         (CASE WHEN p_deger THEN 'hak_ver' ELSE 'hak_al' END),
-        jsonb_build_object('alan', p_alan));
+        p_alan);
 END;
 $$;
 REVOKE ALL ON FUNCTION public.admin_hak_ata(BIGINT, TEXT, BOOLEAN) FROM public;
