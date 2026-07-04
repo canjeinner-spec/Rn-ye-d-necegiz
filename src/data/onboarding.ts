@@ -1,4 +1,16 @@
+import { type IconName } from "@/icons/paths";
+import { C } from "@/theme/colors";
+
 export type Ulke = { code: string; flag: string; name: string };
+
+/** Açılış ekranındaki Weplay tarzı tanıtım karuseli slaytları. */
+export type IntroSlide = { icon: IconName; title: string; desc: string; accent: string };
+
+export const INTRO_SLIDES: IntroSlide[] = [
+  { icon: "mic", title: "Sesli odalara katıl", desc: "Koltuğa otur, mikrofonu al, sohbetin ortasında ol.", accent: C.purple2 },
+  { icon: "gift", title: "Hediyelerle parla", desc: "Sevdiklerine hediye gönder, sahneyi renklendir.", accent: C.gold2 },
+  { icon: "trophy", title: "Sıralamada yüksel", desc: "Puan topla, seviye atla, gecenin yıldızı ol.", accent: C.teal2 },
+];
 
 export const COUNTRIES: Ulke[] = [
   { code: "+90", flag: "🇹🇷", name: "Türkiye" },

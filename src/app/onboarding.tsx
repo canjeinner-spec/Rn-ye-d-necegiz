@@ -3,9 +3,11 @@ import * as ImagePicker from "expo-image-picker";
 import { Redirect, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AronMark } from "@/components/AronMark";
+import { IntroCarousel } from "@/components/IntroCarousel";
 import { KeyboardAware } from "@/components/KeyboardAware";
 import { Txt } from "@/components/Txt";
 import { PRESET_AVATARS } from "@/data/onboarding";
@@ -178,23 +180,27 @@ export default function Onboarding() {
         <KeyboardAware>
 
           {step === "home" && (
-            <View style={styles.center}>
-              <AronMark s={92} />
-              <View style={{ flexDirection: "row", marginTop: 22 }}>
-                <Txt weight="displayBold" size={30} color="#fff" style={{ letterSpacing: 3 }}>ARON </Txt>
-                <Txt weight="displayBold" size={30} color={C.gold} style={{ letterSpacing: 3 }}>CHAT</Txt>
-              </View>
-              <Txt size={13} color={C.dim} lh={1.6} align="center" style={{ marginTop: 10 }}>
-                Sesin sahnesi. Odaya gir, koltuğa otur,{"\n"}gecenin yıldızı ol.
-              </Txt>
-              <View style={{ width: "100%", marginTop: 40, gap: 10 }}>
+            <View style={styles.home}>
+              <Animated.View entering={FadeIn.duration(600)} style={styles.brand}>
+                <AronMark s={62} />
+                <View style={{ flexDirection: "row", marginTop: 14 }}>
+                  <Txt weight="displayBold" size={26} color="#fff" style={{ letterSpacing: 3 }}>ARON </Txt>
+                  <Txt weight="displayBold" size={26} color={C.gold} style={{ letterSpacing: 3 }}>CHAT</Txt>
+                </View>
+              </Animated.View>
+
+              <Animated.View entering={FadeIn.delay(150).duration(700)} style={{ flex: 1 }}>
+                <IntroCarousel />
+              </Animated.View>
+
+              <Animated.View entering={FadeInUp.delay(250).duration(600)} style={styles.homeFooter}>
                 <GoldButton label="E-posta ile Devam Et" onPress={() => { haptic.light(); setErr(null); setStep("email"); }} />
                 <Pressable onPress={handleGoogle} disabled={busy} style={[styles.altBtn, busy && { opacity: 0.5 }]}>
                   <Txt weight="bold" size={13} color={C.text}>G  Google ile Devam Et</Txt>
                 </Pressable>
                 {err && <Txt weight="semibold" size={11.5} color={C.red} align="center">{err}</Txt>}
                 {notice && <Txt weight="semibold" size={11.5} color={C.green} align="center" lh={1.5}>{notice}</Txt>}
-              </View>
+              </Animated.View>
             </View>
           )}
 
@@ -328,7 +334,9 @@ function turkishAuthError(msg?: string): string {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 30 },
+  home: { flex: 1 },
+  brand: { alignItems: "center", paddingTop: 18 },
+  homeFooter: { paddingHorizontal: 30, paddingBottom: 8, gap: 10 },
   stepTop: { flex: 1, paddingHorizontal: 30, paddingTop: 44 },
   back: { position: "absolute", left: 20, top: 8, zIndex: 2, width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   altBtn: { paddingVertical: 13, borderRadius: 15, borderWidth: 1, borderColor: "rgba(255,255,255,.1)", backgroundColor: "rgba(255,255,255,.05)", alignItems: "center" },
