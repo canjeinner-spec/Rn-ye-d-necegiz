@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { BadgeRow } from "@/components/BadgeRow";
+import { AgencyBadge } from "@/components/AgencyEmblem";
 import { AuthorityTag } from "@/components/AuthorityTag";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { MenuIcon } from "@/components/MenuIcon";
@@ -13,7 +13,7 @@ import { PngBadge } from "@/components/PngBadge";
 import { Portrait } from "@/components/Portrait";
 import { TileIcon, type TileType } from "@/components/TileIcon";
 import { Txt } from "@/components/Txt";
-import { type BadgeItem, levelTierBadge } from "@/data/badges";
+import { levelTierBadge } from "@/data/badges";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { getFollowCounts } from "@/data/remote/followRepo";
@@ -72,14 +72,6 @@ export default function ProfileTab() {
       } catch { /* yükleme başarısızsa yerel önizleme kalır, DB'ye yazılmaz */ }
     }
   };
-
-  const badges: BadgeItem[] = [
-    ...(role === "super_admin" ? [{ type: "super_admin" as const }] : role === "developer" ? [{ type: "developer" as const }] : []),
-    { type: "vip" },
-    { type: "level", lvl: userLevel },
-    { type: "agency", meta: { id: "1", name: "Aron Stars", owner: "Ardaowski" } },
-    ...(isStreamer ? [{ type: "streamer" as const }] : []),
-  ];
 
   const tiles: { type: TileType; lbl: string; onPress: () => void }[] = [
     { type: "tasks", lbl: "Görevler", onPress: () => { haptic.light(); router.navigate("/tasks"); } },
@@ -166,18 +158,19 @@ export default function ProfileTab() {
             </View>
           </View>
 
-          <View style={{ flexDirection: "row", gap: 7, marginTop: 12, flexWrap: "wrap", alignItems: "center" }}>
-            <BadgeRow size={28} badges={badges} />
-            <Pill bg="rgba(255,255,255,.05)" color={C.dim} border={C.line}>🇹🇷 Türkiye</Pill>
+          {/* Rozet vitrini — tek satır, premium PNG set, gerçek boyutta */}
+          <View style={styles.premiumRow}>
+            {role === "developer" && <PngBadge name="role_developer" size={44} />}
+            {role === "super_admin" && <PngBadge name="role_super_admin" size={44} />}
+            <PngBadge name="role_vip" size={44} />
+            <PngBadge name={levelTierBadge(userLevel)} size={44} />
+            <AgencyBadge size={44} />
+            {isStreamer && <PngBadge name="role_streamer" size={44} />}
+            {betaTester && <PngBadge name="special_beta_tester" size={44} />}
           </View>
 
-          {/* Premium rozet vitrini — gerçek boyutta */}
-          <View style={styles.premiumRow}>
-            <PngBadge name={levelTierBadge(userLevel)} size={52} />
-            {role === "developer" && <PngBadge name="role_developer" size={52} />}
-            {role === "super_admin" && <PngBadge name="role_super_admin" size={52} />}
-            {isStreamer && <PngBadge name="role_streamer" size={52} />}
-            {betaTester && <PngBadge name="special_beta_tester" size={52} />}
+          <View style={{ marginTop: 10 }}>
+            <Pill bg="rgba(255,255,255,.05)" color={C.dim} border={C.line}>🇹🇷 Türkiye</Pill>
           </View>
 
           {!!userBio && <Txt size={12} color={C.dim} lh={1.5} style={{ marginTop: 10 }}>{userBio}</Txt>}
@@ -268,7 +261,7 @@ const styles = StyleSheet.create({
   cover: { height: 104, position: "relative" },
   editBtn: { position: "absolute", right: 14, bottom: 12, width: 34, height: 34, borderRadius: 12, backgroundColor: "rgba(0,0,0,.3)", alignItems: "center", justifyContent: "center" },
   camBadge: { position: "absolute", right: 0, bottom: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: C.gold2, borderWidth: 2.5, borderColor: "#08080C", alignItems: "center", justifyContent: "center" },
-  premiumRow: { flexDirection: "row", gap: 12, marginTop: 14, alignItems: "center" },
+  premiumRow: { flexDirection: "row", gap: 10, marginTop: 12, alignItems: "center", flexWrap: "wrap" },
   tileRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 18, backgroundColor: "rgba(255,255,255,.03)", borderRadius: 20, paddingVertical: 16, paddingHorizontal: 8 },
   wallet: { flexDirection: "row", alignItems: "center", marginTop: 16, backgroundColor: "rgba(255,255,255,.03)", borderRadius: 20, padding: 16 },
   streamerToggle: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderStyle: "dashed", borderColor: C.line, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14 },

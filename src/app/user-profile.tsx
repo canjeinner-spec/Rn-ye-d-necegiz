@@ -4,11 +4,10 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Badge } from "@/components/Badge";
-import { BadgeRow } from "@/components/BadgeRow";
+import { AgencyBadge } from "@/components/AgencyEmblem";
 import { CenterModal } from "@/components/CenterModal";
 import { PngBadge } from "@/components/PngBadge";
-import { type BadgeItem, levelTierBadge } from "@/data/badges";
+import { levelTierBadge } from "@/data/badges";
 import { Portrait } from "@/components/Portrait";
 import { Scene } from "@/components/Scene";
 import { Txt } from "@/components/Txt";
@@ -113,13 +112,6 @@ export default function UserProfileScreen() {
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const flash = (m: string) => { setToast(m); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => setToast(""), 1800); };
 
-  const badges: BadgeItem[] = [
-    { type: "vip" },
-    { type: "level", lvl: lv },
-    { type: "streamer" },
-    { type: "agency", meta: { id: "1", name: "Aron Stars", owner: "Ardaowski" } },
-  ];
-
   const openDM = async () => {
     haptic.light();
     // Gerçek kullanıcı (DB profili) → konuşmayı bul/oluştur, gerçek DM aç
@@ -172,12 +164,12 @@ export default function UserProfileScreen() {
           <View style={{ alignItems: "center", marginTop: -46, paddingHorizontal: 18 }}>
             <Portrait name={name} size={92} ring={C.gold} glow frameBorder="#0A0A0F" photo={photo} />
             <Txt weight="displayBold" size={18} color="#fff" style={{ marginTop: 10 }}>{name}</Txt>
-            <View style={{ marginTop: 9 }}>
-              <BadgeRow size={26} badges={badges} />
-            </View>
-            {/* Premium seviye rozeti — gerçek boyutta */}
-            <View style={{ marginTop: 10 }}>
-              <PngBadge name={levelTierBadge(lv)} size={52} />
+            {/* Rozet vitrini — tek satır, premium PNG set, gerçek boyutta */}
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <PngBadge name="role_vip" size={44} />
+              <PngBadge name={levelTierBadge(lv)} size={44} />
+              <AgencyBadge size={44} />
+              <PngBadge name="role_streamer" size={44} />
             </View>
             <Pressable onPress={copyId} style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
               <Txt weight="semibold" size={11.5} color={C.dim}>ID: {id}</Txt>
@@ -186,7 +178,6 @@ export default function UserProfileScreen() {
             </Pressable>
             <View style={{ flexDirection: "row", gap: 14, marginTop: 11, alignItems: "center" }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <Badge type="level" size={15} lvl={lv} />
                 <Txt weight="extrabold" size={12} color="#5EEAD4">LV.{lv}</Txt>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
