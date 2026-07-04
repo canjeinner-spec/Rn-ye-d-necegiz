@@ -153,9 +153,12 @@ export default function ProfileTab() {
                 )}
               </View>
               {ozelId && ozelIdTip && ozelIdTema ? (
-                <Pressable onPress={() => { haptic.light(); setOzelIdInfo(true); }} style={{ marginTop: 4, alignSelf: "flex-start" }}>
-                  <OzelIdGosterim id={ozelId} tip={ozelIdTip} tema={ozelIdTema} premiumWidth={112} kapsulSize={8} />
-                </Pressable>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                  <Pressable onPress={() => { haptic.light(); setOzelIdInfo(true); }}>
+                    <OzelIdGosterim id={ozelId} tip={ozelIdTip} tema={ozelIdTema} premiumWidth={112} kapsulSize={8} />
+                  </Pressable>
+                  <Icon name="copy" size={12} color={C.dim2} />
+                </View>
               ) : (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
                   <Txt weight="semibold" size={10.5} color={C.dim}>ID: {publicId || "—"}</Txt>
@@ -269,7 +272,6 @@ export default function ProfileTab() {
         <OzelIdInfoModal
           visible={ozelIdInfo}
           onClose={() => setOzelIdInfo(false)}
-          onEdit={() => { setOzelIdInfo(false); router.navigate("/special-id"); }}
           id={ozelId}
           tip={ozelIdTip}
           tema={ozelIdTema}

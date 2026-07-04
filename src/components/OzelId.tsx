@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { Text, View } from "react-native";
 
-import { IdNameplate, type NameplateFrame } from "@/components/IdNameplate";
+import { PremiumBanner, type PremiumFrame } from "@/components/PremiumBanner";
 import { OZEL_ID_TEMA_RENK, type OzelIdKart } from "@/data/specialId";
 import { Gradient } from "@/theme/Gradient";
 import { Font } from "@/theme/fonts";
@@ -168,7 +168,7 @@ export function IdKapsul({ theme, id, size = 13 }: { theme: OzelIdKart; id: stri
 
 /**
  * ÖZEL ID gösterim — tip'e göre:
- *   premium → banner çerçevesi (IdNameplate, ID panele yazılır)
+ *   premium → hazır banner görseli (ID görsele baked, overlay YOK)
  *   kapsul  → kart amblemi + renk-uyumlu hap (IdKapsul)
  * tema yoksa düz ID metni.
  */
@@ -185,7 +185,7 @@ export function OzelIdGosterim({
   premiumWidth?: number;
   kapsulSize?: number;
 }) {
-  if (tip === "premium" && tema) return <IdNameplate frame={tema as NameplateFrame} text={id} width={premiumWidth} />;
+  if (tip === "premium" && tema) return <PremiumBanner frame={tema as PremiumFrame} width={premiumWidth} />;
   if (tip === "kapsul" && tema) return <IdKapsul theme={tema as OzelIdKart} id={id} size={kapsulSize} />;
   return (
     <Text style={{ fontFamily: Font.extrabold, fontSize: kapsulSize, color: "#F5CE6E", letterSpacing: 1 }}>

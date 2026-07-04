@@ -3,8 +3,8 @@ import { type ReactNode, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { IdNameplate, NAMEPLATE_FRAMES } from "@/components/IdNameplate";
 import { OzelIdGosterim, OzelIdKart as OzelIdKartView } from "@/components/OzelId";
+import { PremiumBanner, PREMIUM_FRAMES, PREMIUM_NUM } from "@/components/PremiumBanner";
 import { ThroneCard } from "@/components/ThroneCard";
 import { Txt } from "@/components/Txt";
 import {
@@ -53,9 +53,9 @@ function KapsulBolumu() {
   const [idText, setIdText] = useState(ozelId ?? "");
   const [tema, setTema] = useState<string | null>(ozelIdTema);
 
-  const maxLen = tip === "premium" ? 5 : 7;
-  const idGecerli = tip === "premium" ? idText.length >= 1 && idText.length <= 5 : idText.length >= 6 && idText.length <= 7;
-  const hazir = idGecerli && tema != null;
+  // Premium: ID banner'a baked → sadece seçim yeter. Kapsül: ID gir + tema seç.
+  const idGecerli = idText.length >= 6 && idText.length <= 7;
+  const hazir = tip === "premium" ? tema != null : idGecerli && tema != null;
 
   const setTip2 = (t: "premium" | "kapsul") => {
     haptic.select();
@@ -90,14 +90,14 @@ function KapsulBolumu() {
         <View style={styles.betaNote}>
           <Txt size={14}>🎖️</Txt>
           <Txt weight="semibold" size={11} color={C.gold2} style={{ flex: 1 }} lh={1.4}>
-            Beta Tester olarak <Txt weight="extrabold" size={11} color={C.gold2}>ücretsiz</Txt> kapsül kimlik hakkın var. Aşağıdan ID'ni gir ve temanı seç.
+            Beta Tester olarak <Txt weight="extrabold" size={11} color={C.gold2}>ücretsiz</Txt> kapsül kimlik hakkın var. Aşağıdan seç.
           </Txt>
         </View>
       )}
 
-      {/* Tip seçimi — Premium = banner çerçeve, Kapsül = kart teması */}
+      {/* Tip seçimi — Premium = hazır banner (listeden seç), Kapsül = kart + ID gir */}
       <View style={styles.tipRow}>
-        {([["kapsul", "Kapsül · 6-7 hane"], ["premium", "Premium · 1-5 hane"]] as const).map(([t, l]) => {
+        {([["kapsul", "Kapsül · 6-7 hane"], ["premium", "Premium · Listeden Seç"]] as const).map(([t, l]) => {
           const on = tip === t;
           return (
             <Pressable key={t} onPress={() => setTip2(t)} style={[styles.tipBtn, on && { borderColor: C.gold2, backgroundColor: "rgba(245,206,110,.12)" }]}>
@@ -107,34 +107,34 @@ function KapsulBolumu() {
         })}
       </View>
 
-      {/* ID girişi */}
-      <Txt weight="semibold" size={11} color={C.dim} style={{ marginTop: 14, marginBottom: 6 }}>
-        ID numaranı gir ({tip === "premium" ? "en fazla 5" : "6 – 7"} hane)
-      </Txt>
-      <TextInput
-        value={idText}
-        onChangeText={(t) => setIdText(t.replace(/\D/g, "").slice(0, maxLen))}
-        keyboardType="number-pad"
-        maxLength={maxLen}
-        placeholder={tip === "premium" ? "örn. 8888" : "örn. 123456"}
-        placeholderTextColor={C.dim2}
-        style={styles.idInput}
-      />
-      {idText.length > 0 && !idGecerli && (
-        <Txt weight="semibold" size={10.5} color={C.red} style={{ marginTop: 6 }}>
-          {tip === "premium" ? "Premium ID en fazla 5 hane olmalı." : "Kapsül ID 6 veya 7 hane olmalı."}
-        </Txt>
+      {tip === "kapsul" && (
+        <>
+          <Txt weight="semibold" size={11} color={C.dim} style={{ marginTop: 14, marginBottom: 6 }}>ID numaranı gir (6 – 7 hane)</Txt>
+          <TextInput
+            value={idText}
+            onChangeText={(t) => setIdText(t.replace(/\D/g, "").slice(0, 7))}
+            keyboardType="number-pad"
+            maxLength={7}
+            placeholder="örn. 123456"
+            placeholderTextColor={C.dim2}
+            style={styles.idInput}
+          />
+          {idText.length > 0 && !idGecerli && (
+            <Txt weight="semibold" size={10.5} color={C.red} style={{ marginTop: 6 }}>Kapsül ID 6 veya 7 hane olmalı.</Txt>
+          )}
+        </>
       )}
 
-      {/* Tema seçimi — Premium: banner çerçeveleri · Kapsül: kart temaları */}
-      <Txt weight="bold" size={12} color={C.gold2} style={{ marginTop: 16, marginBottom: 4 }}>Tema Seç</Txt>
+      <Txt weight="bold" size={12} color={C.gold2} style={{ marginTop: 16, marginBottom: 4 }}>
+        {tip === "premium" ? "Premium ID Seç" : "Tema Seç"}
+      </Txt>
       {tip === "premium" ? (
         <View style={styles.bannerGrid}>
-          {NAMEPLATE_FRAMES.map((f) => {
+          {PREMIUM_FRAMES.map((f) => {
             const on = tema === f;
             return (
-              <Pressable key={f} onPress={() => { haptic.select(); setTema(f); }} style={[styles.bannerCell, on && { borderColor: C.gold2, backgroundColor: "rgba(245,206,110,.12)" }]}>
-                <IdNameplate frame={f} text={idText || "12345"} width={150} />
+              <Pressable key={f} onPress={() => { haptic.select(); setTema(f); setIdText(PREMIUM_NUM[f]); }} style={[styles.bannerCell, on && { borderColor: C.gold2, backgroundColor: "rgba(245,206,110,.12)" }]}>
+                <PremiumBanner frame={f} width={150} />
               </Pressable>
             );
           })}
