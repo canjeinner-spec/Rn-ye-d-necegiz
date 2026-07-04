@@ -6,8 +6,10 @@ import { BadgeRow } from "@/components/BadgeRow";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { Eq } from "@/components/Eq";
 import { IdNameplate, NAMEPLATE_FRAMES } from "@/components/IdNameplate";
+import { IdKapsul, OzelIdKart } from "@/components/OzelId";
 import { Pill } from "@/components/Pill";
 import { PngBadge, type PngBadgeName } from "@/components/PngBadge";
+import { OZEL_ID_KARTLARI } from "@/data/specialId";
 import { Portrait } from "@/components/Portrait";
 import { RolePill } from "@/components/RolePill";
 import { Scene } from "@/components/Scene";
@@ -153,7 +155,33 @@ export default function Index() {
           </View>
 
           <Txt weight="bold" size={13} color={C.dim} style={styles.label}>
-            Özel ID nameplate ({NAMEPLATE_FRAMES.length} çerçeve)
+            ÖZEL ID hiyerarşisi (basamak sayısına göre)
+          </Txt>
+          <View style={{ paddingHorizontal: 18, gap: 8 }}>
+            <Txt weight="semibold" size={11} color={C.dim2}>≤5 basamak → premium kart (admin atar):</Txt>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+              <OzelIdKart frame="gold" id="88888" width={210} />
+              <OzelIdKart frame="celestial" id="54321" width={210} />
+              <OzelIdKart frame="dragon" id="100" width={210} />
+            </View>
+            <Txt weight="semibold" size={11} color={C.dim2} style={{ marginTop: 6 }}>6–7 basamak → ID kapsülü:</Txt>
+            <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+              <IdKapsul id="123456" />
+              <IdKapsul id="1234567" />
+            </View>
+          </View>
+
+          <Txt weight="bold" size={13} color={C.dim} style={styles.label}>
+            25 ÖZEL ID kart teması (kırpım onayı)
+          </Txt>
+          <View style={{ paddingHorizontal: 18, flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {OZEL_ID_KARTLARI.map((k) => (
+              <OzelIdKart key={k} frame={k} id="12345" width={160} />
+            ))}
+          </View>
+
+          <Txt weight="bold" size={13} color={C.dim} style={styles.label}>
+            Nameplate çerçeveleri ({NAMEPLATE_FRAMES.length})
           </Txt>
           <View style={{ paddingHorizontal: 18, gap: 10 }}>
             {NAMEPLATE_FRAMES.map((f, i) => (

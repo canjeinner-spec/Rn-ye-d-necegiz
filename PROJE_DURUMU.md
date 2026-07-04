@@ -328,6 +328,33 @@ Yeni bir sheet kırpılırsa bu normalize adımı standart olmalı.
   UI; (c) profil/ID gösteriminde nameplate'i bağla. Şu an sadece `preview.tsx`
   galerisinde 30'u da örnek metinle görünüyor.
 
+### Aşama 2b — ÖZEL ID KART HİYERARŞİSİ (BU OTURUM — asıl yön bu)
+Kullanıcı nameplate yerine **ID-kart formatına** geçti (solda kişi foto slotu +
+sağda ID metni). Kural **basamak sayısına** göre (`src/data/specialId.ts`):
+- **≤5 basamak** (100, 8888, 54321) → **premium KART**. 25 tema (bronze…star),
+  admin bir tema ATAR, ID metni kartın üzerine yazılır.
+- **6–7 basamak** (123456, 1234567) → **ID KAPSÜLÜ** (süslü çerçeve yok).
+- **8+** → düz numara, özel görünüm yok.
+- Yardımcılar: `ozelIdTier(id)`, `idBasamak(id)`, `OZEL_ID_KARTLARI` (25),
+  `OZEL_ID_KART_ADI` (title EN + sub TR). Eşikler: `OZEL_ID_KART_MAX=5`,
+  `OZEL_ID_KAPSUL_MAX=7`. **Not:** `specialId.ts`'te zaten olan pazar/tier
+  sistemi (super/t1/t2, SPECIAL_ID_DATA, THRONE_*) KORUNDU, üstüne eklendi.
+- Assetler: `assets/badges/idcard/*.png` (25 adet, 900px genişlik, ~1.9:1).
+  Kaynak `4aaa47e0-…png` (1536×1024, 5×5, etiketli). Kırpma:
+  `scratchpad/idcards/crop.js` — kenar flood-fill + **kart/etiket boşluğu
+  tespiti** (`cardBottom`: alt %58'den itibaren ilk tam-genişlik şeffaf bant =
+  kart altı; etiket metni atılır) + üst/yan kesikli-ayraç inset'i.
+- Bileşenler (`src/components/OzelId.tsx`): `<OzelIdKart frame id photo width/>`
+  (çerçeve + ID metni metin-bandına + opsiyonel foto kişi slotuna) ve
+  `<IdKapsul id/>` (6–7 basamak için elle stillenmiş premium kapsül — UI chrome).
+  Slot oranları (PHOTO_RECT/TEXT_RECT) tüm kartlarda ortak varsayılan; gold ve
+  celestial'da doğrulandı (gövde konumu kanatlı/kanatsız fark etmeksizin tutuyor).
+- **YAPILACAK (sonraki oturum):** (a) DB'ye kullanıcının atanan `ozel_id_kart`
+  kolonu + admin-user'da atama UI; (b) profil/kullanıcı-profil/oda-sohbetinde
+  ID gösteriminde `ozelIdTier`'a göre kart/kapsül bağla; (c) kanatlı birkaç
+  kartta slot oranını cihazda görüp ince ayar. Şu an `preview.tsx`'te hiyerarşi
+  demosu + 25 kartın tamamı görünüyor.
+
 ### Aşama 3 — Rozet bilgi kartı (BU OTURUM — tamam)
 - `src/components/BadgeInfoModal.tsx` — liquid-glass (BlurView) merkez modal:
   büyük rozet + glow + İngilizce başlık + Türkçe açıklama.
@@ -340,9 +367,11 @@ Yeni bir sheet kırpılırsa bu normalize adımı standart olmalı.
 
 - **Bu oturumda yapıldı:** (§9.5) Rozet Aşama 1 (level/role/special normalize —
   hizalama/boyut standardı, VIP dikey merkez düzeltildi), Aşama 2 (30 özel ID
-  nameplate kırpıldı + `IdNameplate` bileşeni + preview galerisi), Aşama 3
-  (rozet tıkla → liquid-glass bilgi kartı). `npx tsc --noEmit` temiz, web export
-  başarılı. Oda rozetleri kullanıcı isteğiyle bu turda değiştirilmedi.
+  nameplate) + **Aşama 2b (25 ÖZEL ID KART + basamak-tabanlı hiyerarşi —
+  ≤5=kart, 6-7=kapsül; `specialId.ts`+`OzelId.tsx`)**, Aşama 3 (rozet tıkla →
+  liquid-glass bilgi kartı). `npx tsc --noEmit` temiz, web export başarılı. Oda
+  rozetleri kullanıcı isteğiyle bu turda değiştirilmedi. **Sonraki adım:** ÖZEL
+  ID kartını DB + admin atama + profil gösterimine bağlamak (§Aşama 2b sonu).
 - **Son commit:** `3f592d4` — "Tab bar cilası + Android klavye düzeltmesi"
   (dal: `claude/metro-recovery-1xc2kq`, origin ile senkron, çalışma ağacı
   temiz).
