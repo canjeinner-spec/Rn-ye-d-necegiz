@@ -53,7 +53,6 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
         <Txt weight="extrabold" size={14} color="#fff" numberOfLines={1}>
           {room.name}
         </Txt>
-        {room.badges && <RoomBadges badges={room.badges} size={17} />}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Txt weight="semibold" size={10.5} color={C.dim}>Arkadaşlar</Txt>
           <View style={{ flexDirection: "row" }}>
@@ -68,16 +67,19 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
       </View>
 
       <View style={{ minWidth: tier ? 84 : undefined, alignItems: "flex-end", justifyContent: tier ? "flex-end" : "space-between", alignSelf: "stretch" }}>
-        {!tier && (room.live ? (
-          <Gradient colors={["#8B5CF6", "#6D28D9"]} deg={135} style={styles.livePill}>
-            <View style={styles.liveDot} />
-            <Txt weight="extrabold" size={10} color="#fff">Canlı</Txt>
-          </Gradient>
-        ) : (
-          <View style={[styles.livePill, { backgroundColor: "rgba(255,255,255,.08)" }]}>
-            <Txt weight="extrabold" size={10} color={C.dim}>Yakında</Txt>
-          </View>
-        ))}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          {room.badges && <RoomBadges badges={room.badges} size={22} />}
+          {!tier && (room.live ? (
+            <Gradient colors={["#8B5CF6", "#6D28D9"]} deg={135} style={styles.livePill}>
+              <View style={styles.liveDot} />
+              <Txt weight="extrabold" size={10} color="#fff">Canlı</Txt>
+            </Gradient>
+          ) : (
+            <View style={[styles.livePill, { backgroundColor: "rgba(255,255,255,.08)" }]}>
+              <Txt weight="extrabold" size={10} color={C.dim}>Yakında</Txt>
+            </View>
+          ))}
+        </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
           <Icon name="user" size={12} color={C.dim2} />
           <Txt weight="bold" size={10.5} color={C.dim}>{room.online}</Txt>
