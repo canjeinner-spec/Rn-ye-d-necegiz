@@ -1,6 +1,17 @@
 import { type BadgeType } from "@/components/Badge";
+import { type PngBadgeName } from "@/components/PngBadge";
 
 export type BadgeKind = BadgeType | "agency";
+
+/** Kullanıcı seviyesine göre premium seviye rozeti (level/*.png) seçer. */
+export function levelTierBadge(level: number): PngBadgeName {
+  if (level >= 50) return "level_legendary";
+  if (level >= 40) return "level_diamond";
+  if (level >= 30) return "level_platinum";
+  if (level >= 20) return "level_gold";
+  if (level >= 10) return "level_silver";
+  return "level_bronze";
+}
 
 export type BadgeItem = {
   type: BadgeKind;

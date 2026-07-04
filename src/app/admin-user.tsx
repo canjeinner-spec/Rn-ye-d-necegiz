@@ -4,8 +4,10 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "reac
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
+import { PngBadge } from "@/components/PngBadge";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
+import { levelTierBadge } from "@/data/badges";
 import { getUserDetail, type AdminUserDetail } from "@/data/remote/adminRepo";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
@@ -100,6 +102,12 @@ export default function AdminUserHub() {
                   </View>
                   {!!d.email && <Txt size={10.5} color={C.dim2} style={{ marginTop: 3 }} numberOfLines={1}>{d.email}</Txt>}
                   {!!d.kayitTarihi && <Txt size={10} color={C.dim2} style={{ marginTop: 2 }}>Kayıt: {kayit(d.kayitTarihi)}</Txt>}
+                </View>
+                {/* Premium rozetler — gerçek boyutta */}
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  {d.rol === "developer" && <PngBadge name="role_developer" size={44} />}
+                  {d.rol === "super_admin" && <PngBadge name="role_super_admin" size={44} />}
+                  <PngBadge name={levelTierBadge(d.level)} size={44} />
                 </View>
               </View>
               {(d.hesapYasakli || d.micBanned) && (

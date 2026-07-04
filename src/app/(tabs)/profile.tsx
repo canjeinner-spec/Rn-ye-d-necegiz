@@ -9,10 +9,11 @@ import { AuthorityTag } from "@/components/AuthorityTag";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { MenuIcon } from "@/components/MenuIcon";
 import { Pill } from "@/components/Pill";
+import { PngBadge } from "@/components/PngBadge";
 import { Portrait } from "@/components/Portrait";
 import { TileIcon, type TileType } from "@/components/TileIcon";
 import { Txt } from "@/components/Txt";
-import { type BadgeItem } from "@/data/badges";
+import { type BadgeItem, levelTierBadge } from "@/data/badges";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { getFollowCounts } from "@/data/remote/followRepo";
@@ -35,7 +36,7 @@ type MenuItem = { ic: IconName; g1: string; g2: string; t: string; s?: string; r
 
 export default function ProfileTab() {
   const router = useRouter();
-  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, setStreamer, role, setRole, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
+  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, setStreamer, betaTester, setBetaTester, role, setRole, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
 
   // Cache-first sayaçlar: son bilinen değeri ANINDA göster (persist), arkada tazele.
   const { data: followCounts } = useCachedResource<{ followers: number; following: number }>(
@@ -170,6 +171,15 @@ export default function ProfileTab() {
             <Pill bg="rgba(255,255,255,.05)" color={C.dim} border={C.line}>🇹🇷 Türkiye</Pill>
           </View>
 
+          {/* Premium rozet vitrini — yeni PNG set (level/role/beta), gerçek boyutta */}
+          <View style={styles.premiumRow}>
+            <PngBadge name={levelTierBadge(userLevel)} size={52} />
+            {role === "developer" && <PngBadge name="role_developer" size={52} />}
+            {role === "super_admin" && <PngBadge name="role_super_admin" size={52} />}
+            {isStreamer && <PngBadge name="role_streamer" size={52} />}
+            {betaTester && <PngBadge name="special_beta_tester" size={52} />}
+          </View>
+
           {!!userBio && <Txt size={12} color={C.dim} lh={1.5} style={{ marginTop: 10 }}>{userBio}</Txt>}
 
           <View style={{ flexDirection: "row", marginTop: 16 }}>
@@ -207,6 +217,13 @@ export default function ProfileTab() {
           <Pressable onPress={() => { haptic.light(); setStreamer(!isStreamer); }} style={styles.streamerToggle}>
             <Txt weight="semibold" size={11} color={C.dim} style={{ flex: 1 }}>Demo · Yayıncı hesabı</Txt>
             <View style={[styles.toggle, { backgroundColor: isStreamer ? C.green : "rgba(255,255,255,.12)", alignItems: isStreamer ? "flex-end" : "flex-start" }]}>
+              <View style={styles.knob} />
+            </View>
+          </Pressable>
+
+          <Pressable onPress={() => { haptic.light(); setBetaTester(!betaTester); }} style={styles.streamerToggle}>
+            <Txt weight="semibold" size={11} color={C.dim} style={{ flex: 1 }}>Demo · Beta Tester rozeti</Txt>
+            <View style={[styles.toggle, { backgroundColor: betaTester ? C.teal : "rgba(255,255,255,.12)", alignItems: betaTester ? "flex-end" : "flex-start" }]}>
               <View style={styles.knob} />
             </View>
           </Pressable>
@@ -251,6 +268,7 @@ const styles = StyleSheet.create({
   cover: { height: 104, position: "relative" },
   editBtn: { position: "absolute", right: 14, bottom: 12, width: 34, height: 34, borderRadius: 12, backgroundColor: "rgba(0,0,0,.3)", alignItems: "center", justifyContent: "center" },
   camBadge: { position: "absolute", right: 0, bottom: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: C.gold2, borderWidth: 2.5, borderColor: "#08080C", alignItems: "center", justifyContent: "center" },
+  premiumRow: { flexDirection: "row", gap: 12, marginTop: 14, alignItems: "center" },
   tileRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 18, backgroundColor: "rgba(255,255,255,.03)", borderRadius: 20, paddingVertical: 16, paddingHorizontal: 8 },
   wallet: { flexDirection: "row", alignItems: "center", marginTop: 16, backgroundColor: "rgba(255,255,255,.03)", borderRadius: 20, padding: 16 },
   streamerToggle: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderStyle: "dashed", borderColor: C.line, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14 },

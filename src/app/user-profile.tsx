@@ -7,7 +7,8 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Badge } from "@/components/Badge";
 import { BadgeRow } from "@/components/BadgeRow";
 import { CenterModal } from "@/components/CenterModal";
-import { type BadgeItem } from "@/data/badges";
+import { PngBadge } from "@/components/PngBadge";
+import { type BadgeItem, levelTierBadge } from "@/data/badges";
 import { Portrait } from "@/components/Portrait";
 import { Scene } from "@/components/Scene";
 import { Txt } from "@/components/Txt";
@@ -173,6 +174,10 @@ export default function UserProfileScreen() {
             <Txt weight="displayBold" size={18} color="#fff" style={{ marginTop: 10 }}>{name}</Txt>
             <View style={{ marginTop: 9 }}>
               <BadgeRow size={26} badges={badges} />
+            </View>
+            {/* Premium seviye rozeti — gerçek boyutta */}
+            <View style={{ marginTop: 10 }}>
+              <PngBadge name={levelTierBadge(lv)} size={52} />
             </View>
             <Pressable onPress={copyId} style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
               <Txt weight="semibold" size={11.5} color={C.dim}>ID: {id}</Txt>

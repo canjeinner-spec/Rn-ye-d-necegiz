@@ -71,9 +71,11 @@ type AppState = {
   userLevel: number; // gerçek seviye (kullanicilar.seviye_id)
   userXp: number; // gerçek deneyim puanı
   isStreamer: boolean;
+  betaTester: boolean; // demo — beta rozeti göstermek için (kalıcı DB alanı yok)
   role: UserRole;
   hideProfile: boolean;
   setRole: (r: UserRole) => void;
+  setBetaTester: (v: boolean) => void;
   setHideProfile: (v: boolean) => void;
   myRoom: Room | null;
   currentRoom: Room | null;
@@ -327,6 +329,7 @@ export const useApp = create<AppState>((set, get) => ({
   userLevel: 1,
   userXp: 0,
   isStreamer: false,
+  betaTester: false,
   role: "user",
   hideProfile: false,
   setRole: (r) => set({ role: r }),
@@ -362,6 +365,7 @@ export const useApp = create<AppState>((set, get) => ({
   setUserBio: (b) => set({ userBio: b }),
   setUserPhoto: (p) => set({ userPhoto: p }),
   setStreamer: (v) => set({ isStreamer: v }),
+  setBetaTester: (v) => set({ betaTester: v }),
 
   enterRoom: (r) =>
     set({

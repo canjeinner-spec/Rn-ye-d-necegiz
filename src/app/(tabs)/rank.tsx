@@ -6,15 +6,16 @@ import { AgencyEmblem } from "@/components/AgencyEmblem";
 import { Badge } from "@/components/Badge";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { Pill } from "@/components/Pill";
+import { PngBadge, type PngBadgeName } from "@/components/PngBadge";
 import { Portrait } from "@/components/Portrait";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { AGENCY_RANKS, RANKS, STREAMER_RANKS } from "@/data/seed";
-import { Icon } from "@/icons/Icon";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
 const MEDAL: Record<number, string> = { 1: C.gold, 2: "#C7CCD6", 3: "#C9803B" };
+const PLACE_BADGE: Record<number, PngBadgeName> = { 1: "room_weekly_champion", 2: "room_rank_silver", 3: "room_rank_bronze" };
 
 function ScorePill({ icon, value, faint }: { icon: "coin" | "diamond"; value: string; faint?: boolean }) {
   return (
@@ -80,7 +81,7 @@ export default function RankTab() {
                   const big = place === 1;
                   return (
                     <View key={p.name} style={{ alignItems: "center", gap: 6 }}>
-                      {big && <Icon name="crown" size={20} color={C.gold} />}
+                      <PngBadge name={PLACE_BADGE[place]} size={big ? 60 : 44} />
                       <Portrait name={p.name} size={big ? 72 : 54} ring={MEDAL[place]} glow={big} />
                       <Txt weight="extrabold" size={12} color="#fff">{p.name}</Txt>
                       <ScorePill icon="coin" value={p.coins} />
