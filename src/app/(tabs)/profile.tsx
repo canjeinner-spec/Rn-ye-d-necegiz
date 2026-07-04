@@ -4,11 +4,11 @@ import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AgencyBadge } from "@/components/AgencyEmblem";
 import { AuthorityTag } from "@/components/AuthorityTag";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { MenuIcon } from "@/components/MenuIcon";
 import { OzelIdGosterim } from "@/components/OzelId";
+import { OzelIdInfoModal } from "@/components/OzelIdInfoModal";
 import { PngBadge } from "@/components/PngBadge";
 import { Portrait } from "@/components/Portrait";
 import { TileIcon, type TileType } from "@/components/TileIcon";
@@ -36,6 +36,7 @@ type MenuItem = { ic: IconName; g1: string; g2: string; t: string; s?: string; r
 
 export default function ProfileTab() {
   const router = useRouter();
+  const [ozelIdInfo, setOzelIdInfo] = useState(false);
   const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, setStreamer, betaTester, setBetaTester, ozelId, ozelIdTip, ozelIdTema, role, setRole, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
 
   // Cache-first sayaçlar: son bilinen değeri ANINDA göster (persist), arkada tazele.
@@ -152,8 +153,8 @@ export default function ProfileTab() {
                 )}
               </View>
               {ozelId && ozelIdTip && ozelIdTema ? (
-                <Pressable onPress={() => { haptic.light(); router.navigate("/special-id"); }} style={{ marginTop: 4, alignSelf: "flex-start" }}>
-                  <OzelIdGosterim id={ozelId} tip={ozelIdTip} tema={ozelIdTema} premiumWidth={150} kapsulSize={10} />
+                <Pressable onPress={() => { haptic.light(); setOzelIdInfo(true); }} style={{ marginTop: 4, alignSelf: "flex-start" }}>
+                  <OzelIdGosterim id={ozelId} tip={ozelIdTip} tema={ozelIdTema} premiumWidth={112} kapsulSize={8} />
                 </Pressable>
               ) : (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
@@ -170,7 +171,6 @@ export default function ProfileTab() {
             {role === "super_admin" && <PngBadge name="role_super_admin" size={28} />}
             <PngBadge name="role_vip" size={28} />
             <PngBadge name={levelTierBadge(userLevel)} size={28} />
-            <AgencyBadge size={28} />
             {isStreamer && <PngBadge name="role_streamer" size={28} />}
             {betaTester && <PngBadge name="special_beta_tester" size={28} />}
           </View>
@@ -265,6 +265,16 @@ export default function ProfileTab() {
       <EditProfileSheet visible={editOpen} onClose={() => setEditOpen(false)} />
       <CouponSheet visible={couponOpen} onClose={() => setCouponOpen(false)} />
       <ProfileInfoSheet visible={info !== null} mode={info ?? "lang"} lang={lang} setLang={setLang} onClose={() => setInfo(null)} />
+      {ozelId && ozelIdTip && ozelIdTema && (
+        <OzelIdInfoModal
+          visible={ozelIdInfo}
+          onClose={() => setOzelIdInfo(false)}
+          onEdit={() => { setOzelIdInfo(false); router.navigate("/special-id"); }}
+          id={ozelId}
+          tip={ozelIdTip}
+          tema={ozelIdTema}
+        />
+      )}
     </View>
   );
 }

@@ -44,7 +44,9 @@ export const NAMEPLATE_FRAMES = Object.keys(FRAME) as NameplateFrame[];
 // Her çerçevenin metin oturacağı iç panel oranları (frame'e göre normalize).
 // Soldaki madalyonlu çerçevelerde metin sağa kayar. Varsayılan simetrik.
 type Rect = { l: number; r: number; t: number; b: number };
-const DEFAULT_RECT: Rect = { l: 0.19, r: 0.86, t: 0.30, b: 0.72 };
+// Çoğu banner'da sol tarafta amblem/gem var, panel SAĞDA — bu yüzden metin
+// paneli sağa kaydırılmış (merkez ~0.59). Panel tespitiyle doğrulandı.
+const DEFAULT_RECT: Rect = { l: 0.34, r: 0.84, t: 0.32, b: 0.72 };
 const LEFT_MEDALLION: Record<string, Rect> = {
   nameplate_01: { l: 0.36, r: 0.9, t: 0.3, b: 0.72 },
   nameplate_02: { l: 0.36, r: 0.9, t: 0.3, b: 0.72 },
@@ -72,40 +74,45 @@ export function IdNameplate({
   const boxWidth = width * (rect.r - rect.l);
   const boxTop = height * rect.t;
   const boxHeight = height * (rect.b - rect.t);
-  // metin yüksekliğe göre ölçekle, adjustsFontSizeToFit genişliğe sığdırır
-  const fontSize = Math.min(boxHeight * 0.92, width * 0.11);
+  // Sabit font: hem genişliğe hem yüksekliğe sığdır (tüm kabartma katmanları
+  // aynı boyutta olmalı ki üst üste otursun).
+  const fontSize = Math.max(9, Math.min(boxHeight * 0.82, (boxWidth * 0.92) / Math.max(3, text.length) / 0.6));
+
+  // Kabartma (emboss): koyu gölge (alt-sağ) + açık ışık (üst-sol) + metalik ana
+  // katman. Premium/ultra-high 3B görünüm.
+  const layer = (col: string, dx: number, dy: number, extra?: object) => (
+    <Text
+      numberOfLines={1}
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        textAlign: "center",
+        lineHeight: boxHeight,
+        fontFamily: Font.displayBold,
+        fontSize,
+        letterSpacing: 1.5,
+        includeFontPadding: false,
+        color: col,
+        transform: [{ translateX: dx }, { translateY: dy }],
+        ...extra,
+      }}
+    >
+      {text}
+    </Text>
+  );
 
   return (
     <View style={{ width, height }}>
       <Image source={FRAME[frame]} style={{ width, height }} contentFit="contain" />
-      <View
-        style={{
-          position: "absolute",
-          left: boxLeft,
-          top: boxTop,
-          width: boxWidth,
-          height: boxHeight,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-        pointerEvents="none"
-      >
-        <Text
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          style={{
-            fontFamily: Font.displayBold,
-            fontSize,
-            color,
-            letterSpacing: 1,
-            includeFontPadding: false,
-            textShadowColor: "rgba(0,0,0,.6)",
-            textShadowOffset: { width: 0, height: 1 },
-            textShadowRadius: 3,
-          }}
-        >
-          {text}
-        </Text>
+      <View style={{ position: "absolute", left: boxLeft, top: boxTop, width: boxWidth, height: boxHeight }} pointerEvents="none">
+        {layer("rgba(0,0,0,0.72)", 1.4, 1.8)}
+        {layer("rgba(255,248,220,0.55)", -0.8, -1.1)}
+        {layer(color, 0, 0, {
+          textShadowColor: "rgba(0,0,0,0.35)",
+          textShadowOffset: { width: 0, height: 0.5 },
+          textShadowRadius: 1,
+        })}
       </View>
     </View>
   );
