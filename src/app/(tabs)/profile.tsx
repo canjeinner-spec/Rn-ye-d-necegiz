@@ -155,7 +155,7 @@ export default function ProfileTab() {
               {ozelId && ozelIdTip && ozelIdTema ? (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
                   <Pressable onPress={() => { haptic.light(); setOzelIdInfo(true); }}>
-                    <OzelIdGosterim id={ozelId} tip={ozelIdTip} tema={ozelIdTema} premiumWidth={112} kapsulSize={8} />
+                    <OzelIdGosterim id={ozelId} tip={ozelIdTip} tema={ozelIdTema} premiumWidth={88} kapsulSize={8} />
                   </Pressable>
                   <Icon name="copy" size={12} color={C.dim2} />
                 </View>
@@ -166,6 +166,14 @@ export default function ProfileTab() {
                 </View>
               )}
             </View>
+            {/* Kendi profilini herkese göründüğü gibi (public) önizle */}
+            <Pressable
+              onPress={() => { haptic.light(); router.navigate(`/user-profile?self=1${publicId ? `&publicId=${encodeURIComponent(publicId)}` : ""}&name=${encodeURIComponent(userName)}`); }}
+              hitSlop={10}
+              style={{ alignSelf: "center", paddingLeft: 4 }}
+            >
+              <Icon name="chev" size={22} color={C.dim} />
+            </Pressable>
           </View>
 
           {/* Rozet vitrini — tek satır, premium PNG set, eski SVG boyutunda */}

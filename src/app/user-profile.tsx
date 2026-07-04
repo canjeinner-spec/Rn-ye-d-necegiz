@@ -42,7 +42,8 @@ export default function UserProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const setActiveDM = useApp((s) => s.setActiveDM);
-  const params = useLocalSearchParams<{ name?: string; lv?: string; publicId?: string }>();
+  const params = useLocalSearchParams<{ name?: string; lv?: string; publicId?: string; self?: string }>();
+  const self = params.self === "1"; // kendi profilini public görünümde önizleme
 
   // publicId verilmişse gerçek profili DB'den yükle (yoksa mock parametreler).
   const [profile, setProfile] = useState<PublicProfile | null>(null);
@@ -56,7 +57,7 @@ export default function UserProfileScreen() {
       if (!alive) return;
       setProfile(p);
       if (p) {
-        recordVisit(p.id).catch(() => {}); // ziyareti kaydet
+        if (!self) recordVisit(p.id).catch(() => {}); // kendi önizlemende ziyaret sayma
         getFollowState(p.id).then((s) => {
           if (!alive) return;
           setFollowers(s.followers);
@@ -268,7 +269,13 @@ export default function UserProfileScreen() {
         )}
 
         <View style={[styles.actionBar, { paddingBottom: 14 + insets.bottom }]}>
-          {blockedByThem ? (
+          {self ? (
+            // Kendi profilin — herkes böyle görüyor (aksiyon yok)
+            <View style={styles.blockNotice}>
+              <Icon name="eye" size={15} color={C.gold2} />
+              <Txt weight="bold" size={12.5} color={C.gold2} numberOfLines={1} style={{ flexShrink: 1 }}>Önizleme · Profilin başkalarına böyle görünüyor</Txt>
+            </View>
+          ) : blockedByThem ? (
             // Karşı taraf engellemiş → salt bilgilendirme (tek satır)
             <View style={styles.blockNotice}>
               <Icon name="blockuser" size={15} color={C.dim} />
