@@ -1,5 +1,5 @@
 -- ============================================================================
--- HEPSI_020_043.sql — 020..024 + 026..043 tek dosyada (BİRLEŞİK, idempotent)
+-- HEPSI_020_046.sql — 020..024 + 026..046 tek dosyada (BİRLEŞİK, idempotent)
 -- ----------------------------------------------------------------------------
 -- KULLANIM (Supabase SQL Editor):
 --   1) ÖNCE 025_rol_enum_degerleri.sql'i TEK BAŞINA çalıştır (enum değerleri).
@@ -1848,3 +1848,237 @@ BEGIN
 END; $$;
 REVOKE ALL ON FUNCTION public.odaya_mesaj_gonder(BIGINT, TEXT, TEXT, TEXT, BOOLEAN) FROM public;
 GRANT EXECUTE ON FUNCTION public.odaya_mesaj_gonder(BIGINT, TEXT, TEXT, TEXT, BOOLEAN) TO authenticated;
+
+-- ############################################################################
+-- 044_ozel_id.sql
+-- ############################################################################
+-- ============================================================================
+-- 044_ozel_id.sql — ÖZEL ID (vitrin kimliği) + beta/premium HAK (entitlement)
+-- ----------------------------------------------------------------------------
+-- ÇALIŞTIRMA: 016 + 041/043'ten SONRA (Supabase SQL Editor). Idempotent.
+--
+--   • kullanicilar'a ozel_id / ozel_id_tip / ozel_id_tema + beta_tester +
+--     premium_hak kolonları.
+--   • ozel_id AYRI vitrin kolonu — public_id DEĞİŞMEZ (DM/link/işlem sabit).
+--     UI'da public_id yerine ozel_id gösterilir. public_id 9+ hane (045),
+--     ozel_id ≤7 hane → asla çakışmaz; arama iki kolonu da eşler.
+--   • KRİTİK: kimse kendi kafasına özel ID ALAMAZ. beta_tester → yalnız KAPSÜL
+--     (6-7 hane); premium_hak → PREMIUM (≤5 hane). RPC bunu ZORLAR (SECURITY
+--     DEFINER); beta_tester/premium_hak kullanıcıya UPDATE edilemez (admin atar).
+-- ============================================================================
+
+-- ---- 1) Kolonlar -----------------------------------------------------------
+ALTER TABLE public.kullanicilar
+    ADD COLUMN IF NOT EXISTS ozel_id      TEXT,
+    ADD COLUMN IF NOT EXISTS ozel_id_tip  TEXT,
+    ADD COLUMN IF NOT EXISTS ozel_id_tema TEXT,
+    ADD COLUMN IF NOT EXISTS beta_tester  BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS premium_hak  BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE public.kullanicilar DROP CONSTRAINT IF EXISTS chk_ozel_id_tip;
+ALTER TABLE public.kullanicilar ADD CONSTRAINT chk_ozel_id_tip
+    CHECK (ozel_id_tip IS NULL OR ozel_id_tip IN ('premium', 'kapsul'));
+
+-- Özel ID benzersiz (yalnızca dolu olanlar)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_kullanicilar_ozel_id
+    ON public.kullanicilar (ozel_id) WHERE ozel_id IS NOT NULL;
+
+-- ---- 2) Okuma yetkisi (kendi satırı). UPDATE grant YOK → yalnız RPC yazar ----
+GRANT SELECT (ozel_id, ozel_id_tip, ozel_id_tema, beta_tester, premium_hak)
+    ON public.kullanicilar TO authenticated;
+
+-- ---- 3) profiller view'ini özel ID kolonlarıyla yeniden oluştur -------------
+CREATE OR REPLACE VIEW public.profiller WITH (security_invoker = off) AS
+SELECT
+    id, public_id, kullanici_adi, profil_resmi, biyografi,
+    cinsiyet, ulke, sehir, seviye_id, deneyim_puani, durum,
+    ekonomi_rolu, ozel_id, ozel_id_tip, ozel_id_tema, olusturulma_tarihi
+FROM public.kullanicilar
+WHERE silinmis = FALSE;
+GRANT SELECT ON public.profiller TO authenticated, anon;
+
+-- ---- 4) RPC: özel ID ayarla (entitlement + basamak + benzersizlik) ----------
+CREATE OR REPLACE FUNCTION public.ozel_id_ayarla(p_id TEXT, p_tip TEXT, p_tema TEXT)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_uid  BIGINT;
+    v_beta BOOLEAN;
+    v_prem BOOLEAN;
+    v_len  INT;
+BEGIN
+    SELECT id, beta_tester, premium_hak INTO v_uid, v_beta, v_prem
+        FROM public.kullanicilar WHERE auth_uid = (SELECT auth.uid());
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'Oturum bulunamadı.'; END IF;
+
+    p_id := trim(coalesce(p_id, ''));
+    IF p_id !~ '^[0-9]+$' THEN RAISE EXCEPTION 'ID yalnızca rakamlardan oluşmalı.'; END IF;
+    IF coalesce(trim(p_tema), '') = '' THEN RAISE EXCEPTION 'Bir tema seçmelisin.'; END IF;
+    v_len := length(p_id);
+
+    IF p_tip = 'premium' THEN
+        IF NOT v_prem THEN RAISE EXCEPTION 'Premium özel ID hakkın yok.'; END IF;
+        IF v_len < 1 OR v_len > 5 THEN RAISE EXCEPTION 'Premium ID en fazla 5 hane olmalı.'; END IF;
+    ELSIF p_tip = 'kapsul' THEN
+        IF NOT (v_beta OR v_prem) THEN RAISE EXCEPTION 'Kapsül özel ID hakkın yok.'; END IF;
+        IF v_len < 6 OR v_len > 7 THEN RAISE EXCEPTION 'Kapsül ID 6 veya 7 hane olmalı.'; END IF;
+    ELSE
+        RAISE EXCEPTION 'Geçersiz tip.';
+    END IF;
+
+    -- Benzersizlik: HEM public_id HEM ozel_id (kendi satırı hariç)
+    IF EXISTS (
+        SELECT 1 FROM public.kullanicilar
+        WHERE id <> v_uid AND (public_id = p_id OR ozel_id = p_id)
+    ) THEN
+        RAISE EXCEPTION 'Bu ID zaten kullanımda.';
+    END IF;
+
+    UPDATE public.kullanicilar
+        SET ozel_id = p_id, ozel_id_tip = p_tip, ozel_id_tema = trim(p_tema)
+        WHERE id = v_uid;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.ozel_id_ayarla(TEXT, TEXT, TEXT) FROM public;
+GRANT EXECUTE ON FUNCTION public.ozel_id_ayarla(TEXT, TEXT, TEXT) TO authenticated;
+
+-- ---- 5) RPC: özel ID kaldır ------------------------------------------------
+CREATE OR REPLACE FUNCTION public.ozel_id_kaldir()
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
+AS $$
+BEGIN
+    UPDATE public.kullanicilar
+        SET ozel_id = NULL, ozel_id_tip = NULL, ozel_id_tema = NULL
+        WHERE auth_uid = (SELECT auth.uid());
+END;
+$$;
+REVOKE ALL ON FUNCTION public.ozel_id_kaldir() FROM public;
+GRANT EXECUTE ON FUNCTION public.ozel_id_kaldir() TO authenticated;
+
+-- ---- 6) Admin: beta/premium HAK atama (yalnız developer/super_admin + log) --
+CREATE OR REPLACE FUNCTION public.admin_hak_ata(p_hedef BIGINT, p_alan TEXT, p_deger BOOLEAN)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
+AS $$
+BEGIN
+    IF NOT public.ben_platform_yoneticisi() THEN RAISE EXCEPTION 'Yetkisiz.'; END IF;
+    IF p_alan NOT IN ('beta_tester', 'premium_hak') THEN RAISE EXCEPTION 'Geçersiz alan.'; END IF;
+
+    IF p_alan = 'beta_tester' THEN
+        UPDATE public.kullanicilar SET beta_tester = p_deger WHERE id = p_hedef;
+    ELSE
+        UPDATE public.kullanicilar SET premium_hak = p_deger WHERE id = p_hedef;
+    END IF;
+
+    PERFORM public._yonetici_log('kullanici', p_hedef,
+        (CASE WHEN p_deger THEN 'hak_ver' ELSE 'hak_al' END),
+        jsonb_build_object('alan', p_alan));
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_hak_ata(BIGINT, TEXT, BOOLEAN) FROM public;
+GRANT EXECUTE ON FUNCTION public.admin_hak_ata(BIGINT, TEXT, BOOLEAN) TO authenticated;
+
+-- ############################################################################
+-- 045_public_id_9hane.sql
+-- ############################################################################
+-- ============================================================================
+-- 045_public_id_9hane.sql — Yeni kayıtlara 9+ haneli public_id
+-- ----------------------------------------------------------------------------
+-- ÇALIŞTIRMA: 016'dan SONRA. Idempotent (OR REPLACE).
+--
+-- Neden: Özel ID'ler (kapsül 6-7, premium ≤5 hane) NADİR/anlamlı olsun diye,
+-- normal kayıt olan kullanıcılara 9+ haneli ID verilir. 9+ hane ile ≤7 haneli
+-- özel ID'ler ASLA çakışmaz → arama iki kolonu da eşleştirebilir, çift anlam yok.
+--
+-- NOT: Mevcut kullanıcılar BACKFILL EDİLMEZ (ID'leri korunur). Sadece yeni kayıt.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.yeni_public_id()
+RETURNS TEXT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_id  TEXT;
+    v_try INT := 0;
+BEGIN
+    LOOP
+        -- [100000000, 999999999] → 9 hane
+        v_id := (floor(random() * 900000000) + 100000000)::bigint::text;
+        EXIT WHEN NOT EXISTS (SELECT 1 FROM public.kullanicilar WHERE public_id = v_id);
+        v_try := v_try + 1;
+        IF v_try > 50 THEN
+            -- güvenlik supabı: 10 haneli aralığa çık
+            v_id := (floor(random() * 9000000000) + 1000000000)::bigint::text;
+            EXIT WHEN NOT EXISTS (SELECT 1 FROM public.kullanicilar WHERE public_id = v_id);
+        END IF;
+    END LOOP;
+    RETURN v_id;
+END;
+$$;
+
+-- ############################################################################
+-- 046_beta_kapsul_dm.sql
+-- ############################################################################
+-- ============================================================================
+-- 046_beta_kapsul_dm.sql — Beta kapsül hatırlatması → Sistem DM (otomatik, 1 kez)
+-- ----------------------------------------------------------------------------
+-- ÇALIŞTIRMA: 041/043 (sistem_duyurulari + hedef_kullanici_id) ve 044'ten SONRA.
+--
+-- Beta tester olup henüz özel ID almamış kullanıcıya, uygulama açılınca OTOMATİK
+-- (client `beta_kapsul_hatirlat()` çağırır) bir kez "Sistem" DM'i düşer:
+-- ücretsiz kapsül hakkını Özel ID sayfasından alması için yönlendirme. Mesaj
+-- mevcut sistem_duyurulari mekanizmasıyla kullanıcının "Sistem" DM thread'inde
+-- görünür (kanal='sistem', hedef_kullanici_id = kendisi → yalnız o görür).
+--
+-- Idempotent: beta_kapsul_hatirlatildi bayrağı ile bir daha atmaz. Profildeki
+-- yönlendirme banner'ı ayrıca FALLBACK olarak durur (DM gitmeme riskine karşı).
+-- ============================================================================
+
+ALTER TABLE public.kullanicilar
+    ADD COLUMN IF NOT EXISTS beta_kapsul_hatirlatildi BOOLEAN NOT NULL DEFAULT false;
+
+CREATE OR REPLACE FUNCTION public.beta_kapsul_hatirlat()
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_uid  BIGINT;
+    v_beta BOOLEAN;
+    v_ozel TEXT;
+    v_flag BOOLEAN;
+    v_did  BIGINT;
+BEGIN
+    SELECT id, beta_tester, ozel_id, beta_kapsul_hatirlatildi
+        INTO v_uid, v_beta, v_ozel, v_flag
+        FROM public.kullanicilar WHERE auth_uid = (SELECT auth.uid());
+
+    -- Koşul: beta + özel ID YOK + daha önce hatırlatılmadı
+    IF v_uid IS NULL OR NOT v_beta OR v_ozel IS NOT NULL OR v_flag THEN
+        RETURN;
+    END IF;
+
+    INSERT INTO public.sistem_duyurulari (kanal, baslik, icerik, gonderen_id, hedef_kullanici_id, tur)
+    VALUES (
+        'sistem',
+        'Kapsül kimlik hakkın hazır 🎖️',
+        'Beta Tester olarak ücretsiz bir Kapsül ID hakkın var. Almak için Profil → Özel ID sayfasına gidip kapsülünü seç.',
+        NULL,          -- sistem kaynaklı (gönderen yok)
+        v_uid,
+        'mesaj'
+    )
+    RETURNING id INTO v_did;
+
+    INSERT INTO public.bildirimler (kullanici_id, tip, baslik, icerik, veri)
+    VALUES (
+        v_uid, 'sistem', 'Kapsül kimlik hakkın hazır',
+        'Ücretsiz kapsül ID için Özel ID sayfasına git.',
+        jsonb_build_object('duyuru', v_did, 'kanal', 'sistem', 'tur', 'mesaj', 'beta_kapsul', true)
+    );
+
+    UPDATE public.kullanicilar SET beta_kapsul_hatirlatildi = true WHERE id = v_uid;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.beta_kapsul_hatirlat() FROM public;
+GRANT EXECUTE ON FUNCTION public.beta_kapsul_hatirlat() TO authenticated;

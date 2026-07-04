@@ -13,8 +13,10 @@ import {
   THRONE_SUPER,
   THRONE_T2,
 } from "@/data/specialId";
+import { clearOzelId, setOzelId } from "@/data/remote/profileRepo";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
@@ -46,22 +48,56 @@ function SectionTitle({ children }: { children: ReactNode }) {
 // Özel ID kimliği: tip seç (Premium kart 1-5 hane / Kapsül 6-7 hane) →
 // istediğin ID'yi gir → tema seç → profil önizlemesi → Onayla → store'a yaz.
 function KapsulBolumu() {
-  const { ozelId, ozelIdTip, ozelIdTema, setOzelIdKimlik, betaTester } = useApp();
+  const { ozelId, ozelIdTip, ozelIdTema, setOzelIdKimlik, betaTester, premiumHak } = useApp();
   const claimed = ozelId != null && ozelIdTip != null && ozelIdTema != null;
+  // Yetki (entitlement): kapsül → beta veya premium hak; premium → yalnız premium hak.
+  const kapsulYetki = betaTester || premiumHak;
+  const premiumYetki = premiumHak;
+  const hicYetki = !kapsulYetki && !premiumYetki;
   const [duzenle, setDuzenle] = useState(false);
-  const [tip, setTip] = useState<"premium" | "kapsul">(ozelIdTip ?? "kapsul");
+  const [tip, setTip] = useState<"premium" | "kapsul">(ozelIdTip ?? (premiumYetki && !betaTester ? "premium" : "kapsul"));
   const [idText, setIdText] = useState(ozelId ?? "");
   const [tema, setTema] = useState<string | null>(ozelIdTema);
+  const [kaydet, setKaydet] = useState(false);
+  const [hata, setHata] = useState<string | null>(null);
 
   // Premium: ID banner'a baked → sadece seçim yeter. Kapsül: ID gir + tema seç.
   const idGecerli = idText.length >= 6 && idText.length <= 7;
-  const hazir = tip === "premium" ? tema != null : idGecerli && tema != null;
+  const secili = tip === "premium" ? tema != null : idGecerli && tema != null;
+  const hazir = secili && !kaydet;
 
   const setTip2 = (t: "premium" | "kapsul") => {
     haptic.select();
     setTip(t);
     setIdText((v) => v.slice(0, t === "premium" ? 5 : 7));
     setTema(null); // premium (banner) ve kapsül (kart) havuzları farklı — sıfırla
+    setHata(null);
+  };
+
+  const onayla = async () => {
+    if (!hazir) return;
+    haptic.light();
+    setHata(null);
+    if (isSupabaseConfigured) {
+      setKaydet(true);
+      try {
+        await setOzelId(idText, tip, tema!);
+      } catch (e) {
+        setHata((e as { message?: string })?.message || "Kaydedilemedi, tekrar dene.");
+        setKaydet(false);
+        return;
+      }
+      setKaydet(false);
+    }
+    setOzelIdKimlik(idText, tip, tema);
+    setDuzenle(false);
+  };
+
+  const kaldir = async () => {
+    haptic.light();
+    if (isSupabaseConfigured) { try { await clearOzelId(); } catch { /* yoksay */ } }
+    setOzelIdKimlik(null, null, null);
+    setIdText(""); setTema(null);
   };
 
   // Zaten tanımlı → mevcut kimlik + Değiştir / Kaldır
@@ -76,7 +112,7 @@ function KapsulBolumu() {
           <Pressable onPress={() => { haptic.light(); setTip(ozelIdTip!); setIdText(ozelId!); setTema(ozelIdTema); setDuzenle(true); }}>
             <Txt weight="extrabold" size={12} color={C.gold2}>Değiştir ↻</Txt>
           </Pressable>
-          <Pressable onPress={() => { haptic.light(); setOzelIdKimlik(null, null, null); setIdText(""); setTema(null); }}>
+          <Pressable onPress={kaldir}>
             <Txt weight="extrabold" size={12} color={C.dim}>Kaldır</Txt>
           </Pressable>
         </View>
@@ -84,9 +120,27 @@ function KapsulBolumu() {
     );
   }
 
+  // Hiç yetki yok → claim tamamen kapalı (kimse kafasına göre özel ID alamaz)
+  if (hicYetki) {
+    return (
+      <View style={{ alignItems: "center", marginTop: 18 }}>
+        <Txt size={22}>🔒</Txt>
+        <Txt weight="bold" size={12.5} color={C.gold2} align="center" style={{ marginTop: 8 }}>Özel ID hakkın yok</Txt>
+        <Txt size={11} color={C.dim} lh={1.5} align="center" style={{ marginTop: 6 }}>
+          Kapsül ID için Beta Tester olman, premium ID için yetkili ataması gerekir. Hak verilince buradan alabilirsin.
+        </Txt>
+      </View>
+    );
+  }
+
+  const tipler = [
+    ...(kapsulYetki ? [["kapsul", "Kapsül · 6-7 hane"] as const] : []),
+    ...(premiumYetki ? [["premium", "Premium · Listeden Seç"] as const] : []),
+  ];
+
   return (
     <View style={{ marginTop: 16 }}>
-      {betaTester && !claimed && (
+      {kapsulYetki && !premiumHak && !claimed && (
         <View style={styles.betaNote}>
           <Txt size={14}>🎖️</Txt>
           <Txt weight="semibold" size={11} color={C.gold2} style={{ flex: 1 }} lh={1.4}>
@@ -95,17 +149,19 @@ function KapsulBolumu() {
         </View>
       )}
 
-      {/* Tip seçimi — Premium = hazır banner (listeden seç), Kapsül = kart + ID gir */}
-      <View style={styles.tipRow}>
-        {([["kapsul", "Kapsül · 6-7 hane"], ["premium", "Premium · Listeden Seç"]] as const).map(([t, l]) => {
-          const on = tip === t;
-          return (
-            <Pressable key={t} onPress={() => setTip2(t)} style={[styles.tipBtn, on && { borderColor: C.gold2, backgroundColor: "rgba(245,206,110,.12)" }]}>
-              <Txt weight="extrabold" size={11} color={on ? C.gold2 : C.dim}>{l}</Txt>
-            </Pressable>
-          );
-        })}
-      </View>
+      {/* Tip seçimi — yalnız HAK EDİLEN tipler görünür */}
+      {tipler.length > 1 && (
+        <View style={styles.tipRow}>
+          {tipler.map(([t, l]) => {
+            const on = tip === t;
+            return (
+              <Pressable key={t} onPress={() => setTip2(t)} style={[styles.tipBtn, on && { borderColor: C.gold2, backgroundColor: "rgba(245,206,110,.12)" }]}>
+                <Txt weight="extrabold" size={11} color={on ? C.gold2 : C.dim}>{l}</Txt>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
 
       {tip === "kapsul" && (
         <>
@@ -154,7 +210,7 @@ function KapsulBolumu() {
       )}
 
       {/* Önizleme */}
-      {hazir && (
+      {secili && (
         <View style={{ alignItems: "center", marginTop: 18 }}>
           <Txt weight="semibold" size={11} color={C.dim}>Profilinde böyle görünecek:</Txt>
           <View style={{ marginTop: 12 }}>
@@ -163,13 +219,15 @@ function KapsulBolumu() {
         </View>
       )}
 
+      {hata && <Txt weight="semibold" size={10.5} color={C.red} align="center" style={{ marginTop: 12 }}>{hata}</Txt>}
+
       <Pressable
         disabled={!hazir}
-        onPress={() => { haptic.light(); setOzelIdKimlik(idText, tip, tema); setDuzenle(false); }}
-        style={{ marginTop: 18, borderRadius: 999, overflow: "hidden", opacity: hazir ? 1 : 0.4 }}
+        onPress={onayla}
+        style={{ marginTop: 14, borderRadius: 999, overflow: "hidden", opacity: hazir ? 1 : 0.4 }}
       >
         <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.uploadBtn}>
-          <Txt weight="displayBold" size={14} color="#3A2A05" style={{ letterSpacing: 0.5 }}>Onayla</Txt>
+          <Txt weight="displayBold" size={14} color="#3A2A05" style={{ letterSpacing: 0.5 }}>{kaydet ? "Kaydediliyor…" : "Onayla"}</Txt>
         </Gradient>
       </Pressable>
     </View>

@@ -15,10 +15,15 @@ export type Profile = {
   deneyim_puani: number;
   durum: string;
   ekonomi_rolu: string;
+  ozel_id: string | null;
+  ozel_id_tip: "premium" | "kapsul" | null;
+  ozel_id_tema: string | null;
+  beta_tester: boolean;
+  premium_hak: boolean;
 };
 
 const SELF_COLS =
-  "id, public_id, kullanici_adi, email, profil_resmi, biyografi, cinsiyet, ulke, sehir, seviye_id, deneyim_puani, durum, ekonomi_rolu";
+  "id, public_id, kullanici_adi, email, profil_resmi, biyografi, cinsiyet, ulke, sehir, seviye_id, deneyim_puani, durum, ekonomi_rolu, ozel_id, ozel_id_tip, ozel_id_tema, beta_tester, premium_hak";
 
 /**
  * Aktif oturumun auth uid'sini YEREL olarak döndürür — AĞ round-trip'i YOK.
@@ -106,10 +111,13 @@ export type PublicProfile = {
   deneyim_puani: number;
   durum: string;
   ekonomi_rolu: string;
+  ozel_id: string | null;
+  ozel_id_tip: "premium" | "kapsul" | null;
+  ozel_id_tema: string | null;
 };
 
 const PUBLIC_COLS =
-  "id, public_id, kullanici_adi, profil_resmi, biyografi, cinsiyet, ulke, sehir, seviye_id, deneyim_puani, durum, ekonomi_rolu";
+  "id, public_id, kullanici_adi, profil_resmi, biyografi, cinsiyet, ulke, sehir, seviye_id, deneyim_puani, durum, ekonomi_rolu, ozel_id, ozel_id_tip, ozel_id_tema";
 
 /** Başka bir kullanıcının herkese açık profili (profiller view). */
 export async function getPublicProfile(publicId: string): Promise<PublicProfile | null> {
@@ -123,7 +131,7 @@ export async function getPublicProfile(publicId: string): Promise<PublicProfile 
   return data as PublicProfile | null;
 }
 
-/** Kullanıcı arama — görünen ad (kullanici_adi) veya public_id ile (case-insensitive). */
+/** Kullanıcı arama — görünen ad, public_id VEYA özel ID ile (case-insensitive). */
 export async function searchProfiles(query: string, limit = 20): Promise<PublicProfile[]> {
   const q = query.trim();
   if (q.length < 2) return [];
@@ -132,9 +140,32 @@ export async function searchProfiles(query: string, limit = 20): Promise<PublicP
   const { data, error } = await sb
     .from("profiller")
     .select(PUBLIC_COLS)
-    .or(`kullanici_adi.ilike.%${safe}%,public_id.ilike.%${safe}%`)
+    .or(`kullanici_adi.ilike.%${safe}%,public_id.ilike.%${safe}%,ozel_id.ilike.%${safe}%`)
     .order("deneyim_puani", { ascending: false })
     .limit(limit);
   if (error) throw error;
   return (data as PublicProfile[]) ?? [];
+}
+
+/** Özel ID ayarla (kapsül 6-7 / premium ≤5). Sunucu entitlement+benzersizlik zorlar. */
+export async function setOzelId(id: string, tip: "premium" | "kapsul", tema: string): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("ozel_id_ayarla", { p_id: id, p_tip: tip, p_tema: tema });
+  if (error) throw error;
+  invalidateProfileMemo();
+}
+
+/** Özel ID'yi kaldır. */
+export async function clearOzelId(): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("ozel_id_kaldir");
+  if (error) throw error;
+  invalidateProfileMemo();
+}
+
+/** Beta + özel ID yoksa Sistem DM hatırlatması at (idempotent — sunucu bir kez). */
+export async function betaKapsulHatirlat(): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("beta_kapsul_hatirlat");
+  if (error) throw error;
 }

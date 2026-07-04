@@ -380,6 +380,34 @@ Basamak sayısına göre iki katman (+düz). `src/data/specialId.ts` +
 - `OzelIdKart` bileşeni (kart üstüne ID plakası): premium için artık yok; kart
   GÖRSELİ sadece kapsül tema-seçici thumbnail'lerinde + IdKapsul ambleminde.
 
+### Aşama 2c — ÖZEL ID DB KALICILIĞI (BU OTURUM — backend bağlandı)
+Frontend demo'su gerçek DB'ye bağlandı. Migration'lar (kullanıcı Supabase SQL
+Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
+- **`044_ozel_id.sql`:** `kullanicilar`'a `ozel_id` (benzersiz, kısmi index) +
+  `ozel_id_tip` (CHECK premium/kapsul) + `ozel_id_tema` + `beta_tester` +
+  `premium_hak`. `profiller` view'i özel ID kolonlarıyla yeniden. RPC'ler:
+  `ozel_id_ayarla(id,tip,tema)` (SECURITY DEFINER — **entitlement + basamak +
+  benzersizlik ZORLAR**: premium→premium_hak & ≤5 hane, kapsul→beta/premium & 6-7
+  hane, ID hem public_id hem ozel_id'de benzersiz), `ozel_id_kaldir()`,
+  `admin_hak_ata(hedef,alan,deger)` (yalnız yönetici + `_yonetici_log`).
+- **`045_public_id_9hane.sql`:** `yeni_public_id()` → 9 hane (backfill YOK). 9+ ile
+  ≤7 çakışmaz → arama iki kolonu da eşler.
+- **`046_beta_kapsul_dm.sql`:** `beta_kapsul_hatirlatildi` bayrağı +
+  `beta_kapsul_hatirlat()` RPC → beta && özel-id yok && daha atılmadıysa
+  `sistem_duyurulari`'na hedefli 'sistem' mesajı (kullanıcının **Sistem DM**
+  thread'inde görünür, 043 mekanizması) + bildirim; bir kez.
+- **Repo (`profileRepo.ts`):** Profile/PublicProfile'a özel-id kolonları;
+  `setOzelId/clearOzelId/betaKapsulHatirlat` RPC sarmalayıcıları; `searchProfiles`
+  artık `ozel_id`'yi de arıyor.
+- **Store:** `loadProfile` özel-id + beta_tester + premium_hak DB'den okur;
+  beta+özel-id yoksa `betaKapsulHatirlat()` çağırır. `premiumHak` state eklendi.
+- **special-id:** claim **yetki-kilitli** — hak yoksa "Özel ID hakkın yok",
+  yalnız hak edilen tip sekmesi; Onayla → `setOzelId` RPC (hata gösterir); Kaldır
+  → `clearOzelId`. Profildeki beta yönlendirme banner'ı **fallback** olarak kaldı.
+- **YAPILACAK (kalan):** admin-user'da beta/premium **toggle UI** (RPC
+  `admin_hak_ata` hazır; adminRepo + admin-user-edit bağlanacak) +
+  `admin_kullanici_getir`'e beta/premium/ozel_id kolonlarını ekleme (görünürlük).
+
 ## 10) Şu An Kaldığımız Yer
 
 - **Bu oturumda yapıldı (§9.5 ÖZEL ID SİSTEMİ — frontend tam):**

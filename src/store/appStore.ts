@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { type DMThread } from "@/data/dm";
 import { type Room } from "@/data/seed";
 import { deleteAccount, getMyAccountBan, getSession, onAuthChange, signOut, type AccountBan } from "@/data/remote/authRepo";
-import { ensureMyProfile, getMyProfile } from "@/data/remote/profileRepo";
+import { betaKapsulHatirlat, ensureMyProfile, getMyProfile } from "@/data/remote/profileRepo";
 import { createRoom, getMyRoom, listRooms } from "@/data/remote/roomsRepo";
 import { listPosts } from "@/data/remote/feedRepo";
 import { addXp } from "@/data/remote/xpRepo";
@@ -71,10 +71,11 @@ type AppState = {
   userLevel: number; // gerçek seviye (kullanicilar.seviye_id)
   userXp: number; // gerçek deneyim puanı
   isStreamer: boolean;
-  betaTester: boolean; // demo — beta rozeti göstermek için (kalıcı DB alanı yok)
-  ozelId: string | null; // kullanıcının belirlediği özel ID numarası
-  ozelIdTip: "premium" | "kapsul" | null; // premium=banner çerçeve, kapsul=kart teması
-  ozelIdTema: string | null; // premium: NameplateFrame · kapsul: OzelIdKart anahtarı
+  betaTester: boolean; // DB: kullanicilar.beta_tester → KAPSÜL hakkı
+  premiumHak: boolean; // DB: kullanicilar.premium_hak → PREMIUM hakkı
+  ozelId: string | null; // DB: kullanicilar.ozel_id (vitrin ID)
+  ozelIdTip: "premium" | "kapsul" | null; // DB: ozel_id_tip
+  ozelIdTema: string | null; // DB: ozel_id_tema (premium: banner · kapsul: kart anahtarı)
   role: UserRole;
   hideProfile: boolean;
   setRole: (r: UserRole) => void;
@@ -278,10 +279,17 @@ export const useApp = create<AppState>((set, get) => ({
         publicId: p.public_id || null,
         dbId: p.id ?? null,
         role: mapRole(p.ekonomi_rolu),
+        betaTester: !!p.beta_tester,
+        premiumHak: !!p.premium_hak,
+        ozelId: p.ozel_id ?? null,
+        ozelIdTip: p.ozel_id_tip ?? null,
+        ozelIdTema: p.ozel_id_tema ?? null,
         profilEksik: isStubName(p.kullanici_adi), // register gerekiyor mu?
       });
       // dbId belli → hesap yasağını CANLI izle (Realtime + yoklama)
       if (p.id != null) startBanEnforcement(p.id, () => get().enforceAccountBan());
+      // Beta + özel ID yoksa: Sistem DM hatırlatması (sunucu idempotent — bir kez)
+      if (p.beta_tester && !p.ozel_id) betaKapsulHatirlat().catch(() => {});
     } catch {
       // sessizce geç — oturum geçerli, profil sonradan yüklenebilir
     }
@@ -334,6 +342,7 @@ export const useApp = create<AppState>((set, get) => ({
   userXp: 0,
   isStreamer: false,
   betaTester: false,
+  premiumHak: false,
   ozelId: null,
   ozelIdTip: null,
   ozelIdTema: null,
