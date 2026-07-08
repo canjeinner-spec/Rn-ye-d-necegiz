@@ -76,9 +76,9 @@ src/
   lib/features.ts       → MVP feature flag'leri (bkz. §7)
   theme/                → Renkler, gradient, glass panel
 db/
-  migrations/           → 001–047 sıralı SQL migration'lar (idempotent, tekrar
+  migrations/           → 001–048 sıralı SQL migration'lar (idempotent, tekrar
                            çalıştırılabilir — CREATE OR REPLACE / IF NOT EXISTS)
-  HEPSI_020_047.sql     → 020'den 047'e kadar TEK YAPIŞTIRMA birleşik dosya
+  HEPSI_020_048.sql     → 020'den 048'e kadar TEK YAPIŞTIRMA birleşik dosya
   SON_035_036_037.sql   → Sadece 035-036-037 için ayrı çalıştırma dosyası
   schema_v7_eklentileri.sql → v7 temel şemaya (Supabase'te zaten var, bu repoda
                            dosyası yok) eklenen ilk ek tablolar/kolonlar
@@ -146,7 +146,7 @@ Tüm commit geçmişi `git log --oneline --reverse` ile eksiksiz görülebilir.
       input'ları için `automaticallyAdjustKeyboardInsets`.
     - Commit: `3f592d4` (push'landı).
 
-## 6) Veritabanı — Migration Listesi (db/migrations/, 001-047)
+## 6) Veritabanı — Migration Listesi (db/migrations/, 001-048)
 
 Hepsi **idempotent** (`CREATE OR REPLACE`, `IF NOT EXISTS`) — tekrar
 çalıştırmak zarar vermez. Sırayla çalıştırılmalı (numaraya göre).
@@ -180,9 +180,10 @@ Hepsi **idempotent** (`CREATE OR REPLACE`, `IF NOT EXISTS`) — tekrar
 | 045 | public_id_9hane | `yeni_public_id()` → 9 hane (özel ID ≤7 nadir kalsın) |
 | 046 | beta_kapsul_dm | Beta + özel-id yok → otomatik hedefli Sistem DM hatırlatması (bir kez) |
 | 047 | ozel_id_admin | `admin_kullanici_haklar` (oku) — admin-user'da beta/premium hak ver-al |
+| 048 | hesap_yasak_dm | `hesap_yasak_ver/kaldir` OR REPLACE → yasak verilince/kalkınca hedefe kalıcı **Sistem DM'i** (sebep+süre; yasaklı ancak yasağı kalkınca görür) + bildirim |
 
 **Birleşik dosyalar:**
-- `HEPSI_020_047.sql` — 020'den 047'e kadar hepsi tek yapıştırmada (025 önce,
+- `HEPSI_020_048.sql` — 020'den 048'e kadar hepsi tek yapıştırmada (025 önce,
   tek başına çalıştırılmalı — enum değeri ekleme kısıtı).
 - `SON_035_036_037.sql` — sadece bu üçü ayrı çalıştırmak için.
 
@@ -418,6 +419,18 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
+- **EN SON İŞ — Hesap yasağı sağlamlaştırma (bu oturum):**
+  - **Oda listesi flaşı giderildi:** `appStore.banChecked` state + `AppOverlays`
+    opak örtü — oturum var ama ilk yasak kontrolü bitmemişken içerik gösterilmez;
+    yasaklı kullanıcı bir an bile oda listesini görmez, doğrudan ban ekranı gelir.
+  - **Anında kapı dışarı:** yasak yoklaması 10sn → **5sn** (realtime birincil,
+    yoklama garanti); yasak görülünce `signOut` + tam ekran engel.
+  - **Ban ekranı = aniden açılan merkez modal:** `AccountBanBlock` yeniden — kararan
+    arka plan + `ZoomIn` ile pat diye açılan kart (sebep + süre + Çıkış Yap).
+  - **Sistem DM'i (048):** `hesap_yasak_ver/kaldir` artık hedefe kalıcı Sistem DM'i
+    bırakır (sebep+süre); yasaklı kişi ancak yasağı KALKINCA DM'de görür. Kalkınca
+    da "yasağın kaldırıldı" mesajı. `npx tsc --noEmit` temiz.
+  - Mic yasağı (room.tsx, 028) zaten sağlamdı — dokunulmadı.
 - **Bu oturumda yapıldı (§9.5 ÖZEL ID SİSTEMİ — frontend tam):**
   - Aşama 1: level/role/special rozetleri normalize (hiza/boyut, VIP merkez).
   - Aşama 2b: **premium (≤5, 60 baked banner, listeden seç)** + **kapsül (6-7,

@@ -62,6 +62,9 @@ type AppState = {
 
   // Hesap (uygulama) yasağı — doluysa tam ekran engel gösterilir + oturum kapatılır
   hesapYasak: AccountBan | null;
+  // İlk yasak kontrolü tamamlandı mı? Oturum varken FALSE ise içerik gösterilmez
+  // (opak örtü) — yasaklı kullanıcı bir an bile oda listesini görmesin diye.
+  banChecked: boolean;
   enforceAccountBan: () => Promise<boolean>;
   clearHesapYasak: () => void;
 
@@ -131,7 +134,7 @@ let authStarted = false;
 let banChannel: ReturnType<NonNullable<typeof supabase>["channel"]> | null = null;
 let watchedBanDbId: number | null = null;
 let banPollTimer: ReturnType<typeof setInterval> | null = null;
-const BAN_POLL_MS = 10000;
+const BAN_POLL_MS = 5000;
 
 function startBanEnforcement(dbId: number, onChange: () => void) {
   if (!supabase) return;
@@ -206,7 +209,8 @@ export const useApp = create<AppState>((set, get) => ({
       .catch(() => set({ bootstrapped: true }));
 
     onAuthChange(async (session) => {
-      set({ session, girisYapildi: !!session });
+      // Yeni oturum → yasak yeniden doğrulanana kadar içeriği örtüyle gizle.
+      set({ session, girisYapildi: !!session, banChecked: !session });
       if (session) {
         try { supabase?.realtime.setAuth(session.access_token); } catch { /* yoksay */ }
         await get().loadProfile();
@@ -230,6 +234,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   hesapYasak: null,
+  banChecked: false,
   clearHesapYasak: () => set({ hesapYasak: null }),
   enforceAccountBan: async () => {
     try {
@@ -239,6 +244,7 @@ export const useApp = create<AppState>((set, get) => ({
         await signOut().catch(() => {});
         set({
           hesapYasak: ban,
+          banChecked: true,
           session: null,
           girisYapildi: false,
           publicId: null,
@@ -250,8 +256,12 @@ export const useApp = create<AppState>((set, get) => ({
         });
         return true;
       }
+      // Yasak yok → içerik gösterilebilir (örtü kalkar).
+      set({ banChecked: true });
     } catch {
       // sessizce geç — yasak kontrolü başarısızsa kullanıcıyı kilitlemeyiz
+      // (fail-open) ama örtüyü de kaldır ki uygulama açılsın.
+      set({ banChecked: true });
     }
     return false;
   },
