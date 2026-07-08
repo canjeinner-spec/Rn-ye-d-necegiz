@@ -76,9 +76,9 @@ src/
   lib/features.ts       → MVP feature flag'leri (bkz. §7)
   theme/                → Renkler, gradient, glass panel
 db/
-  migrations/           → 001–043 sıralı SQL migration'lar (idempotent, tekrar
+  migrations/           → 001–047 sıralı SQL migration'lar (idempotent, tekrar
                            çalıştırılabilir — CREATE OR REPLACE / IF NOT EXISTS)
-  HEPSI_020_043.sql     → 020'den 043'e kadar TEK YAPIŞTIRMA birleşik dosya
+  HEPSI_020_047.sql     → 020'den 047'e kadar TEK YAPIŞTIRMA birleşik dosya
   SON_035_036_037.sql   → Sadece 035-036-037 için ayrı çalıştırma dosyası
   schema_v7_eklentileri.sql → v7 temel şemaya (Supabase'te zaten var, bu repoda
                            dosyası yok) eklenen ilk ek tablolar/kolonlar
@@ -146,7 +146,7 @@ Tüm commit geçmişi `git log --oneline --reverse` ile eksiksiz görülebilir.
       input'ları için `automaticallyAdjustKeyboardInsets`.
     - Commit: `3f592d4` (push'landı).
 
-## 6) Veritabanı — Migration Listesi (db/migrations/, 001-043)
+## 6) Veritabanı — Migration Listesi (db/migrations/, 001-047)
 
 Hepsi **idempotent** (`CREATE OR REPLACE`, `IF NOT EXISTS`) — tekrar
 çalıştırmak zarar vermez. Sırayla çalıştırılmalı (numaraya göre).
@@ -176,9 +176,13 @@ Hepsi **idempotent** (`CREATE OR REPLACE`, `IF NOT EXISTS`) — tekrar
 | 041 | duyuru_sistem | Sistem duyuruları (DM resmi/sistem kanalı) + banner altyapısı |
 | 042 | banner_sablon | Banner'lar tam sayfa premium şablon (JSONB içerik) |
 | 043 | hedefli_mesaj | Kişiye/odaya özel sistem mesajı/uyarı (hedefli) |
+| 044 | ozel_id | **Özel ID sistemi** — `ozel_id`/`ozel_id_tip`/`ozel_id_tema`/`beta_tester`/`premium_hak`; `ozel_id_ayarla/kaldir` (entitlement+basamak+benzersizlik zorlar), `admin_hak_ata` |
+| 045 | public_id_9hane | `yeni_public_id()` → 9 hane (özel ID ≤7 nadir kalsın) |
+| 046 | beta_kapsul_dm | Beta + özel-id yok → otomatik hedefli Sistem DM hatırlatması (bir kez) |
+| 047 | ozel_id_admin | `admin_kullanici_haklar` (oku) — admin-user'da beta/premium hak ver-al |
 
 **Birleşik dosyalar:**
-- `HEPSI_020_043.sql` — 020'den 043'e kadar hepsi tek yapıştırmada (025 önce,
+- `HEPSI_020_047.sql` — 020'den 047'e kadar hepsi tek yapıştırmada (025 önce,
   tek başına çalıştırılmalı — enum değeri ekleme kısıtı).
 - `SON_035_036_037.sql` — sadece bu üçü ayrı çalıştırmak için.
 
@@ -408,9 +412,8 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
   + 044 `admin_hak_ata` (yaz); `adminRepo.getUserHaklar/setUserHak`;
   `admin-user-edit` Kimlik bölümünde **"ÖZEL ID HAKLARI"** — Beta Tester /
   Premium Hak ver-al toggle'ları (yönetici). Birleşik: `HEPSI_020_047.sql`.
-- **YAPILACAK (kalan, küçük):** profildeki "Demo · Beta Tester" toggle'ı artık
-  DB'den geldiği için loadProfile ile geçersiz kalıyor — istenirse kaldırılır ya
-  da developer için admin_hak_ata(self)'e bağlanır. Sistem DM mesajına tıklayınca
+- **KALAN (küçük):** ✅ profildeki "Demo · Beta Tester" toggle'ı `2a8400b`'de
+  kaldırıldı (artık DB'den geliyor). Açık kalan: Sistem DM mesajına tıklayınca
   /special-id derin-linki (şimdilik profil banner'ı yönlendiriyor).
 
 ## 10) Şu An Kaldığımız Yer
@@ -424,20 +427,23 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
   - Aşama 3: bilgi pencereleri (saydam, butonsuz, oto/dokunuş kapanır, fade).
   - `npx tsc --noEmit` temiz, `npx expo export --platform web` başarılı (her commit).
   - Oda rozetleri kullanıcı isteğiyle bu turda DEĞİŞTİRİLMEDİ.
-- **SONRAKİ İŞ = kullanıcının 1-2-3'ü (BACKEND):**
-  1. **DB'ye bağla:** `profiller`'a `ozel_id` + `ozel_id_tip` + `ozel_id_tema`
-     kolonları + gerçek **beta** bayrağı; TÜM rozetler (vip/level/beta/özel-id)
-     DB'den oku/yaz; onaylanınca DB'ye yaz. Özel ID sayfasını isteğe göre ayarla.
-  2. **Sistem DM hatırlatması:** beta + kapsül yok tespit edilir edilmez (DB
-     okuması) OTOMATİK sistem DM'i at (idempotent — bir kez); profil banner'ı
-     yerine. Yönlendirmeyle kullanıcı kendi alır.
-  3. **Yeni kayıt 9+ hane:** kayıt olan kullanıcılara 9+ basamaklı public_id ata
-     (özel ID ≤7 nadir/anlamlı olsun).
-  4. admin-user'da premium/kapsül **atama + entitlement** ("hakkı varsa").
-- **Son commit:** `2ec9611` — "Public profil önizleme: önizleme notu kaldır,
-  ajans/streamer çıkar, yetki+özel ID" (dal: `claude/metro-recovery-1xc2kq`,
-  origin ile senkron).
-- **`npx tsc --noEmit`:** temiz (0 hata) — bu commit'te doğrulandı.
+- **ÖZEL ID BACKEND ARTIK TAMAM (§9.5 Aşama 2c — migration 044-047):**
+  1. ✅ **DB'ye bağlandı:** `ozel_id`/`ozel_id_tip`/`ozel_id_tema` + gerçek
+     `beta_tester`/`premium_hak` (044); `profileRepo` + store DB'den okur/yazar,
+     `setOzelId/clearOzelId` RPC entitlement + basamak + benzersizlik zorlar.
+  2. ✅ **Sistem DM hatırlatması:** 046 — beta + özel-id yok tespit edilince
+     `betaKapsulHatirlat()` idempotent hedefli Sistem DM'i atar (bir kez).
+  3. ✅ **Yeni kayıt 9+ hane:** 045 `yeni_public_id()` 9 haneye çıktı.
+  4. ✅ **admin atama + entitlement:** 047 + `admin_hak_ata`; admin-user-edit
+     Kimlik bölümünde "ÖZEL ID HAKLARI" beta/premium ver-al toggle'ları.
+  - Ek: `2a8400b` profildeki "Demo · Beta Tester" toggle'ı kaldırıldı (artık
+    DB'den geliyor), aramada özel ID de gösteriliyor.
+- **KALAN (küçük):** Sistem DM mesajına tıklayınca `/special-id` derin-linki
+  (şu an profil banner'ı yönlendiriyor). Oda ekonomisi + kapalı feature flag'ler
+  (§7, §9) hâlâ bilinçli ertelenmiş durumda.
+- **Son commit:** `2a8400b` — "profil: demo toggle'larını kaldır; aramada özel
+  ID göster" (dal: `claude/metro-recovery-1xc2kq`, origin ile senkron).
+- **`npx tsc --noEmit`:** temiz (0 hata) — doğrulandı.
 - **Android + iOS bundle:** ikisi de sorunsuz derleniyor (bu sandbox'ta
   localhost:8081 üzerinden test edildi).
 - **Cihazda görsel doğrulama YAPILAMADI** — §8'deki tünel kısıtı yüzünden.
