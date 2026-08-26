@@ -1,10 +1,12 @@
-import { Pressable, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
-import { C } from "@/theme/colors";
+import { Ui } from "@/theme/colors";
+import { S, T } from "@/theme/tokens";
 import { Txt } from "./Txt";
 
 /**
- * Üst sekme şeridi — web mockup'taki `Tabs`. Aktif sekmede altın alt çizgi.
+ * Üst sekme şeridi — WePlay dili: beyaz zemin, aktif sekme aksan renginde
+ * ve altında kısa aksan çizgisi, altta ince ayırıcı.
  */
 type TabsProps = {
   items: string[];
@@ -13,38 +15,40 @@ type TabsProps = {
   pad?: number;
 };
 
-export function Tabs({ items, active, set, pad = 18 }: TabsProps) {
+export function Tabs({ items, active, set, pad = S.lg }: TabsProps) {
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        gap: 22,
-        paddingHorizontal: pad,
-        paddingTop: 2,
-        borderBottomWidth: 1,
-        borderBottomColor: C.line,
-      }}
-    >
-      {items.map((t, i) => (
-        <Pressable key={t} onPress={() => set(i)} style={{ paddingTop: 8, paddingBottom: 9 }}>
-          <Txt weight={i === active ? "extrabold" : "semibold"} size={12.5} color={i === active ? C.gold : C.dim}>
-            {t}
-          </Txt>
-          {i === active && (
-            <View
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                bottom: -1,
-                height: 2.5,
-                borderRadius: 4,
-                backgroundColor: C.gold,
-              }}
-            />
-          )}
-        </Pressable>
-      ))}
+    <View style={[styles.bar, { paddingHorizontal: pad }]}>
+      {items.map((t, i) => {
+        const on = i === active;
+        return (
+          <Pressable key={t} onPress={() => set(i)} style={styles.tab}>
+            <Txt weight={on ? "extrabold" : "semibold"} size={T.text} color={on ? Ui.accent : Ui.textSecondary}>
+              {t}
+            </Txt>
+            {on && <View style={styles.underline} />}
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  bar: {
+    flexDirection: "row",
+    gap: S.xxl,
+    backgroundColor: Ui.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Ui.border,
+  },
+  tab: { paddingTop: S.md, paddingBottom: S.md },
+  underline: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 3,
+    borderRadius: 3,
+    backgroundColor: Ui.accent,
+  },
+});
