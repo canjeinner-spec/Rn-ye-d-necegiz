@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
   Platform,
@@ -41,10 +41,16 @@ import { FEATURES } from "@/lib/features";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
-import { C } from "@/theme/colors";
+import { C, Room } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
 const SYS_MSGS = ["Oda Sahibi · Oda modu değiştirildi", "Oda Sahibi · Oda imzası değiştirildi"];
+
+// WePlay oda ölçüleri (res/layout/room_new_head_view + simple_new_owner_seat_view)
+const SEAT_AVATAR = 54;      // normal koltuk avatarı
+const OWNER_AVATAR = 68;     // sahip koltuğu avatarı
+const SEAT_RING = "#FFD78F"; // avatar çerçevesi (1dp)
+const STAGE_SIDE = 22;       // koltuk alanının yan boşluğu
 
 const ROOM_REPORT: { ic: IconName; t: string }[] = [
   { ic: "adult", t: "Uygunsuz / 18+ içerik" },
@@ -80,29 +86,32 @@ function SeatItem({
   privileged: boolean;
   onPress: () => void;
 }) {
+  // WePlay `room_new_head_view`: 54dp avatar, 1dp #FFD78F çerçeve, isim 12sp
+  // beyaz ve avatardan 8dp altta, susturma ikonu sağ-altta 24dp.
   if (!seat) {
     return (
       <Pressable style={styles.seat} onPress={onPress}>
-        <View style={[styles.emptySeat, { borderColor: locked ? C.gold + "66" : "rgba(255,255,255,.14)" }]}>
-          <Icon name={locked ? "lock" : "plus"} size={locked ? 16 : 20} sw={2} color={locked ? C.gold : C.dim2} />
+        <View style={styles.emptySeat}>
+          <Icon name={locked ? "lock" : "plus"} size={locked ? 18 : 22} sw={2} color="rgba(255,255,255,.55)" />
         </View>
-        {locked && <Txt weight="semibold" size={10} color={C.gold}>Kilitli</Txt>}
+        <Txt weight="medium" size={12} color={Room.textDim} numberOfLines={1} style={styles.seatName}>
+          {locked ? "Kilitli" : String(idx + 2)}
+        </Txt>
       </Pressable>
     );
   }
   const isMe = seat.name === "Sen";
-  const ring = seat.host ? C.gold : seat.mod ? C.teal : seat.speaking ? C.teal : seat.ring || "rgba(255,255,255,.16)";
   return (
     <Pressable style={styles.seat} onPress={onPress}>
       <View>
         {seat.speaking && <SpeakingRing />}
         <Portrait
           name={seat.name}
-          size={52}
+          size={SEAT_AVATAR}
           muted={seat.muted}
           photo={isMe ? userPhoto || undefined : undefined}
-          ring={ring}
-          glow={seat.speaking || seat.host || seat.mod}
+          ring={SEAT_RING}
+          glow={seat.speaking}
         />
         {locked && (
           <View style={styles.seatLock}>
@@ -110,7 +119,7 @@ function SeatItem({
           </View>
         )}
       </View>
-      <Txt weight="medium" size={9.5} color={isMe ? C.gold : C.text} numberOfLines={1} style={{ maxWidth: 68 }}>
+      <Txt weight="medium" size={12} color={Room.text} numberOfLines={1} style={styles.seatName}>
         {isMe ? userName : seat.name}
       </Txt>
       {isMe && privileged && <AuthorityTag size={8} />}
@@ -707,28 +716,46 @@ export default function RoomScreen() {
               <Pressable onPress={() => { if (isMine) openMyCard(); else if (host) tapOccupant(host); }} style={styles.hostSeat}>
                 <View>
                   {host?.speaking && <SpeakingRing />}
-                  <Portrait name={isMine ? "Sen" : host!.name} size={70} muted={host?.muted} ring={C.gold} glow photo={isMine ? userPhoto || undefined : undefined} />
+                  <Portrait name={isMine ? "Sen" : host!.name} size={OWNER_AVATAR} muted={host?.muted} ring={SEAT_RING} glow photo={isMine ? userPhoto || undefined : undefined} />
                 </View>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap", justifyContent: "center", maxWidth: 140 }}>
-                  <Txt weight="semibold" size={11} color="#fff">{isMine ? userName : host!.name}</Txt>
+                {/* WePlay: sahip adı avatardan 18dp altta, 12sp beyaz */}
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 18, flexWrap: "wrap", justifyContent: "center", maxWidth: 140 }}>
+                  <Txt weight="semibold" size={12} color={Room.text}>{isMine ? userName : host!.name}</Txt>
                   {isMine && privileged && <AuthorityTag size={8} />}
                 </View>
               </Pressable>
             )}
-            <View style={styles.grid}>
-              {seats.map((s, idx) => (
-                <SeatItem
-                  key={idx}
-                  seat={s}
-                  idx={idx}
-                  locked={seatLocks[idx]}
-                  userPhoto={userPhoto}
-                  userName={userName}
-                  privileged={privileged}
-                  onPress={() => (s ? tapOccupant(s) : tapSeat(idx))}
-                />
-              ))}
-            </View>
+            {/* WePlay dizilimi: satır başına 2+2 koltuk, gruplar arası geniş
+                boşluk (ağırlık 3:1:3). Satır 1 sahipten 26dp, satır 2 ondan 6dp. */}
+            {([[0, 1, 2, 3], [4, 5, 6, 7]] as const).map((rowIdx, r) => (
+              <View key={r} style={[styles.seatRow, { marginTop: r === 0 ? 26 : 6 }]}>
+                {([rowIdx.slice(0, 2), rowIdx.slice(2)] as const).map((group, g) => (
+                  <Fragment key={g}>
+                    {g === 1 && <View style={styles.seatGap} />}
+                    <View style={styles.seatGroup}>
+                      {group.map((idx) => {
+                        const s = seats[idx];
+                        return (
+                          <SeatItem
+                            key={idx}
+                            seat={s}
+                            idx={idx}
+                            locked={seatLocks[idx]}
+                            userPhoto={userPhoto}
+                            userName={userName}
+                            privileged={privileged}
+                            onPress={() => {
+                              if (s) tapOccupant(s);
+                              else tapSeat(idx);
+                            }}
+                          />
+                        );
+                      })}
+                    </View>
+                  </Fragment>
+                ))}
+              </View>
+            ))}
           </View>
 
           <View style={{ flex: 1 }}>
@@ -1042,9 +1069,13 @@ const styles = StyleSheet.create({
   thumb: { width: 32, height: 32, borderRadius: 9, overflow: "hidden" },
   trophy: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 3, paddingLeft: 7, paddingRight: 8, borderRadius: 8, backgroundColor: "rgba(217,119,6,.25)" },
   countBadge: { alignItems: "center", justifyContent: "center", minWidth: 34, height: 34, paddingHorizontal: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,.1)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
-  stage: { paddingHorizontal: 14, paddingTop: 6, paddingBottom: 4 },
-  hostSeat: { alignItems: "center", marginBottom: 10 },
-  grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 12 },
+  /** WePlay: koltuk alanı yanlardan 22dp, sahip koltuğu üstten 25dp */
+  stage: { paddingHorizontal: STAGE_SIDE, paddingTop: 25, paddingBottom: 4 },
+  hostSeat: { alignItems: "center" },
+  /** Satır: [2 koltuk] [geniş boşluk] [2 koltuk] — ağırlık 3:1:3 */
+  seatRow: { flexDirection: "row", alignItems: "flex-start" },
+  seatGroup: { flex: 3, flexDirection: "row", justifyContent: "space-between" },
+  seatGap: { flex: 1 },
   barIcon: { minWidth: 34, height: 42, alignItems: "center", justifyContent: "center" },
   giftMini: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   giftBtnBig: { width: 46, height: 46, alignItems: "center", justifyContent: "center" },
@@ -1052,8 +1083,17 @@ const styles = StyleSheet.create({
   sysNotice: { borderRadius: 14, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12 },
   reportCard: { backgroundColor: "#181620", borderRadius: 24, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
   reportDetailInput: { backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 14, color: C.text, fontSize: 12.5, height: 84, textAlignVertical: "top" },
-  seat: { width: "25%", alignItems: "center", gap: 5 },
-  emptySeat: { width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.02)" },
+  /** WePlay: koltuk hücresi avatar genişliğinde, isim 8dp altta */
+  seat: { width: SEAT_AVATAR, alignItems: "center" },
+  seatName: { width: SEAT_AVATAR, marginTop: 8, textAlign: "center" },
+  emptySeat: {
+    width: SEAT_AVATAR,
+    height: SEAT_AVATAR,
+    borderRadius: SEAT_AVATAR / 2,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Room.seatEmpty,
+  },
   seatLock: { position: "absolute", bottom: -2, right: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: "#0A0A0F", borderWidth: 1, borderColor: C.gold + "66", alignItems: "center", justifyContent: "center" },
   speakRing: { position: "absolute", top: -7, left: -7, right: -7, bottom: -7, borderRadius: 999, borderWidth: 2, borderColor: C.teal },
   bottombar: { flexDirection: "row", gap: 5, paddingHorizontal: 10, paddingTop: 10, paddingBottom: 6, alignItems: "center" },
