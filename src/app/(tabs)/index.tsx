@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import { Fragment, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
-import { Btn } from "@/components/Btn";
 import { EventBanners } from "@/components/EventBanners";
 import { Scene } from "@/components/Scene";
 import { Screen } from "@/components/Screen";
@@ -20,6 +19,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { Ui } from "@/theme/colors";
+import { Gradient } from "@/theme/Gradient";
 import { I, R, S, T } from "@/theme/tokens";
 
 /**
@@ -80,7 +80,13 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
         </View>
       </View>
 
-      <Btn label="Gir" size="sm" onPress={onPress} />
+      {/* WePlay: 60x28, r4, #74BFFF -> #4293FF dikey gradyan, beyaz ortalı yazı.
+          Satırın tamamı basılabilir olduğu için buton görsel — dokunuş üste iletilir. */}
+      <Gradient colors={["#74BFFF", "#4293FF"]} deg={180} style={styles.enterBtn}>
+        <Txt weight="semibold" size={T.text} color="#FFFFFF">
+          Gir
+        </Txt>
+      </Gradient>
     </Pressable>
   );
 }
@@ -157,14 +163,15 @@ export default function Home() {
 const styles = StyleSheet.create({
   /** Beyaz blok — gri sayfa zemininin üstünde */
   list: { backgroundColor: Ui.surface, marginTop: 10 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Ui.border, marginLeft: 92 },
-  /** WePlay: 84dp satır */
+  /** Ayırıcı metnin hizasından başlar: 20 (kapak sol) + 64 (kapak) + 10 */
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Ui.border, marginLeft: 94 },
+  /** WePlay: 84dp satır, kapak soldan 20, buton sağdan 16 */
   row: {
     height: 84,
     flexDirection: "row",
     alignItems: "center",
-    gap: S.md,
-    paddingHorizontal: S.lg,
+    paddingLeft: S.xl,
+    paddingRight: S.lg,
     backgroundColor: Ui.surface,
   },
   /** WePlay: 64dp kapak, 16dp yarıçap */
@@ -180,7 +187,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  info: { flex: 1, minWidth: 0 },
+  /** Kapaktan 10, butondan 8 boşluk (WePlay) */
+  info: { flex: 1, minWidth: 0, marginLeft: 10, marginRight: S.sm },
+  /** WePlay: 60x28, yarıçap 4 */
+  enterBtn: { width: 60, height: 28, borderRadius: 4, alignItems: "center", justifyContent: "center" },
   nameLine: { flexDirection: "row", alignItems: "center", gap: S.xs },
   /** WePlay: 18dp yüksek etiket çipi, yatay 4dp iç boşluk */
   label: { height: 18, minWidth: 30, paddingHorizontal: S.xs, borderRadius: R.sm, alignItems: "center", justifyContent: "center" },
