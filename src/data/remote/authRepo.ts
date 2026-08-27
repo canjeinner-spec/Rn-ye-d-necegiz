@@ -47,6 +47,12 @@ export async function signInWithGoogle() {
   // Bu adres Supabase → Authentication → URL Configuration → Redirect URLs
   // listesine eklenmeli, yoksa Supabase "Site URL" (localhost) fallback yapar.
   const redirectTo = makeRedirectUri();
+  // Expo Go'da bu adres pakete göre değişir (tünel açıldıkça alt alan adı da
+  // değişir). Supabase'in izin listesinde OLMAYAN bir adres gönderildiğinde
+  // Supabase sessizce "Site URL"e (varsayılan: localhost) düşer ve tarayıcı
+  // orada takılı kalır. Değeri log'a basıyoruz ki listeye ne eklenmesi
+  // gerektiği Metro çıktısından görülebilsin.
+  console.log("[auth] Google redirectTo:", redirectTo);
 
   const { data, error } = await sb.auth.signInWithOAuth({
     provider: "google",
@@ -57,7 +63,13 @@ export async function signInWithGoogle() {
 
   const res = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
   if (res.type !== "success" || !res.url) {
-    throw new Error("Google girişi iptal edildi.");
+    // Kullanıcı gerçekten iptal etmiş olabilir; ama tarayıcı localhost'ta
+    // takılıp kaldıysa sebep neredeyse her zaman izin listesidir.
+    throw new Error(
+      `Google girişi tamamlanamadı. Tarayıcı "${redirectTo}" adresine geri dönmedi. ` +
+        "Bu adres Supabase → Authentication → URL Configuration → Redirect URLs " +
+        "listesinde değilse Supabase Site URL'e (localhost) düşer ve sayfa orada kalır.",
+    );
   }
 
   // exp:// şeması URL() ile bazen düzgün ayrışmaz; query+fragment'tan elle çıkar.
