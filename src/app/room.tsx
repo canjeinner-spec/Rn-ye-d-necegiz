@@ -197,10 +197,10 @@ function SystemNotice({ m }: { m: ChatMsg }) {
 function SystemBanner({ roomName }: { roomName: string }) {
   return (
     <View style={styles.welcomeCapsule}>
-      <View style={{ paddingTop: 2 }}><Icon name="bell" size={13} color={C.gold2} /></View>
-      <Txt size={12.5} color="rgba(255,255,255,.72)" lh={1.5} style={{ flex: 1 }}>
-        <Txt weight="extrabold" size={12.5} color={C.gold2}>Sistem: </Txt>
-        {roomName}'na hoş geldiniz. Oda; pornografik, taciz, yasa dışı ve kural ihlali içeren içerikler paylaşılamaz. Kural ihlali ile karşılaşırsanız lütfen zamanında bildirin.
+      <View style={{ paddingTop: 2 }}><Icon name="bell" size={12} color={C.gold2} /></View>
+      <Txt size={12} color="rgba(255,255,255,.72)" lh={1.45} style={{ flexShrink: 1 }}>
+        <Txt weight="extrabold" size={12} color={C.gold2}>Sistem: </Txt>
+        {roomName}'na hoş geldiniz. Uygunsuz içerik ve taciz yasak; ihlalleri bildirin.
       </Txt>
     </View>
   );
@@ -1042,17 +1042,19 @@ const styles = StyleSheet.create({
   giftBtnBig: { width: 46, height: 46, alignItems: "center", justifyContent: "center" },
   bubble: { alignSelf: "flex-start", maxWidth: "94%", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 15, borderTopLeftRadius: 5, borderWidth: 1 },
   sysNotice: { borderRadius: 14, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12 },
-  /** Hoş geldiniz sistem mesajı kapsülü */
+  /** Hoş geldiniz sistem mesajı kapsülü — içeriği kadar geniş, sola yaslı */
   welcomeCapsule: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 7,
-    borderRadius: 16,
+    alignSelf: "flex-start",
+    maxWidth: "86%",
+    gap: 6,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: C.gold + "3D",
     backgroundColor: "rgba(245,206,110,.09)",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
   },
   reportCard: { backgroundColor: "#181620", borderRadius: 24, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
   reportDetailInput: { backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 14, color: C.text, fontSize: 12.5, height: 84, textAlignVertical: "top" },
