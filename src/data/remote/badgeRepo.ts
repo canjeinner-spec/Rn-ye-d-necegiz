@@ -56,6 +56,27 @@ export async function getMyBadgeProgress(): Promise<RozetIlerleme[]> {
   return (data as RozetIlerleme[]) ?? [];
 }
 
+/** Katalogdaki rozet tanımı (kazanma durumundan bağımsız). */
+export type RozetTanim = { kod: string; ad: string; aciklama: string | null; kategori: string | null };
+
+// Katalog 62 satır ve neredeyse hiç değişmiyor → bir kez çek, bellekte tut.
+let _katalog: Map<string, RozetTanim> | null = null;
+
+/**
+ * Rozet kataloğu (kod → tanım). Kuşanılan rozetin adı/açıklaması bununla
+ * çözülür; her rozet için ayrı istek atılmaz.
+ */
+export async function getBadgeCatalog(): Promise<Map<string, RozetTanim>> {
+  if (_katalog) return _katalog;
+  const sb = requireSupabase();
+  const { data, error } = await sb.from("rozetler").select("kod, ad, aciklama, kategori").eq("aktif", true);
+  if (error) throw error;
+  const m = new Map<string, RozetTanim>();
+  for (const r of (data as RozetTanim[]) ?? []) if (r.kod) m.set(r.kod, r);
+  _katalog = m;
+  return m;
+}
+
 /**
  * Kazanılmış bir rozeti kuşan — profilde (kendi ve başkalarının gördüğü)
  * görünür. Sunucu sahipliği doğrular; kazanılmamış rozet kuşanılamaz.
