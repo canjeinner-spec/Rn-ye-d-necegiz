@@ -200,7 +200,7 @@ function SystemBanner({ roomName }: { roomName: string }) {
       <View style={{ paddingTop: 2 }}><Icon name="bell" size={12} color={C.gold2} /></View>
       <Txt size={12} color="rgba(255,255,255,.72)" lh={1.45} style={{ flexShrink: 1 }}>
         <Txt weight="extrabold" size={12} color={C.gold2}>Sistem: </Txt>
-        {roomName}'na hoş geldiniz. Uygunsuz içerik ve taciz yasak; ihlalleri bildirin.
+        {roomName}'na hoş geldiniz. Kurallara uyalım.
       </Txt>
     </View>
   );
@@ -1047,7 +1047,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     alignSelf: "flex-start",
-    maxWidth: "86%",
+    maxWidth: "72%",
     gap: 6,
     borderRadius: 14,
     borderWidth: 1,
