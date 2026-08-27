@@ -80,6 +80,9 @@ type AppState = {
   ozelId: string | null; // DB: kullanicilar.ozel_id (vitrin ID)
   ozelIdTip: "premium" | "kapsul" | null; // DB: ozel_id_tip
   ozelIdTema: string | null; // DB: ozel_id_tema (premium: banner · kapsul: kart anahtarı)
+  /** DB: kullanicilar.kusanilan_rozet — profilde gösterilen rozet kodu */
+  kusanilanRozet: string | null;
+  setKusanilanRozet: (kod: string | null) => void;
   role: UserRole;
   hideProfile: boolean;
   setRole: (r: UserRole) => void;
@@ -324,6 +327,7 @@ export const useApp = create<AppState>((set, get) => ({
         ozelId: p.ozel_id ?? null,
         ozelIdTip: p.ozel_id_tip ?? null,
         ozelIdTema: p.ozel_id_tema ?? null,
+        kusanilanRozet: p.kusanilan_rozet ?? null,
         profilEksik: isStubName(p.kullanici_adi), // register gerekiyor mu?
       });
       // dbId belli → hesap yasağını CANLI izle (Realtime + yoklama)
@@ -389,6 +393,7 @@ export const useApp = create<AppState>((set, get) => ({
   ozelId: null,
   ozelIdTip: null,
   ozelIdTema: null,
+  kusanilanRozet: null,
   role: "user",
   hideProfile: false,
   setRole: (r) => set({ role: r }),
@@ -426,6 +431,7 @@ export const useApp = create<AppState>((set, get) => ({
   setStreamer: (v) => set({ isStreamer: v }),
   setBetaTester: (v) => set({ betaTester: v }),
   setOzelIdKimlik: (id, tip, tema) => set({ ozelId: id, ozelIdTip: tip, ozelIdTema: tema }),
+  setKusanilanRozet: (kod) => set({ kusanilanRozet: kod }),
 
   enterRoom: (r) =>
     set({

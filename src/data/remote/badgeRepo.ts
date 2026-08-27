@@ -56,6 +56,23 @@ export async function getMyBadgeProgress(): Promise<RozetIlerleme[]> {
   return (data as RozetIlerleme[]) ?? [];
 }
 
+/**
+ * Kazanılmış bir rozeti kuşan — profilde (kendi ve başkalarının gördüğü)
+ * görünür. Sunucu sahipliği doğrular; kazanılmamış rozet kuşanılamaz.
+ */
+export async function equipBadge(kod: string): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("rozet_kusan", { p_kod: kod });
+  if (error) throw error;
+}
+
+/** Kuşanılan rozeti çıkar. */
+export async function unequipBadge(): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("rozet_kusanma_kaldir");
+  if (error) throw error;
+}
+
 /** Yönetici: elle rozet ver (kuralı olmayan rozetler için). */
 export async function adminGrantBadge(userId: number, kod: string): Promise<void> {
   const sb = requireSupabase();

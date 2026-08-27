@@ -17,6 +17,7 @@ import { levelTierBadge } from "@/data/badges";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { getFollowCounts } from "@/data/remote/followRepo";
+import { EquippedBadge } from "@/components/EquippedBadge";
 import { getUserBadges, type KazanilmisRozet } from "@/data/remote/badgeRepo";
 import { getVisitorCount } from "@/data/remote/visitRepo";
 import { updateMyProfile } from "@/data/remote/profileRepo";
@@ -38,7 +39,7 @@ type MenuItem = { ic: IconName; g1: string; g2: string; t: string; s?: string; r
 export default function ProfileTab() {
   const router = useRouter();
   const [ozelIdInfo, setOzelIdInfo] = useState(false);
-  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, betaTester, ozelId, ozelIdTip, ozelIdTema, role, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
+  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, betaTester, ozelId, ozelIdTip, ozelIdTema, kusanilanRozet, role, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
 
   // Cache-first sayaçlar: son bilinen değeri ANINDA göster (persist), arkada tazele.
   const { data: followCounts } = useCachedResource<{ followers: number; following: number }>(
@@ -193,6 +194,8 @@ export default function ProfileTab() {
             <PngBadge name={levelTierBadge(userLevel)} size={28} />
             {isStreamer && <PngBadge name="role_streamer" size={28} />}
             {betaTester && <PngBadge name="special_beta_tester" size={28} />}
+            {/* Kuşanılan rozet — kullanıcının koleksiyondan seçtiği */}
+            <EquippedBadge kod={kusanilanRozet} size={28} />
           </View>
 
           {/* Beta Tester hakkı: kapsül kimliğini henüz almadıysa yönlendir (alınca kaybolur) */}

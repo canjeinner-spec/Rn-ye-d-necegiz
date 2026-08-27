@@ -5,6 +5,7 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CenterModal } from "@/components/CenterModal";
+import { EquippedBadge } from "@/components/EquippedBadge";
 import { OzelIdGosterim } from "@/components/OzelId";
 import { PngBadge } from "@/components/PngBadge";
 import { levelTierBadge } from "@/data/badges";
@@ -46,6 +47,7 @@ export default function UserProfileScreen() {
   const myOzelId = useApp((s) => s.ozelId);
   const myOzelIdTip = useApp((s) => s.ozelIdTip);
   const myOzelIdTema = useApp((s) => s.ozelIdTema);
+  const myKusanilanRozet = useApp((s) => s.kusanilanRozet);
   const params = useLocalSearchParams<{ name?: string; lv?: string; publicId?: string; self?: string }>();
   const self = params.self === "1"; // kendi profilini public görünümde önizleme
 
@@ -177,6 +179,8 @@ export default function UserProfileScreen() {
               {dbRole === "super_admin" && <PngBadge name="role_super_admin" size={26} />}
               <PngBadge name="role_vip" size={26} />
               <PngBadge name={levelTierBadge(lv)} size={26} />
+              {/* Kişinin kuşandığı rozet: kendi önizlemende store'dan, başkasında DB'den */}
+              <EquippedBadge kod={self ? myKusanilanRozet : profile?.kusanilan_rozet} size={26} />
             </View>
             {self && myOzelId && myOzelIdTip && myOzelIdTema ? (
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>

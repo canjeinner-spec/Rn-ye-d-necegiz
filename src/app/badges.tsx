@@ -5,10 +5,12 @@ import { useFocusEffect } from "expo-router";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { CenterModal } from "@/components/CenterModal";
 import { PNG_BADGE_IMG } from "@/components/PngBadge";
 import { ROOM_BADGE_IMG } from "@/components/RoomBadges";
 import { Txt } from "@/components/Txt";
-import { getMyBadgeProgress, type RozetIlerleme } from "@/data/remote/badgeRepo";
+import { equipBadge, getMyBadgeProgress, unequipBadge, type RozetIlerleme } from "@/data/remote/badgeRepo";
+import { useApp } from "@/store/appStore";
 import { Icon } from "@/icons/Icon";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
@@ -31,7 +33,8 @@ function rozetGorseli(kod: string) {
 const KATEGORI_ADI: Record<string, string> = {
   level: "Seviye Rütbelerim",
   special: "Özel",
-  room: "Başarılarım",
+  oda: "Oda Rozetlerim",
+  basari: "Başarılarım",
 };
 
 /**
@@ -39,16 +42,24 @@ const KATEGORI_ADI: Record<string, string> = {
  * (developer, admin, moderator…) kazanılan bir başarı değil, yetkiden gelir —
  * koleksiyonda "kilitli hedef" gibi görünmesi yanlış olur.
  */
-const GORUNEN_KATEGORILER = ["level", "special", "room"];
+const GORUNEN_KATEGORILER = ["level", "special", "oda", "basari"];
 
-function RozetKutu({ r }: { r: RozetIlerleme }) {
+function RozetKutu({ r, kusanili, onPress }: { r: RozetIlerleme; kusanili: boolean; onPress: () => void }) {
   const src = rozetGorseli(r.kod);
   const hedef = r.kural_esik ?? 0;
   const ilerleme = Math.min(r.ilerleme, hedef || r.ilerleme);
   const oran = hedef > 0 ? Math.min(1, r.ilerleme / hedef) : 0;
 
   return (
-    <View style={styles.kutu}>
+    <Pressable
+      onPress={() => { haptic.light(); onPress(); }}
+      style={[styles.kutu, kusanili && styles.kutuKusanili]}
+    >
+      {kusanili && (
+        <View style={styles.kusaniliRozet}>
+          <Icon name="check" size={9} sw={3} color="#241A05" />
+        </View>
+      )}
       <View style={[styles.gorselAlan, !r.kazanildi && styles.kilitli]}>
         {src ? (
           <Image source={src} style={{ width: 54, height: 54 }} contentFit="contain" />
@@ -86,7 +97,7 @@ function RozetKutu({ r }: { r: RozetIlerleme }) {
           Etkinlikle kazanılır
         </Txt>
       )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -94,6 +105,29 @@ export default function BadgesScreen() {
   const router = useRouter();
   const [liste, setListe] = useState<RozetIlerleme[] | null>(null);
   const [hata, setHata] = useState<string | null>(null);
+  const [secili, setSecili] = useState<RozetIlerleme | null>(null);
+  const [islemde, setIslemde] = useState(false);
+  const kusanilanRozet = useApp((s) => s.kusanilanRozet);
+  const setKusanilanRozet = useApp((s) => s.setKusanilanRozet);
+
+  const kusan = async (r: RozetIlerleme) => {
+    if (islemde) return;
+    setIslemde(true);
+    const kaldir = kusanilanRozet === r.kod;
+    const onceki = kusanilanRozet;
+    setKusanilanRozet(kaldir ? null : r.kod); // iyimser güncelleme
+    try {
+      if (kaldir) await unequipBadge();
+      else await equipBadge(r.kod);
+      haptic.success();
+      setSecili(null);
+    } catch (e: any) {
+      setKusanilanRozet(onceki); // geri al
+      setHata(e?.message || "Rozet kuşanılamadı.");
+    } finally {
+      setIslemde(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -149,7 +183,14 @@ export default function BadgesScreen() {
                     <Txt weight="bold" size={10.5} color={C.dim2}>{gKazanilan}/{grup.length}</Txt>
                   </View>
                   <View style={styles.izgara}>
-                    {grup.map((r) => <RozetKutu key={r.kod} r={r} />)}
+                    {grup.map((r) => (
+                      <RozetKutu
+                        key={r.kod}
+                        r={r}
+                        kusanili={kusanilanRozet === r.kod}
+                        onPress={() => setSecili(r)}
+                      />
+                    ))}
                   </View>
                 </View>
               );
@@ -157,6 +198,59 @@ export default function BadgesScreen() {
           </ScrollView>
         )}
       </SafeAreaView>
+
+      {/* Rozet açıklaması + kuşanma */}
+      <CenterModal visible={!!secili} onClose={() => setSecili(null)}>
+        {secili && (
+          <View style={styles.modal}>
+            <View style={[styles.modalGorsel, !secili.kazanildi && styles.kilitli]}>
+              {rozetGorseli(secili.kod) ? (
+                <Image source={rozetGorseli(secili.kod)!} style={{ width: 92, height: 92 }} contentFit="contain" />
+              ) : (
+                <Icon name="shield" size={40} color={C.dim2} />
+              )}
+            </View>
+            <Txt weight="displayBold" size={17} color="#fff" align="center" style={{ marginTop: 12 }}>
+              {secili.ad}
+            </Txt>
+            <Txt weight="bold" size={10.5} color={C.gold2} align="center" style={{ marginTop: 3, letterSpacing: 0.4 }}>
+              {(KATEGORI_ADI[secili.kategori ?? ""] ?? "").toUpperCase()}
+            </Txt>
+            <Txt size={12.5} color={C.dim} lh={1.55} align="center" style={{ marginTop: 10 }}>
+              {secili.aciklama || "Bu rozet için açıklama yok."}
+            </Txt>
+
+            {!secili.kazanildi && secili.kural_esik ? (
+              <Txt weight="bold" size={11.5} color={C.dim2} align="center" style={{ marginTop: 10 }}>
+                İlerleme: {Math.min(secili.ilerleme, secili.kural_esik)}/{secili.kural_esik}
+              </Txt>
+            ) : null}
+
+            {secili.kazanildi ? (
+              <Pressable
+                onPress={() => kusan(secili)}
+                disabled={islemde}
+                style={{ alignSelf: "stretch", marginTop: 16, borderRadius: 14, overflow: "hidden", opacity: islemde ? 0.6 : 1 }}
+              >
+                {kusanilanRozet === secili.kod ? (
+                  <View style={styles.cikarBtn}>
+                    <Txt weight="extrabold" size={13} color={C.dim}>Kuşanmayı Kaldır</Txt>
+                  </View>
+                ) : (
+                  <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.kusanBtn}>
+                    <Txt weight="extrabold" size={13} color="#241A05">Bu Rozeti Kuşan</Txt>
+                  </Gradient>
+                )}
+              </Pressable>
+            ) : (
+              <View style={[styles.cikarBtn, { alignSelf: "stretch", marginTop: 16 }]}>
+                <Icon name="lock" size={13} color={C.dim2} />
+                <Txt weight="bold" size={12.5} color={C.dim2}>Henüz kazanılmadı</Txt>
+              </View>
+            )}
+          </View>
+        )}
+      </CenterModal>
     </View>
   );
 }
@@ -185,4 +279,18 @@ const styles = StyleSheet.create({
   kazanildiPill: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 5, paddingVertical: 2, paddingHorizontal: 6, borderRadius: 999, backgroundColor: `${C.green}14` },
   barZemin: { height: 4, borderRadius: 999, backgroundColor: "rgba(255,255,255,.10)", overflow: "hidden" },
   barDolu: { height: 4, borderRadius: 999, backgroundColor: C.gold },
+  /** Kuşanılan rozetin kutusu — altın çerçeve + köşe işareti */
+  kutuKusanili: { borderColor: C.gold, backgroundColor: `${C.gold}12` },
+  kusaniliRozet: {
+    position: "absolute", top: 5, right: 5, width: 15, height: 15, borderRadius: 999,
+    backgroundColor: C.gold, alignItems: "center", justifyContent: "center", zIndex: 2,
+  },
+  modal: { borderRadius: 24, padding: 22, backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(255,255,255,.16)", alignItems: "center" },
+  modalGorsel: { width: 92, height: 92, alignItems: "center", justifyContent: "center" },
+  kusanBtn: { paddingVertical: 13, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  cikarBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
+    paddingVertical: 13, borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: C.line,
+  },
 });
