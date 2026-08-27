@@ -1,19 +1,24 @@
 import { BlurView } from "expo-blur";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import Animated, { SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AuthorityTag } from "@/components/AuthorityTag";
-import { BadgeInfoCard, BadgeRow } from "@/components/BadgeRow";
+import { EquippedBadge } from "@/components/EquippedBadge";
 import { KeyboardAware } from "@/components/KeyboardAware";
+import { OzelIdGosterim } from "@/components/OzelId";
+import { PngBadge } from "@/components/PngBadge";
 import { Portrait } from "@/components/Portrait";
 import { RolePill } from "@/components/RolePill";
 import { Txt } from "@/components/Txt";
-import { type BadgeItem } from "@/data/badges";
+import { levelTierBadge } from "@/data/badges";
+import { getFollowCounts } from "@/data/remote/followRepo";
+import { getPublicProfile, type PublicProfile } from "@/data/remote/profileRepo";
 import { reportUserByPublicId } from "@/data/remote/reportRepo";
 import { type Seat } from "@/data/seed";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { useApp } from "@/store/appStore";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { C } from "@/theme/colors";
@@ -45,11 +50,33 @@ const REPORT_REASONS: { ic: IconName; t: string }[] = [
   { ic: "warn", t: "Diğer" },
 ];
 
-const CARD_BADGES: BadgeItem[] = [
-  { type: "developer" },
-  { type: "vip" },
-  { type: "agency", meta: { id: "1", name: "Aron Stars", owner: "Ardaowski" } },
-];
+const CINSIYET: Record<string, string> = { erkek: "Erkek", kadin: "Kadın", diger: "Diğer" };
+
+function sayi(n: number) {
+  return n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(".", ",")}B` : String(n);
+}
+
+/** Üçlü istatistik şeridi — takipçi / takip / seviye. */
+function Stat({ deger, etiket, renk }: { deger: string; etiket: string; renk?: string }) {
+  return (
+    <View style={{ flex: 1, alignItems: "center", paddingVertical: 11 }}>
+      <Txt weight="displayBold" size={16} color={renk ?? "#fff"}>{deger}</Txt>
+      <Txt weight="semibold" size={9.5} color={C.dim2} style={{ marginTop: 3, letterSpacing: 0.3 }}>{etiket}</Txt>
+    </View>
+  );
+}
+
+/** Öne çıkan aksiyon — kartın altındaki üçlü buton sırası. */
+function PrimaryAction({ icon, label, tint, filled, onPress }: { icon: IconName; label: string; tint: string; filled?: boolean; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={{ flex: 1 }}>
+      <View style={[styles.primaryBtn, filled ? { backgroundColor: tint + "1F", borderColor: tint + "66" } : null]}>
+        <Icon name={icon} size={17} color={tint} />
+        <Txt weight="extrabold" size={10.5} color={tint} numberOfLines={1}>{label}</Txt>
+      </View>
+    </Pressable>
+  );
+}
 
 function ActionRow({ icon, color, label, onPress }: { icon: IconName; color: string; label: string; onPress: () => void }) {
   return (
@@ -62,7 +89,7 @@ function ActionRow({ icon, color, label, onPress }: { icon: IconName; color: str
 }
 
 function ActionGroup({ children }: { children: ReactNode }) {
-  const items = Array.isArray(children) ? children : [children];
+  const items = (Array.isArray(children) ? children : [children]).filter(Boolean);
   return (
     <View style={styles.actionGroup}>
       {items.map((child, i) => (
@@ -95,7 +122,6 @@ export function ProfileCard({
   const canManageTarget = canManage && (!isOwner || superPower) && !user.self;
 
   const [gearOpen, setGearOpen] = useState(false);
-  const [badgeInfo, setBadgeInfo] = useState<BadgeItem | null>(null);
   const [toast, setToast] = useState<{ msg: string; color: string } | null>(null);
   const [followed, setFollowed] = useState(false);
   const [blocked, setBlocked] = useState(false);
@@ -103,6 +129,47 @@ export function ProfileCard({
   const [repReason, setRepReason] = useState<string | null>(null);
   const [repDetail, setRepDetail] = useState("");
   const [repDone, setRepDone] = useState(false);
+
+  // ---- Gerçek profil verisi ------------------------------------------------
+  // Kart eskiden herkese aynı sabit rozetleri (developer + VIP + ajans)
+  // gösteriyordu; hepsi demo veriydi. Artık kart açılınca kişinin gerçek
+  // profili çekiliyor: seviye, kuşandığı rozet, özel kimliği, biyografisi.
+  const [profil, setProfil] = useState<PublicProfile | null>(null);
+  const [takip, setTakip] = useState<{ followers: number; following: number } | null>(null);
+
+  // Kendi kartımda store zaten güncel — ağ beklemeden göster.
+  const myOzelId = useApp((s) => s.ozelId);
+  const myOzelIdTip = useApp((s) => s.ozelIdTip);
+  const myOzelIdTema = useApp((s) => s.ozelIdTema);
+  const myKusanilanRozet = useApp((s) => s.kusanilanRozet);
+  const myLevel = useApp((s) => s.userLevel);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !user.publicId) return;
+    let alive = true;
+    getPublicProfile(user.publicId)
+      .then((p) => {
+        if (!alive || !p) return;
+        setProfil(p);
+        return getFollowCounts(p.id).then((c) => { if (alive) setTakip(c); });
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [user.publicId]);
+
+  // Kendi kartımda store, başkasınınkinde DB; ikisi de yoksa koltuk verisi.
+  const seviye = user.self ? myLevel : (profil?.seviye_id ?? user.lv ?? 0);
+  const kusanilan = user.self ? myKusanilanRozet : profil?.kusanilan_rozet;
+  const ozelId = user.self ? myOzelId : profil?.ozel_id;
+  const ozelIdTip = user.self ? myOzelIdTip : profil?.ozel_id_tip;
+  const ozelIdTema = user.self ? myOzelIdTema : profil?.ozel_id_tema;
+  const foto = user.photo || profil?.profil_resmi || undefined;
+  const bio = profil?.biyografi?.trim();
+  const yer = [profil?.sehir, profil?.ulke].filter(Boolean).join(", ");
+  const cinsiyet = profil?.cinsiyet ? CINSIYET[profil.cinsiyet] : null;
+
+  // Kartın tüm vurgusu role göre: sahip altın, yardımcı turkuaz, üye mor.
+  const vurgu = isOwner ? C.gold : user.mod ? "#5EEAD4" : C.purple2;
 
   const showToast = (msg: string, color: string = C.green) => {
     setToast({ msg, color });
@@ -129,6 +196,15 @@ export function ProfileCard({
           <Pressable>
             <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
             <Gradient colors={["rgba(32,28,44,0.82)", "rgba(14,12,20,0.9)"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
+
+            {/* Role göre renklenen tepe ışığı + üst kenardaki ince parıltı */}
+            {!reportView && (
+              <>
+                <Gradient colors={[vurgu + "3D", vurgu + "12", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
+                <Gradient colors={["transparent", vurgu + "AA", "transparent"]} deg={90} style={styles.glint} pointerEvents="none" />
+              </>
+            )}
+
             <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 24 + insets.bottom }} keyboardShouldPersistTaps="handled">
               {reportView ? (
                 <View>
@@ -221,53 +297,115 @@ export function ProfileCard({
                     </View>
                   )}
 
+                  {/* ---- Künye ---- */}
                   <View style={{ alignItems: "center", marginTop: toast ? 8 : 0 }}>
-                    <Portrait name={user.name} size={88} ring={isOwner ? C.gold : C.purple2} glow online frameBorder="#101016" photo={user.photo} />
-                    <Txt weight="displayBold" size={20} color="#fff" style={{ marginTop: 10 }}>{user.name}</Txt>
-                    <View style={{ flexDirection: "row", gap: 7, marginTop: 9, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
+                    <View>
+                      {/* avatarın arkasındaki yumuşak hale */}
+                      <View style={[styles.avatarHalo, { backgroundColor: vurgu + "1F", shadowColor: vurgu }]} pointerEvents="none" />
+                      <Portrait name={user.name} size={92} ring={vurgu} glow online frameBorder="#101016" photo={foto} />
+                      {/* Seviye henüz bilinmiyorsa (sohbetten açılan kart, profil yüklenmedi) çip yok */}
+                      {seviye > 0 && (
+                        <View style={styles.lvChipYuva} pointerEvents="none">
+                          <View style={styles.lvChip}>
+                            <Gradient colors={["#5EEAD4", "#0EA5A4"]} deg={135} style={styles.lvChipFill}>
+                              <Txt weight="displayBold" size={10} color="#04231A">LV.{seviye}</Txt>
+                            </Gradient>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+
+                    <Txt weight="displayBold" size={20} color="#fff" style={{ marginTop: 12 }} numberOfLines={1}>{user.name}</Txt>
+
+                    {/* Roller + gerçek rozetler (seviye rütbesi + kuşanılan) */}
+                    <View style={styles.rozetSatiri}>
                       {isOwner && <RolePill type="host" />}
                       {user.mod && !isOwner && <RolePill type="mod" />}
                       {user.authority && <AuthorityTag />}
-                      <BadgeRow size={28} badges={CARD_BADGES} onBadgePress={setBadgeInfo} />
+                      <PngBadge name={levelTierBadge(seviye)} size={26} />
+                      <EquippedBadge kod={kusanilan} size={26} />
                     </View>
-                    <View style={{ marginTop: 9 }}>
-                      {isOwner ? (
-                        <View style={styles.idPill}>
-                          <Icon name="idcard" size={12} color={C.gold2} />
-                          <Txt weight="extrabold" size={11} color={C.gold2}>ID: {user.publicId || "11111"}</Txt>
-                        </View>
+
+                    {/* Kimlik — özel kimliği varsa kapsülü, yoksa sade ID */}
+                    <View style={{ marginTop: 11 }}>
+                      {ozelId ? (
+                        <OzelIdGosterim id={ozelId} tip={ozelIdTip} tema={ozelIdTema} premiumWidth={104} kapsulSize={10} />
                       ) : (
-                        <Txt weight="semibold" size={11} color={C.dim}>ID: {user.publicId || "48" + user.lv}</Txt>
+                        <View style={[styles.idPill, { backgroundColor: vurgu + "16", borderColor: vurgu + "3D" }]}>
+                          <Icon name="idcard" size={12} color={vurgu} />
+                          <Txt weight="extrabold" size={11} color={vurgu}>ID: {user.publicId || "—"}</Txt>
+                        </View>
                       )}
                     </View>
+
+                    {/* Ülke / cinsiyet — varsa */}
+                    {(yer || cinsiyet) && (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 9 }}>
+                        {!!yer && (
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                            <Icon name="pin" size={11} color={C.dim2} />
+                            <Txt weight="semibold" size={10.5} color={C.dim}>{yer}</Txt>
+                          </View>
+                        )}
+                        {!!cinsiyet && <Txt weight="semibold" size={10.5} color={C.dim}>{cinsiyet}</Txt>}
+                      </View>
+                    )}
                   </View>
+
+                  {/* ---- İstatistik şeridi ---- */}
+                  <View style={styles.statStrip}>
+                    <Stat deger={takip ? sayi(takip.followers) : "—"} etiket="TAKİPÇİ" />
+                    <View style={styles.statDivider} />
+                    <Stat deger={takip ? sayi(takip.following) : "—"} etiket="TAKİP" />
+                    <View style={styles.statDivider} />
+                    <Stat deger={String(seviye)} etiket="SEVİYE" renk="#5EEAD4" />
+                  </View>
+
+                  {/* ---- Biyografi ---- */}
+                  {!!bio && (
+                    <View style={styles.bioKutu}>
+                      <Txt size={12} color={C.text} lh={1.55} numberOfLines={3} style={{ fontStyle: "italic" }}>{bio}</Txt>
+                    </View>
+                  )}
 
                   {user.self ? (
                     <View style={{ marginTop: 16 }}>
                       <ActionGroup>
                         <ActionRow icon="user" color={C.text} label="Profilini Görüntüle" onPress={() => { onViewProfile?.(); onClose(); }} />
-                        {user.onLeaveSeat && (
+                        {user.onLeaveSeat ? (
                           <ActionRow icon="micoff" color={C.red} label="Mikrofondan in" onPress={() => { user.onLeaveSeat?.(); onClose(); }} />
-                        )}
+                        ) : null}
                       </ActionGroup>
                     </View>
                   ) : (
-                    <View style={{ marginTop: 16 }}>
-                      <ActionGroup>
-                        <ActionRow icon="user" color={C.text} label="Profilini Görüntüle" onPress={() => { onViewProfile?.(); onClose(); }} />
-                        <ActionRow icon="chat" color={C.text} label="Mesaj Gönder" onPress={() => { onDM?.(user); onClose(); }} />
-                        <ActionRow icon="userAdd" color={followed ? C.dim : C.text} label={followed ? "Takipten Çık" : "Takip Et"} onPress={() => { setFollowed((v) => !v); showToast(followed ? `${user.name} takipten çıkıldı.` : `${user.name} takip edildi.`); }} />
-                        <ActionRow icon="blockuser" color={blocked ? C.dim : C.red} label={blocked ? "Engeli Kaldır" : "Engelle"} onPress={() => { setBlocked((v) => !v); showToast(blocked ? `${user.name} engeli kaldırıldı.` : `${user.name} engellendi.`); }} />
-                        <ActionRow icon="flag" color={C.red} label="Kullanıcıyı Raporla" onPress={() => setReportView(true)} />
-                      </ActionGroup>
-                    </View>
+                    <>
+                      {/* ---- Öne çıkan üç aksiyon ---- */}
+                      <View style={{ flexDirection: "row", gap: 9, marginTop: 16 }}>
+                        <PrimaryAction icon="chat" label="Mesaj" tint={C.gold2} onPress={() => { onDM?.(user); onClose(); }} />
+                        <PrimaryAction
+                          icon={followed ? "check" : "heart"}
+                          label={followed ? "Takiptesin" : "Takip Et"}
+                          tint={followed ? "#6EE7B7" : C.text}
+                          filled={followed}
+                          onPress={() => { setFollowed((v) => !v); showToast(followed ? `${user.name} takipten çıkıldı.` : `${user.name} takip edildi.`); }}
+                        />
+                        <PrimaryAction icon="user" label="Profil" tint={C.text} onPress={() => { onViewProfile?.(); onClose(); }} />
+                      </View>
+
+                      {/* ---- Sessiz ikincil işlemler ---- */}
+                      <View style={{ marginTop: 12 }}>
+                        <ActionGroup>
+                          <ActionRow icon="blockuser" color={blocked ? C.dim : C.red} label={blocked ? "Engeli Kaldır" : "Engelle"} onPress={() => { setBlocked((v) => !v); showToast(blocked ? `${user.name} engeli kaldırıldı.` : `${user.name} engellendi.`); }} />
+                          <ActionRow icon="flag" color={C.red} label="Kullanıcıyı Raporla" onPress={() => setReportView(true)} />
+                        </ActionGroup>
+                      </View>
+                    </>
                   )}
                 </>
               )}
             </ScrollView>
           </Pressable>
         </Animated.View>
-        {badgeInfo && <BadgeInfoCard info={badgeInfo} onClose={() => setBadgeInfo(null)} />}
       </KeyboardAware>
     </Modal>
   );
@@ -275,12 +413,22 @@ export function ProfileCard({
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(3,3,8,.6)" },
-  sheet: { maxHeight: "82%", borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden", borderTopWidth: 1, borderColor: "rgba(255,255,255,.16)", backgroundColor: "rgba(16,14,22,0.6)" },
-  glint: { position: "absolute", top: 0, left: 40, right: 40, height: 1, backgroundColor: "rgba(255,255,255,.55)" },
+  sheet: { maxHeight: "86%", borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden", borderTopWidth: 1, borderColor: "rgba(255,255,255,.16)", backgroundColor: "rgba(16,14,22,0.6)" },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 210 },
+  glint: { position: "absolute", top: 0, left: 34, right: 34, height: 1.5 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   gearMenu: { position: "absolute", right: 20, top: 56, width: 210, borderRadius: 16, overflow: "hidden", backgroundColor: "rgba(28,24,40,0.98)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)", zIndex: 10 },
   gearItem: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderTopWidth: 1, borderTopColor: C.line },
-  idPill: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 4, paddingHorizontal: 11, borderRadius: 999, backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "44" },
+  avatarHalo: { position: "absolute", top: -14, left: -14, right: -14, bottom: -14, borderRadius: 70, shadowOpacity: 0.85, shadowRadius: 26, shadowOffset: { width: 0, height: 0 }, elevation: 10 },
+  lvChipYuva: { position: "absolute", left: 0, right: 0, bottom: -3, alignItems: "center" },
+  lvChip: { borderRadius: 999, borderWidth: 2, borderColor: "#101016", overflow: "hidden" },
+  lvChipFill: { paddingVertical: 2.5, paddingHorizontal: 9 },
+  rozetSatiri: { flexDirection: "row", gap: 7, marginTop: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "center" },
+  idPill: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 4.5, paddingHorizontal: 11, borderRadius: 999, borderWidth: 1 },
+  statStrip: { flexDirection: "row", alignItems: "center", marginTop: 18, borderRadius: 18, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)" },
+  statDivider: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: "rgba(255,255,255,.12)" },
+  bioKutu: { marginTop: 12, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.07)" },
+  primaryBtn: { alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 13, borderRadius: 16, backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.11)" },
   actionGroup: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", overflow: "hidden" },
   actionDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 43 },
   actionRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
