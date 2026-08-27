@@ -6,6 +6,8 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View }
 import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { LoginBackground } from "@/components/LoginBackground";
+
 import { AronMark } from "@/components/AronMark";
 import { IntroCarousel } from "@/components/IntroCarousel";
 import { KeyboardAware } from "@/components/KeyboardAware";
@@ -184,7 +186,8 @@ export default function Onboarding() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#17121F", "#050507"]} deg={180} style={StyleSheet.absoluteFill} />
+      {/* Düz gradyan yerine üç katmanlı hareketli sahne */}
+      <LoginBackground />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <KeyboardAware>
 
