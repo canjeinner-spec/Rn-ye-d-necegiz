@@ -1,22 +1,31 @@
 import { Image } from "expo-image";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable } from "react-native";
 
-import { CenterModal } from "@/components/CenterModal";
+import { BadgeInfoModal } from "@/components/BadgeInfoModal";
 import { PNG_BADGE_IMG } from "@/components/PngBadge";
 import { ROOM_BADGE_IMG } from "@/components/RoomBadges";
-import { Txt } from "@/components/Txt";
+import { BADGE_INFO } from "@/data/badgeInfo";
 import { getBadgeCatalog, type RozetTanim } from "@/data/remote/badgeRepo";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
-import { C } from "@/theme/colors";
 
+/** Kategori başlığı — bilgi kartındaki küçük etiket. */
 const KATEGORI_ADI: Record<string, string> = {
   level: "Seviye Rütbesi",
   role: "Rol",
   special: "Özel Rozet",
   oda: "Oda Rozeti",
   basari: "Başarı",
+};
+
+/** Kategoriye göre vurgu rengi — kartın parıltısı ve etiketi bunu kullanır. */
+const KATEGORI_RENK: Record<string, string> = {
+  level: "#F5B100",
+  role: "#A98CFF",
+  special: "#38BDF8",
+  oda: "#5AA9FF",
+  basari: "#4ADE80",
 };
 
 /** kod -> görsel. level_/role_/special_ PngBadge'de, oda/başarı RoomBadges'te. */
@@ -29,11 +38,12 @@ function rozetGorseli(kod: string) {
 /**
  * Kullanıcının kuşandığı rozet (kullanicilar.kusanilan_rozet).
  *
- * Tıklanınca adı ve AÇIKLAMASI açılır — açıklama katalogdan (`rozetler`
- * tablosu) gelir, uygulamada sabit bir metin listesi tutulmaz. Böylece yeni
- * rozet eklendiğinde açıklaması kendiliğinden görünür.
+ * Tıklanınca diğer rozetlerle AYNI liquid-glass bilgi kartı açılır
+ * (BadgeInfoModal) — tek fark, metin uygulamadaki sabit listeden değil
+ * katalogdan (`rozetler` tablosu) geliyor. Böylece yeni eklenen rozetlerin
+ * açıklaması kendiliğinden görünür.
  *
- * Hem kendi profilinde hem başkasının gördüğü profilde aynı bileşen kullanılır.
+ * Hem kendi profilinde hem başkasının gördüğü profilde aynı bileşen çalışır.
  */
 export function EquippedBadge({ kod, size = 28 }: { kod?: string | null; size?: number }) {
   const [acik, setAcik] = useState(false);
@@ -52,39 +62,28 @@ export function EquippedBadge({ kod, size = 28 }: { kod?: string | null; size?: 
   const src = rozetGorseli(kod);
   if (!src) return null;
 
+  // Renk: rozet zaten sabit listede tanımlıysa onun tonu (birebir tutarlılık),
+  // değilse kategorisinin tonu.
+  const sabit = (BADGE_INFO as Record<string, { tint: string } | undefined>)[kod];
+  const tint = sabit?.tint ?? KATEGORI_RENK[tanim?.kategori ?? ""] ?? "#F5CE6E";
+
   return (
     <>
       <Pressable hitSlop={4} onPress={() => { haptic.light(); setAcik(true); }}>
         <Image source={src} style={{ width: size, height: size }} contentFit="contain" />
       </Pressable>
 
-      <CenterModal visible={acik} onClose={() => setAcik(false)}>
-        <View style={styles.kart}>
-          <Image source={src} style={{ width: 88, height: 88 }} contentFit="contain" />
-          <Txt weight="displayBold" size={17} color="#fff" align="center" style={{ marginTop: 12 }}>
-            {tanim?.ad ?? "Rozet"}
-          </Txt>
-          {!!tanim?.kategori && (
-            <Txt weight="bold" size={10.5} color={C.gold2} align="center" style={{ marginTop: 3, letterSpacing: 0.4 }}>
-              {(KATEGORI_ADI[tanim.kategori] ?? tanim.kategori).toUpperCase()}
-            </Txt>
-          )}
-          <Txt size={12.5} color={C.dim} lh={1.55} align="center" style={{ marginTop: 10 }}>
-            {tanim?.aciklama ?? "Açıklama yükleniyor…"}
-          </Txt>
-        </View>
-      </CenterModal>
+      <BadgeInfoModal
+        visible={acik}
+        onClose={() => setAcik(false)}
+        source={src}
+        info={{
+          title: tanim?.ad ?? "Rozet",
+          sub: KATEGORI_ADI[tanim?.kategori ?? ""] ?? "Rozet",
+          desc: tanim?.aciklama ?? "Açıklama yükleniyor…",
+          tint,
+        }}
+      />
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  kart: {
-    borderRadius: 24,
-    padding: 22,
-    backgroundColor: "#181620",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,.16)",
-    alignItems: "center",
-  },
-});

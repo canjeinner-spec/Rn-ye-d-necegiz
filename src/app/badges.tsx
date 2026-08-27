@@ -1,3 +1,4 @@
+import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -43,6 +44,14 @@ const KATEGORI_ADI: Record<string, string> = {
  * koleksiyonda "kilitli hedef" gibi görünmesi yanlış olur.
  */
 const GORUNEN_KATEGORILER = ["level", "special", "oda", "basari"];
+
+/** Kategori vurgu rengi — bilgi kartinin parilti ve etiketi. */
+const KATEGORI_RENK: Record<string, string> = {
+  level: "#F5B100",
+  special: "#38BDF8",
+  oda: "#5AA9FF",
+  basari: "#4ADE80",
+};
 
 function RozetKutu({ r, kusanili, onPress }: { r: RozetIlerleme; kusanili: boolean; onPress: () => void }) {
   const src = rozetGorseli(r.kod);
@@ -202,21 +211,37 @@ export default function BadgesScreen() {
       {/* Rozet açıklaması + kuşanma */}
       <CenterModal visible={!!secili} onClose={() => setSecili(null)}>
         {secili && (
-          <View style={styles.modal}>
-            <View style={[styles.modalGorsel, !secili.kazanildi && styles.kilitli]}>
+          <BlurView intensity={22} tint="dark" style={styles.modal}>
+            {/* Diğer rozet kartlarıyla aynı liquid-glass dili: üstten renk
+                geçişi, ince parlama çizgisi, rozetin arkasında renkli parıltı. */}
+            <Gradient colors={[KATEGORI_RENK[secili.kategori ?? ""] + "24", "transparent"]} deg={180} style={StyleSheet.absoluteFill} pointerEvents="none" />
+            <View style={styles.sheen} pointerEvents="none" />
+
+            <View
+              style={[
+                styles.modalGorsel,
+                {
+                  backgroundColor: KATEGORI_RENK[secili.kategori ?? ""] + "1F",
+                  shadowColor: KATEGORI_RENK[secili.kategori ?? ""],
+                },
+                !secili.kazanildi && styles.kilitli,
+              ]}
+            >
               {rozetGorseli(secili.kod) ? (
-                <Image source={rozetGorseli(secili.kod)!} style={{ width: 92, height: 92 }} contentFit="contain" />
+                <Image source={rozetGorseli(secili.kod)!} style={{ width: 80, height: 80 }} contentFit="contain" />
               ) : (
                 <Icon name="shield" size={40} color={C.dim2} />
               )}
             </View>
-            <Txt weight="displayBold" size={17} color="#fff" align="center" style={{ marginTop: 12 }}>
+            <Txt weight="extrabold" size={17} color="#fff" align="center" style={{ marginTop: 11 }}>
               {secili.ad}
             </Txt>
-            <Txt weight="bold" size={10.5} color={C.gold2} align="center" style={{ marginTop: 3, letterSpacing: 0.4 }}>
-              {(KATEGORI_ADI[secili.kategori ?? ""] ?? "").toUpperCase()}
-            </Txt>
-            <Txt size={12.5} color={C.dim} lh={1.55} align="center" style={{ marginTop: 10 }}>
+            <View style={[styles.katPill, { borderColor: KATEGORI_RENK[secili.kategori ?? ""] + "66", backgroundColor: KATEGORI_RENK[secili.kategori ?? ""] + "22" }]}>
+              <Txt weight="bold" size={10} color="#fff" style={{ letterSpacing: 0.5 }}>
+                {(KATEGORI_ADI[secili.kategori ?? ""] ?? "ROZET").toUpperCase()}
+              </Txt>
+            </View>
+            <Txt size={12} color="rgba(255,255,255,.9)" lh={1.5} align="center" style={{ marginTop: 9 }}>
               {secili.aciklama || "Bu rozet için açıklama yok."}
             </Txt>
 
@@ -226,7 +251,14 @@ export default function BadgesScreen() {
               </Txt>
             ) : null}
 
-            {secili.kazanildi ? (
+            {/* Seviye rütbeleri kuşanılamaz/çıkarılamaz — seviyeyi sistem
+                belirler, kullanıcı seçimi değildir. */}
+            {secili.kategori === "level" ? (
+              <View style={[styles.cikarBtn, { alignSelf: "stretch", marginTop: 16 }]}>
+                <Icon name="shield" size={13} color={C.dim2} />
+                <Txt weight="bold" size={12} color={C.dim2}>Seviyeni sistem belirler</Txt>
+              </View>
+            ) : secili.kazanildi ? (
               <Pressable
                 onPress={() => kusan(secili)}
                 disabled={islemde}
@@ -248,7 +280,7 @@ export default function BadgesScreen() {
                 <Txt weight="bold" size={12.5} color={C.dim2}>Henüz kazanılmadı</Txt>
               </View>
             )}
-          </View>
+          </BlurView>
         )}
       </CenterModal>
     </View>
@@ -285,8 +317,10 @@ const styles = StyleSheet.create({
     position: "absolute", top: 5, right: 5, width: 15, height: 15, borderRadius: 999,
     backgroundColor: C.gold, alignItems: "center", justifyContent: "center", zIndex: 2,
   },
-  modal: { borderRadius: 24, padding: 22, backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(255,255,255,.16)", alignItems: "center" },
-  modalGorsel: { width: 92, height: 92, alignItems: "center", justifyContent: "center" },
+  modal: { borderRadius: 22, overflow: "hidden", paddingTop: 18, paddingBottom: 15, paddingHorizontal: 16, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.18)", backgroundColor: "rgba(16,14,22,.30)" },
+  modalGorsel: { width: 92, height: 92, borderRadius: 24, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.12)", shadowOpacity: 0.85, shadowRadius: 18, shadowOffset: { width: 0, height: 4 } },
+  sheen: { position: "absolute", top: 0, left: 0, right: 0, height: 1, backgroundColor: "rgba(255,255,255,.28)" },
+  katPill: { marginTop: 8, paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1 },
   kusanBtn: { paddingVertical: 13, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   cikarBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
