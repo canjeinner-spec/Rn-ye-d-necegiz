@@ -44,8 +44,6 @@ import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
-const SYS_MSGS = ["Oda Sahibi · Oda modu değiştirildi", "Oda Sahibi · Oda imzası değiştirildi"];
-
 const ROOM_REPORT: { ic: IconName; t: string }[] = [
   { ic: "adult", t: "Uygunsuz / 18+ içerik" },
   { ic: "ban", t: "Nefret söylemi veya taciz" },
@@ -195,9 +193,10 @@ function SystemNotice({ m }: { m: ChatMsg }) {
   );
 }
 
+/** Odaya girince görünen tek sistem mesajı — kapsül içinde. */
 function SystemBanner({ roomName }: { roomName: string }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 7 }}>
+    <View style={styles.welcomeCapsule}>
       <View style={{ paddingTop: 2 }}><Icon name="bell" size={13} color={C.gold2} /></View>
       <Txt size={12.5} color="rgba(255,255,255,.72)" lh={1.5} style={{ flex: 1 }}>
         <Txt weight="extrabold" size={12.5} color={C.gold2}>Sistem: </Txt>
@@ -734,13 +733,6 @@ export default function RoomScreen() {
           <View style={{ flex: 1 }}>
             <ScrollView ref={chatRef} onContentSizeChange={() => chatRef.current?.scrollToEnd({ animated: true })} style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 6, gap: 11 }}>
               <SystemBanner roomName={roomName} />
-              {SYS_MSGS.map((s, i) => (
-                <View key={"sys" + i} style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                  <Icon name="bell" size={13} color={C.gold2} />
-                  <Txt weight="extrabold" size={12} color={C.gold2}>Sistem:</Txt>
-                  <Txt size={12.5} color="rgba(255,255,255,.7)">{s}</Txt>
-                </View>
-              ))}
               {msgs.map((m, i) => (
                 <ChatRow key={i} m={m} userName={userName} userPhoto={userPhoto} privileged={privileged} onSelfPress={openMyCard} onTapUser={openChatUserCard} />
               ))}
@@ -1050,6 +1042,18 @@ const styles = StyleSheet.create({
   giftBtnBig: { width: 46, height: 46, alignItems: "center", justifyContent: "center" },
   bubble: { alignSelf: "flex-start", maxWidth: "94%", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 15, borderTopLeftRadius: 5, borderWidth: 1 },
   sysNotice: { borderRadius: 14, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12 },
+  /** Hoş geldiniz sistem mesajı kapsülü */
+  welcomeCapsule: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 7,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.gold + "3D",
+    backgroundColor: "rgba(245,206,110,.09)",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
   reportCard: { backgroundColor: "#181620", borderRadius: 24, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
   reportDetailInput: { backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 14, color: C.text, fontSize: 12.5, height: 84, textAlignVertical: "top" },
   seat: { width: "25%", alignItems: "center", gap: 5 },
