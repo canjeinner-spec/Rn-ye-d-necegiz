@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { OzelIdGosterim, OzelIdKart as OzelIdKartView } from "@/components/OzelId";
-import { PremiumBanner, PREMIUM_FRAMES, PREMIUM_NUM } from "@/components/PremiumBanner";
+import { PremiumBanner, PREMIUM_FRAMES } from "@/components/PremiumBanner";
 import { ThroneCard } from "@/components/ThroneCard";
 import { Txt } from "@/components/Txt";
 import {
@@ -61,9 +61,14 @@ function KapsulBolumu() {
   const [kaydet, setKaydet] = useState(false);
   const [hata, setHata] = useState<string | null>(null);
 
-  // Premium: ID banner'a baked → sadece seçim yeter. Kapsül: ID gir + tema seç.
-  const idGecerli = idText.length >= 6 && idText.length <= 7;
-  const secili = tip === "premium" ? tema != null : idGecerli && tema != null;
+  // Her iki tipte de: ID gir + tema/çerçeve seç.
+  // Premium 1-5 hane, kapsül 6-7 hane (sunucudaki ozel_id_ayarla da bunu zorlar).
+  // NOT: Eskiden premium'da ID görsele çizili geldiği için yalnızca seçim
+  // yetiyordu; artık ID'yi uygulama yazıyor, o yüzden girilmesi gerekiyor.
+  const idGecerli = tip === "premium"
+    ? idText.length >= 1 && idText.length <= 5
+    : idText.length >= 6 && idText.length <= 7;
+  const secili = idGecerli && tema != null;
   const hazir = secili && !kaydet;
 
   const setTip2 = (t: "premium" | "kapsul") => {
@@ -135,7 +140,7 @@ function KapsulBolumu() {
 
   const tipler = [
     ...(kapsulYetki ? [["kapsul", "Kapsül · 6-7 hane"] as const] : []),
-    ...(premiumYetki ? [["premium", "Premium · Listeden Seç"] as const] : []),
+    ...(premiumYetki ? [["premium", "Premium · 1-5 hane"] as const] : []),
   ];
 
   return (
@@ -163,34 +168,37 @@ function KapsulBolumu() {
         </View>
       )}
 
-      {tip === "kapsul" && (
-        <>
-          <Txt weight="semibold" size={11} color={C.dim} style={{ marginTop: 14, marginBottom: 6 }}>ID numaranı gir (6 – 7 hane)</Txt>
-          <TextInput
-            value={idText}
-            onChangeText={(t) => setIdText(t.replace(/\D/g, "").slice(0, 7))}
-            keyboardType="number-pad"
-            maxLength={7}
-            placeholder="örn. 123456"
-            placeholderTextColor={C.dim2}
-            style={styles.idInput}
-          />
-          {idText.length > 0 && !idGecerli && (
-            <Txt weight="semibold" size={10.5} color={C.red} style={{ marginTop: 6 }}>Kapsül ID 6 veya 7 hane olmalı.</Txt>
-          )}
-        </>
+      {/* ID girişi her iki tipte de gerekli — premium'da da ID'yi artık
+          uygulama yazıyor, görsele çizili gelmiyor. */}
+      <Txt weight="semibold" size={11} color={C.dim} style={{ marginTop: 14, marginBottom: 6 }}>
+        {tip === "premium" ? "ID numaranı gir (1 – 5 hane)" : "ID numaranı gir (6 – 7 hane)"}
+      </Txt>
+      <TextInput
+        value={idText}
+        onChangeText={(t) => setIdText(t.replace(/\D/g, "").slice(0, tip === "premium" ? 5 : 7))}
+        keyboardType="number-pad"
+        maxLength={tip === "premium" ? 5 : 7}
+        placeholder={tip === "premium" ? "örn. 4783" : "örn. 123456"}
+        placeholderTextColor={C.dim2}
+        style={styles.idInput}
+      />
+      {idText.length > 0 && !idGecerli && (
+        <Txt weight="semibold" size={10.5} color={C.red} style={{ marginTop: 6 }}>
+          {tip === "premium" ? "Premium ID en fazla 5 hane olmalı." : "Kapsül ID 6 veya 7 hane olmalı."}
+        </Txt>
       )}
 
       <Txt weight="bold" size={12} color={C.gold2} style={{ marginTop: 16, marginBottom: 4 }}>
-        {tip === "premium" ? "Premium ID Seç" : "Tema Seç"}
+        {tip === "premium" ? "Çerçeve Seç" : "Tema Seç"}
       </Txt>
       {tip === "premium" ? (
         <View style={styles.bannerGrid}>
           {PREMIUM_FRAMES.map((f) => {
             const on = tema === f;
             return (
-              <Pressable key={f} onPress={() => { haptic.select(); setTema(f); setIdText(PREMIUM_NUM[f]); }} style={[styles.bannerCell, on && { borderColor: C.gold2, backgroundColor: "rgba(245,206,110,.12)" }]}>
-                <PremiumBanner frame={f} width={150} />
+              <Pressable key={f} onPress={() => { haptic.select(); setTema(f); }} style={[styles.bannerCell, on && { borderColor: C.gold2, backgroundColor: "rgba(245,206,110,.12)" }]}>
+                {/* Girilen ID çerçevenin içinde canlı önizlenir */}
+                <PremiumBanner frame={f} id={idText || undefined} width={150} />
               </Pressable>
             );
           })}

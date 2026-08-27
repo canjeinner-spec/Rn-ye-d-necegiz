@@ -2555,6 +2555,16 @@ END; $$;
 REVOKE ALL ON FUNCTION public.rozet_kusan(TEXT) FROM public;
 GRANT EXECUTE ON FUNCTION public.rozet_kusan(TEXT) TO authenticated;
 
+-- ── E2) Eski premium çerçeve anahtarlarını yeni sete eşle ───────────────────
+-- Premium ÖZEL ID çerçeveleri yenilendi: eski set premium_01..60 (ID görsele
+-- çiziliydi, bazılarında rakamlar silinmişti), yeni set premium_001..024
+-- (içi boş, ID'yi uygulama yazıyor). Eski anahtarla kayıtlı kullanıcılarda
+-- çerçeve bulunamıyordu. Deterministik olarak yeni sete eşliyoruz.
+UPDATE public.kullanicilar
+   SET ozel_id_tema = 'premium_' || lpad(((((substring(ozel_id_tema from 9))::int - 1) % 24) + 1)::text, 3, '0')
+ WHERE ozel_id_tip = 'premium'
+   AND ozel_id_tema ~ '^premium_[0-9]{2}$';
+
 -- ── E) RPC: kuşanmayı kaldır ────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.rozet_kusanma_kaldir()
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$

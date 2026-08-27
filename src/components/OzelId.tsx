@@ -198,7 +198,8 @@ export function OzelIdGosterim({
   premiumWidth?: number;
   kapsulSize?: number;
 }) {
-  if (tip === "premium" && tema) return <PremiumBanner frame={tema as PremiumFrame} width={premiumWidth} />;
+  // ID artık görsele çizili değil; çerçevenin boş paneline uygulama yazıyor.
+  if (tip === "premium" && tema) return <PremiumBanner frame={tema as PremiumFrame} id={id} width={premiumWidth} />;
   if (tip === "kapsul" && tema) return <IdKapsul theme={tema as OzelIdKart} id={id} size={kapsulSize} />;
   return (
     <Text style={{ fontFamily: Font.extrabold, fontSize: kapsulSize, color: "#F5CE6E", letterSpacing: 1 }}>

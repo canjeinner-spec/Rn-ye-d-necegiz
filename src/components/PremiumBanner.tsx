@@ -1,165 +1,152 @@
 import { Image } from "expo-image";
+import { Text, View } from "react-native";
 
-// 60 premium ÖZEL ID bannerı — kullanıcının kendi ürettiği sanat; ID metni
-// GÖRSELE BAKED (üzerine yazılmıyor). Kullanıcı listeden seçer (hakkı varsa).
+import { Font } from "@/theme/fonts";
+
+/**
+ * Premium ÖZEL ID çerçeveleri (24 adet).
+ *
+ * ESKİ SİSTEM: ID numarası görsele çizilmişti; kullanıcı "numarası hoşuna
+ * giden" banner'ı seçiyordu. Üretim sırasında bazı rakam/harfler silinmiş
+ * (ÖZEL D, 466_2), görseller de yarı saydam kaldığı için silik duruyordu.
+ *
+ * YENİ SİSTEM: çerçevelerin içi BOŞ; ID'yi uygulama yazıyor. Böylece
+ *   • herkes istediği çerçeveyi kendi ID'siyle kullanabiliyor,
+ *   • yazı hiçbir zaman bozulmuyor (vektör metin),
+ *   • yeni çerçeve eklemek sadece dosya + iki satır.
+ *
+ * Her çerçevenin boş panelinin yeri FARKLI (x %34–47 arası). Bu yüzden
+ * sabit bir oran kullanılamaz — panel dikdörtgeni her PNG'den piksel piksel
+ * ölçülüp buraya oran olarak gömüldü. Yazının kaymamasının sebebi bu.
+ */
 const BANNER = {
-  premium_01: require("@/assets/badges/premium/premium_01.png"),
-  premium_02: require("@/assets/badges/premium/premium_02.png"),
-  premium_03: require("@/assets/badges/premium/premium_03.png"),
-  premium_04: require("@/assets/badges/premium/premium_04.png"),
-  premium_05: require("@/assets/badges/premium/premium_05.png"),
-  premium_06: require("@/assets/badges/premium/premium_06.png"),
-  premium_07: require("@/assets/badges/premium/premium_07.png"),
-  premium_08: require("@/assets/badges/premium/premium_08.png"),
-  premium_09: require("@/assets/badges/premium/premium_09.png"),
-  premium_10: require("@/assets/badges/premium/premium_10.png"),
-  premium_11: require("@/assets/badges/premium/premium_11.png"),
-  premium_12: require("@/assets/badges/premium/premium_12.png"),
-  premium_13: require("@/assets/badges/premium/premium_13.png"),
-  premium_14: require("@/assets/badges/premium/premium_14.png"),
-  premium_15: require("@/assets/badges/premium/premium_15.png"),
-  premium_16: require("@/assets/badges/premium/premium_16.png"),
-  premium_17: require("@/assets/badges/premium/premium_17.png"),
-  premium_18: require("@/assets/badges/premium/premium_18.png"),
-  premium_19: require("@/assets/badges/premium/premium_19.png"),
-  premium_20: require("@/assets/badges/premium/premium_20.png"),
-  premium_21: require("@/assets/badges/premium/premium_21.png"),
-  premium_22: require("@/assets/badges/premium/premium_22.png"),
-  premium_23: require("@/assets/badges/premium/premium_23.png"),
-  premium_24: require("@/assets/badges/premium/premium_24.png"),
-  premium_25: require("@/assets/badges/premium/premium_25.png"),
-  premium_26: require("@/assets/badges/premium/premium_26.png"),
-  premium_27: require("@/assets/badges/premium/premium_27.png"),
-  premium_28: require("@/assets/badges/premium/premium_28.png"),
-  premium_29: require("@/assets/badges/premium/premium_29.png"),
-  premium_30: require("@/assets/badges/premium/premium_30.png"),
-  premium_31: require("@/assets/badges/premium/premium_31.png"),
-  premium_32: require("@/assets/badges/premium/premium_32.png"),
-  premium_33: require("@/assets/badges/premium/premium_33.png"),
-  premium_34: require("@/assets/badges/premium/premium_34.png"),
-  premium_35: require("@/assets/badges/premium/premium_35.png"),
-  premium_36: require("@/assets/badges/premium/premium_36.png"),
-  premium_37: require("@/assets/badges/premium/premium_37.png"),
-  premium_38: require("@/assets/badges/premium/premium_38.png"),
-  premium_39: require("@/assets/badges/premium/premium_39.png"),
-  premium_40: require("@/assets/badges/premium/premium_40.png"),
-  premium_41: require("@/assets/badges/premium/premium_41.png"),
-  premium_42: require("@/assets/badges/premium/premium_42.png"),
-  premium_43: require("@/assets/badges/premium/premium_43.png"),
-  premium_44: require("@/assets/badges/premium/premium_44.png"),
-  premium_45: require("@/assets/badges/premium/premium_45.png"),
-  premium_46: require("@/assets/badges/premium/premium_46.png"),
-  premium_47: require("@/assets/badges/premium/premium_47.png"),
-  premium_48: require("@/assets/badges/premium/premium_48.png"),
-  premium_49: require("@/assets/badges/premium/premium_49.png"),
-  premium_50: require("@/assets/badges/premium/premium_50.png"),
-  premium_51: require("@/assets/badges/premium/premium_51.png"),
-  premium_52: require("@/assets/badges/premium/premium_52.png"),
-  premium_53: require("@/assets/badges/premium/premium_53.png"),
-  premium_54: require("@/assets/badges/premium/premium_54.png"),
-  premium_55: require("@/assets/badges/premium/premium_55.png"),
-  premium_56: require("@/assets/badges/premium/premium_56.png"),
-  premium_57: require("@/assets/badges/premium/premium_57.png"),
-  premium_58: require("@/assets/badges/premium/premium_58.png"),
-  premium_59: require("@/assets/badges/premium/premium_59.png"),
-  premium_60: require("@/assets/badges/premium/premium_60.png"),
+  premium_001: require("@/assets/badges/premium/premium_001.png"),
+  premium_002: require("@/assets/badges/premium/premium_002.png"),
+  premium_003: require("@/assets/badges/premium/premium_003.png"),
+  premium_004: require("@/assets/badges/premium/premium_004.png"),
+  premium_005: require("@/assets/badges/premium/premium_005.png"),
+  premium_006: require("@/assets/badges/premium/premium_006.png"),
+  premium_007: require("@/assets/badges/premium/premium_007.png"),
+  premium_008: require("@/assets/badges/premium/premium_008.png"),
+  premium_009: require("@/assets/badges/premium/premium_009.png"),
+  premium_010: require("@/assets/badges/premium/premium_010.png"),
+  premium_011: require("@/assets/badges/premium/premium_011.png"),
+  premium_012: require("@/assets/badges/premium/premium_012.png"),
+  premium_013: require("@/assets/badges/premium/premium_013.png"),
+  premium_014: require("@/assets/badges/premium/premium_014.png"),
+  premium_015: require("@/assets/badges/premium/premium_015.png"),
+  premium_016: require("@/assets/badges/premium/premium_016.png"),
+  premium_017: require("@/assets/badges/premium/premium_017.png"),
+  premium_018: require("@/assets/badges/premium/premium_018.png"),
+  premium_019: require("@/assets/badges/premium/premium_019.png"),
+  premium_020: require("@/assets/badges/premium/premium_020.png"),
+  premium_021: require("@/assets/badges/premium/premium_021.png"),
+  premium_022: require("@/assets/badges/premium/premium_022.png"),
+  premium_023: require("@/assets/badges/premium/premium_023.png"),
+  premium_024: require("@/assets/badges/premium/premium_024.png"),
 } as const;
 
 export type PremiumFrame = keyof typeof BANNER;
 export const PREMIUM_FRAMES = Object.keys(BANNER) as PremiumFrame[];
 
-// Her bannerın görsele baked ID numarası (kopyalama/bilgi için).
-export const PREMIUM_NUM: Record<PremiumFrame, string> = {
-  premium_01: "47832",
-  premium_02: "93615",
-  premium_03: "27109",
-  premium_04: "80547",
-  premium_05: "19283",
-  premium_06: "63321",
-  premium_07: "54217",
-  premium_08: "76492",
-  premium_09: "31864",
-  premium_10: "60431",
-  premium_11: "92716",
-  premium_12: "35018",
-  premium_13: "11207",
-  premium_14: "84273",
-  premium_15: "28564",
-  premium_16: "61928",
-  premium_17: "47359",
-  premium_18: "93427",
-  premium_19: "74102",
-  premium_20: "20871",
-  premium_21: "56390",
-  premium_22: "41826",
-  premium_23: "70391",
-  premium_24: "15674",
-  premium_25: "89231",
-  premium_26: "30567",
-  premium_27: "66714",
-  premium_28: "97531",
-  premium_29: "38392",
-  premium_30: "50816",
-  premium_31: "12255",
-  premium_32: "65478",
-  premium_33: "28741",
-  premium_34: "73025",
-  premium_35: "45918",
-  premium_36: "61839",
-  premium_37: "10928",
-  premium_38: "33451",
-  premium_39: "51963",
-  premium_40: "74208",
-  premium_41: "88123",
-  premium_42: "20749",
-  premium_43: "92837",
-  premium_44: "61029",
-  premium_45: "46672",
-  premium_46: "37781",
-  premium_47: "52590",
-  premium_48: "84316",
-  premium_49: "29304",
-  premium_50: "71638",
-  premium_51: "50219",
-  premium_52: "68047",
-  premium_53: "12988",
-  premium_54: "90327",
-  premium_55: "31579",
-  premium_56: "64701",
-  premium_57: "25783",
-  premium_58: "49821",
-  premium_59: "73265",
-  premium_60: "86420",
+/**
+ * Çerçeve ölçüleri:
+ *   oran       = görselin en/boy oranı (kutu bununla açılır, boşluk kalmaz)
+ *   x, y, w, h = boş panelin çerçeveye göre oranı (ID buraya yazılır)
+ * Değerler kaynak PNG'lerden otomatik ölçüldü.
+ */
+const OLCU: Record<PremiumFrame, { oran: number; x: number; y: number; w: number; h: number }> = {
+  premium_001: { oran: 2.031, x: 0.4695, y: 0.3605, w: 0.3702, h: 0.2829 },
+  premium_002: { oran: 2.451, x: 0.3989, y: 0.4336, w: 0.4838, h: 0.354 },
+  premium_003: { oran: 2.424, x: 0.3688, y: 0.3825, w: 0.4867, h: 0.3641 },
+  premium_004: { oran: 2.304, x: 0.3755, y: 0.4087, w: 0.4528, h: 0.3261 },
+  premium_005: { oran: 2.489, x: 0.3784, y: 0.4305, w: 0.4757, h: 0.3453 },
+  premium_006: { oran: 2.322, x: 0.367, y: 0.4043, w: 0.4831, h: 0.3348 },
+  premium_007: { oran: 2.602, x: 0.4034, y: 0.3781, w: 0.4321, h: 0.3483 },
+  premium_008: { oran: 2.819, x: 0.3438, y: 0.3679, w: 0.4963, h: 0.342 },
+  premium_009: { oran: 2.452, x: 0.3782, y: 0.3439, w: 0.441, h: 0.3529 },
+  premium_010: { oran: 2.69, x: 0.417, y: 0.3553, w: 0.434, h: 0.3807 },
+  premium_011: { oran: 2.694, x: 0.4288, y: 0.3689, w: 0.427, h: 0.3398 },
+  premium_012: { oran: 2.7, x: 0.4185, y: 0.33, w: 0.4111, h: 0.395 },
+  premium_013: { oran: 2.221, x: 0.3921, y: 0.4333, w: 0.4747, h: 0.2833 },
+  premium_014: { oran: 2.394, x: 0.38, y: 0.4706, w: 0.4934, h: 0.3122 },
+  premium_015: { oran: 2.784, x: 0.3883, y: 0.3892, w: 0.4796, h: 0.3568 },
+  premium_016: { oran: 2.401, x: 0.3877, y: 0.4747, w: 0.4894, h: 0.3134 },
+  premium_017: { oran: 2.404, x: 0.3937, y: 0.4133, w: 0.4713, h: 0.3022 },
+  premium_018: { oran: 2.705, x: 0.4713, y: 0.456, w: 0.41, h: 0.3057 },
+  premium_019: { oran: 2.572, x: 0.372, y: 0.3894, w: 0.4879, h: 0.3413 },
+  premium_020: { oran: 2.44, x: 0.3321, y: 0.412, w: 0.5446, h: 0.3194 },
+  premium_021: { oran: 2.417, x: 0.4042, y: 0.4074, w: 0.4693, h: 0.3102 },
+  premium_022: { oran: 2.847, x: 0.448, y: 0.4021, w: 0.4089, h: 0.3598 },
+  premium_023: { oran: 2.417, x: 0.3947, y: 0.3303, w: 0.4516, h: 0.2844 },
+  premium_024: { oran: 2.856, x: 0.4544, y: 0.3617, w: 0.419, h: 0.3457 },
 };
 
 /**
- * Her bannerın GERÇEK en-boy oranı (kaynak PNG'den ölçüldü).
- *
- * Eskiden hepsi için sabit 3.0 kullanılıyordu; oysa görseller 2.525 ile
- * 3.731 arasında değişiyor. Kutu 3.0 oranında açılıp görsel `contain` ile
- * içine sığdırılınca banner kutudan dar/alçak kalıp ortalanıyordu — en kötü
- * durumda %16 boşluk. "Tam yerleşmiyor" görüntüsünün sebebi buydu.
+ * Kabartma ID metni. RN'de tek Text yalnızca bir gölge alabildiği için üç
+ * katman üst üste konur: koyu gölge (sağ-alt), açık ışık (sol-üst), ana dolgu.
+ * Işık sol üstten geldiği için harfler yüzeyden kabarık görünür.
  */
-const RATIO: Record<PremiumFrame, number> = {
-  premium_01: 2.833, premium_02: 2.762, premium_03: 2.674, premium_04: 2.639,
-  premium_05: 2.538, premium_06: 2.625, premium_07: 2.899, premium_08: 2.786,
-  premium_09: 2.786, premium_10: 2.681, premium_11: 2.558, premium_12: 2.551,
-  premium_13: 2.755, premium_14: 2.890, premium_15: 2.841, premium_16: 2.899,
-  premium_17: 2.525, premium_18: 2.801, premium_19: 3.155, premium_20: 3.125,
-  premium_21: 3.077, premium_22: 2.924, premium_23: 3.058, premium_24: 3.067,
-  premium_25: 3.195, premium_26: 3.559, premium_27: 3.205, premium_28: 3.106,
-  premium_29: 3.067, premium_30: 3.106, premium_31: 3.521, premium_32: 3.597,
-  premium_33: 3.610, premium_34: 3.378, premium_35: 3.279, premium_36: 3.236,
-  premium_37: 3.636, premium_38: 3.717, premium_39: 3.509, premium_40: 3.636,
-  premium_41: 3.636, premium_42: 3.534, premium_43: 3.448, premium_44: 3.731,
-  premium_45: 3.676, premium_46: 3.367, premium_47: 3.401, premium_48: 3.236,
-  premium_49: 3.268, premium_50: 3.546, premium_51: 3.356, premium_52: 3.155,
-  premium_53: 2.985, premium_54: 3.096, premium_55: 3.413, premium_56: 3.731,
-  premium_57: 3.344, premium_58: 3.322, premium_59: 3.185, premium_60: 3.135,
-};
+function KabartmaId({ id, boyut, genislik }: { id: string; boyut: number; genislik: number }) {
+  const ortak = {
+    position: "absolute" as const,
+    width: genislik,
+    textAlign: "center" as const,
+    fontFamily: Font.extrabold,
+    fontSize: boyut,
+    letterSpacing: boyut * 0.06,
+    includeFontPadding: false,
+  };
+  return (
+    <>
+      <Text numberOfLines={1} style={[ortak, { color: "rgba(0,0,0,.68)", transform: [{ translateX: 1.2 }, { translateY: 1.2 }] }]}>
+        {id}
+      </Text>
+      <Text numberOfLines={1} style={[ortak, { color: "rgba(255,255,255,.38)", transform: [{ translateX: -1.2 }, { translateY: -1.2 }] }]}>
+        {id}
+      </Text>
+      <Text numberOfLines={1} style={[ortak, { color: "#F7E7C4" }]}>
+        {id}
+      </Text>
+    </>
+  );
+}
 
-export function PremiumBanner({ frame, width = 220 }: { frame: PremiumFrame; width?: number }) {
-  // Kutu görselin kendi oranında açılır → contain ile boşluk kalmaz, banner
-  // verilen genişliği tam doldurur.
-  return <Image source={BANNER[frame]} style={{ width, height: width / RATIO[frame] }} contentFit="contain" />;
+export function PremiumBanner({ frame, id, width = 220 }: { frame: PremiumFrame; id?: string; width?: number }) {
+  // Eski kayıtlar (premium_07 gibi 2 haneli anahtarlar) artık yok. Böyle bir
+  // tema DB'de duruyorsa çökmek yerine ID'yi düz yazıyla göster.
+  const o = OLCU[frame];
+  if (!o || !BANNER[frame]) {
+    return id ? (
+      <Text
+        numberOfLines={1}
+        style={{ fontFamily: Font.extrabold, fontSize: Math.max(11, width * 0.075), color: "#F5CE6E", letterSpacing: 1 }}
+      >
+        {id}
+      </Text>
+    ) : null;
+  }
+  const height = width / o.oran;
+  // Panel dikdörtgeni (piksel)
+  const pw = o.w * width;
+  const ph = o.h * height;
+  const px = o.x * width;
+  const py = o.y * height;
+  // Punto panel yüksekliğine oranlı; uzun ID'lerde panele sığsın diye
+  // genişliğe göre de sınırlanır (5 hane + boşluklar).
+  const boyut = Math.min(ph * 0.66, pw / 3.1);
+
+  return (
+    <View style={{ width, height }}>
+      <Image source={BANNER[frame]} style={{ width, height }} contentFit="contain" />
+      {!!id && (
+        <View
+          pointerEvents="none"
+          style={{ position: "absolute", left: px, top: py, width: pw, height: ph, alignItems: "center", justifyContent: "center" }}
+        >
+          <KabartmaId id={id} boyut={boyut} genislik={pw} />
+        </View>
+      )}
+    </View>
+  );
 }
