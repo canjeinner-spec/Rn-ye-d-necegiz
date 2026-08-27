@@ -132,7 +132,34 @@ export const PREMIUM_NUM: Record<PremiumFrame, string> = {
   premium_60: "86420",
 };
 
-const RATIO = 3.0;
+/**
+ * Her bannerın GERÇEK en-boy oranı (kaynak PNG'den ölçüldü).
+ *
+ * Eskiden hepsi için sabit 3.0 kullanılıyordu; oysa görseller 2.525 ile
+ * 3.731 arasında değişiyor. Kutu 3.0 oranında açılıp görsel `contain` ile
+ * içine sığdırılınca banner kutudan dar/alçak kalıp ortalanıyordu — en kötü
+ * durumda %16 boşluk. "Tam yerleşmiyor" görüntüsünün sebebi buydu.
+ */
+const RATIO: Record<PremiumFrame, number> = {
+  premium_01: 2.833, premium_02: 2.762, premium_03: 2.674, premium_04: 2.639,
+  premium_05: 2.538, premium_06: 2.625, premium_07: 2.899, premium_08: 2.786,
+  premium_09: 2.786, premium_10: 2.681, premium_11: 2.558, premium_12: 2.551,
+  premium_13: 2.755, premium_14: 2.890, premium_15: 2.841, premium_16: 2.899,
+  premium_17: 2.525, premium_18: 2.801, premium_19: 3.155, premium_20: 3.125,
+  premium_21: 3.077, premium_22: 2.924, premium_23: 3.058, premium_24: 3.067,
+  premium_25: 3.195, premium_26: 3.559, premium_27: 3.205, premium_28: 3.106,
+  premium_29: 3.067, premium_30: 3.106, premium_31: 3.521, premium_32: 3.597,
+  premium_33: 3.610, premium_34: 3.378, premium_35: 3.279, premium_36: 3.236,
+  premium_37: 3.636, premium_38: 3.717, premium_39: 3.509, premium_40: 3.636,
+  premium_41: 3.636, premium_42: 3.534, premium_43: 3.448, premium_44: 3.731,
+  premium_45: 3.676, premium_46: 3.367, premium_47: 3.401, premium_48: 3.236,
+  premium_49: 3.268, premium_50: 3.546, premium_51: 3.356, premium_52: 3.155,
+  premium_53: 2.985, premium_54: 3.096, premium_55: 3.413, premium_56: 3.731,
+  premium_57: 3.344, premium_58: 3.322, premium_59: 3.185, premium_60: 3.135,
+};
+
 export function PremiumBanner({ frame, width = 220 }: { frame: PremiumFrame; width?: number }) {
-  return <Image source={BANNER[frame]} style={{ width, height: width / RATIO }} contentFit="contain" />;
+  // Kutu görselin kendi oranında açılır → contain ile boşluk kalmaz, banner
+  // verilen genişliği tam doldurur.
+  return <Image source={BANNER[frame]} style={{ width, height: width / RATIO[frame] }} contentFit="contain" />;
 }

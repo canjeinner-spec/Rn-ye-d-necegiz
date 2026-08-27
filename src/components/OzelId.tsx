@@ -37,6 +37,17 @@ const CARD = {
 
 export const OZEL_ID_KART_KAYNAK = CARD;
 
+/** Kart görsellerinin GERÇEK en-boy oranı (kaynak PNG'den ölçüldü). */
+const KART_ORAN: Record<OzelIdKart, number> = {
+  bronze: 1.520, silver: 1.633, gold: 1.587, platinum: 1.630,
+  diamond: 1.679, legendary: 1.582, mythic: 1.708, celestial: 1.689,
+  void: 1.772, emerald: 1.523, pearl: 1.654, ice: 1.734,
+  dragon: 1.657, shadow: 1.952, cyber: 1.701, royal: 1.590,
+  demon: 1.829, holy: 2.018, futuristic: 1.724, nature: 1.829,
+  samurai: 1.863, pirate: 1.670, steampunk: 1.796, music: 1.887,
+  star: 1.848,
+};
+
 // Kartın gövdesindeki slot oranları (görsel W×H'ye göre). Kartların ID-kart
 // düzeni ortak: solda kişi ikonu, sağda metin bantları. Kanatlı kartlarda
 // gövde biraz dar; varsayılan çoğunu tutar, gerekirse frame'e özel geçilebilir.
@@ -134,8 +145,10 @@ export function IdKapsul({ theme, id, size = 13 }: { theme: OzelIdKart; id: stri
   const emblemH = size * 2.15;
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: -size * 0.25 }}>
-      {/* baştaki rozet = o temanın kartının küçük hâli */}
-      <Image source={CARD[theme]} style={{ width: emblemH * 1.9, height: emblemH }} contentFit="contain" />
+      {/* baştaki rozet = o temanın kartının küçük hâli. Genişlik kartın KENDİ
+          oranından gelir; sabit 1.9 kullanılınca oranı düşük kartlar (bronze
+          1.52, emerald 1.52) kutunun içinde küçülüp kayıyordu. */}
+      <Image source={CARD[theme]} style={{ width: emblemH * KART_ORAN[theme], height: emblemH }} contentFit="contain" />
       <Gradient
         colors={t.g}
         deg={180}
