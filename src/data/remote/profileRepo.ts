@@ -18,13 +18,14 @@ export type Profile = {
   ozel_id: string | null;
   ozel_id_tip: "premium" | "kapsul" | null;
   ozel_id_tema: string | null;
-  kusanilan_rozet: string | null;
+  /** 050 migration'i calisana kadar SELECT'e dahil degil - opsiyonel. */
+  kusanilan_rozet?: string | null;
   beta_tester: boolean;
   premium_hak: boolean;
 };
 
 const SELF_COLS =
-  "id, public_id, kullanici_adi, email, profil_resmi, biyografi, cinsiyet, ulke, sehir, seviye_id, deneyim_puani, durum, ekonomi_rolu, ozel_id, ozel_id_tip, ozel_id_tema, kusanilan_rozet, beta_tester, premium_hak";
+  "id, public_id, kullanici_adi, email, profil_resmi, biyografi, cinsiyet, ulke, sehir, seviye_id, deneyim_puani, durum, ekonomi_rolu, ozel_id, ozel_id_tip, ozel_id_tema, beta_tester, premium_hak";
 
 /**
  * Aktif oturumun auth uid'sini YEREL olarak döndürür — AĞ round-trip'i YOK.
@@ -115,11 +116,12 @@ export type PublicProfile = {
   ozel_id: string | null;
   ozel_id_tip: "premium" | "kapsul" | null;
   ozel_id_tema: string | null;
-  kusanilan_rozet: string | null;
+  /** 050 migration'i calisana kadar SELECT'e dahil degil - opsiyonel. */
+  kusanilan_rozet?: string | null;
 };
 
 const PUBLIC_COLS =
-  "id, public_id, kullanici_adi, profil_resmi, biyografi, cinsiyet, ulke, sehir, seviye_id, deneyim_puani, durum, ekonomi_rolu, ozel_id, ozel_id_tip, ozel_id_tema, kusanilan_rozet";
+  "id, public_id, kullanici_adi, profil_resmi, biyografi, cinsiyet, ulke, sehir, seviye_id, deneyim_puani, durum, ekonomi_rolu, ozel_id, ozel_id_tip, ozel_id_tema";
 
 /** Başka bir kullanıcının herkese açık profili (profiller view). */
 export async function getPublicProfile(publicId: string): Promise<PublicProfile | null> {
