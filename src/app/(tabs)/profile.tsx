@@ -55,7 +55,9 @@ export default function ProfileTab() {
   const { data: rozetler } = useCachedResource<KazanilmisRozet[]>(
     `rozet:${dbId ?? "?"}`, () => getUserBadges(dbId as number), { persist: true, enabled: !!session && !!dbId },
   );
-  const rozetOzet = rozetler?.length ? `${rozetler.length} rozet kazandın` : "Rozet koleksiyonunu gör";
+  // Rol rozetleri yetkiden gelir, koleksiyonda gösterilmiyor — sayaca da girmez.
+  const rozetSayisi = rozetler?.filter((r) => r.kategori !== "role").length ?? 0;
+  const rozetOzet = rozetSayisi ? `${rozetSayisi} rozet kazandın` : "Rozet koleksiyonunu gör";
   const [lang, setLang] = useState("Türkçe");
   const privileged = role !== "user";
   const [editOpen, setEditOpen] = useState(false);

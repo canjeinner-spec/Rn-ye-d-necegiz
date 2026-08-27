@@ -29,11 +29,17 @@ function rozetGorseli(kod: string) {
 }
 
 const KATEGORI_ADI: Record<string, string> = {
-  level: "Seviye Rütbeleri",
-  role: "Roller",
+  level: "Seviye Rütbelerim",
   special: "Özel",
-  room: "Başarılar",
+  room: "Başarılarım",
 };
+
+/**
+ * Kullanıcıya gösterilen kategoriler. `role` DIŞARIDA: rol rozetleri
+ * (developer, admin, moderator…) kazanılan bir başarı değil, yetkiden gelir —
+ * koleksiyonda "kilitli hedef" gibi görünmesi yanlış olur.
+ */
+const GORUNEN_KATEGORILER = ["level", "special", "room"];
 
 function RozetKutu({ r }: { r: RozetIlerleme }) {
   const src = rozetGorseli(r.kod);
@@ -100,9 +106,10 @@ export default function BadgesScreen() {
     }, []),
   );
 
-  const kazanilan = liste?.filter((r) => r.kazanildi).length ?? 0;
-  const toplam = liste?.length ?? 0;
-  const kategoriler = ["level", "role", "special", "room"];
+  // Rol rozetleri koleksiyonda gösterilmez; sayaç da onları saymaz.
+  const gosterilen = liste?.filter((r) => GORUNEN_KATEGORILER.includes(r.kategori ?? "")) ?? [];
+  const kazanilan = gosterilen.filter((r) => r.kazanildi).length;
+  const toplam = gosterilen.length;
 
   return (
     <View style={styles.root}>
@@ -129,8 +136,8 @@ export default function BadgesScreen() {
           </View>
         ) : (
           <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
-            {kategoriler.map((kat) => {
-              const grup = liste.filter((r) => r.kategori === kat);
+            {GORUNEN_KATEGORILER.map((kat) => {
+              const grup = gosterilen.filter((r) => r.kategori === kat);
               if (!grup.length) return null;
               const gKazanilan = grup.filter((r) => r.kazanildi).length;
               return (
