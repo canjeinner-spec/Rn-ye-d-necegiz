@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { type DMThread } from "@/data/dm";
 import { type Room } from "@/data/seed";
 import { deleteAccount, getMyAccountBan, getSession, onAuthChange, signOut, type AccountBan } from "@/data/remote/authRepo";
+import { evaluateBadges } from "@/data/remote/badgeRepo";
 import { betaKapsulHatirlat, ensureMyProfile, getMyProfile } from "@/data/remote/profileRepo";
 import { createRoom, getMyRoom, listRooms } from "@/data/remote/roomsRepo";
 import { listPosts } from "@/data/remote/feedRepo";
@@ -327,6 +328,9 @@ export const useApp = create<AppState>((set, get) => ({
       if (p.id != null) startBanEnforcement(p.id, () => get().enforceAccountBan());
       // Beta + özel ID yoksa: Sistem DM hatırlatması (sunucu idempotent — bir kez)
       if (p.beta_tester && !p.ozel_id) betaKapsulHatirlat().catch(() => {});
+      // Kuralı tutan rozetleri otomatik ver (049). Sunucu idempotent — zaten
+      // kazanılmışları tekrar vermez, hata olursa sessizce geçilir.
+      evaluateBadges().catch(() => {});
     } catch {
       // sessizce geç — oturum geçerli, profil sonradan yüklenebilir
     }
