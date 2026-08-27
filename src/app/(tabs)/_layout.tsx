@@ -11,10 +11,17 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={(props) => <BottomNav {...props} />}
+      // Sahneler hiçbir zaman ayrılmasın: ayrılan sahne geri takılırken
+      // hızlı geçişte siyah kalıyordu.
+      detachInactiveScreens={false}
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: C.bg },
-        animation: "shift",
+        // ÖNEMLİ: animasyon YOK. "shift"/"fade" ile hızlı ardışık dokunuşlarda
+        // geçiş yarıda kalıp sahne siyah kalıyordu (New Architecture'da belirgin).
+        // Animasyonu kaldırmak yarışı tamamen ortadan kaldırıyor; sekme geçişi
+        // de anlık oluyor.
+        animation: "none",
         lazy: false,
         freezeOnBlur: false,
         tabBarHideOnKeyboard: true,
