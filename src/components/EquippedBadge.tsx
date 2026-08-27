@@ -28,6 +28,12 @@ const KATEGORI_RENK: Record<string, string> = {
   basari: "#4ADE80",
 };
 
+/**
+ * Profil vitrininde zaten otomatik gösterilen rozetler. Bunlar kuşanılsa bile
+ * ikinci kez çizilmez — yoksa aynı rozet yan yana iki kere görünür.
+ */
+const OTOMATIK_GOSTERILEN = /^(level_|role_|special_beta_tester$)/;
+
 /** kod -> görsel. level_/role_/special_ PngBadge'de, oda/başarı RoomBadges'te. */
 function rozetGorseli(kod: string) {
   const png = PNG_BADGE_IMG as Record<string, number>;
@@ -59,6 +65,11 @@ export function EquippedBadge({ kod, size = 28 }: { kod?: string | null; size?: 
   }, [acik, kod]);
 
   if (!kod) return null;
+  // Rozet vitrini seviye rütbesini, rol rozetlerini ve beta rozetini ZATEN
+  // otomatik gösteriyor (levelTierBadge / role / special_beta_tester).
+  // Bunlardan biri kuşanılmışsa burada tekrar çizersek aynı rozet iki kez
+  // görünür. Sistemin belirlediği bu rozetler kuşanma listesinde de yok.
+  if (OTOMATIK_GOSTERILEN.test(kod)) return null;
   const src = rozetGorseli(kod);
   if (!src) return null;
 
