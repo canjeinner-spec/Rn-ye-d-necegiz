@@ -42,6 +42,20 @@ const IMG = {
   summer_sun: require("@/assets/badges/room/summer_sun.png"),
   autumn_leaf: require("@/assets/badges/room/autumn_leaf.png"),
   legendary: require("@/assets/badges/room/legendary.png"),
+  // 2. parti (rozetv2 sayfası) — henüz hiçbir odaya/kullanıcıya atanmadı,
+  // kazanma kuralları belirlenince `room.badges` verisinden kullanılacak.
+  first_voice: require("@/assets/badges/room/first_voice.png"),
+  room_king_v2: require("@/assets/badges/room/room_king_v2.png"),
+  social_butterfly: require("@/assets/badges/room/social_butterfly.png"),
+  music_lover: require("@/assets/badges/room/music_lover.png"),
+  night_shift: require("@/assets/badges/room/night_shift.png"),
+  streak_master: require("@/assets/badges/room/streak_master.png"),
+  guardian: require("@/assets/badges/room/guardian.png"),
+  chatterbox: require("@/assets/badges/room/chatterbox.png"),
+  team_player: require("@/assets/badges/room/team_player.png"),
+  vip_member: require("@/assets/badges/room/vip_member.png"),
+  gift_giver: require("@/assets/badges/room/gift_giver.png"),
+  alpha: require("@/assets/badges/room/alpha.png"),
 } as const;
 
 export type RoomBadgeType = keyof typeof IMG | "lv";
