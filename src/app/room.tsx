@@ -28,6 +28,7 @@ import { Txt } from "@/components/Txt";
 import { ContributionView } from "@/sheets/ContributionView";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { ProfileCard, type ProfileCardUser } from "@/sheets/ProfileCard";
+import { MicQueueSheet } from "@/sheets/MicQueueSheet";
 import { RoomPanel } from "@/sheets/RoomPanel";
 import { RoomStats } from "@/sheets/RoomStats";
 import { type Gift } from "@/data/gifts";
@@ -326,7 +327,7 @@ export default function RoomScreen() {
   const [giftFx, setGiftFx] = useState<(Gift & { qty: number }) | null>(null);
   const [bigGift, setBigGift] = useState<{ gift: Gift; qty: number } | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [panelTab, setPanelTab] = useState(0);
+  const [queueOpen, setQueueOpen] = useState(false);
   // currentRoom'a bağlı (donuk değil) → sahip kapak/tema değiştirince canlı yansır.
   const roomPhoto = room?.photo ?? null;
   const [stub, setStub] = useState<string | null>(null);
@@ -652,7 +653,7 @@ export default function RoomScreen() {
               <Pressable onPress={minimize} hitSlop={8} style={{ padding: 2 }}>
                 <Icon name="back" size={22} color="#fff" />
               </Pressable>
-              <Pressable onPress={() => { setPanelTab(0); setPanelOpen(true); }} style={styles.roomChip}>
+              <Pressable onPress={() => { setPanelOpen(true); }} style={styles.roomChip}>
                 <View style={styles.thumb}>
                   {room.photo ? <Image source={{ uri: room.photo }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
                 </View>
@@ -737,8 +738,14 @@ export default function RoomScreen() {
                 <ChatRow key={i} m={m} userName={userName} userPhoto={userPhoto} privileged={privileged} onSelfPress={openMyCard} onTapUser={openChatUserCard} />
               ))}
             </ScrollView>
-            <Pressable onPress={() => { haptic.light(); setPanelTab(2); setPanelOpen(true); }} style={styles.micQueueFab} hitSlop={6}>
-              <Icon name="mic" size={18} color={C.gold} />
+            {/* Mikrofon sırası — el kaldırma jesti mikrofon ikonundan daha anlaşılır */}
+            <Pressable onPress={() => { haptic.light(); setQueueOpen(true); }} style={styles.micQueueFab} hitSlop={6}>
+              <Icon name="hand" size={18} color={C.gold} />
+              {isDbRoom && micQueue.length > 0 && (
+                <View style={styles.micQueueRozet}>
+                  <Txt weight="extrabold" size={9} color="#241A05">{micQueue.length}</Txt>
+                </View>
+              )}
             </Pressable>
           </View>
 
@@ -890,18 +897,24 @@ export default function RoomScreen() {
           locked={roomLocked}
           memberCount={occupants.length}
           canManage={MY_ROLE === "host"}
-          initialTab={panelTab}
-          queue={isDbRoom ? micQueue : undefined}
-          myRaised={myRaised}
-          myUid={myDbId}
-          canModerateQueue={MY_ROLE !== "user"}
-          onRaise={raiseHand}
-          onLower={lowerHand}
-          onApprove={approveHand}
           onManage={() => { setPanelOpen(false); router.navigate("/room-manage"); }}
           onReport={() => { setPanelOpen(false); setReportOpen(true); }}
           onStats={() => { setPanelOpen(false); setStatsOpen(true); }}
           onClose={() => setPanelOpen(false)}
+        />
+      )}
+
+      {/* Mikrofon sırası — oda profilinin sekmesi değil, kendi sayfası */}
+      {queueOpen && (
+        <MicQueueSheet
+          queue={isDbRoom ? micQueue : undefined}
+          myUid={myDbId}
+          myRaised={myRaised}
+          canModerate={MY_ROLE !== "user"}
+          onRaise={raiseHand}
+          onLower={lowerHand}
+          onApprove={approveHand}
+          onClose={() => setQueueOpen(false)}
         />
       )}
 
@@ -1018,6 +1031,7 @@ const styles = StyleSheet.create({
   micBanIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.12)", borderWidth: 1, borderColor: "rgba(251,113,133,.3)" },
   micBanRow: { alignSelf: "stretch", marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line },
   micQueueFab: { position: "absolute", right: 12, bottom: 12, width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(20,18,28,.9)", borderWidth: 1, borderColor: C.gold + "55" },
+  micQueueRozet: { position: "absolute", top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", backgroundColor: C.gold2, borderWidth: 1.5, borderColor: C.bg },
   roomChip: {
     flexDirection: "row",
     alignItems: "center",

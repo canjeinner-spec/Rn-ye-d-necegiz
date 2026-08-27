@@ -32,16 +32,6 @@ type Props = {
   onReport: () => void;
   onStats: () => void;
   onClose: () => void;
-  /** hangi sekmeyle açılsın (varsayılan 0 = Profil; 2 = Mikrofon Sırası) */
-  initialTab?: number;
-  /** Mikrofon sırası (yalnızca DB odalarda; undefined → yer tutucu) */
-  queue?: { uid: number; name: string; photo?: string; at: number }[];
-  myRaised?: boolean;
-  myUid?: number | null;
-  canModerateQueue?: boolean;
-  onRaise?: () => void;
-  onLower?: (uid?: number) => void;
-  onApprove?: (uid: number) => void;
 };
 
 const ROOM_LV = 29;
@@ -69,10 +59,16 @@ function RoleBtn({ icon, color, label, dim, onPress }: { icon: IconName; color: 
   );
 }
 
+/**
+ * Oda profili — sol üstteki oda çipinden açılır.
+ *
+ * Mikrofon sırası eskiden buranın 3. sekmesiydi; artık kendi sayfası var
+ * (MicQueueSheet), sağ alttaki el ikonundan açılıyor.
+ */
 export function RoomPanel(props: Props) {
-  const { room, roomName, roomPhoto, announce, locked, memberCount, canManage, onManage, onReport, onStats, onClose, initialTab, queue, myRaised, myUid, canModerateQueue, onRaise, onLower, onApprove } = props;
+  const { room, roomName, roomPhoto, announce, locked, memberCount, canManage, onManage, onReport, onStats, onClose } = props;
   const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState(initialTab ?? 0);
+  const [tab, setTab] = useState(0);
   const [following, setFollowing] = useState(false);
   const [joined, setJoined] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -169,7 +165,7 @@ export function RoomPanel(props: Props) {
 
             <View style={styles.headerRow}>
               <View style={styles.tabbar}>
-                {["Profil", "Üyeler", "Sıra"].map((t, i) => (
+                {["Profil", "Üyeler"].map((t, i) => (
                   <Pressable key={t} onPress={() => setTab(i)} style={styles.tabBtn}>
                     <Txt weight={i === tab ? "extrabold" : "medium"} size={15} color={i === tab ? "#fff" : "rgba(255,255,255,.42)"}>{t}</Txt>
                     {i === tab && <Gradient colors={[C.gold, "#C8922B"]} deg={90} style={styles.tabUnderline} />}
@@ -323,74 +319,7 @@ export function RoomPanel(props: Props) {
                   })
                 )}
               </ScrollView>
-            ) : queue === undefined ? (
-              <View style={{ padding: 18, paddingTop: 40, alignItems: "center" }}>
-                <View style={styles.queueIcon}>
-                  <Icon name="mic" size={24} color={C.gold} />
-                </View>
-                <Txt weight="displayBold" size={15} color="#fff" style={{ marginTop: 14 }}>Mikrofon Sırası</Txt>
-                <Txt size={12} color={C.dim} align="center" lh={1.5} style={{ marginTop: 8, maxWidth: 260 }}>
-                  Mikrofona çıkmak isteyenler yakında burada sıraya girebilecek.
-                </Txt>
-              </View>
-            ) : (
-              <View style={{ padding: 18 }}>
-                {queue.length === 0 ? (
-                  <View style={{ alignItems: "center", paddingVertical: 22 }}>
-                    <View style={styles.queueIcon}>
-                      <Icon name="mic" size={24} color={C.gold} />
-                    </View>
-                    <Txt weight="displayBold" size={15} color="#fff" style={{ marginTop: 14 }}>Sıra boş</Txt>
-                    <Txt size={12} color={C.dim} align="center" lh={1.5} style={{ marginTop: 8, maxWidth: 260 }}>
-                      El kaldıran ilk kişi sen ol — oda sahibi onaylayınca mikrofona geçersin.
-                    </Txt>
-                  </View>
-                ) : (
-                  <View style={styles.queueGroup}>
-                    {queue.map((q, i) => (
-                      <View key={q.uid}>
-                        {i > 0 && <View style={styles.queueDivider} />}
-                        <View style={styles.queueRow}>
-                          <Txt weight="displayBold" size={13} color={C.gold2} style={{ width: 24 }}>#{i + 1}</Txt>
-                          <Portrait name={q.name} size={38} photo={q.photo} />
-                          <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1} style={{ flex: 1 }}>{q.name}</Txt>
-                          {canModerateQueue && (
-                            <>
-                              <Pressable onPress={() => onApprove?.(q.uid)} style={[styles.queueChip, { backgroundColor: `${C.green}14`, borderColor: `${C.green}44` }]}>
-                                <Icon name="mic" size={12} color={C.green} />
-                                <Txt weight="bold" size={10.5} color={C.green}>Al</Txt>
-                              </Pressable>
-                              <Pressable onPress={() => onLower?.(q.uid)} style={styles.queueChip}>
-                                <Icon name="x" size={11} color={C.dim} />
-                              </Pressable>
-                            </>
-                          )}
-                          {!canModerateQueue && q.uid === myUid && (
-                            <Pressable onPress={() => onLower?.(q.uid)} style={styles.queueChip}>
-                              <Txt weight="bold" size={10.5} color={C.dim}>Vazgeç</Txt>
-                            </Pressable>
-                          )}
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                <Pressable onPress={() => (myRaised ? onLower?.() : onRaise?.())} style={{ marginTop: 16, borderRadius: 14, overflow: "hidden" }}>
-                  {myRaised ? (
-                    <View style={[styles.actBtn, { borderWidth: 1.5, borderColor: "rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.05)" }]}>
-                      <Icon name="x" size={15} color={C.dim} />
-                      <Txt weight="extrabold" size={13.5} color={C.dim}>Sıradan Çık</Txt>
-                    </View>
-                  ) : (
-                    <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.actBtn}>
-                      <Icon name="mic" size={16} color="#241A05" />
-                      <Txt weight="extrabold" size={13.5} color="#241A05">El Kaldır</Txt>
-                    </Gradient>
-                  )}
-                </Pressable>
-              </View>
-            )}
+            ) : null}
 
             <View style={[styles.footerRow, { paddingBottom: 12 + insets.bottom }]}>
               <Pressable onPress={toggleJoin} disabled={busy} style={{ flex: 1, borderRadius: 14, overflow: "hidden", opacity: busy ? 0.6 : 1 }}>
@@ -430,11 +359,6 @@ const styles = StyleSheet.create({
   tabUnderline: { position: "absolute", bottom: -1, width: 28, height: 3, borderRadius: 3 },
   gearBtn: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "44" },
   footerRow: { flexDirection: "row", gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line, paddingHorizontal: 18, paddingTop: 12 },
-  queueIcon: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "44" },
-  queueGroup: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", overflow: "hidden" },
-  queueDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 74 },
-  queueRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 12 },
-  queueChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   idCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 16, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 4 },
   reportIconBtn: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.06)" },
   actBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 12, borderRadius: 14 },
