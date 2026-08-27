@@ -124,6 +124,10 @@ type AppState = {
 
 let bcTimer: ReturnType<typeof setTimeout> | null = null;
 let authStarted = false;
+// onAuthChange aynı kullanıcı için birden çok kez tetiklenir (INITIAL_SESSION,
+// TOKEN_REFRESHED…). Örtüyü yalnızca kullanıcı değişince indirmek için son
+// görülen auth uid'sini tutuyoruz.
+let sonAuthUid: string | null = null;
 
 // --- Canlı hesap-yasağı izleyicisi ------------------------------------------
 // Yönetici bir hesabı yasakladığı ANDA cihaz bunu görüp oturumu kapatmalı.
@@ -135,6 +139,8 @@ let banChannel: ReturnType<NonNullable<typeof supabase>["channel"]> | null = nul
 let watchedBanDbId: number | null = null;
 let banPollTimer: ReturnType<typeof setInterval> | null = null;
 const BAN_POLL_MS = 5000;
+/** Yasak kontrolünün en fazla bekleyeceği süre — açılış örtüsü kilitlenmesin. */
+const BAN_CHECK_TIMEOUT_MS = 5000;
 
 function startBanEnforcement(dbId: number, onChange: () => void) {
   if (!supabase) return;
@@ -209,12 +215,26 @@ export const useApp = create<AppState>((set, get) => ({
       .catch(() => set({ bootstrapped: true }));
 
     onAuthChange(async (session) => {
-      // Yeni oturum → yasak yeniden doğrulanana kadar içeriği örtüyle gizle.
-      set({ session, girisYapildi: !!session, banChecked: !session });
+      // Supabase açılışta INITIAL_SESSION, sonra da TOKEN_REFRESHED gibi
+      // olayları AYNI kullanıcı için tekrar tekrar yayar. Her olayda
+      // `banChecked`i sıfırlarsak, zaten kalkmış olan örtü tekrar iner ve
+      // uygulama açılışta kilitli görünür. Bu yüzden örtüyü yalnızca
+      // kullanıcı GERÇEKTEN değiştiyse (giriş/çıkış/hesap değişimi) indir.
+      const uid = session?.user?.id ?? null;
+      const kullaniciDegisti = uid !== sonAuthUid;
+      sonAuthUid = uid;
+      set({
+        session,
+        girisYapildi: !!session,
+        ...(kullaniciDegisti ? { banChecked: !session } : null),
+      });
       if (session) {
         try { supabase?.realtime.setAuth(session.access_token); } catch { /* yoksay */ }
+        // Yasak kontrolü profili BEKLEMEZ: örtüyü kaldıran tek şey bu, o
+        // yüzden ilk sırada ve paralel koşar. Eskiden `await loadProfile()`
+        // arkasında kaldığı için soğuk açılışta örtü uzun süre kalıyordu.
+        get().enforceAccountBan();
         await get().loadProfile();
-        await get().enforceAccountBan();
         getMyRoom().then((r) => { if (r) set({ myRoom: r }); }).catch(() => {});
       } else {
         // Çıkış / oturum düştü → profil durumu sıfırlanır (misafir).
@@ -238,7 +258,14 @@ export const useApp = create<AppState>((set, get) => ({
   clearHesapYasak: () => set({ hesapYasak: null }),
   enforceAccountBan: async () => {
     try {
-      const ban = await getMyAccountBan();
+      // Bu çağrı örtüyü kaldıran tek şey; askıda kalırsa uygulama açılışta
+      // kilitleniyordu. Zaman aşımıyla yarıştırıyoruz — süre dolarsa "yasak
+      // yok" sayılır (fail-open, hata durumundaki davranışla aynı) ve 5sn'lik
+      // yoklama zaten yasağı birkaç saniye içinde yakalar.
+      const ban = await Promise.race([
+        getMyAccountBan(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), BAN_CHECK_TIMEOUT_MS)),
+      ]);
       if (ban) {
         stopBanEnforcement();
         await signOut().catch(() => {});
