@@ -327,7 +327,9 @@ export const useApp = create<AppState>((set, get) => ({
         ozelId: p.ozel_id ?? null,
         ozelIdTip: p.ozel_id_tip ?? null,
         ozelIdTema: p.ozel_id_tema ?? null,
-        kusanilanRozet: p.kusanilan_rozet ?? null,
+        // Alan yanıtta YOKSA (kolon seçilmemiş/erişilemiyor) mevcut değeri
+        // koru — aksi halde profil her tazelendiğinde kuşanılan rozet silinir.
+        ...(p.kusanilan_rozet !== undefined ? { kusanilanRozet: p.kusanilan_rozet } : null),
         profilEksik: isStubName(p.kullanici_adi), // register gerekiyor mu?
       });
       // dbId belli → hesap yasağını CANLI izle (Realtime + yoklama)
