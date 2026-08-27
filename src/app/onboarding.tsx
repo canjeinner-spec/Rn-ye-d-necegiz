@@ -68,11 +68,18 @@ export default function Onboarding() {
   // Auth sonrası: profil hâlâ stub (user_1234567) ise profil tamamlamaya
   // yönlendir (özellikle Google girişinde register adımı atlanmıştı), değilse gir.
   const proceedAfterAuth = async () => {
-    const profile = await getMyProfile().catch(() => null);
+    const profile = await getMyProfile().catch((e) => {
+      console.log("[auth] getMyProfile HATA:", e?.message || e);
+      return null;
+    });
+    console.log("[auth] profil:", profile ? `id=${profile.id} ad=${profile.kullanici_adi}` : "YOK (null)");
     if (profile && /^user_\d+$/.test(profile.kullanici_adi || "")) {
+      console.log("[auth] -> register adimi (profil tamamlanmamis)");
       setStep("register");
     } else {
+      console.log("[auth] -> uygulamaya giriliyor");
       await enterApp();
+      console.log("[auth] enterApp bitti");
     }
   };
 
@@ -111,10 +118,12 @@ export default function Onboarding() {
     setErr(null);
     setBusy(true);
     try {
-      await signInWithGoogle();
+      const sess = await signInWithGoogle();
+      console.log("[auth] Google oturum:", sess?.session ? "KURULDU" : "YOK");
       haptic.success();
       await proceedAfterAuth();
     } catch (e: any) {
+      console.log("[auth] Google HATA:", e?.message || e);
       setErr(turkishAuthError(e?.message));
     } finally {
       setBusy(false);

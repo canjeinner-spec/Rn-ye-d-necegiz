@@ -263,10 +263,12 @@ export const useApp = create<AppState>((set, get) => ({
       // kilitleniyordu. Zaman aşımıyla yarıştırıyoruz — süre dolarsa "yasak
       // yok" sayılır (fail-open, hata durumundaki davranışla aynı) ve 5sn'lik
       // yoklama zaten yasağı birkaç saniye içinde yakalar.
+      const t0 = Date.now();
       const ban = await Promise.race([
         getMyAccountBan(),
         new Promise<null>((resolve) => setTimeout(() => resolve(null), BAN_CHECK_TIMEOUT_MS)),
       ]);
+      console.log(`[acilis] yasak kontrolu bitti (${Date.now() - t0}ms) ban=${ban ? "VAR" : "yok"}`);
       if (ban) {
         stopBanEnforcement();
         await signOut().catch(() => {});

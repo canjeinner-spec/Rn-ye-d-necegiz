@@ -29,6 +29,9 @@ const IMG = {
   special_beta_tester: require("@/assets/badges/special/beta_tester.png"),
 } as const;
 
+/** Seviye/rol/özel rozet görselleri — rozet koleksiyonu ekranı da kullanır. */
+export const PNG_BADGE_IMG = IMG;
+
 export type PngBadgeName = keyof typeof IMG;
 
 /**

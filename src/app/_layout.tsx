@@ -32,6 +32,7 @@ function AuthGate() {
   const hesapYasak = useApp((s) => s.hesapYasak);
 
   useEffect(() => {
+    console.log(`[acilis] AuthGate boot=${bootstrapped} giris=${girisYapildi} profilEksik=${profilEksik} yol=${segments[0] ?? "/"}`);
     if (!bootstrapped || hesapYasak) return; // hesap yasağı → AppOverlays tam ekran engel
     const onOnboarding = segments[0] === "onboarding";
     if (!girisYapildi) {

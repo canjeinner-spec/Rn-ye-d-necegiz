@@ -58,6 +58,9 @@ const IMG = {
   alpha: require("@/assets/badges/room/alpha.png"),
 } as const;
 
+/** Oda rozeti görselleri — rozet koleksiyonu ekranı da bunu kullanır. */
+export const ROOM_BADGE_IMG = IMG;
+
 export type RoomBadgeType = keyof typeof IMG | "lv";
 export type RoomBadgeItem = { type: RoomBadgeType; n?: number | string };
 
