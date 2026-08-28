@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { CenterModal } from "@/components/CenterModal";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
@@ -38,6 +39,16 @@ const SECTION_TITLE: Record<string, string> = { economy: "Ekonomi", penalty: "Ce
 
 const BAN_CHIPS = [["30dk", 30], ["1s", 60], ["1g", 1440], ["7g", 10080], ["Kalıcı", null], ["Manuel", "manual"]] as const;
 
+/** Onay metninde süreyi okunur yazar (90 → "1 sa 30 dk"). */
+function sureAdi(dk: number) {
+  if (dk >= 1440) { const g = Math.floor(dk / 1440); const k = dk % 1440; return `${g} gün${k ? ` ${Math.round(k / 60)} sa` : ""}`; }
+  if (dk >= 60) { const s = Math.floor(dk / 60); const k = dk % 60; return `${s} sa${k ? ` ${k} dk` : ""}`; }
+  return `${dk} dk`;
+}
+
+/** Geri alınamaz işlemler için onay penceresi verisi. */
+type Onay = { baslik: string; metin: string; btn: string; fn: () => void };
+
 export default function AdminUserEdit() {
   const router = useRouter();
   const params = useLocalSearchParams<{ userId?: string; section?: string }>();
@@ -53,6 +64,7 @@ export default function AdminUserEdit() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [onay, setOnay] = useState<Onay | null>(null);
 
   // girdiler
   const [amount, setAmount] = useState("");
@@ -100,7 +112,14 @@ export default function AdminUserEdit() {
     if (!d) return;
     const mins = accMin === "manual" ? parseInt(accManual, 10) : accMin;
     if (accMin === "manual" && (!mins || mins <= 0)) return flash("Süre gir (dakika)");
-    run(() => accountBan(d.id, accReason.trim() || null, mins as number | null), "Hesap yasaklandı").then(() => setAccReason(""));
+    // Hesap yasağı kullanıcının oturumunu kapatır ve uygulamayı tamamen
+    // kilitler. Tek dokunuşla, onaysız çalışıyordu.
+    setOnay({
+      baslik: "Hesabı yasakla?",
+      metin: `${d.name} ${mins == null ? "KALICI olarak" : `${sureAdi(mins)} boyunca`} uygulamayı hiç kullanamayacak; oturumu hemen kapatılır.`,
+      btn: "Yasakla",
+      fn: () => run(() => accountBan(d.id, accReason.trim() || null, mins as number | null), "Hesap yasaklandı").then(() => setAccReason("")),
+    });
   };
   // Avatar: yönetici galeriden seçer → kendi storage klasörüne yükler → URL hedefe yazılır
   const doAvatar = async () => {
@@ -118,7 +137,7 @@ export default function AdminUserEdit() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#241B0A", "#08080C"]} deg={170} locations={[0, 0.5]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <KeyboardAware>
         <View style={styles.header}>
@@ -392,15 +411,42 @@ export default function AdminUserEdit() {
         )}
         </KeyboardAware>
       </SafeAreaView>
+
+      {/* Geri alınamaz işlemler için onay. Hesap yasağı tek dokunuşla
+          çalışıyordu — kullanıcının oturumunu kapatan bir işlem için fazla
+          kolaydı. */}
+      <CenterModal visible={!!onay} onClose={() => setOnay(null)}>
+        <View style={styles.onayKart}>
+          <View style={styles.onayIkon}>
+            <Icon name="warn" size={22} color="#FB7185" />
+          </View>
+          <Txt weight="displayBold" size={16} color="#fff" align="center" style={{ marginTop: 13 }}>{onay?.baslik}</Txt>
+          <Txt size={12} color={C.dim} lh={1.55} align="center" style={{ marginTop: 9 }}>{onay?.metin}</Txt>
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 20 }}>
+            <Pressable onPress={() => setOnay(null)} style={[styles.onayBtn, { backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" }]}>
+              <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
+            </Pressable>
+            <Pressable
+              onPress={() => { const o = onay; setOnay(null); haptic.heavy(); o?.fn(); }}
+              style={[styles.onayBtn, { backgroundColor: "rgba(220,38,38,.9)" }]}
+            >
+              <Txt weight="extrabold" size={13} color="#FEE2E2">{onay?.btn}</Txt>
+            </Pressable>
+          </View>
+        </View>
+      </CenterModal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  onayKart: { borderRadius: 24, padding: 22, alignItems: "center", backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(251,113,133,.28)" },
+  onayIkon: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.14)", borderWidth: 1, borderColor: "rgba(251,113,133,.34)" },
+  onayBtn: { flex: 1, paddingVertical: 13, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  group: { borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
+  group: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line },
   chip: { flexDirection: "row", alignItems: "center", paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", justifyContent: "center" },
   note: { marginBottom: 12, paddingVertical: 9, borderRadius: 12, backgroundColor: `${C.gold}14`, borderWidth: 1, borderColor: `${C.gold}33` },

@@ -47,7 +47,7 @@ export default function AdminBroadcast() {
 
   return (
     <View style={s.root}>
-      <Gradient colors={["#241B0A", "#08080C"]} deg={170} locations={[0, 0.5]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={s.header}>
           <Pressable onPress={() => router.back()} style={s.iconBtn}><Icon name="back" size={16} color={C.text} /></Pressable>

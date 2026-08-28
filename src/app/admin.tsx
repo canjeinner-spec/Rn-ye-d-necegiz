@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View }
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Portrait } from "@/components/Portrait";
+import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { getAdminCounts, searchUsers } from "@/data/remote/adminRepo";
 import { listReports, setReportStatus, type ReportRow } from "@/data/remote/reportRepo";
@@ -66,7 +67,9 @@ export default function AdminScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#241B0A", "#08080C"]} deg={170} locations={[0, 0.5]} style={StyleSheet.absoluteFill} />
+      {/* Zemin kahverengiydi (#241B0A); uygulamanın siyah-altınına çekildi. */}
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={[C.gold + "1A", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
@@ -78,39 +81,39 @@ export default function AdminScreen() {
           </View>
         </View>
 
-        <View style={styles.mainTabs}>
-          {["Raporlar", "Kullanıcı"].map((t, i) => (
-            <Pressable key={t} onPress={() => { haptic.select(); setMainTab(i); }} style={styles.mainTab}>
-              <Txt weight={mainTab === i ? "extrabold" : "medium"} size={14} color={mainTab === i ? "#fff" : "rgba(255,255,255,.42)"}>{t}</Txt>
-              {mainTab === i && <Gradient colors={[C.gold, "#C8922B"]} deg={90} style={styles.mainTabUnderline} />}
-            </Pressable>
-          ))}
-        </View>
-
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 28 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {/* Özet ve Duyuru & Banner sekmelere değil ekranın geneline ait;
+            sekme çubuğunun ALTINDA duruyorlardı ve sekme değişince
+            değişmedikleri için o sekmenin parçasıymış gibi görünüyorlardı.
+            Artık sekmelerin üstündeler. */}
+        <View style={{ paddingHorizontal: 18, paddingTop: 10 }}>
           <View style={{ flexDirection: "row", gap: 10 }}>
-            <View style={[styles.statCard, { borderColor: `${C.red}2E` }]}>
+            <View style={[styles.statCard, counts && counts.bekleyen > 0 ? { borderColor: `${C.red}47`, backgroundColor: `${C.red}0F` } : null]}>
               <Txt weight="displayBold" size={22} color={counts && counts.bekleyen > 0 ? "#FB7185" : C.text}>{counts?.bekleyen ?? "—"}</Txt>
-              <Txt weight="bold" size={10.5} color={C.dim} style={{ marginTop: 3 }}>Bekleyen rapor</Txt>
+              <Txt weight="bold" size={10} color={C.dim} style={{ marginTop: 3, letterSpacing: 0.3 }}>BEKLEYEN RAPOR</Txt>
             </View>
             <View style={styles.statCard}>
               <Txt weight="displayBold" size={22} color={C.text}>{counts?.kullanici ?? "—"}</Txt>
-              <Txt weight="bold" size={10.5} color={C.dim} style={{ marginTop: 3 }}>Kayıtlı kullanıcı</Txt>
+              <Txt weight="bold" size={10} color={C.dim} style={{ marginTop: 3, letterSpacing: 0.3 }}>KAYITLI KULLANICI</Txt>
             </View>
           </View>
 
           <Pressable onPress={() => { haptic.light(); router.navigate("/admin-duyuru"); }} style={styles.launchRow}>
-            <View style={[styles.rowIcon, { backgroundColor: `${C.gold}1A` }]}><Icon name="mega" size={16} color={C.gold} /></View>
+            <View style={[styles.rowIcon, { backgroundColor: `${C.gold}1A`, borderWidth: 1, borderColor: `${C.gold}3D` }]}><Icon name="mega" size={16} color={C.gold} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Txt weight="extrabold" size={13} color={C.text}>Duyuru & Banner</Txt>
               <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>Herkese duyuru gönder · banner ekle/sil</Txt>
             </View>
             <Icon name="chev" size={15} color={C.dim2} />
           </Pressable>
+        </View>
 
+        {/* Kendi kopya sekme çubuğu vardı; uygulamanın ortak Tabs'ı */}
+        <Tabs items={["Raporlar", "Kullanıcı"]} active={mainTab} set={setMainTab} fill pad={18} />
+
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 28 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {mainTab === 0 ? (
             <>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 20, marginBottom: 10 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
                 <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5, flex: 1 }}>RAPORLAR</Txt>
                 {(["Bekleyen", "Tümü"] as const).map((t, i) => (
                   <Pressable key={t} onPress={() => { haptic.select(); setRepTab(i); }} style={[styles.chip, repTab === i && { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` }]}>
@@ -167,7 +170,7 @@ export default function AdminScreen() {
             </>
           ) : (
             <>
-              <View style={[styles.search, { marginTop: 18 }]}>
+              <View style={styles.search}>
                 <Icon name="search" size={15} color={C.dim2} />
                 <TextInput value={q} onChangeText={setQ} autoCapitalize="none" placeholder="İsim veya ID ara" placeholderTextColor={C.dim2} style={styles.searchInput} />
                 {searching ? <ActivityIndicator size="small" color={C.dim} /> : !!q && <Pressable onPress={() => setQ("")}><Icon name="x" size={14} color={C.dim} /></Pressable>}
@@ -196,9 +199,6 @@ export default function AdminScreen() {
             </>
           )}
 
-          <Txt size={10} color={C.dim2} lh={1.5} style={{ marginTop: 14 }}>
-            Ham veri ve acil müdahale için Supabase Studio'yu da kullanabilirsin; bu ekran günlük moderasyon içindir.
-          </Txt>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -209,16 +209,14 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  mainTabs: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.08)", paddingHorizontal: 18, marginTop: 4 },
-  mainTab: { flex: 1, alignItems: "center", paddingVertical: 12 },
-  mainTabUnderline: { position: "absolute", bottom: -1, width: 30, height: 3, borderRadius: 3 },
-  statCard: { flex: 1, padding: 14, borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
+  statCard: { flex: 1, padding: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)" },
   chip: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center" },
-  group: { borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
+  group: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 46 },
   row: { flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 13 },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  launchRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12, padding: 13, borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
+  launchRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 10, padding: 13, borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)" },
   userRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 12 },
   donePill: { paddingVertical: 2, paddingHorizontal: 7, borderRadius: 999, backgroundColor: `${C.green}14`, borderWidth: 1, borderColor: `${C.green}44` },
   actChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
