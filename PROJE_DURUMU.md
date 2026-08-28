@@ -146,7 +146,7 @@ Tüm commit geçmişi `git log --oneline --reverse` ile eksiksiz görülebilir.
       input'ları için `automaticallyAdjustKeyboardInsets`.
     - Commit: `3f592d4` (push'landı).
 
-## 6) Veritabanı — Migration Listesi (db/migrations/, 001-048)
+## 6) Veritabanı — Migration Listesi (db/migrations/, 001-054)
 
 Hepsi **idempotent** (`CREATE OR REPLACE`, `IF NOT EXISTS`) — tekrar
 çalıştırmak zarar vermez. Sırayla çalıştırılmalı (numaraya göre).
@@ -180,6 +180,12 @@ Hepsi **idempotent** (`CREATE OR REPLACE`, `IF NOT EXISTS`) — tekrar
 | 045 | public_id_9hane | `yeni_public_id()` → 9 hane (özel ID ≤7 nadir kalsın) |
 | 046 | beta_kapsul_dm | Beta + özel-id yok → otomatik hedefli Sistem DM hatırlatması (bir kez) |
 | 047 | ozel_id_admin | `admin_kullanici_haklar` (oku) — admin-user'da beta/premium hak ver-al |
+| 049 | rozet_sistemi | Rozet kataloğu (62 rozet) + `rozet_metrikleri` + `rozetleri_degerlendir/ver/al` + `kullanici_rozetleri_getir` ✅ |
+| 050 | rozet_kusanma | `kullanicilar.kusanilan_rozet` + `profiller` view + oda/başarı kategori ayrımı + `rozet_kusan/kaldir` ✅ |
+| 051 | rozet_kusanma_kurallari | Seviye rozetlerini sunucuda reddeder ⏳ **BEKLİYOR** |
+| 052 | oda_vitrin | `odalar.resmi` + `gunluk_sira` (Daily Top) + `oda_vitrin_ayarla` (yalnız yönetici) ✅ |
+| 053 | admin_oda_kapak | `admin_oda_kapak_ayarla` — yönetici oda kapağını değiştirir/kaldırır ⏳ **BEKLİYOR** |
+| 054 | oda_islem_isareti | `odalar.islem_gordu/islem_sebep/islem_tarihi` + `admin_oda_islem_isaretle`; **`odalar_update` RLS'i işaretli odada sahibi engeller**; `admin_oda_getir` DROP+yeniden ⏳ **BEKLİYOR** |
 | 048 | hesap_yasak_dm | `hesap_yasak_ver/kaldir` OR REPLACE → yasak verilince/kalkınca hedefe kalıcı **Sistem DM'i** (sebep+süre; yasaklı ancak yasağı kalkınca görür) + bildirim |
 
 **Birleşik dosyalar:**
@@ -218,11 +224,60 @@ dmGift: false           → DM sohbet kutusu hediye butonu
 mağaza, VIP, envanter) **tamamen mock** — gerçek hediye→oda→altın defteri
 kurulmadı. Kullanıcı bilinçli olarak bunu **erteledi** (bkz. §9).
 
-## 8) Bilinen Ortam Kısıtları + ÇALIŞAN Tünel Çözümü (ÖNEMLİ — token/zaman kaybetme!)
+## 8) Bilinen Ortam Kısıtları + Tünel
+
+> ### ⚠️ ORTAM DEĞİŞTİ — bu bölümün altı ESKİ ortama ait
+>
+> Proje artık **bulut sandbox'ta değil, Windows makinede yerel** çalışıyor.
+> **Proje yolu:** `C:\Users\Administrator\Desktop\Rn-ye-d-necegiz`
+> (28 Ağustos'ta `C:\dev\Rn-ye-d-necegiz`'den taşındı; `C:\dev` boş kaldı.)
+>
+> **Normal çalıştırma — telefon aynı ağdaysa tünele GEREK YOK:**
+> ```powershell
+> cd "$env:USERPROFILE\Desktop\Rn-ye-d-necegiz"
+> npx expo start --clear
+> ```
+> Makinenin LAN IP'si: `172.31.21.78` — QR yeterli.
+>
+> **PATH sorunu:** `npx`, `git`, `node` PATH'te **değil**. Her yeni kabukta:
+> ```powershell
+> $env:Path = "C:\Program Files\nodejs;C:\Program Files\Git\cmd;$env:Path"
+> ```
+> **Tip kontrolü:** `node node_modules\typescript\bin\tsc --noEmit`
+> (`npx tsc` çalışmaz.)
+>
+> **Port 8081 doluysa** — Metro'nun ölü süreçleri kalabiliyor:
+> ```powershell
+> Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*Rn-ye-d-necegiz*" } |
+>   ForEach-Object { "PID {0}  {1}" -f $_.ProcessId, $_.Name }
+> taskkill /PID <metro-pid> /T /F
+> ```
+> Metro `expo start` → `cmd` → `node .../expo/bin/cli` → 3 × `jest-worker`
+> zinciri açar; `/T` hepsini birden kapatır. **Klasörü taşımadan/silmeden önce
+> Metro'yu kapat** — açıkken dosya kilidi verir (28 Ağustos'ta taşırken yaşandı).
+>
+> **Bu makinede tünel denemeleri (28 Ağustos):**
+>
+> | Yöntem | Sonuç |
+> |---|---|
+> | `EXPO_FORCE_WEBCONTAINER_ENV=1` (Bolt) | ❌ **502.** Aşağıda "çalışıyor" yazan bu yöntem YEREL makinede çalışmıyor: değişken Expo'ya "tüneli platform sağlıyor" dedirtiyor, ama burada sağlayan yok. `Get-NetTCPConnection -OwningProcess` ile bakıldı — Metro'nun **hiç giden bağlantısı yoktu.** |
+> | `npx expo start --tunnel` (ngrok) | ❌ `CommandError: TypeError: Cannot read properties of undefined (reading 'body')` — iki kez. `@expo/ngrok` kurulu ama çalışmıyor. Kullanıcı "ngrok deneme" dedi. |
+> | **cloudflared quick tunnel** | ✅ Çalıştı. Ama **kalıcı kurulu değil** — o gün geçici indirildi, şu an makinede yok. |
+>
+> cloudflared tekrar gerekirse (tek exe, kurulum yok):
+> ```powershell
+> cloudflared tunnel --url http://localhost:8081     # ayrı kabukta
+> $env:EXPO_PACKAGER_PROXY_URL = "https://<adres>.trycloudflare.com"
+> $env:REACT_NATIVE_PACKAGER_HOSTNAME = "<adres>.trycloudflare.com"
+> npx expo start --clear                              # Metro'yu YENİDEN başlat
+> ```
+> Şu an bu değişkenlerin hiçbiri sistemde tanımlı değil (temiz durum).
+
+**Aşağısı, proje bulut sandbox'ta geliştirilirken geçerliydi — tarihsel kayıt:**
 
 Proje **Expo SDK 54** ile başlatıldı ve **Claude Code on the web** (bulut
-sandbox) üzerinde geliştiriliyor. Kullanıcının fiziksel telefonu bu sandbox'a
-**tünel olmadan doğrudan bağlanamıyor**. İki mekanizma denendi:
+sandbox) üzerinde geliştiriliyordu. Kullanıcının fiziksel telefonu o sandbox'a
+**tünel olmadan doğrudan bağlanamıyordu**. İki mekanizma denenmişti:
 
 ### ✅ ÇALIŞAN komut — "Bolt" (Expo'nun kendi WebSocket tüneli)
 
@@ -419,7 +474,130 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
-- **EN SON İŞ — Hesap yasağı sağlamlaştırma (bu oturum):**
+> **Son güncelleme: 28 Ağustos 2026** · Son commit `121a5c8`
+> · Dal `claude/metro-recovery-1xc2kq` · **origin'e PUSH EDİLMEDİ**
+> (yerel commit'ler; push için kimlik doğrulaması gerekiyor)
+
+### ⚠️ ÖNCE: Çalıştırılmayı bekleyen migration'lar
+
+Yazıldı, commit'lendi, **Supabase'de çalıştırılmadı**:
+
+| Dosya | Ne yapıyor | Çalışmazsa |
+|---|---|---|
+| `051_rozet_kusanma_kurallari.sql` | Seviye rozetlerinin kuşanılmasını sunucuda reddeder | Kural yalnız istemcide |
+| `053_admin_oda_kapak.sql` | `admin_oda_kapak_ayarla` — yönetici oda kapağını değiştirir/kaldırır | Kapak düğmeleri hata verir |
+| `054_oda_islem_isareti.sql` | `odalar.islem_gordu/islem_sebep/islem_tarihi` + `admin_oda_islem_isaretle` + `odalar_update` politikası | İşlem işareti tamamen ölü (uyarı, kilit, liste filtresi) |
+
+`052_oda_vitrin.sql` **çalıştırıldı** (kullanıcı onayladı).
+
+> **Kritik kural:** Client kodunu uygulanmamış migration'a bağlama. Daha önce
+> `kusanilan_rozet` DB'de yokken SELECT'e eklendi ve **tüm profil okumaları**
+> `42703` ile çöktü. Bu yüzden `roomsRepo.odalariGetir` artık kendini koruyor:
+> yeni kolonlar yoksa temel kolonlara düşüp çalışmaya devam ediyor.
+
+### 28 Ağustos oturumu — yapılanlar
+
+**Referans:** WePlay (oda sahnesi) ve Yalla (üst bar) ekran görüntüleri.
+
+**Oda ekranı**
+- Mikrofon sırası ayrı sayfaya alındı (`sheets/MicQueueSheet.tsx`); FAB ikonu
+  mikrofon → **el kaldırma** (`hand`), bekleyen sayısı rozetiyle.
+- Koltuk ölçüleri WePlay'den ölçülüp **orana** çevrildi: çap = sütunun %51'i,
+  sahip = koltuğun 1.5 katı (WePlay 1.65 ama bizde isim+etiket var). Izgaranın
+  14pt yatay dolgusu kaldırıldı — sıkışıklığın asıl sebebi buydu.
+- **Oda sahibi başka koltuğa oturamaz** (üç yol da kapatıldı).
+- Üst bardaki geri oku kaldırıldı (güç düğmesi zaten "Küçült" sunuyor).
+- Oda çipi Yalla'ya göre: sol kenara yapışık, solu köşeli/sağı oval, yumuşak
+  saydam; içine **kazanılmış oda rozetleri** eklendi.
+- **Tema odaya hiç uygulanmıyordu** — zemin sabit gri gradyandı, `Scene`
+  yalnızca 36px'lik çipte kullanılıyordu. Zemin artık `<Scene>` + perde.
+- Mikrofon-kapalı rozeti avatarın ortasının altındaydı → sağ alt köşe.
+
+**Oda profili paneli** — tek akan sayfa oldu (kutu-içinde-kutu bitti). Sabit
+`ROOM_LV=29 / 13.490 XP / "Dil: Türkçe"` verileri silindi. Oda sahibi satırı
+eklendi. Oda fotoğrafı her yerde 1:1 avatar gibi ele alınıyor.
+
+**Profil kartı** — herkese aynı sabit rozetleri gösteriyordu
+(`CARD_BADGES` = developer+VIP+ajans). Gerçek profil çekiliyor; seviye artık
+profildeki gibi rütbe rozeti (avatardaki "LV" çipi kaldırıldı).
+
+**Sahte veri temizliği:** "959 oda", LV.28/ID 1149663822 varsayılanları,
+"cinsiyeti boş olana Erkek / ülkesi boş olana Türkiye", cüzdanda "12.4K/860",
+yayıncı "$142.50/$92.40", DM rozetinde sabit "3", akışta koşulsuz nokta,
+`live: true` sabiti, "Arkadaşlar" satırı — hepsi gerçek veriye bağlandı ya da
+kaldırıldı. **Hâlâ sahte:** `data/tasks.ts` (görev sistemi yok), oda rozetleri
+(`Room.badges` yalnız mock), "Normal Hediyeler: 4.926" (flag kapalı).
+
+**Oda listesi**
+- **Sekmeler hiçbir şey yapmıyordu** (dördü aynı listeydi) → gerçekten
+  filtreliyor. Yeni set: **Keşfet · Popüler · Yeni · Resmî**.
+- Sıralama: resmî → Daily Top (1,2,…) → normal.
+- Görünürlük (istisnasız): **gizli/kilitli, yasaklandığım, işlem görmüş, boş**
+  odalar listelenmez.
+- Sekme çubuğu banner'ın altına alındı; banner çerçevesi artık **fotoğrafın
+  kendi oranını** alıyor (sabit orana sığdırma denemeleri hep kırpıyordu).
+
+**Tema birliği (siyah-altın):** cüzdan (mordu), profil (mor-kahve kapak),
+görevler (mor), özel ID (kahve), 9 admin ekranı (kahve) → hepsi temaya çekildi.
+Emoji temizliği: 🏦🧾🎖️⚠️🔒✓💎❧☙◆◇↻ → ikon setine.
+
+**Sekme bileşeni** (`components/Tabs.tsx`): çizgi artık **kayıyor**, yeni
+`fill` modu. Cüzdan/görevler/özel ID/yönetimdeki "segment buton" geçişleri
+bununla değiştirildi. Alt sekme çubuğunda da gösterge kayıyor + ikon büyüyor.
+
+**Özel ID / taht kartı:** taç ve kanatlar emojiydi ve negatif konumlarla
+üst üste biniyordu → taç ikon madalyonu olarak kendi boşluğunda.
+
+**Kopyalama:** dört kopyalama ikonu vardı, **hiçbiri panoya yazmıyordu**.
+`expo-clipboard` kuruldu, ortak `components/KopyaBtn.tsx`.
+
+**Yönetim (admin)**
+- Kullanıcı yönetimi baştan tasarlandı: dört bölüm ayrı sayfaydı → **sekmeli**.
+  Tek `chip` stili hem seçim hem aksiyon için kullanılıyordu → `Secim` /
+  `Aksiyon` / `Anahtar` diye üçe ayrıldı. Ceza süreleri sabit 3 sütunlu ızgara.
+- **Onay pencereleri**: hesap yasağı, mikrofon yasağı, şifre sıfırlama —
+  üçü de tek dokunuşla çalışıyordu.
+- Ara kullanıcı özet ekranı silindi (`admin-user.tsx`); doğrudan sekmeli ekran.
+- Oda rapor detayı: rapor belirgin kart, tam genişlikte **Odaya Uyarı** +
+  **İncelendi** (rapordan çıkmadan uyarı gönderme yoktu).
+- Yönetici oda düzenlemesi **store'a yansımıyordu** → `patchRoomByDbId`.
+  Oda kapağı yalnızca gösteriliyordu → `053` + kontroller.
+
+**"Bu odaya işlem yapıldı" (054)** — yönetici işlemi yalnız loga yazılıyordu;
+sahip işlem görmüş odayı serbestçe düzenleyebiliyor, giren uyarı görmüyordu.
+Artık: DB'de kalıcı işaret, **RLS ile sahibin UPDATE'i engelleniyor**, oda
+yönetiminde kilit + kırmızı uyarı, listede filtre, **girişte uyarı**.
+
+**Odaya giriş perdesi** (`components/RoomEntryGate.tsx`): "Odaya giriliyor…"
++ işlem görmüş odada uyarı ("hemen ayrılmazsanız hesabınız da cezai işlem
+görebilir") + Ayrıl / Riski kabul et.
+
+### Yeni dosyalar (bu oturum)
+
+```
+src/sheets/MicQueueSheet.tsx      src/components/KopyaBtn.tsx
+src/components/RoomEntryGate.tsx  db/migrations/052,053,054
+```
+**Silinen:** `src/app/admin-user.tsx` · **Yeni paket:** `expo-clipboard ~8.0.8`
+**Yeni ikonlar:** `hand`, `bank`, `wallet`
+
+### Sıradakiler
+
+1. `051`, `053`, `054` çalıştırılacak.
+2. **Oda rozet sistemi yok** — `Room.badges` yalnız mock; DB'de tablo yok.
+   Kullanıcı rozet sistemi (`049`) örnek alınabilir.
+3. **Görev sistemi yok** — `data/tasks.ts` sabit demo.
+4. `RoomPanel`'deki "Takip Et" yerel state, hiçbir yere yazmıyor.
+5. BottomNav DM sayısı önbellekten — açılışta `listThreads` prefetch edilebilir.
+6. `expo-video` cihazda denenmedi (Expo Go'da olmayabilir → dev build).
+7. Splash Expo Go'da görünmüyor.
+8. Mevcut banner fotoğrafı eski oranda; yeniden yüklenmesi önerilir.
+
+---
+
+### Önceki oturum — Hesap yasağı sağlamlaştırma
+
+- **EN SON İŞ — Hesap yasağı sağlamlaştırma:**
   - **Oda listesi flaşı giderildi:** `appStore.banChecked` state + `AppOverlays`
     opak örtü — oturum var ama ilk yasak kontrolü bitmemişken içerik gösterilmez;
     yasaklı kullanıcı bir an bile oda listesini görmez, doğrudan ban ekranı gelir.
