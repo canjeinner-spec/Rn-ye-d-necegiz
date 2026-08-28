@@ -1,11 +1,86 @@
 # Aron Chat — Oturum Durumu
 
 **Son güncelleme:** 2026-08-28
+**Proje yolu:** `C:\Users\Administrator\Desktop\Rn-ye-d-necegiz`
 **Dal:** `claude/metro-recovery-1xc2kq`
 **Son commit:** `4ec819c` — Alt sekme çubuğunu canlandır, sahte rozetleri kaldır
 
 Bu belge, oturum çökmelerine karşı nerede kaldığımızı korumak için tutuluyor.
 Yeni bir oturuma başlarken önce burayı oku.
+
+> **Not:** Proje `C:\dev\Rn-ye-d-necegiz`'den masaüstüne taşındı (2026-08-28).
+> Eski yola atıf yapan bir şey görürsen yolu güncelle. `C:\dev` boş kaldı.
+
+---
+
+## 🚀 PROJEYİ ÇALIŞTIRMA
+
+```powershell
+cd "$env:USERPROFILE\Desktop\Rn-ye-d-necegiz"
+npx expo start --clear
+```
+
+Telefon aynı ağdaysa QR yeterli. Makinenin LAN IP'si: `172.31.21.78`
+
+### PATH sorunu
+
+`npx`, `git`, `node` PATH'te **değil**. Her yeni kabukta:
+
+```powershell
+$env:Path = "C:\Program Files\nodejs;C:\Program Files\Git\cmd;$env:Path"
+```
+
+### Tip kontrolü
+
+```powershell
+node node_modules\typescript\bin\tsc --noEmit
+```
+(`npx tsc` çalışmaz — PATH.)
+
+### Port 8081 doluysa
+
+Bu ortamda Metro'nun ölü süreçleri kalabiliyor. Önce sahibini bul, sonra
+ağacı kapat:
+
+```powershell
+Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*Rn-ye-d-necegiz*" } |
+  ForEach-Object { "PID {0}  {1}" -f $_.ProcessId, $_.Name }
+taskkill /PID <metro-pid> /T /F
+```
+
+Metro `expo start` → `cmd` → `node .../expo/bin/cli` → 3 × `jest-worker`
+zinciri açar; `/T` ile hepsi birden gider. **Klasörü taşımadan/silmeden önce
+Metro'yu mutlaka kapat** — açıkken dosya kilidi verir.
+
+### Tünel (telefon farklı ağdaysa)
+
+Bu ortamda tünel sorunluydu, denenenler ve sonuçları:
+
+| Yöntem | Sonuç |
+|---|---|
+| `--tunnel` (ngrok) | ❌ `CommandError: TypeError: Cannot read properties of undefined (reading 'body')` — iki kez. Kullanıcı "ngrok deneme" dedi. `@expo/ngrok` kurulu ama çalışmıyor. |
+| Bolt/WebContainer tüneli | ❌ 502. Sebep: `EXPO_FORCE_WEBCONTAINER_ENV=1` Expo'ya "tüneli platform sağlıyor" dedirtiyor; Metro'nun **hiç giden bağlantısı olmuyordu** (`Get-NetTCPConnection -OwningProcess` ile bulundu). |
+| **cloudflared quick tunnel** | ✅ Çalıştı. Ama **kalıcı kurulu değil** — o gün geçici indirilmişti, şu an makinede yok. |
+
+cloudflared tekrar gerekirse:
+
+```powershell
+# 1) cloudflared'i indir (kurulum gerekmez, tek exe)
+# 2) Metro'yu başlat, sonra ayrı bir kabukta:
+cloudflared tunnel --url http://localhost:8081
+# 3) verdiği https adresini Expo'ya bildir ve Metro'yu YENİDEN başlat:
+$env:EXPO_PACKAGER_PROXY_URL = "https://<verilen-adres>.trycloudflare.com"
+$env:REACT_NATIVE_PACKAGER_HOSTNAME = "<verilen-adres>.trycloudflare.com"
+npx expo start --clear
+```
+
+Şu an bu değişkenlerin hiçbiri sistemde tanımlı değil (temiz durum).
+
+### Bilinen çalıştırma sorunları
+
+- **Splash Expo Go'da görünmüyor** (dev build gerekir).
+- **`expo-video` cihazda denenmedi** — Expo Go'da olmayabilir; giriş
+  ekranındaki arka plan videosu için dev build gerekebilir.
 
 ---
 
@@ -315,13 +390,9 @@ db/migrations/054_oda_islem_isareti.sql (BEKLİYOR)
 
 ## Çalışma notları (ortam)
 
-PowerShell 5.1 — bu oturumda tekrarlanan tuzaklar:
+PowerShell 5.1 — bu oturumda tekrarlanan tuzaklar
+(çalıştırma komutları için yukarıdaki **PROJEYİ ÇALIŞTIRMA** bölümüne bak):
 
-- `npx`, `git`, `node` PATH'te değil. Her komutta:
-  ```powershell
-  $env:Path = "C:\Program Files\nodejs;C:\Program Files\Git\cmd;$env:Path"
-  ```
-- Tip kontrolü: `node node_modules\typescript\bin\tsc --noEmit`
 - **Commit mesajı**: içinde `"` varsa native exe'ye argüman bozuluyor.
   Dosyaya yazıp `git commit -F <dosya>` kullan. Here-string'i `git commit -F -`
   ile boruya vermek de çalışmıyor.
