@@ -198,46 +198,71 @@ Hepsi **idempotent** (`CREATE OR REPLACE`, `IF NOT EXISTS`) — tekrar
 üstüne ek kolon/tablo ekliyor (feed, etkinlik, görev, kupon, özel ID,
 arkadaşlık için).
 
-## 7) Feature Flag'leri — MVP'de Kapalı Olanlar (`src/lib/features.ts`)
+## 7) Feature Flag'leri (`src/lib/features.ts`) — 28 Ağustos'ta HEPSİ AÇILDI
 
-Bunlar **kodu/ekranı/rotası yerinde duran ama arayüzden gizlenmiş**
-özellikler — bayrağı `true` yapmak yeterli, ekstra iş gerekmiyor:
+Bayrakların **hepsi artık `true`** (28 Ağustos, kullanıcı isteği: "clientten
+gizlediğimiz her şeyi aktif eder misin"). Ekranlar/rotalar zaten yerindeydi,
+yalnızca girişleri gizliydi.
 
 ```
-roomGift: false        → Oda alt barındaki hediye ikonu
-streamerPanel: false    → Profil menüsü "Yayıncı Paneli"
-giftHistory: false      → Profil menüsü "Hediye Geçmişi"
-giftCoupon: false       → Profil menüsü "Hediye Kuponu Gir"
-store: false            → Profildeki "Mağaza" tile'ı
-vip: false              → Profil menüsü "Aron VIP"
-rankTab: false          → Alt navigasyon "Sıralama" sekmesi (sidebar'dan erişilir)
-inventory: false        → Profildeki "Eşyalarım"
-friends: false          → DM'deki "Arkadaşlık" kısayolu
-events: false           → DM'deki "Etkinlik" kısayolu
-notifications: true     → (AÇIK — Faz 3'te gerçekleşti)
-visitors: false         → DM'deki "Ziyaretçi" kısayolu
-profileGift: false      → Başkasının profilinde "Hediye Gönder"
-dmGift: false           → DM sohbet kutusu hediye butonu
+roomGift · streamerPanel · giftHistory · giftCoupon · store · vip
+rankTab · inventory · friends · events · notifications · visitors
+profileGift · dmGift            → 14 bayrak, tamamı true
 ```
 
-**Neden kapalı:** Hediye/gifting ve ona bağlı ekonomi (harcanan altın,
-mağaza, VIP, envanter) **tamamen mock** — gerçek hediye→oda→altın defteri
-kurulmadı. Kullanıcı bilinçli olarak bunu **erteledi** (bkz. §9).
+> **⚠️ Açık olmak, gerçek olmak değil.** Aşağıdakiler artık **görünür ve
+> gezilebilir** ama arkalarında ne tablo ne RPC var — gerçek bir iş yapmazlar:
+>
+> | Bölüm | Durum |
+> |---|---|
+> | store / vip / inventory | sabit ürün listeleri; satın alma yok |
+> | agency-panel (yayıncı) | sabit kazanç/ajans sayıları |
+> | gift-history | sabit geçmiş |
+> | friends / events | `data/friends.ts`, `data/events.ts` (sabit) |
+> | rank sekmesi | `data/seed.ts` → RANKS / AGENCY_RANKS / STREAMER_RANKS |
+> | hediye gönderme (roomGift / dmGift / profileGift) | animasyon oynar ama **bakiye düşmez**, alıcıya bir şey geçmez, kayıt tutulmaz |
+> | giftCoupon | kupon tablosu yok; ekran artık ödül verdiğini iddia etmiyor |
+>
+> **Gerçek olan:** `visitors` (visitRepo) ve `notifications` (Faz 3).
+
+Gerçeğe bağlamak için sırasıyla: hediye kataloğu + bakiyeden düşen **atomik**
+gönderim RPC'si → envanter tablosu → ajans/yayıncı tabloları → sıralama
+görünümleri (materialized view + zamanlanmış yenileme).
 
 ## 8) Bilinen Ortam Kısıtları + Tünel
 
 > ### ⚠️ ORTAM DEĞİŞTİ — bu bölümün altı ESKİ ortama ait
 >
-> Proje artık **bulut sandbox'ta değil, Windows makinede yerel** çalışıyor.
+> Proje artık **bulut sandbox'ta değil**, bir **Windows makinesinde** çalışıyor
+> (aşağıda görüleceği gibi bu makine de uzak bir bulut sunucusu — telefon
+> aynı ağda DEĞİL).
 > **Proje yolu:** `C:\Users\Administrator\Desktop\Rn-ye-d-necegiz`
 > (28 Ağustos'ta `C:\dev\Rn-ye-d-necegiz`'den taşındı; `C:\dev` boş kaldı.)
 >
-> **Normal çalıştırma — telefon aynı ağdaysa tünele GEREK YOK:**
+> **⚠️ BU MAKİNE BİR BULUT SUNUCUSU — tünel ZORUNLU** (28 Ağustos'ta anlaşıldı).
+> Dış IP `13.62.50.3` (AWS Stockholm); yerel adres `172.31.21.78` bir VPC
+> adresi ve telefonun oraya ulaşması **fiziksel olarak mümkün değil** — QR
+> kod çalışmaz. Expo Go host'a erişemeyince sol altta **"Downloading..."
+> yazıp donar**; bu belirtiyi görürsen sebep budur, Metro'da sorun yoktur.
+> (Burada önceden "telefon aynı ağdaysa QR yeterli" yazıyordu — yanlıştı.)
+>
+> **Çalıştırma — üç adım (ilk ikisi ayrı kabuklarda):**
 > ```powershell
+> # 1) Tünel — cloudflared artık kalıcı: .tools\cloudflared.exe (.gitignore'da)
+> & "$env:USERPROFILE\Desktop\Rn-ye-d-necegiz\.tools\cloudflared.exe" tunnel --url http://localhost:8081 --no-autoupdate
+> #    çıktıdan https://<ad>.trycloudflare.com adresini oku
+>
+> # 2) Metro — tünel adresiyle
+> $env:Path = "C:\Program Files\nodejs;C:\Program Files\Git\cmd;$env:Path"
 > cd "$env:USERPROFILE\Desktop\Rn-ye-d-necegiz"
+> $env:EXPO_PACKAGER_PROXY_URL = "https://<ad>.trycloudflare.com"
+> $env:REACT_NATIVE_PACKAGER_HOSTNAME = "<ad>.trycloudflare.com"
 > npx expo start --clear
 > ```
-> Makinenin LAN IP'si: `172.31.21.78` — QR yeterli.
+> **3) Telefonda:** Expo Go → "Enter URL manually" → `exp://<ad>.trycloudflare.com`
+> QR'a bakma, o hâlâ ulaşılamayan yerel adresi gösterir. İlk bundle ~60 sn
+> (1074 modül, 5.8 MB), sonrası hızlı. **Adres her yeni tünelde değişir** —
+> quick tunnel kalıcı ad vermez.
 >
 > **PATH sorunu:** `npx`, `git`, `node` PATH'te **değil**. Her yeni kabukta:
 > ```powershell
@@ -262,16 +287,10 @@ kurulmadı. Kullanıcı bilinçli olarak bunu **erteledi** (bkz. §9).
 > |---|---|
 > | `EXPO_FORCE_WEBCONTAINER_ENV=1` (Bolt) | ❌ **502.** Aşağıda "çalışıyor" yazan bu yöntem YEREL makinede çalışmıyor: değişken Expo'ya "tüneli platform sağlıyor" dedirtiyor, ama burada sağlayan yok. `Get-NetTCPConnection -OwningProcess` ile bakıldı — Metro'nun **hiç giden bağlantısı yoktu.** |
 > | `npx expo start --tunnel` (ngrok) | ❌ `CommandError: TypeError: Cannot read properties of undefined (reading 'body')` — iki kez. `@expo/ngrok` kurulu ama çalışmıyor. Kullanıcı "ngrok deneme" dedi. |
-> | **cloudflared quick tunnel** | ✅ Çalıştı. Ama **kalıcı kurulu değil** — o gün geçici indirildi, şu an makinede yok. |
+> | **cloudflared quick tunnel** | ✅ **Tek çalışan yöntem.** 28 Ağustos'ta `.tools\cloudflared.exe` olarak kalıcı indirildi (52 MB, sürüm 2026.8.2). `.gitignore`'da — repoya girmiyor (`7bbfbaa`). |
 >
-> cloudflared tekrar gerekirse (tek exe, kurulum yok):
-> ```powershell
-> cloudflared tunnel --url http://localhost:8081     # ayrı kabukta
-> $env:EXPO_PACKAGER_PROXY_URL = "https://<adres>.trycloudflare.com"
-> $env:REACT_NATIVE_PACKAGER_HOSTNAME = "<adres>.trycloudflare.com"
-> npx expo start --clear                              # Metro'yu YENİDEN başlat
-> ```
-> Şu an bu değişkenlerin hiçbiri sistemde tanımlı değil (temiz durum).
+> Komutlar için yukarıdaki "Çalıştırma — üç adım" bloğuna bak. Ortam
+> değişkenleri sistemde kalıcı **değil**, her yeni kabukta yeniden verilir.
 
 **Aşağısı, proje bulut sandbox'ta geliştirilirken geçerliydi — tarihsel kayıt:**
 
@@ -474,7 +493,7 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
-> **Son güncelleme: 28 Ağustos 2026** · Son commit `121a5c8`
+> **Son güncelleme: 28 Ağustos 2026, 12:35** · Son commit `a411096`
 > · Dal `claude/metro-recovery-1xc2kq` · **origin'e PUSH EDİLMEDİ**
 > (yerel commit'ler; push için kimlik doğrulaması gerekiyor)
 
@@ -495,7 +514,7 @@ Yazıldı, commit'lendi, **Supabase'de çalıştırılmadı**:
 > `42703` ile çöktü. Bu yüzden `roomsRepo.odalariGetir` artık kendini koruyor:
 > yeni kolonlar yoksa temel kolonlara düşüp çalışmaya devam ediyor.
 
-### 28 Ağustos oturumu — yapılanlar
+### 28 Ağustos — ilk yarı (gece 03:00–05:00)
 
 **Referans:** WePlay (oda sahnesi) ve Yalla (üst bar) ekran görüntüleri.
 
@@ -581,17 +600,72 @@ src/components/RoomEntryGate.tsx  db/migrations/052,053,054
 **Silinen:** `src/app/admin-user.tsx` · **Yeni paket:** `expo-clipboard ~8.0.8`
 **Yeni ikonlar:** `hand`, `bank`, `wallet`
 
+### 28 Ağustos — ikinci yarı (10:55–12:35)
+
+**Gizlenen her şey açıldı** (`6a46b3b`) — 13 bayrak `false` → `true`;
+`features.ts` başına "açık ama hâlâ sahte" uyarısı yazıldı (bkz. §7).
+
+**Metro / tünel teşhisi** — sol alttaki **"Downloading..." donması**: makinenin
+bir bulut sunucusu olduğu anlaşıldı, LAN QR'ı hiçbir zaman çalışmayacaktı.
+cloudflared kalıcı olarak `.tools\` altına indirildi, Metro tünel adresiyle
+yeniden başlatıldı, manifest tünel üzerinden **200** döndü. Ayrıntı: §8.
+
+**Sıralama ekranı** (`4033071`) — Zenginlik / Cazibe / Odalar sekmelerinin
+**üçü de aynı listeyi** gösteriyordu (hepsi aynı `else` dalına düşüyordu).
+Üçü ayrıldı; podyum yeniden yapıldı, ekran siyah-altın temaya çekildi.
+
+**Ajanslar / yayıncılar** (`e54f9a0`) — ajanslara güce göre kademeli arma,
+ilk üçe kendine özgü amblem; yayıncı listesinde ilk üç vurgulanıyor.
+
+**DM · arkadaşlar · etkinlik · bildirimler** (`4858338`, `d14decc`) — DM
+avatar hizası düzeltildi; arkadaş listesi/istekleri ve ziyaretçiler ekranı
+elden geçirildi (satırın tamamı basılabilir, ikonlu boş durumlar).
+
+**Aron VIP** (`81b1298`) — mor kademe kimliği siyah-altına çekildi (Asil =
+bronz, Hükümdar = altın); dağınık öğeler tek "kademe kartı"nda toplandı.
+
+**Hesap & Güvenlik · hediye geçmişi · kupon** (`a411096`) — oturumun son işi.
+Sahte olduğu hâlde gerçekmiş gibi davranan üç akış düzeltildi:
+- **Şifre güncelleme hiçbir şey yapmıyordu** (yalnızca "Şifre güncellendi"
+  ekranı açılıyordu) → `authRepo.changeMyPassword`: önce mevcut şifreyle
+  doğrulama, sonra `auth.updateUser`.
+- Sabit telefon numarası kullanıcının numarasıymış gibi yazıyordu → oturumun
+  gerçek e-postası; sahte 4 haneli telefon doğrulama akışı kaldırıldı.
+- Bağlı hesaplar yerel state'ti (açılışta Apple bağlı görünüyordu) → gerçek
+  `user.identities`.
+- Kupon: "ARON" ile başlayan **her** kod "500 altın + 7 gün VIP tanımlandı"
+  diyordu → artık ödül verdiğini iddia etmiyor.
+
+> **Kullanıcının sorusu "hepsini backend'e bağlıyorsun değil mi?" — cevap:**
+> Hayır. Bu oturumdaki işler **görsel**. Zaten bağlı olanlar (ziyaretçiler,
+> bildirimler, oda listesi, cüzdan bakiyesi, profil, yönetim işlemleri)
+> korundu, bazılarında sahte veri gerçeğine çevrildi; hediye / mağaza / VIP /
+> envanter / ajans / görev **hâlâ tamamen sahte**. Yeniden tasarlamak onları
+> çalışır yapmıyor.
+
+**Oturum çöktü** — kupon dosyası yazıldıktan hemen sonra "Prompt is too long";
+o yüzden bu bölüm oturumun kendisinde yazılamadı. `tsc` yeni oturumda
+çalıştırıldı (**exit 0**), dört dosya `a411096` ile commit'lendi.
+
 ### Sıradakiler
 
-1. `051`, `053`, `054` çalıştırılacak.
-2. **Oda rozet sistemi yok** — `Room.badges` yalnız mock; DB'de tablo yok.
+1. `051`, `053`, `054` Supabase'de çalıştırılacak.
+2. **Ajans + sıralama ekranlarına dönülecek** — kullanıcı "bu ajans ve
+   sıralama kısmına geri döneceğiz" dedi. UI düzeldi ama veriler hâlâ
+   `data/seed.ts` sabitleri.
+3. **Hediye ekonomisi yok** — bayraklar açıldığı için artık kullanıcıya
+   *görünüyor*: katalog + bakiyeden düşen atomik RPC + defter tablosu gerek.
+4. **Oda rozet sistemi yok** — `Room.badges` yalnız mock; DB'de tablo yok.
    Kullanıcı rozet sistemi (`049`) örnek alınabilir.
-3. **Görev sistemi yok** — `data/tasks.ts` sabit demo.
-4. `RoomPanel`'deki "Takip Et" yerel state, hiçbir yere yazmıyor.
-5. BottomNav DM sayısı önbellekten — açılışta `listThreads` prefetch edilebilir.
-6. `expo-video` cihazda denenmedi (Expo Go'da olmayabilir → dev build).
-7. Splash Expo Go'da görünmüyor.
-8. Mevcut banner fotoğrafı eski oranda; yeniden yüklenmesi önerilir.
+5. **Görev sistemi yok** — `data/tasks.ts` sabit demo.
+6. `RoomPanel`'deki "Takip Et" yerel state, hiçbir yere yazmıyor.
+7. BottomNav DM sayısı önbellekten — açılışta `listThreads` prefetch edilebilir.
+8. `expo-video` cihazda denenmedi (Expo Go'da olmayabilir → dev build).
+9. Splash Expo Go'da görünmüyor.
+10. Mevcut banner fotoğrafı eski oranda; yeniden yüklenmesi önerilir.
+11. Paket sürüm uyumsuzluğu (engelleyici değil): `expo@54.0.35` → beklenen
+    `~54.0.37`, `expo-constants@18.0.13` → `~18.0.14`, `@types/react@19.2.17`
+    → `~19.1.10`. `npx expo install --fix` Metro'yu yeniden başlatmayı ister.
 
 ---
 
