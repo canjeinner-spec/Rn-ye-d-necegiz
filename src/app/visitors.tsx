@@ -16,34 +16,39 @@ import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
-function VisitorRow({ v, i, onPress }: { v: Visitor; i: number; onPress: () => void }) {
+function VisitorRow({ v, onPress }: { v: Visitor; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={styles.row}>
-      <Portrait name={v.name} size={48} ring={v.vip ? C.gold : undefined} glow={v.vip} online={i % 3 !== 0} photo={v.photo} />
+      {/* `online={i % 3 !== 0}` vardı: çevrimiçi noktası ziyaretçinin
+          SIRASINDAN uyduruluyordu, her üçüncüsü çevrimdışı görünüyordu.
+          Visitor verisinde böyle bir alan yok — kaldırıldı. */}
+      <Portrait name={v.name} size={48} ring={v.vip ? C.gold : undefined} glow={v.vip} photo={v.photo} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          <Txt weight="extrabold" size={13.5} color={C.text} numberOfLines={1}>{v.name}</Txt>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-            <Badge type="level" size={14} lvl={v.lv} />
-            <Txt weight="extrabold" size={10.5} color="#5EEAD4">LV.{v.lv}</Txt>
+          <Txt weight="extrabold" size={13.5} color={v.vip ? C.gold2 : C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{v.name}</Txt>
+          <View style={styles.lvHap}>
+            <Txt weight="extrabold" size={9.5} color="#5EEAD4">LV.{v.lv}</Txt>
           </View>
           {v.vip && <Badge type="vip" size={15} />}
-          <Icon name="male" size={12} color={v.gender === "k" ? "#F472B6" : "#60A5FA"} />
+          {!!v.gender && <Icon name="male" size={12} color={v.gender === "k" ? "#F472B6" : "#60A5FA"} />}
         </View>
-        <Txt size={10.5} color={C.dim2} style={{ marginTop: 3 }}>{v.when} ziyaret etti</Txt>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
+          <Icon name="eye" size={10} color={C.dim2} />
+          <Txt weight="semibold" size={10.5} color={C.dim2}>{v.when} ziyaret etti</Txt>
+        </View>
       </View>
       <Icon name="chev" size={15} color={C.dim2} />
     </Pressable>
   );
 }
 
-function VisitorGroup({ list, keyOffset, onPress }: { list: Visitor[]; keyOffset: number; onPress: (v: Visitor) => void }) {
+function VisitorGroup({ list, onPress }: { list: Visitor[]; onPress: (v: Visitor) => void }) {
   return (
     <View style={styles.group}>
       {list.map((v, i) => (
         <View key={(v.publicId || v.name) + i}>
           {i > 0 && <View style={styles.divider} />}
-          <VisitorRow v={v} i={i + keyOffset} onPress={() => onPress(v)} />
+          <VisitorRow v={v} onPress={() => onPress(v)} />
         </View>
       ))}
     </View>
@@ -74,7 +79,9 @@ export default function VisitorsScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#1E0E2E", "#08080C"]} deg={170} locations={[0, 0.52]} style={StyleSheet.absoluteFill} />
+      {/* Zemin mordu (#1E0E2E) — uygulamanın siyah-altınına çekildi. */}
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={[C.gold + "1A", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
@@ -87,39 +94,50 @@ export default function VisitorsScreen() {
         </View>
 
         <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+          {/* Özet kartı mor dolguydu; siyah cam + altın kenar oldu. */}
           <View style={styles.summary}>
-            <Gradient colors={["#A855F7", "#7C3AED"]} deg={135} style={styles.summaryIcon}>
-              <Icon name="eye" size={24} color="#fff" />
-            </Gradient>
+            <Gradient colors={[C.gold + "16", "transparent"]} deg={140} style={StyleSheet.absoluteFill} pointerEvents="none" />
+            <View style={styles.summaryIcon}>
+              <Icon name="eye" size={22} color={C.gold2} />
+            </View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: "row", alignItems: "baseline", gap: 7 }}>
                 <Txt weight="displayBold" size={24} color="#fff">{visitors.length}</Txt>
-                <Txt weight="bold" size={11.5} color="#C4B5FD">toplam ziyaretçi</Txt>
+                <Txt weight="bold" size={11.5} color={C.gold2}>toplam ziyaretçi</Txt>
               </View>
-              <View style={{ flexDirection: "row", marginTop: 3 }}>
-                <Txt size={11} color={C.dim}>Bugün </Txt>
-                <Txt weight="bold" size={11} color="#fff">{today.length}</Txt>
-                <Txt size={11} color={C.dim}> kişi profilini gezdi</Txt>
-              </View>
+              <Txt size={11} color={C.dim} style={{ marginTop: 3 }}>
+                Bugün <Txt weight="bold" size={11} color="#fff">{today.length}</Txt> kişi profilini gezdi
+              </Txt>
             </View>
           </View>
 
-          {visitors.length === 0 && (
-            <Txt size={12.5} color={C.dim} align="center" style={{ paddingVertical: 50 }}>Henüz ziyaretçin yok.</Txt>
-          )}
-          {today.length > 0 && (
+          {visitors.length === 0 ? (
+            <View style={styles.bos}>
+              <View style={styles.bosIkon}>
+                <Icon name="eye" size={22} color={C.gold} />
+              </View>
+              <Txt weight="displayBold" size={14} color="#fff" style={{ marginTop: 13 }}>Henüz ziyaretçin yok</Txt>
+              <Txt size={11.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 6, maxWidth: 250 }}>
+                Profilini ziyaret edenler burada listelenir.
+              </Txt>
+            </View>
+          ) : (
             <>
-              <Txt weight="bold" size={11.5} color={C.dim2} style={styles.sectionLbl}>BUGÜN</Txt>
-              <VisitorGroup list={today} keyOffset={0} onPress={openProfile} />
+              {today.length > 0 && (
+                <>
+                  <Txt weight="bold" size={10.5} color={C.dim} style={styles.sectionLbl}>BUGÜN</Txt>
+                  <VisitorGroup list={today} onPress={openProfile} />
+                </>
+              )}
+              {earlier.length > 0 && (
+                <>
+                  <Txt weight="bold" size={10.5} color={C.dim} style={[styles.sectionLbl, { marginTop: 20 }]}>DAHA ÖNCE</Txt>
+                  <VisitorGroup list={earlier} onPress={openProfile} />
+                </>
+              )}
+              <Txt size={10.5} color={C.dim2} align="center" style={{ marginTop: 18 }}>Son ziyaretçilerin gösteriliyor</Txt>
             </>
           )}
-          {earlier.length > 0 && (
-            <>
-              <Txt weight="bold" size={11.5} color={C.dim2} style={[styles.sectionLbl, { marginTop: 18 }]}>DAHA ÖNCE</Txt>
-              <VisitorGroup list={earlier} keyOffset={100} onPress={openProfile} />
-            </>
-          )}
-          {visitors.length > 0 && <Txt size={10.5} color={C.dim2} align="center" style={{ marginTop: 16 }}>Son ziyaretçilerin gösteriliyor</Txt>}
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -130,10 +148,14 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  summary: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 18, marginBottom: 18, backgroundColor: "rgba(168,85,247,.16)", borderWidth: 1, borderColor: "rgba(168,85,247,.25)" },
-  summaryIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  sectionLbl: { letterSpacing: 0.5, marginBottom: 8 },
-  group: { borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
+  summary: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 18, marginBottom: 18, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: C.gold + "3D", overflow: "hidden" },
+  summaryIcon: { width: 46, height: 46, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "44" },
+  sectionLbl: { letterSpacing: 0.5, marginBottom: 9 },
+  lvHap: { paddingVertical: 1.5, paddingHorizontal: 7, borderRadius: 999, backgroundColor: "rgba(94,234,212,.12)", borderWidth: 1, borderColor: "rgba(94,234,212,.30)" },
+  bos: { alignItems: "center", paddingVertical: 54, paddingHorizontal: 18 },
+  bosIkon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "3D" },
+  group: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 72 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 12 },
 });
