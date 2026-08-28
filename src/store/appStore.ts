@@ -117,6 +117,8 @@ type AppState = {
 
   enterRoom: (r: Room) => void;
   patchCurrentRoom: (p: Partial<Room>) => void;
+  /** Yönetim ekranından düzenlenen odayı (dbId ile) store'a yansıt. */
+  patchRoomByDbId: (dbId: number, p: Partial<Room>) => void;
   leaveRoom: () => void;
   makeMyRoom: () => Room;
   openMyRoom: () => Room;
@@ -460,6 +462,25 @@ export const useApp = create<AppState>((set, get) => ({
         ...(benimOdam ? { myRoom: { ...s.myRoom!, ...p } } : null),
         ...(p.name != null ? { roomName: p.name } : {}),
         ...(p.announce != null ? { roomAnnounce: p.announce } : {}),
+      };
+    }),
+  /**
+   * dbId ile oda güncelle — yönetim ekranından yapılan değişiklikler için.
+   *
+   * patchCurrentRoom yalnız İÇİNDE OLDUĞUM odayı güncelliyor. Yönetici bir
+   * odayı düzenlediğinde o odanın içinde olmuyor; bu yüzden adı/ID'si
+   * değiştikten sonra profildeki "Odam" kartı ve oda paneli eski değerleri
+   * göstermeye devam ediyordu.
+   */
+  patchRoomByDbId: (dbId, p) =>
+    set((s) => {
+      const guncelMi = (r: Room | null) => !!r && r.dbId === dbId;
+      const yeniCurrent = guncelMi(s.currentRoom) ? { ...s.currentRoom!, ...p } : s.currentRoom;
+      return {
+        currentRoom: yeniCurrent,
+        ...(guncelMi(s.myRoom) ? { myRoom: { ...s.myRoom!, ...p } } : null),
+        ...(guncelMi(s.currentRoom) && p.name != null ? { roomName: p.name } : {}),
+        ...(guncelMi(s.currentRoom) && p.announce !== undefined ? { roomAnnounce: p.announce || "" } : {}),
       };
     }),
   leaveRoom: () => set({ inRoom: false, currentRoom: null }),

@@ -254,6 +254,16 @@ export async function changeRoomPublicId(odaId: number, yeni: string): Promise<v
   const { error } = await sb.rpc("admin_oda_public_id_degistir", { p_oda: odaId, p_yeni: yeni.trim() });
   if (error) throw error;
 }
+/**
+ * Oda kapağını ayarla / kaldır (053_admin_oda_kapak). null → kapağı kaldırır.
+ * 036'daki admin_oda_guncelle yalnız ad + açıklama alıyordu, bu yüzden
+ * yönetici uygunsuz bir kapağı kaldıramıyordu.
+ */
+export async function setRoomCover(odaId: number, kapak: string | null): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("admin_oda_kapak_ayarla", { p_oda: odaId, p_kapak: kapak });
+  if (error) throw error;
+}
 
 // ---- İçerik (031_admin_icerik): yönetici herhangi bir gönderiyi siler ------
 export async function deleteAnyPost(postDbId: number): Promise<void> {

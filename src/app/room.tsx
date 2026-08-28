@@ -401,7 +401,9 @@ export default function RoomScreen() {
           const r = row as { ad?: string; aciklama?: string | null; kategori?: string | null; kapak_url?: string | null; herkese_acik?: boolean };
           patchCurrentRoom({
             name: r.ad,
-            announce: r.aciklama || undefined,
+            // `|| undefined` idi: açıklama SİLİNDİĞİNDE undefined gidiyor,
+            // patchCurrentRoom da "değişmemiş" sayıp eski duyuruyu bırakıyordu.
+            announce: r.aciklama ?? "",
             scene: toScene(r.kategori ?? null),
             photo: r.kapak_url || undefined,
             locked: r.herkese_acik === undefined ? undefined : !r.herkese_acik,

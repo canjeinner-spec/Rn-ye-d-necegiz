@@ -1,3 +1,5 @@
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
@@ -7,9 +9,12 @@ import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import {
-  changeRoomPublicId, getActionHistory, getRoomForEdit, updateRoom,
+  changeRoomPublicId, getActionHistory, getRoomForEdit, setRoomCover, updateRoom,
   type AdminAction, type AdminRoomEdit,
 } from "@/data/remote/adminRepo";
+import { uploadAvatar } from "@/data/remote/storageRepo";
+import { type Room } from "@/data/seed";
+import { setCached } from "@/lib/cache";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
@@ -29,6 +34,7 @@ export default function AdminRoomEdit() {
   const params = useLocalSearchParams<{ odaId?: string }>();
   const odaId = params.odaId ? parseInt(String(params.odaId), 10) : NaN;
   const isDev = useApp((s) => s.role) === "developer";
+  const patchRoomByDbId = useApp((s) => s.patchRoomByDbId);
 
   const [r, setR] = useState<AdminRoomEdit | null>(null);
   const [history, setHistory] = useState<AdminAction[]>([]);
@@ -52,10 +58,39 @@ export default function AdminRoomEdit() {
   }, [odaId]);
   useEffect(() => { load(); }, [load]);
 
-  const run = async (fn: () => Promise<void>, ok: string) => {
+  /**
+   * İşlemi çalıştır, sonra STORE'a da yansıt.
+   *
+   * Eskiden yalnızca DB'ye yazılıp ekran yenileniyordu; uygulamanın geri
+   * kalanı (profildeki "Odam" kartı, oda paneli, oda listesi önbelleği)
+   * eski adı/ID'yi göstermeye devam ediyordu.
+   */
+  const run = async (fn: () => Promise<void>, ok: string, patch?: Partial<Room>) => {
     setBusy(true);
-    try { await fn(); flash(ok); load(); }
+    try {
+      await fn();
+      if (patch) patchRoomByDbId(odaId, patch);
+      setCached("rooms:list", undefined); // ana sayfa listesi tazelensin
+      flash(ok);
+      load();
+    }
     catch (e) { flash((e as Error)?.message || "İşlem başarısız"); }
+    finally { setBusy(false); }
+  };
+
+  // Kapak: yönetici galeriden seçer → storage'a yüklenir → odaya yazılır.
+  const pickKapak = async () => {
+    if (!r || busy) return;
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.85, base64: true });
+    if (res.canceled || !res.assets[0]?.base64) return;
+    setBusy(true);
+    try {
+      const url = await uploadAvatar(res.assets[0].base64, res.assets[0].uri);
+      await setRoomCover(r.id, url);
+      patchRoomByDbId(odaId, { photo: url });
+      setCached("rooms:list", undefined);
+      flash("Kapak güncellendi"); load();
+    } catch (e) { flash((e as Error)?.message || "Kapak yüklenemedi"); }
     finally { setBusy(false); }
   };
 
@@ -96,6 +131,28 @@ export default function AdminRoomEdit() {
               </View>
             </View>
 
+            {/* Kapak — sadece gösteriliyordu, değiştiren/kaldıran kontrol yoktu */}
+            <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>ODA KAPAĞI</Txt>
+            <View style={styles.group}><View style={{ padding: 12, flexDirection: "row", alignItems: "center", gap: 13 }}>
+              <View style={styles.kapakOnizleme}>
+                {r.photo
+                  ? <Image source={{ uri: r.photo }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                  : <View style={styles.kapakBos}><Icon name="camera" size={18} color={C.dim2} /></View>}
+              </View>
+              <View style={{ flex: 1, gap: 7 }}>
+                <Pressable disabled={busy} onPress={pickKapak} style={[styles.kapakBtn, { backgroundColor: `${C.gold}16`, borderColor: `${C.gold}4D` }]}>
+                  <Icon name="camera" size={13} color={C.gold2} />
+                  <Txt weight="extrabold" size={12} color={C.gold2}>{r.photo ? "Kapağı Değiştir" : "Kapak Ekle"}</Txt>
+                </Pressable>
+                {!!r.photo && (
+                  <Pressable disabled={busy} onPress={() => run(() => setRoomCover(r.id, null), "Kapak kaldırıldı", { photo: undefined })} style={[styles.kapakBtn, { backgroundColor: "rgba(251,113,133,.12)", borderColor: "rgba(251,113,133,.34)" }]}>
+                    <Icon name="trash" size={13} color="#FB7185" />
+                    <Txt weight="extrabold" size={12} color="#FB7185">Kapağı Kaldır</Txt>
+                  </Pressable>
+                )}
+              </View>
+            </View></View>
+
             <Pressable onPress={() => { haptic.light(); router.navigate(`/admin-mesaj?tip=oda&odaId=${odaId}`); }} style={[styles.group, { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 14, marginTop: 12 }]}>
               <Icon name="mega" size={15} color={C.gold2} /><Txt weight="bold" size={12.5} color={C.text} style={{ flex: 1 }}>Mesaj / Uyarı Gönder</Txt><Icon name="chev" size={13} color={C.dim2} />
             </Pressable>
@@ -111,7 +168,7 @@ export default function AdminRoomEdit() {
                 <Txt weight="bold" size={10} color={C.dim2}>AÇIKLAMA</Txt>
                 <TextInput value={aciklama} onChangeText={setAciklama} placeholder="Açıklama (opsiyonel)" placeholderTextColor={C.dim2} multiline style={[styles.input, { minHeight: 70, textAlignVertical: "top" }]} />
               </View>
-              <Pressable disabled={busy || !adDirty || !ad.trim()} onPress={() => run(() => updateRoom(r.id, ad, aciklama), "Oda güncellendi")} style={[styles.saveBtn, { opacity: adDirty && ad.trim() ? 1 : 0.4 }]}>
+              <Pressable disabled={busy || !adDirty || !ad.trim()} onPress={() => run(() => updateRoom(r.id, ad, aciklama), "Oda güncellendi", { name: ad.trim(), announce: aciklama.trim() || undefined })} style={[styles.saveBtn, { opacity: adDirty && ad.trim() ? 1 : 0.4 }]}>
                 <Icon name="check" size={14} sw={2.5} color={C.gold2} /><Txt weight="extrabold" size={12.5} color={C.gold2}>Değişiklikleri Kaydet</Txt>
               </Pressable>
             </View></View>
@@ -123,7 +180,7 @@ export default function AdminRoomEdit() {
                 <View style={styles.group}><View style={{ padding: 12, gap: 8 }}>
                   <View style={{ flexDirection: "row", gap: 8 }}>
                     <TextInput value={newId} onChangeText={setNewId} placeholder={`Mevcut: ${r.publicId}`} placeholderTextColor={C.dim2} style={[styles.input, { flex: 1 }]} />
-                    <Pressable disabled={busy || !newId.trim()} onPress={() => run(() => changeRoomPublicId(r.id, newId), "Oda ID değişti").then(() => setNewId(""))} style={[styles.actBtn, { opacity: newId.trim() ? 1 : 0.4 }]}><Txt weight="extrabold" size={12} color={C.gold2}>Kaydet</Txt></Pressable>
+                    <Pressable disabled={busy || !newId.trim()} onPress={() => run(() => changeRoomPublicId(r.id, newId), "Oda ID değişti", { id: newId.trim() }).then(() => setNewId(""))} style={[styles.actBtn, { opacity: newId.trim() ? 1 : 0.4 }]}><Txt weight="extrabold" size={12} color={C.gold2}>Kaydet</Txt></Pressable>
                   </View>
                   <Txt size={9.5} color={C.dim2} lh={1.4}>Oda ID benzersiz olmalı; değişince eski bağlantılar bu ID'yi bulamaz.</Txt>
                 </View></View>
@@ -174,6 +231,9 @@ const styles = StyleSheet.create({
   saveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 11, borderRadius: 12, backgroundColor: `${C.gold}14`, borderWidth: 1, borderColor: `${C.gold}44` },
   actBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 11, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` },
   lockedInfo: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: C.line, marginTop: 8 },
+  kapakOnizleme: { width: 62, height: 62, borderRadius: 16, overflow: "hidden", backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
+  kapakBos: { flex: 1, alignItems: "center", justifyContent: "center" },
+  kapakBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5 },
   histRow: { flexDirection: "row", alignItems: "flex-start", gap: 11, paddingVertical: 12, paddingHorizontal: 13 },
   hIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.05)" },
 });
