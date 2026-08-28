@@ -31,6 +31,9 @@ import { Gradient } from "@/theme/Gradient";
  *   3) Sonra normal odalar
  * Aynı katman içinde sekmenin kendi ölçütü uygulanır (varsayılan: kalabalık).
  */
+/** "Yeni" sekmesi bu kadar gün içinde kurulmuş odaları gösterir. */
+const YENI_ODA_GUN = 7;
+
 function katman(r: Room) {
   if (r.official) return 0;
   if (r.daily != null) return 1;
@@ -170,8 +173,15 @@ export default function Home() {
     switch (tab) {
       case 1: // Popüler — en kalabalıktan seyreğe
         return sirala(gorunur);
-      case 2: // Yeni — en son kurulan oda önce
-        return sirala(gorunur, (a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+      case 2: {
+        // Yeni — yalnızca YENİ KURULMUŞ NORMAL odalar. Resmî ve Daily Top
+        // odalar buraya girmez (onların kendi yeri var); sıralama kuruluş
+        // tarihine göre değil, etkileşime (kalabalığa) göre.
+        const esik = Date.now() - YENI_ODA_GUN * 24 * 60 * 60 * 1000;
+        return gorunur
+          .filter((r) => !r.official && r.daily == null && (r.createdAt ?? 0) >= esik)
+          .sort((a, b) => b.online - a.online);
+      }
       case 3: // Resmî — yalnızca resmî odalar
         return sirala(gorunur.filter((r) => r.official));
       default:
@@ -220,12 +230,14 @@ export default function Home() {
                   <Icon name="mic" size={20} color={C.gold} />
                 </View>
                 <Txt weight="displayBold" size={14} color="#fff" style={{ marginTop: 12 }}>
-                  {tab === 3 ? "Şu an açık resmî oda yok" : "Şu an açık oda yok"}
+                  {tab === 3 ? "Şu an açık resmî oda yok" : tab === 2 ? "Yeni açılan oda yok" : "Şu an açık oda yok"}
                 </Txt>
                 <Txt size={11.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 6, maxWidth: 250 }}>
                   {tab === 3
                     ? "Resmî odalar açıldığında burada listelenir."
-                    : "Boş, kilitli ve yasaklı odalar listelenmez. Sen bir oda açarak başlayabilirsin."}
+                    : tab === 2
+                      ? `Son ${YENI_ODA_GUN} günde açılmış aktif bir oda yok.`
+                      : "Boş, kilitli ve yasaklı odalar listelenmez. Sen bir oda açarak başlayabilirsin."}
                 </Txt>
               </View>
             )}
