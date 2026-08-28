@@ -55,13 +55,17 @@ import { Gradient } from "@/theme/Gradient";
  *                          yatay dolgu yok)
  *   • oda sahibi çapı 273px = 91pt
  *
- * Yani çap, sütunun %51'i ve sahip koltuğun 1.65 katı. Sabit piksel yerine
- * bu oranları kullanıyoruz ki her ekran boyutunda aynı denge korunsun:
- *   390pt ekran → koltuk 50, sahip 83     430pt ekran → koltuk 55, sahip 91
+ * Yani çap sütunun %51'i. Sabit piksel yerine bu oranı kullanıyoruz ki her
+ * ekran boyutunda aynı denge korunsun:
+ *   390pt ekran → koltuk 50     430pt ekran → koltuk 55
+ *
+ * Sahip koltuğu WePlay'de koltuğun 1.65 katı; bizde 1.5 kullanıyoruz —
+ * WePlay'in aksine sahibin altında isim ve yetki etiketi de var, 1.65
+ * fazla baskın duruyordu.
  */
 const { width: EKRAN } = Dimensions.get("window");
 const KOLTUK = Math.round((EKRAN / 4) * 0.512);
-const SAHIP_KOLTUK = Math.round(KOLTUK * 1.65);
+const SAHIP_KOLTUK = Math.round(KOLTUK * 1.5);
 
 const ROOM_REPORT: { ic: IconName; t: string }[] = [
   { ic: "adult", t: "Uygunsuz / 18+ içerik" },
@@ -499,6 +503,8 @@ export default function RoomScreen() {
   };
 
   const sitHere = (idx: number) => {
+    // Oda sahibinin kendi koltuğu var; sıradan koltuğa geçemez.
+    if (isMine) { setSeatSheet(null); toast("Oda sahibi kendi koltuğunda oturur"); return; }
     if (micBan) { setSeatSheet(null); setMicBanModal(true); return; } // mic yasaklı → koltuğa çıkamaz
     haptic.light();
     setSeats((p) => {
@@ -535,6 +541,7 @@ export default function RoomScreen() {
   const queueSend = (payload: object) => chanRef.current?.send({ type: "broadcast", event: "mic_queue", payload });
   const raiseHand = () => {
     if (myDbId == null) return;
+    if (isMine) { toast("Zaten kendi koltuğundasın"); return; } // sahip sıraya giremez
     if (micBan) { setMicBanModal(true); return; } // mic yasaklı → el kaldıramaz
     haptic.light();
     queueSend({ kind: "raise", uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined, at: Date.now() });
@@ -884,9 +891,16 @@ export default function RoomScreen() {
           <>
             <Txt weight="displayBold" size={16} color="#fff" style={{ marginBottom: 4 }}>{seatSheetIdx + 1}. Koltuk</Txt>
             <Txt size={11} color={C.dim} style={{ marginBottom: 8 }}>
-              {seatLocks[seatSheetIdx] ? "Bu koltuk kilitli" : occupiedByMe ? "Şu an buradasın" : isEmpty ? "Boş koltuk" : ""}
+              {seatLocks[seatSheetIdx]
+                ? "Bu koltuk kilitli"
+                : occupiedByMe
+                  ? "Şu an buradasın"
+                  : isEmpty
+                    ? isMine ? "Boş koltuk · sen kendi koltuğunda oturuyorsun" : "Boş koltuk"
+                    : ""}
             </Txt>
-            {isEmpty && !seatLocks[seatSheetIdx] && (
+            {/* Oda sahibi sıradan koltuğa geçemez — kendi koltuğu sahnenin başında. */}
+            {isEmpty && !seatLocks[seatSheetIdx] && !isMine && (
               <ActionRow icon="mic" color={C.gold} label={mySeat === null ? "Bu koltuğa geç" : "Bu koltuğa taşın"} onPress={() => sitHere(seatSheetIdx)} />
             )}
             {occupiedByMe && <ActionRow icon="micoff" color={C.red} label="Mikrofondan in" onPress={leaveSeat} />}
@@ -930,7 +944,8 @@ export default function RoomScreen() {
           myUid={myDbId}
           myRaised={myRaised}
           canModerate={MY_ROLE !== "user"}
-          onRaise={raiseHand}
+          // sahip sıraya giremez → "El Kaldır" butonu hiç çıkmasın
+          onRaise={isMine ? undefined : raiseHand}
           onLower={lowerHand}
           onApprove={approveHand}
           onClose={() => setQueueOpen(false)}

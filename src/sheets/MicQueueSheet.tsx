@@ -136,8 +136,9 @@ export function MicQueueSheet({
               </ScrollView>
             )}
 
-            {/* Tek birincil aksiyon */}
-            {queue !== undefined && (
+            {/* Tek birincil aksiyon. onRaise verilmemişse (ör. oda sahibi —
+                kendi koltuğu var, sıraya giremez) buton hiç çizilmez. */}
+            {queue !== undefined && (onRaise || myRaised) && (
               <View style={[styles.altBar, { paddingBottom: 12 + insets.bottom }]}>
                 <Pressable
                   onPress={() => { haptic.light(); myRaised ? onLower?.() : onRaise?.(); }}
