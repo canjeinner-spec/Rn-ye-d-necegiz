@@ -37,6 +37,29 @@ export async function signInWithEmail(email: string, password: string) {
 }
 
 /**
+ * Kendi şifreni değiştir.
+ *
+ * Hesap & Güvenlik'teki "Şifre Güncelleme" hiçbir şey yapmıyordu: Kaydet'e
+ * basınca yalnızca "Şifre güncellendi" ekranı açılıyordu. Kullanıcı şifresinin
+ * değiştiğini sanıyordu.
+ *
+ * Supabase `updateUser` mevcut şifreyi sormaz; o yüzden önce mevcut şifreyle
+ * yeniden giriş denenip kimlik doğrulanıyor (yanlışsa değişiklik yapılmaz).
+ */
+export async function changeMyPassword(mevcut: string, yeni: string): Promise<void> {
+  const sb = requireSupabase();
+  const { data: { user } } = await sb.auth.getUser();
+  const email = user?.email;
+  if (!email) throw new Error("Bu hesapta e-posta yok; şifre buradan değiştirilemiyor.");
+
+  const { error: dogrulama } = await sb.auth.signInWithPassword({ email, password: mevcut });
+  if (dogrulama) throw new Error("Mevcut şifren hatalı.");
+
+  const { error } = await sb.auth.updateUser({ password: yeni });
+  if (error) throw error;
+}
+
+/**
  * Google ile giriş — Expo (auth-session) akışı.
  * Tarayıcı açar, dönüşte PKCE code'unu oturuma çevirir.
  */

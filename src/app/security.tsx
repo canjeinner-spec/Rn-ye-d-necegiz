@@ -1,3 +1,4 @@
+import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
@@ -8,12 +9,16 @@ import { Pill } from "@/components/Pill";
 import { Txt } from "@/components/Txt";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
+import { changeMyPassword } from "@/data/remote/authRepo";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
-const PHONE = "+90 532 144 07 88";
-const APP_VERSION = "1.0.0";
+/**
+ * Uygulama sürümü app.json'dan okunuyor. Eskiden burada "1.0.0" sabiti vardı;
+ * sürüm yükseltilse bile bu ekranda hep 1.0.0 yazacaktı.
+ */
+const APP_VERSION = Constants.expoConfig?.version ?? "—";
 
 /** Türkçe İ/I/ı/i klavye farklarından bağımsız "sil" onay karşılaştırması. */
 function normalizeSil(s: string): string {
@@ -24,14 +29,19 @@ function normalizeSil(s: string): string {
     .toUpperCase();
 }
 
+/**
+ * Bağlı hesaplar artık GERÇEK: Supabase oturumundaki `user.identities`
+ * okunuyor. Önceden yerel bir `useState` vardı — dokununca "Bağlı" yazıyor
+ * ama hiçbir yere bağlanmıyordu, üstelik açılışta Apple bağlıymış gibi
+ * görünüyordu.
+ */
 type SocialKey = "twitter" | "apple" | "google";
 const SOCIALS: { key: SocialKey; label: string; icon: string }[] = [
-  { key: "twitter", label: "Twitter / X", icon: "𝕏" },
-  { key: "apple", label: "Apple", icon: "" },
   { key: "google", label: "Google", icon: "G" },
+  { key: "apple", label: "Apple", icon: "" },
+  { key: "twitter", label: "Twitter / X", icon: "𝕏" },
 ];
 
-type PhoneFlow = null | "confirm" | "code" | "done" | "error";
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (t: string) => void }) {
   return (
@@ -45,25 +55,46 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
 export default function SecurityScreen() {
   const router = useRouter();
   const { signOutApp, deleteAccountApp } = useApp();
+  const user = useApp((s) => s.session?.user);
+  const email = user?.email ?? "";
+
+  /**
+   * Hesabın hangi yöntemlerle bağlı olduğu — oturumdaki gerçek kimlikler.
+   * `email` sağlayıcısı varsa şifreyle giriş var demektir; yalnızca Google
+   * ile girildiyse hesabın şifresi yoktur, "Şifre Güncelleme" anlamsız olur.
+   */
+  const saglayicilar = new Set((user?.identities ?? []).map((i) => i.provider));
+  const sifreVar = saglayicilar.has("email");
+  const telefon = user?.phone || "";
+
+
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [delConfirmText, setDelConfirmText] = useState("");
   const [delBusy, setDelBusy] = useState(false);
   const [delError, setDelError] = useState("");
-  const [social, setSocial] = useState<Record<SocialKey, boolean>>({ twitter: false, apple: true, google: false });
-  const anyLinked = Object.values(social).some(Boolean);
-
-  const [flow, setFlow] = useState<PhoneFlow>(null);
-  const [code, setCode] = useState("");
-  const codeValid = code.replace(/\D/g, "").length === 4;
-
   const [pwOpen, setPwOpen] = useState(false);
   const [pw, setPw] = useState({ cur: "", next: "", rep: "" });
   const [pwDone, setPwDone] = useState(false);
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwErr, setPwErr] = useState("");
   const pwOk = pw.next.length >= 6 && pw.next === pw.rep && pw.cur.length >= 1;
 
-  const startPhone = () => { haptic.light(); setFlow(anyLinked ? "confirm" : "error"); };
-  const closePhone = () => { setFlow(null); setCode(""); };
+  /** Şifreyi GERÇEKTEN değiştirir (authRepo → Supabase). */
+  const savePw = async () => {
+    if (!pwOk || pwBusy) return;
+    setPwBusy(true); setPwErr("");
+    try {
+      await changeMyPassword(pw.cur, pw.next);
+      haptic.success();
+      setPwDone(true);
+    } catch (e) {
+      setPwErr(e instanceof Error ? e.message : "Şifre değiştirilemedi.");
+    } finally {
+      setPwBusy(false);
+    }
+  };
+
   const closePw = () => { setPwOpen(false); setPw({ cur: "", next: "", rep: "" }); setPwDone(false); };
   const doLogout = async () => { haptic.success(); setLogoutOpen(false); await signOutApp(); router.replace("/onboarding"); };
 
@@ -84,7 +115,8 @@ export default function SecurityScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#15110A", "#08080C"]} deg={170} locations={[0, 0.5]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={[C.gold + "1A", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
@@ -97,29 +129,67 @@ export default function SecurityScreen() {
           <Txt weight="bold" size={10.5} color={C.dim} style={styles.sectionLbl}>HESAP GÜVENLİĞİ</Txt>
 
           <View style={styles.group}>
-            <Pressable onPress={startPhone} style={[styles.row, styles.rowInGroup]}>
+            {/* Burada sabit bir telefon numarası ("+90 532 144 07 88")
+                kullanıcının numarasıymış gibi yazıyordu. Oturumun gerçek
+                e-postası gösteriliyor. */}
+            <View style={[styles.row, styles.rowInGroup]}>
               <View style={[styles.rowIcon, { backgroundColor: `${C.gold}1A` }]}>
-                <Icon name="phone" size={16} color={C.gold} />
+                <Icon name="idcard" size={16} color={C.gold} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Txt weight="extrabold" size={12.5} color={C.text}>Telefon Numarası</Txt>
-                <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>{PHONE}</Txt>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Txt weight="extrabold" size={12.5} color={C.text}>E-posta</Txt>
+                <Txt size={10} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>{email || "—"}</Txt>
               </View>
-              <Icon name="chev" size={14} color={C.dim2} />
-            </Pressable>
+            </View>
 
             <View style={styles.divider} />
 
-            <Pressable onPress={() => { haptic.light(); setPwOpen(true); }} style={[styles.row, styles.rowInGroup]}>
-              <View style={[styles.rowIcon, { backgroundColor: `${C.purple2}1A` }]}>
-                <Icon name="lock" size={16} color={C.purple2} />
+            {/* Telefon: oturumda numara yoksa "Bağlı değil". Google ile
+                girenlerde numara olmaz. */}
+            <View style={[styles.row, styles.rowInGroup]}>
+              <View style={[styles.rowIcon, { backgroundColor: telefon ? `${C.gold}1A` : "rgba(255,255,255,.06)" }]}>
+                <Icon name="phone" size={16} color={telefon ? C.gold : C.dim} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Txt weight="extrabold" size={12.5} color={C.text}>Şifre Güncelleme</Txt>
-                <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>Hesap şifreni değiştir</Txt>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Txt weight="extrabold" size={12.5} color={C.text}>Telefon Numarası</Txt>
+                <Txt size={10} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>
+                  {telefon || "Hesabına telefon numarası bağlı değil"}
+                </Txt>
               </View>
-              <Icon name="chev" size={14} color={C.dim2} />
-            </Pressable>
+              {!telefon && (
+                <Pill bg="rgba(255,255,255,.05)" color={C.dim} border={C.line}>Bağlı değil</Pill>
+              )}
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Şifre: yalnızca e-posta+şifre ile kurulmuş hesaplarda anlamlı.
+                Sadece Google/Apple ile girildiyse hesabın şifresi yok. */}
+            {sifreVar ? (
+              <Pressable onPress={() => { haptic.light(); setPwOpen(true); }} style={[styles.row, styles.rowInGroup]}>
+                <View style={[styles.rowIcon, { backgroundColor: `${C.gold}1A` }]}>
+                  <Icon name="lock" size={16} color={C.gold} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Txt weight="extrabold" size={12.5} color={C.text}>Şifre Güncelleme</Txt>
+                  <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>Hesap şifreni değiştir</Txt>
+                </View>
+                <Icon name="chev" size={14} color={C.dim2} />
+              </Pressable>
+            ) : (
+              <View style={[styles.row, styles.rowInGroup]}>
+                <View style={[styles.rowIcon, { backgroundColor: "rgba(255,255,255,.06)" }]}>
+                  <Icon name="lock" size={16} color={C.dim} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Txt weight="extrabold" size={12.5} color={C.text}>Şifre Güncelleme</Txt>
+                  <Txt size={10} color={C.dim} lh={1.4} style={{ marginTop: 2 }}>
+                    Hesabına şifre tanımlı değil — {saglayicilar.has("google") ? "Google" : saglayicilar.has("apple") ? "Apple" : "sosyal hesap"} ile giriş yapıyorsun.
+                  </Txt>
+                </View>
+                <Pill bg="rgba(255,255,255,.05)" color={C.dim} border={C.line}>Bağlı değil</Pill>
+              </View>
+            )}
 
             <View style={styles.divider} />
 
@@ -138,26 +208,31 @@ export default function SecurityScreen() {
           <Txt weight="bold" size={10.5} color={C.dim} style={[styles.sectionLbl, { marginTop: 22 }]}>BAĞLI HESAPLAR</Txt>
           <View style={styles.group}>
             {SOCIALS.map((s, i) => {
-              const linked = social[s.key];
+              const linked = saglayicilar.has(s.key);
               return (
                 <View key={s.key}>
                   {i > 0 && <View style={styles.divider} />}
-                  <Pressable onPress={() => { haptic.select(); setSocial((p) => ({ ...p, [s.key]: !p[s.key] })); }} style={[styles.row, styles.rowInGroup]}>
-                    <View style={styles.socialIcon}>
-                      <Txt weight="extrabold" size={14} color="#fff">{s.icon}</Txt>
+                  <View style={[styles.row, styles.rowInGroup]}>
+                    <View style={[styles.socialIcon, linked && { borderColor: C.green + "55", backgroundColor: C.green + "12" }]}>
+                      <Txt weight="extrabold" size={14} color={linked ? C.green : C.dim}>{s.icon || s.label[0]}</Txt>
                     </View>
-                    <Txt weight="extrabold" size={12.5} color={C.text} style={{ flex: 1 }}>{s.label}</Txt>
+                    <Txt weight="extrabold" size={12.5} color={linked ? C.text : C.dim} style={{ flex: 1 }}>{s.label}</Txt>
                     {linked ? (
-                      <Pill bg={`${C.green}1A`} color={C.green} border={`${C.green}44`}>✓ Bağlı</Pill>
+                      <View style={styles.bagliHap}>
+                        <Icon name="check" size={10} sw={3} color={C.green} />
+                        <Txt weight="extrabold" size={10} color={C.green}>Bağlı</Txt>
+                      </View>
                     ) : (
                       <Pill bg="rgba(255,255,255,.05)" color={C.dim} border={C.line}>Bağlı değil</Pill>
                     )}
-                  </Pressable>
+                  </View>
                 </View>
               );
             })}
           </View>
-          <Txt size={10} color={C.dim2} lh={1.5} style={{ marginTop: 10 }}>Bağlı değil olana dokununca ilgili hesaba bağlanma ekranına yönlendirilirsin.</Txt>
+          <Txt size={10} color={C.dim2} lh={1.5} style={{ marginTop: 10 }}>
+            Bağlı hesaplar oturumundan okunur. Yeni hesap bağlama henüz açık değil.
+          </Txt>
 
           <Txt weight="bold" size={10.5} color={C.red} style={[styles.sectionLbl, { marginTop: 22 }]}>TEHLİKELİ BÖLGE</Txt>
           <View style={[styles.group, styles.dangerGroup]}>
@@ -188,75 +263,10 @@ export default function SecurityScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* Telefon değiştirme — ortadan açılan akış */}
-      <CenterModal visible={flow === "confirm"} onClose={closePhone} dim={0.72}>
-        <View style={styles.dialog}>
-          <Txt weight="displayBold" size={17} color="#fff">Bağlı telefon numaranı değiştir?</Txt>
-          <View style={styles.goldBox}>
-            <Txt weight="bold" size={10.5} color={`${C.gold}CC`}>GÜNCEL BAĞLI NUMARAN</Txt>
-            <Txt weight="displayBold" size={17} color={C.gold2} style={{ marginTop: 5 }}>{PHONE}</Txt>
-          </View>
-          <Txt size={11.5} color={C.dim} lh={1.55} style={{ marginTop: 14 }}>Onayladığında mevcut numarana bir doğrulama kodu göndereceğiz. Kod onaylanınca numaranı değiştirebilirsin.</Txt>
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 20 }}>
-            <Pressable onPress={closePhone} style={[styles.btn, { flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.line }]}>
-              <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
-            </Pressable>
-            <Pressable onPress={() => { haptic.light(); setCode(""); setFlow("code"); }} style={{ flex: 1, borderRadius: 14, overflow: "hidden" }}>
-              <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.btn}>
-                <Txt weight="extrabold" size={13} color="#241A05">Onayla</Txt>
-              </Gradient>
-            </Pressable>
-          </View>
-        </View>
-      </CenterModal>
-
-      <CenterModal visible={flow === "code"} onClose={closePhone} dim={0.72}>
-        <View style={styles.dialog}>
-          <Txt weight="displayBold" size={17} color="#fff">Doğrulama kodu</Txt>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 10 }}>
-            <Txt weight="bold" size={11.5} color={C.text}>{PHONE}</Txt>
-            <Txt size={11.5} color={C.dim} lh={1.55}> numarasına gönderdiğimiz 4 haneli kodu gir.</Txt>
-          </View>
-          <TextInput value={code} onChangeText={setCode} keyboardType="number-pad" placeholder="• • • •" placeholderTextColor={C.dim2} maxLength={4} style={[styles.codeInput, { borderColor: codeValid ? C.green : C.line }]} />
-          <Pressable style={{ marginTop: 12, alignSelf: "flex-start" }}><Txt weight="bold" size={11.5} color={C.gold}>Kodu tekrar gönder</Txt></Pressable>
-          <Pressable onPress={() => { haptic.success(); setFlow("done"); }} disabled={!codeValid} style={{ marginTop: 18, borderRadius: 15, overflow: "hidden", opacity: codeValid ? 1 : 0.45 }}>
-            <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.btn}>
-              <Txt weight="extrabold" size={13.5} color="#241A05">Doğrula ve Değiştir</Txt>
-            </Gradient>
-          </Pressable>
-        </View>
-      </CenterModal>
-
-      <CenterModal visible={flow === "done"} onClose={closePhone} dim={0.78}>
-        <View style={[styles.dialog, { alignItems: "center" }]}>
-          <View style={[styles.statusCircle, { backgroundColor: `${C.green}1A`, borderColor: `${C.green}66` }]}>
-            <Icon name="check" size={28} sw={3} color={C.green} />
-          </View>
-          <Txt weight="displayBold" size={17} color="#fff">Kod doğrulandı</Txt>
-          <Txt size={12} color={C.dim} align="center" lh={1.55} style={{ marginTop: 8 }}>Artık yeni telefon numaranı girebilirsin. (Mockup — bu adımda yeni numara ekranı açılır.)</Txt>
-          <Pressable onPress={closePhone} style={{ alignSelf: "stretch", marginTop: 20, borderRadius: 15, overflow: "hidden" }}>
-            <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.btn}>
-              <Txt weight="extrabold" size={13.5} color="#241A05">Tamam</Txt>
-            </Gradient>
-          </Pressable>
-        </View>
-      </CenterModal>
-
-      <CenterModal visible={flow === "error"} onClose={closePhone} dim={0.72}>
-        <View style={[styles.dialog, { alignItems: "center" }]}>
-          <View style={[styles.statusCircle, { backgroundColor: `${C.red}1A`, borderColor: `${C.red}66` }]}>
-            <Txt size={28}>⚠️</Txt>
-          </View>
-          <Txt weight="displayBold" size={16.5} color="#fff">Numara değiştirilemiyor</Txt>
-          <Txt size={12} color={C.dim} align="center" lh={1.6} style={{ marginTop: 10 }}>Güvenlik nedeniyle numara değiştirmek için hesabına en az bir sosyal medya hesabı (Twitter, Apple veya Google) bağlı olmalı. Doğrulama kodu gönderilmedi.</Txt>
-          <Pressable onPress={closePhone} style={{ alignSelf: "stretch", marginTop: 20, borderRadius: 15, overflow: "hidden" }}>
-            <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.btn}>
-              <Txt weight="extrabold" size={13.5} color="#241A05">Tamam</Txt>
-            </Gradient>
-          </Pressable>
-        </View>
-      </CenterModal>
-
+      {/* Sahte telefon doğrulama akışı kaldırıldı: sabit bir numara
+          gösteriyor, girilen 4 haneli kodu doğrulamadan kabul ediyor ve
+          sonunda Mockup yazan bir ekranla bitiyordu. Gerçek telefon
+          doğrulaması (Supabase phone auth) kurulunca geri gelecek. */}
       {/* Şifre güncelleme */}
       <CenterModal visible={pwOpen} onClose={closePw} dim={0.72}>
         <View style={styles.dialog}>
@@ -280,13 +290,14 @@ export default function SecurityScreen() {
               <Field label="YENİ ŞİFRE" value={pw.next} onChange={(t) => setPw((p) => ({ ...p, next: t }))} />
               <Field label="YENİ ŞİFRE (TEKRAR)" value={pw.rep} onChange={(t) => setPw((p) => ({ ...p, rep: t }))} />
               {pw.rep.length > 0 && pw.next !== pw.rep && <Txt size={10.5} color={C.red} style={{ marginTop: 8 }}>Şifreler eşleşmiyor.</Txt>}
+              {!!pwErr && <Txt size={10.5} color={C.red} lh={1.4} style={{ marginTop: 8 }}>{pwErr}</Txt>}
               <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
-                <Pressable onPress={closePw} style={[styles.btn, { flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.line }]}>
+                <Pressable onPress={closePw} disabled={pwBusy} style={[styles.btn, { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" }]}>
                   <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
                 </Pressable>
-                <Pressable onPress={() => { if (pwOk) { haptic.success(); setPwDone(true); } }} disabled={!pwOk} style={{ flex: 1, borderRadius: 14, overflow: "hidden", opacity: pwOk ? 1 : 0.45 }}>
+                <Pressable onPress={savePw} disabled={!pwOk || pwBusy} style={{ flex: 1, borderRadius: 14, overflow: "hidden", opacity: pwOk && !pwBusy ? 1 : 0.45 }}>
                   <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.btn}>
-                    <Txt weight="extrabold" size={13} color="#241A05">Kaydet</Txt>
+                    <Txt weight="extrabold" size={13} color="#241A05">{pwBusy ? "Kaydediliyor…" : "Kaydet"}</Txt>
                   </Gradient>
                 </Pressable>
               </View>
@@ -304,7 +315,7 @@ export default function SecurityScreen() {
           <Txt weight="displayBold" size={17} color="#fff">Çıkış yapılsın mı?</Txt>
           <Txt size={12} color={C.dim} align="center" lh={1.6} style={{ marginTop: 8 }}>Hesabından çıkış yapacaksın. Tekrar girmek için telefon numaranla doğrulama yapman gerekecek.</Txt>
           <View style={{ flexDirection: "row", gap: 10, marginTop: 20, alignSelf: "stretch" }}>
-            <Pressable onPress={() => setLogoutOpen(false)} style={[styles.btn, { flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.line }]}>
+            <Pressable onPress={() => setLogoutOpen(false)} style={[styles.btn, { flex: 1, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)" }]}>
               <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
             </Pressable>
             <Pressable onPress={doLogout} style={[styles.btn, { flex: 1, backgroundColor: `${C.red}1A`, borderWidth: 1, borderColor: `${C.red}66` }]}>
@@ -338,7 +349,7 @@ export default function SecurityScreen() {
           />
           {!!delError && <Txt size={10.5} color={C.red} style={{ marginTop: 10 }}>{delError}</Txt>}
           <View style={{ flexDirection: "row", gap: 10, marginTop: 18, alignSelf: "stretch" }}>
-            <Pressable onPress={closeDel} style={[styles.btn, { flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.line }]}>
+            <Pressable onPress={closeDel} style={[styles.btn, { flex: 1, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)" }]}>
               <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
             </Pressable>
             <Pressable
@@ -361,20 +372,20 @@ export default function SecurityScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   sectionLbl: { letterSpacing: 0.5, marginBottom: 10 },
-  group: { borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
+  group: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
   dangerGroup: { borderColor: `${C.red}2E` },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 58 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13 },
   rowInGroup: { marginTop: 0 },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  bagliHap: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4, paddingHorizontal: 9, borderRadius: 999, backgroundColor: "rgba(52,211,153,.12)", borderWidth: 1, borderColor: "rgba(52,211,153,.34)" },
   socialIcon: { width: 26, height: 26, borderRadius: 8, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center" },
-  goldBox: { backgroundColor: `${C.gold}0E`, borderWidth: 1, borderColor: `${C.gold}33`, borderRadius: 14, padding: 14, marginTop: 16 },
   dialog: { borderRadius: 24, padding: 20, backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
-  codeInput: { width: "100%", marginTop: 16, backgroundColor: C.card, borderWidth: 1, borderRadius: 14, paddingVertical: 14, color: C.text, fontSize: 22, textAlign: "center", letterSpacing: 12, fontWeight: "800" },
-  pwInput: { width: "100%", marginTop: 8, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14, color: C.text, fontSize: 14, fontWeight: "700" },
+  pwInput: { width: "100%", marginTop: 8, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14, color: C.text, fontSize: 14, fontWeight: "700" },
   statusCircle: { width: 60, height: 60, borderRadius: 30, borderWidth: 1.5, alignItems: "center", justifyContent: "center", marginBottom: 14 },
   btn: { paddingVertical: 14, borderRadius: 14, alignItems: "center", justifyContent: "center" },
 });

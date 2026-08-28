@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { DiamondBadge } from "@/components/Coins";
+import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { GIFT_BY_ID, GIFT_LOG } from "@/data/giftHistory";
 import { Icon } from "@/icons/Icon";
@@ -24,7 +25,8 @@ export default function GiftHistoryScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#2A0E22", "#08080C"]} deg={180} locations={[0, 0.52]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={[C.gold + "1A", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
@@ -37,15 +39,15 @@ export default function GiftHistoryScreen() {
         </View>
 
         <View style={styles.summary}>
-          <View style={[styles.sumCard, { backgroundColor: "rgba(236,72,153,.14)", borderColor: "rgba(236,72,153,.25)" }]}>
-            <Txt weight="bold" size={10.5} color="#F9A8D4">Toplam Alınan</Txt>
+          <View style={[styles.sumCard, { borderColor: C.green + "3D" }]}>
+            <Txt weight="bold" size={10.5} color="#6EE7B7">Toplam Alınan</Txt>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
               <DiamondBadge size={16} />
               <Txt weight="displayBold" size={21} color="#fff">{fmt(totalIn)}</Txt>
             </View>
           </View>
-          <View style={[styles.sumCard, { backgroundColor: "rgba(124,58,237,.14)", borderColor: "rgba(124,58,237,.25)" }]}>
-            <Txt weight="bold" size={10.5} color="#C4B5FD">Toplam Gönderilen</Txt>
+          <View style={[styles.sumCard, { borderColor: C.gold + "3D" }]}>
+            <Txt weight="bold" size={10.5} color={C.gold2}>Toplam Gönderilen</Txt>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
               <DiamondBadge size={16} />
               <Txt weight="displayBold" size={21} color="#fff">{fmt(totalOut)}</Txt>
@@ -53,17 +55,7 @@ export default function GiftHistoryScreen() {
           </View>
         </View>
 
-        <View style={styles.tabs}>
-          {["Alınan", "Gönderilen"].map((t, i) => {
-            const on = i === tab;
-            return (
-              <Pressable key={t} onPress={() => { haptic.select(); setTab(i); }} style={styles.tab}>
-                <Txt weight={on ? "extrabold" : "medium"} size={14} color={on ? "#fff" : "rgba(255,255,255,.42)"}>{t}</Txt>
-                {on && <Gradient colors={["#EC4899", "#BE185D"]} deg={90} style={styles.tabUnderline} />}
-              </Pressable>
-            );
-          })}
-        </View>
+        <Tabs items={["Alınan", "Gönderilen"]} active={tab} set={setTab} fill pad={16} />
 
         <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
           {rows.map((r, i) => {
@@ -82,7 +74,7 @@ export default function GiftHistoryScreen() {
                     <Txt weight="bold" size={11.5} color={C.gold2}>×{r.qty}</Txt>
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
-                    <Txt weight="bold" size={11} color={tab === 0 ? "#F9A8D4" : "#C4B5FD"}>{tab === 0 ? "Gönderen:" : "Alıcı:"}</Txt>
+                    <Txt weight="bold" size={11} color={tab === 0 ? "#6EE7B7" : C.gold2}>{tab === 0 ? "Gönderen:" : "Alıcı:"}</Txt>
                     <Txt size={11} color={C.dim}>{peer}</Txt>
                   </View>
                 </View>
@@ -106,13 +98,11 @@ export default function GiftHistoryScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   summary: { flexDirection: "row", gap: 10, marginHorizontal: 16, marginTop: 8 },
-  sumCard: { flex: 1, borderRadius: 16, padding: 14, borderWidth: 1 },
-  tabs: { flexDirection: "row", marginTop: 16, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.08)" },
-  tab: { flex: 1, alignItems: "center", paddingVertical: 13 },
-  tabUnderline: { position: "absolute", bottom: -1, width: 30, height: 3, borderRadius: 3 },
+  sumCard: { flex: 1, borderRadius: 16, padding: 14, borderWidth: 1, backgroundColor: "rgba(255,255,255,.045)" },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.05)" },
   giftIcon: { width: 46, height: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", borderWidth: 1, overflow: "hidden" },
 });
