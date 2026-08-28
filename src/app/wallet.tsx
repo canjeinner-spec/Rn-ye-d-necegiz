@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { Sheet } from "@/components/Sheet";
+import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { getMyBalance, listMyLedger, type LedgerRow as LedgerData } from "@/data/remote/walletRepo";
 import { getCached, setCached } from "@/lib/cache";
@@ -138,21 +139,7 @@ export default function WalletScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.tabs}>
-          {["Genel", "İşlem Geçmişi"].map((t, i) => (
-            <Pressable key={t} onPress={() => { haptic.select(); setTab(i); }} style={{ flex: 1, borderRadius: 11, overflow: "hidden" }}>
-              {i === tab ? (
-                <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.tabInner}>
-                  <Txt weight="extrabold" size={12.5} color="#241A05">{t}</Txt>
-                </Gradient>
-              ) : (
-                <View style={styles.tabInner}>
-                  <Txt weight="extrabold" size={12.5} color={C.dim}>{t}</Txt>
-                </View>
-              )}
-            </Pressable>
-          ))}
-        </View>
+        <Tabs items={["Genel", "İşlem Geçmişi"]} active={tab} set={setTab} fill pad={16} />
 
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
           {tab === 0 ? (
