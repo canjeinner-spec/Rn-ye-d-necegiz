@@ -684,10 +684,10 @@ export default function RoomScreen() {
                   {room.photo ? <Image source={{ uri: room.photo }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
                 </View>
                 <View style={{ minWidth: 0, flexShrink: 1 }}>
-                  <Txt weight="extrabold" size={12.5} color="#fff" numberOfLines={1}>
+                  <Txt weight="extrabold" size={13.5} color="#fff" numberOfLines={1}>
                     {roomName}
                   </Txt>
-                  <Txt weight="semibold" size={9.5} color="rgba(255,255,255,.5)">
+                  <Txt weight="semibold" size={10.5} color="rgba(255,255,255,.55)" style={{ marginTop: 1 }}>
                     ID: {room.id}
                   </Txt>
                 </View>
@@ -1072,20 +1072,23 @@ const styles = StyleSheet.create({
   roomChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 9,
-    paddingVertical: 4,
-    paddingLeft: 5,
-    paddingRight: 16,
+    gap: 10,
+    paddingVertical: 5,
+    paddingLeft: 6,
+    paddingRight: 18,
     borderTopLeftRadius: 0,
     borderBottomLeftRadius: 0,
     borderTopRightRadius: 999,
     borderBottomRightRadius: 999,
     // topbar'ın 14'lük yatay dolgusunu iptal ederek ekran kenarına dayanır.
     marginLeft: -14,
-    maxWidth: "74%",
+    // Oda adı kısa olunca çip güdük kalıyordu; Yalla'da hep uzun bir hap
+    // gibi durur. Alt sınır verip sağdaki ikonlara kadar uzanmasını sağlıyoruz.
+    minWidth: "62%",
+    maxWidth: "76%",
     backgroundColor: "rgba(255,255,255,.09)",
   },
-  thumb: { width: 32, height: 32, borderRadius: 9, overflow: "hidden" },
+  thumb: { width: 36, height: 36, borderRadius: 10, overflow: "hidden" },
   // Oda çipiyle aynı dil: sol duvara yapışık, solu köşeli, sağı ovalleşiyor.
   trophy: {
     flexDirection: "row",
