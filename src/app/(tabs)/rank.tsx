@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AgencyBadge, agencyTier } from "@/components/AgencyBadge";
 import { AgencyEmblem } from "@/components/AgencyEmblem";
 import { Badge } from "@/components/Badge";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
@@ -216,35 +217,71 @@ export default function RankTab() {
             )
           )}
 
-          {/* ---- Ajanslar ---- */}
-          {tab === 3 && AGENCY_RANKS.map((a, i) => (
-            <Satir key={a.name} n={i + 1}>
-              <AgencyEmblem s={38} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{a.name}</Txt>
-                <Txt weight="semibold" size={10} color={C.dim} style={{ marginTop: 3 }}>{a.owner} · {a.members} üye</Txt>
-              </View>
-              <Puan icon="diamond" value={a.score} guclu={i === 0} />
-            </Satir>
-          ))}
+          {/* ---- Ajanslar ----
+               İlk üç ajans kendine özgü armayı taşır (altın taçlı / gümüş /
+               bronz), gerisi sade çelik arma. Önceden hepsi aynı amblemdi:
+               birinci ajansla sonuncusu birbirinden ayırt edilemiyordu. */}
+          {tab === 3 && AGENCY_RANKS.map((a, i) => {
+            const sira = i + 1;
+            const kademe = agencyTier(sira);
+            const renk = MADALYA[sira];
+            return (
+              <Satir key={a.name} n={sira}>
+                <AgencyBadge tier={kademe} size={kademe ? 46 : 38} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <Txt weight="extrabold" size={13.5} color={renk ?? C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{a.name}</Txt>
+                    {kademe === 1 && (
+                      <View style={styles.sampiyonHap}>
+                        <Icon name="crown" size={9} color="#241A05" />
+                        <Txt weight="extrabold" size={8.5} color="#241A05">ŞAMPİYON</Txt>
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                    <Icon name="crown" size={10} color={C.gold + "AA"} />
+                    <Txt weight="semibold" size={10} color={C.dim} numberOfLines={1} style={{ flexShrink: 1 }}>{a.owner}</Txt>
+                    <View style={styles.uyeHap}>
+                      <Icon name="users" size={9} color={C.dim} />
+                      <Txt weight="bold" size={9.5} color={C.dim}>{a.members}</Txt>
+                    </View>
+                  </View>
+                </View>
+                <Puan icon="diamond" value={a.score} guclu={kademe === 1} />
+              </Satir>
+            );
+          })}
 
-          {/* ---- Yayıncılar ---- */}
-          {tab === 4 && STREAMER_RANKS.map((s, i) => (
-            <Satir key={s.name} n={i + 1}>
-              <Portrait name={s.name} size={42} ring={i < 3 ? MADALYA[i + 1] : undefined} online />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{s.name}</Txt>
-                  <Badge type="streamer" size={15} />
+          {/* ---- Yayıncılar ----
+               Satır aynı kalıpta ama ilk üç belirgin: madalya halkalı büyük
+               avatar, ajans adı kendi hapında, kazanç öne çıkıyor. */}
+          {tab === 4 && STREAMER_RANKS.map((s, i) => {
+            const sira = i + 1;
+            const renk = MADALYA[sira];
+            return (
+              <Satir key={s.name} n={sira}>
+                <View>
+                  <Portrait name={s.name} size={renk ? 48 : 42} ring={renk ?? undefined} glow={sira === 1} online />
+                  {sira === 1 && (
+                    <View style={styles.yayinciTac}>
+                      <Icon name="crown" size={11} color="#241A05" />
+                    </View>
+                  )}
                 </View>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }}>
-                  <AgencyEmblem s={12} />
-                  <Txt weight="semibold" size={10} color={C.dim}>{s.agency}</Txt>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Txt weight="extrabold" size={13.5} color={renk ?? C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{s.name}</Txt>
+                    <Badge type="streamer" size={15} />
+                  </View>
+                  <View style={styles.ajansHap}>
+                    <AgencyEmblem s={11} />
+                    <Txt weight="bold" size={9.5} color={C.dim} numberOfLines={1}>{s.agency}</Txt>
+                  </View>
                 </View>
-              </View>
-              <Puan icon="coin" value={s.coins} guclu={i === 0} />
-            </Satir>
-          ))}
+                <Puan icon="coin" value={s.coins} guclu={sira === 1} />
+              </Satir>
+            );
+          })}
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -296,6 +333,25 @@ const styles = StyleSheet.create({
   odaKapak: { width: 42, height: 42 },
   odaSahne: { width: 42, height: 42, borderRadius: 13, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
 
+  sampiyonHap: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+    paddingVertical: 2, paddingHorizontal: 7, borderRadius: 999, backgroundColor: C.gold2,
+  },
+  uyeHap: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+    paddingVertical: 2, paddingHorizontal: 7, borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
+  },
+  ajansHap: {
+    flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", marginTop: 4,
+    paddingVertical: 2.5, paddingHorizontal: 8, borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
+  },
+  yayinciTac: {
+    position: "absolute", top: -6, alignSelf: "center",
+    width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center",
+    backgroundColor: C.gold2, borderWidth: 1.5, borderColor: "#0B0A11",
+  },
   bos: { alignItems: "center", paddingVertical: 54, paddingHorizontal: 18 },
   bosIkon: {
     width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center",
