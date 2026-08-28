@@ -24,6 +24,29 @@ import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
+/**
+ * Liste sırası — her sekmede aynı kural geçerli:
+ *   1) Resmî odalar en üstte
+ *   2) Sonra Daily Top odalar, sırasıyla (Top1, Top2, …)
+ *   3) Sonra normal odalar
+ * Aynı katman içinde sekmenin kendi ölçütü uygulanır (varsayılan: kalabalık).
+ */
+function katman(r: Room) {
+  if (r.official) return 0;
+  if (r.daily != null) return 1;
+  return 2;
+}
+
+function sirala(list: Room[], ikincil: (a: Room, b: Room) => number = (a, b) => b.online - a.online) {
+  return [...list].sort((a, b) => {
+    const k = katman(a) - katman(b);
+    if (k !== 0) return k;
+    // Daily katmanında sıra numarası belirler: Top1 önce.
+    if (a.daily != null && b.daily != null && a.daily !== b.daily) return a.daily - b.daily;
+    return ikincil(a, b);
+  });
+}
+
 function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
   const friendAvatars = room.crowd.slice(0, 3);
   const coverUri = room.photo || PEOPLE[room.host]?.photo;
@@ -130,15 +153,15 @@ export default function Home() {
   const rooms = useMemo(() => {
     switch (tab) {
       case 1: // Popüler — kalabalıktan seyreğe, boş odalar listede yok
-        return tumOdalar.filter((r) => r.online > 0).sort((a, b) => b.online - a.online);
+        return sirala(tumOdalar.filter((r) => r.online > 0));
       case 2: // Yakında — henüz kimsenin olmadığı odalar
-        return tumOdalar.filter((r) => r.online === 0);
+        return sirala(tumOdalar.filter((r) => r.online === 0), (a, b) => a.name.localeCompare(b.name, "tr"));
       case 3: { // Katıldıklarım — üyeliğim olan odalar
         const set = new Set(uyeOdaIds ?? []);
-        return tumOdalar.filter((r: Room) => (r.dbId != null && set.has(r.dbId)) || r.owner);
+        return sirala(tumOdalar.filter((r: Room) => (r.dbId != null && set.has(r.dbId)) || r.owner));
       }
       default:
-        return tumOdalar;
+        return sirala(tumOdalar);
     }
   }, [tab, dbRooms, uyeOdaIds]);
 
