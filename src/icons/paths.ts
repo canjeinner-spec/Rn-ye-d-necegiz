@@ -5,6 +5,10 @@
 export const I = {
   home: "M3 11l9-8 9 8M5.5 9.8V20h13V9.8",
   mic: "M12 2a3 3 0 00-3 3v6a3 3 0 006 0V5a3 3 0 00-3-3zM5 11a7 7 0 0014 0M12 18v4M8 22h8",
+  // Banka — para çekme akışı için (emoji 🏦 yerine).
+  bank: "M3 10h18M5 10v8M9.5 10v8M14.5 10v8M19 10v8M2.5 21h19M12 3l9 5H3l9-5z",
+  // Cüzdan — bakiye kartı başlığı.
+  wallet: "M3 7.5A2.5 2.5 0 015.5 5H18a1 1 0 011 1v1.5M3 7.5V17a2 2 0 002 2h14a2 2 0 002-2v-2.5M3 7.5h16a2 2 0 012 2V12M21 12h-3.5a2 2 0 000 4H21",
   // El kaldırma / el sallama — dört parmak + başparmak, yanlarda hareket çizgileri.
   hand: "M9 11V4.5a1.5 1.5 0 013 0V11M12 11V3.5a1.5 1.5 0 013 0V11M15 11V5.5a1.5 1.5 0 013 0V14a7 7 0 01-7 7 7 7 0 01-7-7v-1.6a1.6 1.6 0 013.2 0V14M4.5 4.2L3 2.8M19.5 4.2L21 2.8",
   dice: "M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zM8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01",

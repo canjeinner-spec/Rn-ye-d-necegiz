@@ -8,8 +8,8 @@ import { Sheet } from "@/components/Sheet";
 import { Txt } from "@/components/Txt";
 import { getMyBalance, listMyLedger, type LedgerRow as LedgerData } from "@/data/remote/walletRepo";
 import { getCached, setCached } from "@/lib/cache";
-import { LEDGER_ICON, WALLET_LEDGER, type LedgerBirim, type LedgerTx } from "@/data/wallet";
 import { Icon } from "@/icons/Icon";
+import { type IconName } from "@/icons/paths";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
@@ -22,60 +22,79 @@ function ledgerZaman(at: number) {
   return `${d.getDate()} ${AYLAR[d.getMonth()]} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+/** İşlem satırı — gerçek defter kaydı (027_cuzdan). */
 function RealLedgerRow({ tx }: { tx: LedgerData }) {
   const pos = tx.miktar > 0;
+  const ton = tx.varlik === "elmas" ? "#22D3EE" : C.gold;
   return (
     <View style={styles.ledgerRow}>
-      <View style={[styles.ledgerIcon, { backgroundColor: (tx.varlik === "elmas" ? "#22D3EE" : "#FBBF24") + "1A", borderColor: (tx.varlik === "elmas" ? "#22D3EE" : "#FBBF24") + "33" }]}>
+      <View style={[styles.ledgerIcon, { backgroundColor: ton + "16", borderColor: ton + "38" }]}>
         {tx.varlik === "elmas" ? <DiamondBadge size={18} /> : <CoinBadge size={18} />}
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Txt weight="bold" size={12.5} color={C.text} numberOfLines={1}>{tx.sebep || (pos ? "Yükleme" : "Harcama")}</Txt>
-        <Txt weight="semibold" size={10} color={C.dim} style={{ marginTop: 2 }}>{ledgerZaman(tx.at)}</Txt>
+        <Txt weight="semibold" size={10} color={C.dim2} style={{ marginTop: 2 }}>{ledgerZaman(tx.at)}</Txt>
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-        <Txt weight="extrabold" size={13} color={pos ? "#34D399" : "#FB7185"}>{pos ? "+" : "−"}</Txt>
+        <Txt weight="extrabold" size={13.5} color={pos ? "#6EE7B7" : "#FB7185"}>{pos ? "+" : "−"}</Txt>
         {tx.varlik === "elmas" ? <DiamondBadge size={13} /> : <CoinBadge size={13} />}
-        <Txt weight="extrabold" size={13} color={pos ? "#34D399" : "#FB7185"}>{Math.abs(tx.miktar).toLocaleString("tr-TR")}</Txt>
+        <Txt weight="extrabold" size={13.5} color={pos ? "#6EE7B7" : "#FB7185"}>{Math.abs(tx.miktar).toLocaleString("tr-TR")}</Txt>
       </View>
     </View>
   );
 }
 
-function Unit({ birim, size = 13 }: { birim: LedgerBirim; size?: number }) {
-  if (birim === "altin") return <CoinBadge size={size} />;
-  if (birim === "diamond") return <DiamondBadge size={size} />;
-  return <Txt weight="extrabold" size={size * 0.95}>$</Txt>;
-}
-
-function LedgerRow({ tx }: { tx: LedgerTx }) {
-  const ic = LEDGER_ICON[tx.tip];
-  const pos = tx.yon === "in";
+/** İşlem listesi kabı — satırlar arası ince ayırıcıyla tek kart. */
+function LedgerGroup({ children }: { children: React.ReactNode }) {
+  const items = (Array.isArray(children) ? children : [children]).filter(Boolean);
   return (
-    <View style={styles.ledgerRow}>
-      <View style={[styles.ledgerIcon, { backgroundColor: ic.c + "1A", borderColor: ic.c + "33" }]}>
-        <Txt size={18}>{ic.e}</Txt>
-      </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Txt weight="bold" size={12.5} color={C.text} numberOfLines={1}>{tx.baslik}</Txt>
-        <Txt weight="semibold" size={10} color={C.dim} style={{ marginTop: 2 }}>{tx.alt} · {tx.date}</Txt>
-      </View>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-        <Txt weight="extrabold" size={13} color={pos ? "#34D399" : "#FB7185"}>{pos ? "+" : "−"}</Txt>
-        <Unit birim={tx.birim} size={13} />
-        <Txt weight="extrabold" size={13} color={pos ? "#34D399" : "#FB7185"}>{Math.abs(tx.tutar).toLocaleString("tr-TR")}</Txt>
-      </View>
+    <View style={styles.ledgerGroup}>
+      {items.map((c, i) => (
+        <View key={i}>
+          {i > 0 && <View style={styles.ledgerDivider} />}
+          {c}
+        </View>
+      ))}
     </View>
   );
 }
 
 function StatCard({ label, sub, accent, children }: { label: string; sub: string; accent: string; children: React.ReactNode }) {
   return (
-    <View style={[styles.statCard, { backgroundColor: accent + "14", borderColor: accent + "33" }]}>
-      <Txt weight="bold" size={10} color={C.dim}>{label}</Txt>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 }}>{children}</View>
-      <Txt weight="semibold" size={9.5} color={C.dim2} style={{ marginTop: 3 }}>{sub}</Txt>
+    <View style={[styles.statCard, { borderColor: accent + "30" }]}>
+      <Gradient colors={[accent + "1A", "transparent"]} deg={160} style={StyleSheet.absoluteFill} pointerEvents="none" />
+      <Txt weight="bold" size={9.5} color={C.dim} style={{ letterSpacing: 0.4 }}>{label.toUpperCase()}</Txt>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 6 }}>{children}</View>
+      <Txt weight="semibold" size={9.5} color={C.dim2} style={{ marginTop: 4 }}>{sub}</Txt>
     </View>
+  );
+}
+
+/** Hiç işlem yokken — sahte örnek satırlar yerine dürüst boş durum. */
+function BosDefter() {
+  return (
+    <View style={styles.bos}>
+      <View style={styles.bosIkon}>
+        <Icon name="wallet" size={22} color={C.gold} />
+      </View>
+      <Txt weight="displayBold" size={14} color="#fff" style={{ marginTop: 13 }}>Henüz işlem yok</Txt>
+      <Txt size={11.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 7, maxWidth: 250 }}>
+        Elmas yüklediğinde veya hediye gönderdiğinde işlemlerin burada listelenir.
+      </Txt>
+    </View>
+  );
+}
+
+/** Hızlı işlem düğmesi — emoji yerine ikon setinden. */
+function Quick({ icon, label, tint, onPress, children }: { icon?: IconName; label: string; tint: string; onPress: () => void; children?: React.ReactNode }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.quick, { borderColor: tint + "3D" }]}>
+      <Gradient colors={[tint + "1F", "transparent"]} deg={160} style={StyleSheet.absoluteFill} pointerEvents="none" />
+      <View style={[styles.quickIcon, { backgroundColor: tint + "1A", borderColor: tint + "3D" }]}>
+        {children ?? (icon ? <Icon name={icon} size={18} color={tint} /> : null)}
+      </View>
+      <Txt weight="extrabold" size={11} color={tint}>{label}</Txt>
+    </Pressable>
   );
 }
 
@@ -100,11 +119,13 @@ export default function WalletScreen() {
   );
   const altin = bal.altin;
   const diamonds = bal.elmas;
-  const withdrawable = 142.5; // yayıncı kazancı — IAP/çekim alanı (Faz 6), mock kalır
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#1A1430", "#08080C"]} deg={180} locations={[0, 0.55]} style={StyleSheet.absoluteFill} />
+      {/* Uygulamanın siyah-altın teması. Ekran daha önce mor/camgöbeğiydi
+          (#1A1430 zemin, mor sekmeler, camgöbeği kart) ve temadan kopuktu. */}
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={180} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={[C.gold + "1F", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
@@ -119,10 +140,10 @@ export default function WalletScreen() {
 
         <View style={styles.tabs}>
           {["Genel", "İşlem Geçmişi"].map((t, i) => (
-            <Pressable key={t} onPress={() => setTab(i)} style={{ flex: 1, borderRadius: 11, overflow: "hidden" }}>
+            <Pressable key={t} onPress={() => { haptic.select(); setTab(i); }} style={{ flex: 1, borderRadius: 11, overflow: "hidden" }}>
               {i === tab ? (
-                <Gradient colors={["#7C3AED", "#5B21B6"]} deg={135} style={styles.tabInner}>
-                  <Txt weight="extrabold" size={12.5} color="#fff">{t}</Txt>
+                <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.tabInner}>
+                  <Txt weight="extrabold" size={12.5} color="#241A05">{t}</Txt>
                 </Gradient>
               ) : (
                 <View style={styles.tabInner}>
@@ -136,41 +157,43 @@ export default function WalletScreen() {
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
           {tab === 0 ? (
             <>
-              {isStreamer ? (
-                <Gradient colors={["rgba(16,185,129,.28)", "rgba(217,119,6,.16)"]} deg={150} style={styles.hero}>
-                  <Txt weight="bold" size={11.5} color="rgba(255,255,255,.7)">Çekilebilir Kazanç</Txt>
-                  <Txt weight="displayBold" size={34} color="#fff" style={{ marginTop: 6 }}>${withdrawable.toFixed(2)}</Txt>
-                  <View style={{ flexDirection: "row", gap: 16, marginTop: 14 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                      <CoinBadge size={15} />
-                      <Txt weight="extrabold" size={12.5} color="#FEF3C7">{altin.toLocaleString("tr-TR")}</Txt>
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                      <DiamondBadge size={15} />
-                      <Txt weight="extrabold" size={12.5} color="#A5F3FC">{diamonds.toLocaleString("tr-TR")}</Txt>
-                    </View>
+              {/* Bakiye kartı — siyah cam + altın kenar ve tepede ince parıltı. */}
+              <View style={styles.hero}>
+                <Gradient colors={["rgba(232,179,65,.16)", "rgba(232,179,65,.04)", "transparent"]} deg={155} locations={[0, 0.45, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
+                <View style={styles.heroSheen} pointerEvents="none" />
+                <View style={styles.heroGlow} pointerEvents="none" />
+
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+                  <Icon name="wallet" size={14} color={C.gold2} />
+                  <Txt weight="bold" size={10.5} color={C.gold2} style={{ letterSpacing: 0.6 }}>ELMAS BAKİYEM</Txt>
+                </View>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 11, marginTop: 10 }}>
+                  <DiamondBadge size={32} />
+                  <Txt weight="displayBold" size={38} color="#fff">{diamonds.toLocaleString("tr-TR")}</Txt>
+                </View>
+
+                <View style={styles.heroDivider} />
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <CoinBadge size={15} />
+                    <Txt weight="extrabold" size={13} color="#FEF3C7">{altin.toLocaleString("tr-TR")}</Txt>
+                    <Txt weight="semibold" size={10.5} color={C.dim}>altın</Txt>
                   </View>
-                </Gradient>
-              ) : (
-                <Gradient colors={["rgba(34,211,238,.22)", "rgba(124,58,237,.2)"]} deg={150} style={styles.hero}>
-                  <Txt weight="bold" size={11.5} color="rgba(255,255,255,.7)">Elmas Bakiyem</Txt>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 9, marginTop: 6 }}>
-                    <DiamondBadge size={30} />
-                    <Txt weight="displayBold" size={36} color="#fff">{diamonds.toLocaleString("tr-TR")}</Txt>
-                  </View>
-                  <Txt weight="semibold" size={10.5} color="rgba(255,255,255,.55)" style={{ marginTop: 8 }}>Hediye göndermek ve mağaza için kullanılır</Txt>
-                </Gradient>
-              )}
+                  <View style={{ flex: 1 }} />
+                  <Txt weight="semibold" size={10} color={C.dim2}>Hediye ve mağaza için</Txt>
+                </View>
+              </View>
 
               <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
                 {isStreamer ? (
                   <>
-                    <StatCard label="Coin Kazancı" sub="Hediyelerden kazanıldı" accent="#FBBF24">
+                    <StatCard label="Coin Kazancı" sub="Hediyelerden kazanıldı" accent={C.gold}>
                       <CoinBadge size={17} />
                       <Txt weight="displayBold" size={19} color="#fff">{altin.toLocaleString("tr-TR")}</Txt>
                     </StatCard>
-                    <StatCard label="Bu Ay" sub="Tahmini ödeme" accent="#34D399">
-                      <Txt weight="displayBold" size={19} color="#fff">$92.40</Txt>
+                    {/* Ödeme/çekim sistemi henüz yok — uydurma tutar yerine "—". */}
+                    <StatCard label="Çekilebilir" sub="Ödeme sistemi yakında" accent="#34D399">
+                      <Txt weight="displayBold" size={19} color={C.dim}>—</Txt>
                     </StatCard>
                   </>
                 ) : (
@@ -179,7 +202,7 @@ export default function WalletScreen() {
                       <DiamondBadge size={17} />
                       <Txt weight="displayBold" size={19} color="#fff">{diamonds.toLocaleString("tr-TR")}</Txt>
                     </StatCard>
-                    <StatCard label="Altın" sub="Oda & etkinlik" accent="#FBBF24">
+                    <StatCard label="Altın" sub="Oda & etkinlik" accent={C.gold}>
                       <CoinBadge size={17} />
                       <Txt weight="displayBold" size={19} color="#fff">{altin.toLocaleString("tr-TR")}</Txt>
                     </StatCard>
@@ -187,52 +210,49 @@ export default function WalletScreen() {
                 )}
               </View>
 
-              <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
-                <Pressable onPress={() => { haptic.light(); router.navigate("/diamond-load"); }} style={[styles.quick, { borderColor: "#22D3EE40", backgroundColor: "rgba(14,42,46,0.6)" }]}>
-                  <DiamondBadge size={26} />
-                  <Txt weight="extrabold" size={11} color="#5EEAD4">Elmas Yükle</Txt>
-                </Pressable>
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+                <Quick label="Elmas Yükle" tint="#22D3EE" onPress={() => { haptic.light(); router.navigate("/diamond-load"); }}>
+                  <DiamondBadge size={20} />
+                </Quick>
                 {isStreamer && (
-                  <Pressable onPress={() => { haptic.light(); router.navigate("/withdraw"); }} style={[styles.quick, { borderColor: "#34D39940", backgroundColor: "rgba(12,42,30,0.6)" }]}>
-                    <Txt size={24}>🏦</Txt>
-                    <Txt weight="extrabold" size={11} color="#6EE7B7">Para Çek</Txt>
-                  </Pressable>
+                  <Quick icon="bank" label="Para Çek" tint="#6EE7B7" onPress={() => { haptic.light(); router.navigate("/withdraw"); }} />
                 )}
-                <Pressable onPress={() => setStub("Faturalar")} style={[styles.quick, { borderColor: "rgba(255,255,255,.1)", backgroundColor: "rgba(255,255,255,.04)" }]}>
-                  <Txt size={24}>🧾</Txt>
-                  <Txt weight="extrabold" size={11} color={C.dim}>Faturalar</Txt>
-                </Pressable>
+                <Quick icon="clipboard" label="Faturalar" tint={C.gold2} onPress={() => { haptic.light(); setStub("Faturalar"); }} />
               </View>
 
               <View style={{ flexDirection: "row", alignItems: "center", marginTop: 22, marginBottom: 10 }}>
                 <Txt weight="displayBold" size={13.5} color="#fff">Son İşlemler</Txt>
                 <View style={{ flex: 1 }} />
-                <Pressable onPress={() => setTab(1)}>
-                  <Txt weight="bold" size={11.5} color={C.purple2}>Tümü ›</Txt>
-                </Pressable>
+                {ledger.length > 3 && (
+                  <Pressable onPress={() => setTab(1)} hitSlop={8}>
+                    <Txt weight="bold" size={11.5} color={C.gold2}>Tümü ›</Txt>
+                  </Pressable>
+                )}
               </View>
-              {ledger.length > 0
-                ? ledger.slice(0, 3).map((tx) => <RealLedgerRow key={tx.id} tx={tx} />)
-                : WALLET_LEDGER.slice(0, 3).map((tx) => <LedgerRow key={tx.id} tx={tx} />)}
-            </>
-          ) : (
-            <>
+              {/* Kayıt yokken sahte örnek işlemler basılıyordu ve "Genel"
+                  sekmesinde bunun örnek olduğuna dair hiçbir not yoktu. */}
               {ledger.length > 0 ? (
-                ledger.map((tx) => <RealLedgerRow key={tx.id} tx={tx} />)
+                <LedgerGroup>{ledger.slice(0, 4).map((tx) => <RealLedgerRow key={tx.id} tx={tx} />)}</LedgerGroup>
               ) : (
-                <>
-                  {WALLET_LEDGER.map((tx) => <LedgerRow key={tx.id} tx={tx} />)}
-                  <Txt size={10.5} color={C.dim2} align="center" style={{ marginTop: 16 }}>Henüz gerçek işlem yok — örnek gösteriliyor.</Txt>
-                </>
+                <BosDefter />
               )}
             </>
+          ) : ledger.length > 0 ? (
+            <LedgerGroup>{ledger.map((tx) => <RealLedgerRow key={tx.id} tx={tx} />)}</LedgerGroup>
+          ) : (
+            <BosDefter />
           )}
         </ScrollView>
       </SafeAreaView>
 
       <Sheet visible={!!stub} onClose={() => setStub(null)} contentStyle={{ alignItems: "center" }}>
-        <Txt size={28}>🧾</Txt>
-        <Txt weight="bold" size={13} color={C.dim} style={{ marginTop: 12, marginBottom: 4 }}>{stub} — Aşama 5</Txt>
+        <View style={styles.bosIkon}>
+          <Icon name="clipboard" size={22} color={C.gold} />
+        </View>
+        <Txt weight="displayBold" size={14.5} color="#fff" style={{ marginTop: 13 }}>{stub}</Txt>
+        <Txt size={11.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 7, marginBottom: 6, maxWidth: 250 }}>
+          Bu bölüm yakında açılacak.
+        </Txt>
       </Sheet>
     </View>
   );
@@ -240,14 +260,23 @@ export default function WalletScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 240 },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   rulesBtn: { height: 30, paddingHorizontal: 12, borderRadius: 10, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   tabs: { flexDirection: "row", gap: 8, marginHorizontal: 16, marginTop: 6, backgroundColor: "rgba(255,255,255,.05)", borderRadius: 14, padding: 4 },
   tabInner: { paddingVertical: 9, alignItems: "center", borderRadius: 11 },
-  hero: { borderRadius: 22, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", overflow: "hidden" },
-  statCard: { flex: 1, minWidth: 0, borderRadius: 18, padding: 14, borderWidth: 1 },
-  quick: { flex: 1, alignItems: "center", gap: 7, paddingVertical: 15, paddingHorizontal: 8, borderRadius: 16, borderWidth: 1 },
-  ledgerRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 4 },
+  hero: { borderRadius: 22, padding: 18, borderWidth: 1, borderColor: C.gold + "3D", backgroundColor: "rgba(18,15,24,.72)", overflow: "hidden" },
+  heroSheen: { position: "absolute", top: 0, left: 26, right: 26, height: 1, backgroundColor: "rgba(255,255,255,.30)" },
+  heroGlow: { position: "absolute", right: -46, top: -56, width: 170, height: 170, borderRadius: 85, backgroundColor: C.gold + "1F" },
+  heroDivider: { height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,.13)", marginTop: 16, marginBottom: 12 },
+  statCard: { flex: 1, minWidth: 0, borderRadius: 18, padding: 14, borderWidth: 1, backgroundColor: "rgba(255,255,255,.04)", overflow: "hidden" },
+  quick: { flex: 1, alignItems: "center", gap: 8, paddingVertical: 14, paddingHorizontal: 8, borderRadius: 16, borderWidth: 1, backgroundColor: "rgba(255,255,255,.04)", overflow: "hidden" },
+  quickIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  ledgerGroup: { borderRadius: 18, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", overflow: "hidden" },
+  ledgerRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 13 },
+  ledgerDivider: { height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,.08)", marginLeft: 65 },
   ledgerIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  bos: { alignItems: "center", paddingVertical: 34, paddingHorizontal: 18, borderRadius: 18, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: "rgba(255,255,255,.07)" },
+  bosIkon: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "3D" },
 });
