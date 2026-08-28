@@ -107,6 +107,36 @@ function Baslik({ children, tint = C.dim }: { children: React.ReactNode; tint?: 
   return <Txt weight="bold" size={10.5} color={tint} style={styles.lbl}>{children}</Txt>;
 }
 
+/**
+ * Ceza süresi seçici.
+ *
+ * Altı seçenek serbest sarmalanan haplardı; satır sonuna göre kimi 4+2 kimi
+ * 3+3 diziliyor, kutu genişlikleri de metne göre değiştiği için dağınık
+ * duruyordu. Artık sabit 3 sütunlu ızgara: her kutu eşit, iki düzgün satır.
+ */
+function SureSecici({ deger, tint, onSec }: {
+  deger: number | null | "manual";
+  tint: string;
+  onSec: (v: number | null | "manual") => void;
+}) {
+  return (
+    <View style={styles.sureIzgara}>
+      {BAN_CHIPS.map(([lb, v]) => {
+        const on = deger === v;
+        return (
+          <Pressable
+            key={lb}
+            onPress={() => { haptic.select(); onSec(v as number | null | "manual"); }}
+            style={[styles.sureKutu, on && { backgroundColor: `${tint}1F`, borderColor: `${tint}66` }]}
+          >
+            <Txt weight={on ? "extrabold" : "bold"} size={12} color={on ? tint : C.dim}>{lb}</Txt>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function AdminUserEdit() {
   const router = useRouter();
   const params = useLocalSearchParams<{ userId?: string; section?: string }>();
@@ -167,7 +197,13 @@ export default function AdminUserEdit() {
     if (!d) return;
     const mins = micMin === "manual" ? parseInt(micManual, 10) : micMin;
     if (micMin === "manual" && (!mins || mins <= 0)) return flash("Süre gir (dakika)");
-    run(() => micBan(d.id, micReason.trim() || null, mins as number | null), "Mic yasağı verildi").then(() => setMicReason(""));
+    // Hesap yasağı gibi bu da onay ister: kullanıcı odalarda susturuluyor.
+    setOnay({
+      baslik: "Mikrofon yasağı ver?",
+      metin: `${d.name} ${mins == null ? "KALICI olarak" : `${sureAdi(mins)} boyunca`} odalarda yazamayacak ve mikrofona çıkamayacak.`,
+      btn: "Yasağı Ver",
+      fn: () => run(() => micBan(d.id, micReason.trim() || null, mins as number | null), "Mic yasağı verildi").then(() => setMicReason("")),
+    });
   };
   const doAccBan = () => {
     if (!d) return;
@@ -317,15 +353,12 @@ export default function AdminUserEdit() {
                     <Aksiyon tint="#34D399" icon="check" label="Kaldır" disabled={busy} onPress={() => run(() => micUnban(d.id), "Yasak kaldırıldı")} />
                   </View></View>
                 ) : (
-                  <View style={styles.group}><View style={{ padding: 12, gap: 8 }}>
-                    <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
-                      {BAN_CHIPS.map(([lb, v]) => (
-                        <Secim key={lb} on={micMin === v} label={lb} onPress={() => setMicMin(v as number | null | "manual")} />
-                      ))}
-                    </View>
-                    {micMin === "manual" && <TextInput value={micManual} onChangeText={setMicManual} keyboardType="number-pad" placeholder="Dakika" placeholderTextColor={C.dim2} style={styles.input} />}
+                  <View style={styles.group}><View style={{ padding: 13, gap: 10 }}>
+                    <Txt weight="bold" size={10} color={C.dim2} style={{ letterSpacing: 0.3 }}>SÜRE</Txt>
+                    <SureSecici deger={micMin} tint={C.gold2} onSec={setMicMin} />
+                    {micMin === "manual" && <TextInput value={micManual} onChangeText={setMicManual} keyboardType="number-pad" placeholder="Kaç dakika?" placeholderTextColor={C.dim2} style={styles.input} />}
                     <TextInput value={micReason} onChangeText={setMicReason} placeholder="Sebep (opsiyonel)" placeholderTextColor={C.dim2} style={styles.input} />
-                    <Aksiyon tint="#FB7185" icon="micoff" label="Mikrofon Yasağı Ver" disabled={busy} onPress={doMicBan} />
+                    <Aksiyon dolu tint="#FB7185" icon="micoff" label="Mikrofon Yasağı Ver" disabled={busy} onPress={doMicBan} />
                     <Txt size={9.5} color={C.dim2} lh={1.4}>Yasaklı kullanıcı odalara girip dinler ama yazamaz / mikrofona çıkamaz.</Txt>
                   </View></View>
                 )}
@@ -340,13 +373,10 @@ export default function AdminUserEdit() {
                     <Aksiyon tint="#34D399" icon="check" label="Kaldır" disabled={busy} onPress={() => run(() => accountUnban(d.id), "Yasak kaldırıldı")} />
                   </View></View>
                 ) : (
-                  <View style={styles.group}><View style={{ padding: 12, gap: 8 }}>
-                    <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
-                      {BAN_CHIPS.map(([lb, v]) => (
-                        <Secim key={lb} on={accMin === v} label={lb} tint="#FB7185" onPress={() => setAccMin(v as number | null | "manual")} />
-                      ))}
-                    </View>
-                    {accMin === "manual" && <TextInput value={accManual} onChangeText={setAccManual} keyboardType="number-pad" placeholder="Dakika" placeholderTextColor={C.dim2} style={styles.input} />}
+                  <View style={styles.group}><View style={{ padding: 13, gap: 10 }}>
+                    <Txt weight="bold" size={10} color={C.dim2} style={{ letterSpacing: 0.3 }}>SÜRE</Txt>
+                    <SureSecici deger={accMin} tint="#FB7185" onSec={setAccMin} />
+                    {accMin === "manual" && <TextInput value={accManual} onChangeText={setAccManual} keyboardType="number-pad" placeholder="Kaç dakika?" placeholderTextColor={C.dim2} style={styles.input} />}
                     <TextInput value={accReason} onChangeText={setAccReason} placeholder="Sebep (kullanıcıya gösterilir)" placeholderTextColor={C.dim2} style={styles.input} />
                     <Aksiyon dolu tint="#E5484D" icon="ban" label="Hesabı Yasakla" disabled={busy} onPress={doAccBan} />
                     <Txt size={9.5} color={C.dim2} lh={1.4}>Yasaklı kullanıcı uygulamayı hiç kullanamaz; oturumu kapatılır ve girişte sebep + süreyle karşılaşır.</Txt>
@@ -551,6 +581,10 @@ const styles = StyleSheet.create({
   anahtar: { width: 44, height: 25, borderRadius: 999, padding: 2.5, justifyContent: "center" },
   anahtarTopuz: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },
   uyariRozet: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 999, backgroundColor: "rgba(251,113,133,.14)", borderWidth: 1, borderColor: "rgba(251,113,133,.34)" },
+  // Süre seçenekleri: sabit 3 sütun. Serbest sarmalanınca kutu genişlikleri
+  // metne göre değişip dağınık duruyordu.
+  sureIzgara: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  sureKutu: { width: "31.5%", flexGrow: 1, alignItems: "center", paddingVertical: 10, borderRadius: 12, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
   bakiyeKutu: { flex: 1, alignItems: "center", gap: 4, paddingVertical: 14 },
   dikeyAyirici: { width: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,.12)" },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
