@@ -253,6 +253,14 @@ export default function AdminUserEdit() {
                   <Txt weight="extrabold" size={9} color="#FB7185">{d.hesapYasakli ? "YASAKLI" : "MİC YASAK"}</Txt>
                 </View>
               )}
+              {/* Ara "kullanıcı özeti" ekranı kaldırıldı; oradaki iki eylem
+                  başlığa taşındı ki kaybolmasın. */}
+              <Pressable onPress={() => { haptic.light(); router.navigate(`/admin-mesaj?tip=kisi&userId=${d.id}`); }} hitSlop={6} style={styles.iconBtn}>
+                <Icon name="mega" size={15} color={C.gold2} />
+              </Pressable>
+              <Pressable onPress={() => { haptic.light(); router.navigate(`/user-profile?publicId=${encodeURIComponent(d.publicId)}&name=${encodeURIComponent(d.name)}`); }} hitSlop={6} style={styles.iconBtn}>
+                <Icon name="user" size={15} color={C.text} />
+              </Pressable>
             </>
           ) : (
             <Txt weight="displayBold" size={16} color="#fff">{SECTION_TITLE[section] || "Düzenle"}</Txt>
@@ -587,7 +595,7 @@ const styles = StyleSheet.create({
   sureKutu: { width: "31.5%", flexGrow: 1, alignItems: "center", paddingVertical: 10, borderRadius: 12, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
   bakiyeKutu: { flex: 1, alignItems: "center", gap: 4, paddingVertical: 14 },
   dikeyAyirici: { width: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,.12)" },
-  header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
+  header: { flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 10 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   group: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line },

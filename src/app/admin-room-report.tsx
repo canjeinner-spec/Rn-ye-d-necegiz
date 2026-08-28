@@ -46,7 +46,7 @@ export default function AdminRoomReportScreen() {
   }, [odaId, sikayetId]);
   useEffect(() => { load(); }, [load]);
 
-  const openUser = (uid: number) => { haptic.light(); router.navigate(`/admin-user?userId=${uid}`); };
+  const openUser = (uid: number) => { haptic.light(); router.navigate(`/admin-user-edit?userId=${uid}`); };
   const openEdit = () => { haptic.light(); router.navigate(`/admin-room-edit?odaId=${odaId}`); };
 
   const markReviewed = () => {
@@ -88,23 +88,45 @@ export default function AdminRoomReportScreen() {
           </View>
         ) : (
           <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-            {/* Rapor özeti */}
+            {/* ---- Raporun kendisi ----
+                Ekranın konusu bu ama dar bir satırdı ve tek eylemi
+                ("İncelendi") sağ kenarda minik bir çipti. Artık belirgin
+                bir kart, eylemler altta tam genişlikte. */}
             {report && (
-              <View style={[styles.group, { padding: 13, flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 16 }]}>
-                <View style={[styles.rowIcon, { backgroundColor: `${C.purple2}1A` }]}><Icon name="flag" size={15} color={C.purple2} /></View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                    <Txt weight="bold" size={12} color="#FB7185">{report.neden}</Txt>
-                    {report.durum === "incelendi" && <View style={styles.donePill}><Txt weight="extrabold" size={8.5} color={C.green}>İNCELENDİ</Txt></View>}
+              <View style={[styles.raporKart, report.durum === "incelendi" && { borderColor: `${C.green}3D` }]}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <View style={[styles.rowIcon, { backgroundColor: report.durum === "incelendi" ? `${C.green}1A` : "rgba(251,113,133,.14)" }]}>
+                    <Icon name="flag" size={15} color={report.durum === "incelendi" ? C.green : "#FB7185"} />
                   </View>
-                  {!!report.detay && <Txt size={11} color={C.dim} lh={1.4} style={{ marginTop: 3 }}>{report.detay}</Txt>}
-                  <Txt size={9.5} color={C.dim2} style={{ marginTop: 3 }}>{report.raporlayan} raporladı · {zaman(report.at)}</Txt>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Txt weight="displayBold" size={14.5} color="#fff">{report.neden}</Txt>
+                    <Txt size={10} color={C.dim2} style={{ marginTop: 2 }}>{report.raporlayan} raporladı · {zaman(report.at)}</Txt>
+                  </View>
+                  {report.durum === "incelendi" && (
+                    <View style={styles.donePill}><Txt weight="extrabold" size={8.5} color={C.green}>İNCELENDİ</Txt></View>
+                  )}
                 </View>
-                {report.durum === "bekliyor" && (
-                  <Pressable onPress={markReviewed} style={[styles.actChip, { backgroundColor: `${C.green}14`, borderColor: `${C.green}44` }]}>
-                    <Icon name="check" size={11} sw={2.5} color={C.green} /><Txt weight="bold" size={10} color={C.green}>İncelendi</Txt>
-                  </Pressable>
+
+                {!!report.detay && (
+                  <View style={styles.detayKutu}>
+                    <Txt size={12} color={C.text} lh={1.55} style={{ fontStyle: "italic" }}>{report.detay}</Txt>
+                  </View>
                 )}
+
+                {/* Moderasyon eylemleri — rapordan çıkmadan yapılabilsin.
+                    Önceden odaya uyarı göndermenin buradan bir yolu yoktu. */}
+                <View style={{ flexDirection: "row", gap: 9, marginTop: 13 }}>
+                  <Pressable onPress={() => { haptic.light(); router.navigate(`/admin-mesaj?tip=oda&odaId=${odaId}`); }} style={[styles.modBtn, { backgroundColor: `${C.gold}16`, borderColor: `${C.gold}4D` }]}>
+                    <Icon name="mega" size={14} color={C.gold2} />
+                    <Txt weight="extrabold" size={12} color={C.gold2}>Odaya Uyarı</Txt>
+                  </Pressable>
+                  {report.durum === "bekliyor" && (
+                    <Pressable onPress={markReviewed} style={[styles.modBtn, { backgroundColor: C.green, borderColor: C.green }]}>
+                      <Icon name="check" size={14} sw={2.5} color="#04231A" />
+                      <Txt weight="extrabold" size={12} color="#04231A">İncelendi</Txt>
+                    </Pressable>
+                  )}
+                </View>
               </View>
             )}
 
@@ -224,6 +246,9 @@ const styles = StyleSheet.create({
   group: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 46 },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  raporKart: { padding: 14, borderRadius: 18, marginBottom: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1.5, borderColor: "rgba(251,113,133,.34)" },
+  detayKutu: { marginTop: 12, paddingVertical: 11, paddingHorizontal: 13, borderRadius: 14, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)" },
+  modBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 13, borderWidth: 1.5 },
   chip: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center" },
   actChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   donePill: { paddingVertical: 2, paddingHorizontal: 7, borderRadius: 999, backgroundColor: `${C.green}14`, borderWidth: 1, borderColor: `${C.green}44` },

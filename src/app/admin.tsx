@@ -51,7 +51,7 @@ export default function AdminScreen() {
     return () => clearTimeout(t);
   }, [q]);
 
-  const openUser = (userId: number) => { haptic.light(); router.navigate(`/admin-user?userId=${userId}`); };
+  const openUser = (userId: number) => { haptic.light(); router.navigate(`/admin-user-edit?userId=${userId}`); };
   const openRoomReport = (r: ReportRow) => {
     haptic.light();
     router.navigate(`/admin-room-report?odaId=${r.hedefOdaId}${Number.isFinite(r.id) ? `&sikayetId=${r.id}` : ""}`);
