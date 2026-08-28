@@ -42,3 +42,6 @@ example
 # generated native folders
 /ios
 /android
+
+# Yerel gelistirme araclari (cloudflared vb.) - repoya girmez
+.tools/
