@@ -97,6 +97,8 @@ export function Portrait({
         )}
       </View>
 
+      {/* Mikrofon-kapalı rozeti sağ altta. Eskiden avatarın tam ortasının
+          altındaydı (left "50%"), yüzün üstüne biniyordu. */}
       {muted && (
         <View
           style={[
@@ -105,21 +107,23 @@ export function Portrait({
               width: size * 0.34,
               height: size * 0.34,
               borderRadius: (size * 0.34) / 2,
-              bottom: -2,
-              left: "50%",
-              marginLeft: -(size * 0.34) / 2,
+              bottom: 0,
+              right: 0,
+              borderColor: frameBorder,
+              borderWidth: 2,
             },
           ]}
         >
-          <Icon name="micOff" size={size * 0.2} sw={2} color="#D9D7E0" />
+          <Icon name="micOff" size={size * 0.19} sw={2} color="#D9D7E0" />
         </View>
       )}
 
+      {/* İkisi birden varsa çevrimiçi noktası sağ üste kaçar, üst üste binmez */}
       {online && (
         <View
           style={{
             position: "absolute",
-            bottom: size * 0.02,
+            ...(muted ? { top: size * 0.02 } : { bottom: size * 0.02 }),
             right: size * 0.02,
             width: size * 0.26,
             height: size * 0.26,
