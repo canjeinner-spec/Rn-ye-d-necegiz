@@ -130,6 +130,10 @@ export function RoomPanel(props: Props) {
   };
 
   const uyeSayisi = live ? dbMembers.length : members.length;
+  // Room tipinde sahibin fotoğrafı yok, yalnızca adı var. Gerçek odada üye
+  // listesindeki "sahip" kaydından alınıyor — orada profil resmi mevcut.
+  const sahip = dbMembers.find((m) => m.rol === "sahip");
+  const sahipAdi = sahip?.name ?? room.host;
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
@@ -140,13 +144,22 @@ export function RoomPanel(props: Props) {
             <Gradient colors={["rgba(24,21,34,0.62)", "rgba(11,10,16,0.80)"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
 
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
-              {/* ---- Kapak: sayfanın tepesini tam kaplar, kart değil ---- */}
+              {/* ---- Kapak ----
+                  Oda fotoğrafı kare (1:1) seçiliyor; geniş bir şeride "cover"
+                  ile basınca alt-üstü kesiliyordu. Bunun yerine fotoğrafın
+                  bulanık kopyası şeridi dolduruyor, fotoğrafın kendisi de
+                  ortada yuvarlak avatar olarak tam görünüyor. */}
               <View style={styles.kapak}>
-                {roomPhoto
-                  ? <Image source={{ uri: roomPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" />
-                  : <Scene kind={room.scene} />}
+                {roomPhoto ? (
+                  <>
+                    <Image source={{ uri: roomPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={26} />
+                    <View style={styles.kapakKarart} pointerEvents="none" />
+                  </>
+                ) : (
+                  <Scene kind={room.scene} />
+                )}
                 <Gradient
-                  colors={["rgba(10,9,14,.15)", "rgba(10,9,14,.55)", "rgba(10,9,14,.94)"]}
+                  colors={["rgba(10,9,14,.20)", "rgba(10,9,14,.50)", "rgba(10,9,14,.92)"]}
                   deg={180}
                   locations={[0, 0.5, 1]}
                   style={StyleSheet.absoluteFill}
@@ -169,15 +182,22 @@ export function RoomPanel(props: Props) {
                   </Pressable>
                 </View>
 
-                {/* Ad + ID, kapağın alt kenarında */}
+                {/* Yuvarlak oda avatarı + ad/ID */}
                 <View style={styles.kapakYazi}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-                    <Txt weight="displayBold" size={19} color="#fff" numberOfLines={1} style={{ flexShrink: 1 }}>{roomName}</Txt>
-                    {locked && <Icon name="lock" size={14} color={C.gold} />}
+                  <View style={styles.odaAvatar}>
+                    {roomPhoto
+                      ? <Image source={{ uri: roomPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                      : <Scene kind={room.scene} />}
                   </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 }}>
-                    <Txt weight="semibold" size={11} color="rgba(255,255,255,.62)">ID: {room.id}</Txt>
-                    <Icon name="copy" size={11} color="rgba(255,255,255,.45)" />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+                      <Txt weight="displayBold" size={18} color="#fff" numberOfLines={1} style={{ flexShrink: 1 }}>{roomName}</Txt>
+                      {locked && <Icon name="lock" size={14} color={C.gold} />}
+                    </View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
+                      <Txt weight="semibold" size={11} color="rgba(255,255,255,.62)">ID: {room.id}</Txt>
+                      <Icon name="copy" size={11} color="rgba(255,255,255,.45)" />
+                    </View>
                   </View>
                 </View>
               </View>
@@ -203,11 +223,12 @@ export function RoomPanel(props: Props) {
                 {/* ---- Sahip + oda istatistikleri ---- */}
                 <View style={styles.satirGrup}>
                   <View style={styles.satir}>
-                    <Portrait name={room.host} size={34} />
+                    <Portrait name={sahipAdi} size={34} photo={sahip?.photo} ring={C.gold + "77"} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Txt weight="semibold" size={10} color={C.dim2}>ODA SAHİBİ</Txt>
-                      <Txt weight="extrabold" size={13} color={C.gold2} numberOfLines={1} style={{ marginTop: 1 }}>{room.host}</Txt>
+                      <Txt weight="extrabold" size={13} color={C.gold2} numberOfLines={1} style={{ marginTop: 1 }}>{sahipAdi}</Txt>
                     </View>
+                    {!!sahip && <Txt size={10.5} color={C.dim2}>ID: {sahip.publicId}</Txt>}
                   </View>
                   <View style={styles.satirAyirici} />
                   <Pressable onPress={onStats} style={styles.satir}>
@@ -347,10 +368,12 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(3,3,8,.42)" },
   sheet: { height: "84%", borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: "hidden", borderTopWidth: 1, borderColor: "rgba(255,255,255,.20)", backgroundColor: "rgba(14,12,20,.34)" },
   handle: { position: "absolute", top: 10, alignSelf: "center", width: 38, height: 4, borderRadius: 4, backgroundColor: "rgba(255,255,255,.45)" },
-  kapak: { height: 152, justifyContent: "flex-end", overflow: "hidden" },
+  kapak: { height: 158, justifyContent: "flex-end", overflow: "hidden" },
+  kapakKarart: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(8,8,12,.34)" },
   kapakAksiyon: { position: "absolute", top: 12, right: 14, flexDirection: "row", gap: 8 },
   camBtn: { width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(10,9,14,.45)", borderWidth: 1, borderColor: "rgba(255,255,255,.18)" },
-  kapakYazi: { paddingHorizontal: 18, paddingBottom: 13 },
+  kapakYazi: { flexDirection: "row", alignItems: "center", gap: 13, paddingHorizontal: 18, paddingBottom: 14 },
+  odaAvatar: { width: 64, height: 64, borderRadius: 32, overflow: "hidden", borderWidth: 2, borderColor: "rgba(255,255,255,.30)", backgroundColor: "rgba(255,255,255,.06)" },
   statSerit: { flexDirection: "row", alignItems: "center", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,.10)" },
   statAyirici: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: "rgba(255,255,255,.12)" },
   duyuru: { flexDirection: "row", alignItems: "flex-start", gap: 9, marginTop: 14, borderRadius: 14, paddingVertical: 11, paddingHorizontal: 13, backgroundColor: C.gold + "0F", borderWidth: 1, borderColor: C.gold + "2E" },

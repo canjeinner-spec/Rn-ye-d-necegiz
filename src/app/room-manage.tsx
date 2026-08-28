@@ -150,14 +150,17 @@ export default function RoomManageScreen() {
               <Bolum baslik="ODA GÖRÜNÜMÜ" />
               <View style={{ flexDirection: "row", gap: 11 }}>
                 <Pressable onPress={() => router.navigate("/room-manage-edit?section=avatar")} style={styles.onizlemeKart}>
-                  <View style={styles.onizleme}>
-                    {currentRoom?.photo
-                      ? <Image source={{ uri: currentRoom.photo }} style={StyleSheet.absoluteFill} contentFit="cover" />
-                      : <View style={styles.onizlemeBos}><Icon name="camera" size={20} color={C.dim2} /></View>}
+                  {/* Oda fotoğrafı kare değil yuvarlak: her yerde avatar gibi gösteriliyor */}
+                  <View style={[styles.onizleme, styles.onizlemeOrtali]}>
+                    <View style={styles.odaAvatar}>
+                      {currentRoom?.photo
+                        ? <Image source={{ uri: currentRoom.photo }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                        : <View style={styles.onizlemeBos}><Icon name="camera" size={19} color={C.dim2} /></View>}
+                    </View>
                   </View>
                   <View style={styles.onizlemeAlt}>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Txt weight="extrabold" size={12} color={C.text}>Kapak</Txt>
+                      <Txt weight="extrabold" size={12} color={C.text}>Oda Fotoğrafı</Txt>
                       <Txt size={9.5} color={C.dim} numberOfLines={1} style={{ marginTop: 1 }}>{currentRoom?.photo ? "Ayarlı" : "Yok"}</Txt>
                     </View>
                     <Icon name="edit" size={13} color={C.dim2} />
@@ -332,6 +335,8 @@ const styles = StyleSheet.create({
   countPill: { minWidth: 18, paddingHorizontal: 6, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: `${C.red}29`, borderWidth: 1, borderColor: `${C.red}4D` },
   onizlemeKart: { flex: 1, borderRadius: 16, overflow: "hidden", backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
   onizleme: { height: 78, backgroundColor: "rgba(255,255,255,.04)" },
+  onizlemeOrtali: { alignItems: "center", justifyContent: "center" },
+  odaAvatar: { width: 58, height: 58, borderRadius: 29, overflow: "hidden", borderWidth: 1.5, borderColor: C.gold + "4D", backgroundColor: "rgba(255,255,255,.05)" },
   onizlemeBos: { flex: 1, alignItems: "center", justifyContent: "center" },
   onizlemeAlt: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 9, paddingHorizontal: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line },
   emptyKick: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: C.line },

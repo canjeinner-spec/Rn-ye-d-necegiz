@@ -21,7 +21,9 @@ export function MinimizedRoomBanner({ room, onPress, bottom }: { room: Room; onP
   return (
     <Pressable onPress={onPress} style={[styles.wrap, { bottom }]}>
       <View>
-        <Portrait name={room.host} size={34} ring={C.purple2} glow />
+        {/* Oda fotoğrafı varsa o gösterilir; yoksa oda adının baş harfi.
+            Önce hiç foto verilmiyordu, küçültülen oda tanınmıyordu. */}
+        <Portrait name={room.name} size={34} ring={C.purple2} glow photo={room.photo} />
         <Animated.View style={[styles.pulseRing, pulseStyle]} pointerEvents="none" />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
