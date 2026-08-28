@@ -1,111 +1,250 @@
+import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AgencyEmblem } from "@/components/AgencyEmblem";
 import { Badge } from "@/components/Badge";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
-import { Pill } from "@/components/Pill";
-import { PngBadge, type PngBadgeName } from "@/components/PngBadge";
 import { Portrait } from "@/components/Portrait";
+import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
-import { AGENCY_RANKS, RANKS, STREAMER_RANKS } from "@/data/seed";
+import { listRooms } from "@/data/remote/roomsRepo";
+import { AGENCY_RANKS, RANKS, ROOMS, STREAMER_RANKS, type Room } from "@/data/seed";
+import { Icon } from "@/icons/Icon";
+import { useCachedResource } from "@/lib/cache";
+import { haptic } from "@/lib/haptics";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
-const MEDAL: Record<number, string> = { 1: C.gold, 2: "#C7CCD6", 3: "#C9803B" };
-const PLACE_BADGE: Record<number, PngBadgeName> = { 1: "room_weekly_champion", 2: "room_rank_silver", 3: "room_rank_bronze" };
+/** Derece renkleri — altın / gümüş / bronz. */
+const MADALYA: Record<number, string> = { 1: "#F5CE6E", 2: "#C7CCD6", 3: "#C9803B" };
 
-function ScorePill({ icon, value, faint }: { icon: "coin" | "diamond"; value: string; faint?: boolean }) {
+/* ── Ortak parçalar ──────────────────────────────────────────────────────── */
+
+/** Puan hapı — sağ uçta, para birimi rozetiyle. */
+function Puan({ icon, value, guclu }: { icon: "coin" | "diamond"; value: string; guclu?: boolean }) {
   return (
-    <Pill bg={C.gold + (faint ? "10" : "14")} color={C.gold} border={C.gold + (faint ? "26" : "33")} style={{ gap: 5 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-        {icon === "coin" ? <CoinBadge size={12} /> : <DiamondBadge size={12} />}
-        <Txt weight="extrabold" size={10} color={C.gold}>{value}</Txt>
-      </View>
-    </Pill>
+    <View style={[styles.puan, guclu && { backgroundColor: C.gold + "1F", borderColor: C.gold + "5C" }]}>
+      {icon === "coin" ? <CoinBadge size={13} /> : <DiamondBadge size={13} />}
+      <Txt weight="extrabold" size={11.5} color={guclu ? C.gold2 : C.text}>{value}</Txt>
+    </View>
   );
 }
 
+/** Sıra numarası — ilk üçte madalya rengiyle dolu madalyon. */
+function Sira({ n }: { n: number }) {
+  const renk = MADALYA[n];
+  if (!renk) {
+    return (
+      <View style={styles.siraYuva}>
+        <Txt weight="extrabold" size={12.5} color={C.dim2}>{n}</Txt>
+      </View>
+    );
+  }
+  return (
+    <View style={[styles.siraYuva, styles.siraMadalya, { backgroundColor: renk + "24", borderColor: renk + "77" }]}>
+      <Txt weight="displayBold" size={12.5} color={renk}>{n}</Txt>
+    </View>
+  );
+}
+
+/** Liste satırı — ilk üç altın kenarlı ve hafif parıltılı. */
+function Satir({ n, children }: { n: number; children: React.ReactNode }) {
+  const renk = MADALYA[n];
+  return (
+    <View style={[styles.satir, renk ? { borderColor: renk + "4D" } : null]}>
+      {renk && <Gradient colors={[renk + "12", "transparent"]} deg={110} style={StyleSheet.absoluteFill} pointerEvents="none" />}
+      <Sira n={n} />
+      {children}
+    </View>
+  );
+}
+
+/**
+ * Podyum — ilk üç.
+ *
+ * Eskiden kaidesi 62×38 / 48×24'lük minik gradyan dikdörtgenlerdi; podyumdan
+ * çok yer tutucuya benziyordu. Artık gerçek yükseklik farkı, madalya renginde
+ * kaide, birincide taç ve ışık var.
+ */
+function Podyum({ ilk3 }: { ilk3: { name: string; coins: string }[] }) {
+  if (ilk3.length < 3) return null;
+  const dizilim = [
+    { kisi: ilk3[1], derece: 2, yukseklik: 52, avatar: 58 },
+    { kisi: ilk3[0], derece: 1, yukseklik: 76, avatar: 76 },
+    { kisi: ilk3[2], derece: 3, yukseklik: 38, avatar: 58 },
+  ];
+  return (
+    <View style={styles.podyum}>
+      {dizilim.map(({ kisi, derece, yukseklik, avatar }) => {
+        const renk = MADALYA[derece];
+        const birinci = derece === 1;
+        return (
+          <View key={kisi.name} style={{ flex: 1, alignItems: "center" }}>
+            {birinci && (
+              <View style={styles.tac}>
+                <Icon name="crown" size={19} sw={2} color={C.gold2} />
+              </View>
+            )}
+            <View>
+              {birinci && <View style={styles.tacIsik} pointerEvents="none" />}
+              <Portrait name={kisi.name} size={avatar} ring={renk} glow={birinci} frameBorder="#0B0A11" />
+            </View>
+            <Txt weight="extrabold" size={birinci ? 13 : 11.5} color="#fff" numberOfLines={1} style={{ marginTop: 8, maxWidth: "100%" }}>
+              {kisi.name}
+            </Txt>
+            <View style={{ marginTop: 6 }}>
+              <Puan icon="coin" value={kisi.coins} guclu={birinci} />
+            </View>
+
+            {/* Kaide */}
+            <View style={[styles.kaide, { height: yukseklik, borderColor: renk + "55" }]}>
+              <Gradient colors={[renk + "3D", renk + "0A"]} deg={180} style={StyleSheet.absoluteFill} />
+              <View style={[styles.kaideParilti, { backgroundColor: renk + "99" }]} pointerEvents="none" />
+              <Txt weight="displayBold" size={birinci ? 22 : 18} color={renk}>{derece}</Txt>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Veri kaynağı olmayan sekmeler için dürüst boş durum. */
+function Bos({ baslik, alt }: { baslik: string; alt: string }) {
+  return (
+    <View style={styles.bos}>
+      <View style={styles.bosIkon}>
+        <Icon name="trophy" size={22} color={C.gold} />
+      </View>
+      <Txt weight="displayBold" size={14.5} color="#fff" style={{ marginTop: 13 }}>{baslik}</Txt>
+      <Txt size={11.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 7, maxWidth: 260 }}>{alt}</Txt>
+    </View>
+  );
+}
+
+/* ── Ekran ───────────────────────────────────────────────────────────────── */
+
 export default function RankTab() {
+  const router = useRouter();
+  const enterRoom = useApp((s) => s.enterRoom);
   const [tab, setTab] = useState(0);
-  const podium = [RANKS[1], RANKS[0], RANKS[2]];
+
+  // "Odalar" sekmesi GERÇEK: kalabalığa göre sıralı oda listesi.
+  // (Zenginlik/Cazibe/Ajans/Yayıncı için henüz veri kaynağı yok.)
+  const { data: dbRooms = [] } = useCachedResource<Room[]>(
+    "rooms:list", () => listRooms(), { persist: true, enabled: isSupabaseConfigured },
+  );
+  const odaSirasi = [...dbRooms, ...ROOMS.filter((r) => !dbRooms.some((d) => d.id === r.id))]
+    .filter((r) => !r.locked && !r.islemGordu && r.online > 0)
+    .sort((a, b) => b.online - a.online)
+    .slice(0, 20);
+
+  const girOdaya = (r: Room) => { haptic.light(); enterRoom(r); router.navigate("/room"); };
 
   return (
     <View style={styles.root}>
+      {/* Diğer ekranlarla aynı siyah-altın zemin; burası düz siyahtı. */}
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={[C.gold + "1F", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
+
       <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
-        <View style={{ alignItems: "center", paddingTop: 8, paddingBottom: 4 }}>
-          <Txt weight="displayBold" size={17} color="#fff" style={{ letterSpacing: 0.5 }}>Sıralama</Txt>
-          <Txt weight="semibold" size={10.5} color={C.dim} style={{ marginTop: 2 }}>Haftalık liste · 2g 14s kaldı</Txt>
+        <View style={{ alignItems: "center", paddingTop: 8, paddingBottom: 10 }}>
+          <Txt weight="displayBold" size={18} color="#fff" style={{ letterSpacing: 0.5 }}>Sıralama</Txt>
+          <View style={styles.sureHap}>
+            <Icon name="cal" size={11} color={C.gold2} />
+            <Txt weight="bold" size={10} color={C.gold2}>Haftalık · 2g 14s kaldı</Txt>
+          </View>
         </View>
 
         <Tabs items={["Zenginlik", "Cazibe", "Odalar", "Ajanslar", "Yayıncılar"]} active={tab} set={setTab} pad={14} />
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 6, paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
-          {tab === 3 ? (
-            AGENCY_RANKS.map((a, i) => (
-              <View key={a.name} style={[styles.row, { borderColor: i < 3 ? C.gold + "40" : C.line }]}>
-                <Txt weight="extrabold" size={14} color={i === 0 ? C.gold : i < 3 ? "#C7CCD6" : C.dim} style={{ width: 20 }}>{i + 1}</Txt>
-                <AgencyEmblem s={34} />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{a.name}</Txt>
-                  <Txt weight="semibold" size={10} color={C.dim} style={{ marginTop: 2 }}>{a.owner} · {a.members} üye</Txt>
-                </View>
-                <ScorePill icon="diamond" value={a.score} />
-              </View>
-            ))
-          ) : tab === 4 ? (
-            STREAMER_RANKS.map((s, i) => (
-              <View key={s.name} style={[styles.row, { borderColor: i < 3 ? C.green + "40" : C.line }]}>
-                <Txt weight="extrabold" size={14} color={i === 0 ? C.gold : i < 3 ? "#C7CCD6" : C.dim} style={{ width: 20 }}>{i + 1}</Txt>
-                <Portrait name={s.name} size={42} ring={i < 3 ? C.green : undefined} online />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <Txt weight="extrabold" size={13} color={C.text}>{s.name}</Txt>
-                    <Badge type="streamer" size={15} />
-                  </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-                    <AgencyEmblem s={12} />
-                    <Txt weight="semibold" size={10} color={C.dim}>{s.agency}</Txt>
-                  </View>
-                </View>
-                <ScorePill icon="coin" value={s.coins} faint />
-              </View>
-            ))
-          ) : (
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+          {/* ---- Zenginlik ---- */}
+          {tab === 0 && (
             <>
-              <View style={styles.podium}>
-                {podium.map((p, i) => {
-                  const place = [2, 1, 3][i];
-                  const big = place === 1;
-                  return (
-                    <View key={p.name} style={{ alignItems: "center", gap: 6 }}>
-                      <PngBadge name={PLACE_BADGE[place]} size={big ? 60 : 44} />
-                      <Portrait name={p.name} size={big ? 72 : 54} ring={MEDAL[place]} glow={big} />
-                      <Txt weight="extrabold" size={12} color="#fff">{p.name}</Txt>
-                      <ScorePill icon="coin" value={p.coins} />
-                      <Gradient
-                        colors={[MEDAL[place] + "cc", MEDAL[place] + "22"]}
-                        deg={180}
-                        style={{ width: big ? 62 : 48, height: big ? 38 : 24, borderTopLeftRadius: 10, borderTopRightRadius: 10, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, alignItems: "center", justifyContent: "center" }}
-                      >
-                        <Txt weight="extrabold" size={15} color="#0E0B12">{place}</Txt>
-                      </Gradient>
-                    </View>
-                  );
-                })}
-              </View>
+              <Podyum ilk3={RANKS.slice(0, 3)} />
               {RANKS.slice(3).map((p, i) => (
-                <View key={p.name} style={[styles.row, { borderColor: C.line }]}>
-                  <Txt weight="extrabold" size={12.5} color={C.dim} style={{ width: 18 }}>{i + 4}</Txt>
-                  <Portrait name={p.name} size={40} />
-                  <Txt weight="extrabold" size={12.5} color={C.text} style={{ flex: 1 }}>{p.name}</Txt>
-                  <ScorePill icon="coin" value={p.coins} faint />
-                </View>
+                <Satir key={p.name} n={i + 4}>
+                  <Portrait name={p.name} size={42} />
+                  <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1} style={{ flex: 1 }}>{p.name}</Txt>
+                  <Puan icon="coin" value={p.coins} />
+                </Satir>
               ))}
             </>
           )}
+
+          {/* ---- Cazibe: veri kaynağı yok ---- */}
+          {tab === 1 && (
+            <Bos
+              baslik="Cazibe sıralaması yakında"
+              alt="Alınan hediyelere göre hesaplanacak. Hediye sistemi bağlandığında burası dolacak."
+            />
+          )}
+
+          {/* ---- Odalar: GERÇEK veri ---- */}
+          {tab === 2 && (
+            odaSirasi.length === 0 ? (
+              <Bos baslik="Şu an açık oda yok" alt="Odalar kalabalıklarına göre burada sıralanır." />
+            ) : (
+              odaSirasi.map((r, i) => (
+                <Pressable key={r.id} onPress={() => girOdaya(r)}>
+                  <Satir n={i + 1}>
+                    <View style={styles.odaKapak}>
+                      {r.photo
+                        ? <Portrait name={r.name} size={42} photo={r.photo} />
+                        : <View style={styles.odaSahne}><Scene kind={r.scene} /></View>}
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{r.name}</Txt>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
+                        <Icon name="crown" size={10} color={C.gold + "AA"} />
+                        <Txt weight="semibold" size={10} color={C.dim} numberOfLines={1}>{r.host}</Txt>
+                      </View>
+                    </View>
+                    <View style={styles.kisiHap}>
+                      <Icon name="user" size={11} color="#6EE7B7" />
+                      <Txt weight="extrabold" size={11.5} color="#6EE7B7">{r.online}</Txt>
+                    </View>
+                  </Satir>
+                </Pressable>
+              ))
+            )
+          )}
+
+          {/* ---- Ajanslar ---- */}
+          {tab === 3 && AGENCY_RANKS.map((a, i) => (
+            <Satir key={a.name} n={i + 1}>
+              <AgencyEmblem s={38} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{a.name}</Txt>
+                <Txt weight="semibold" size={10} color={C.dim} style={{ marginTop: 3 }}>{a.owner} · {a.members} üye</Txt>
+              </View>
+              <Puan icon="diamond" value={a.score} guclu={i === 0} />
+            </Satir>
+          ))}
+
+          {/* ---- Yayıncılar ---- */}
+          {tab === 4 && STREAMER_RANKS.map((s, i) => (
+            <Satir key={s.name} n={i + 1}>
+              <Portrait name={s.name} size={42} ring={i < 3 ? MADALYA[i + 1] : undefined} online />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{s.name}</Txt>
+                  <Badge type="streamer" size={15} />
+                </View>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }}>
+                  <AgencyEmblem s={12} />
+                  <Txt weight="semibold" size={10} color={C.dim}>{s.agency}</Txt>
+                </View>
+              </View>
+              <Puan icon="coin" value={s.coins} guclu={i === 0} />
+            </Satir>
+          ))}
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -114,6 +253,52 @@ export default function RankTab() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: C.card, borderWidth: 1, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 14, marginBottom: 9 },
-  podium: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 18, paddingTop: 16, paddingBottom: 20 },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 250 },
+  sureHap: {
+    flexDirection: "row", alignItems: "center", gap: 5, marginTop: 6,
+    paddingVertical: 4, paddingHorizontal: 11, borderRadius: 999,
+    backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "3D",
+  },
+
+  podyum: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 8, paddingTop: 22, paddingBottom: 22 },
+  tac: { marginBottom: 4 },
+  tacIsik: {
+    position: "absolute", top: -10, left: -10, right: -10, bottom: -10, borderRadius: 60,
+    backgroundColor: C.gold + "1F",
+    shadowColor: C.gold, shadowOpacity: 0.9, shadowRadius: 22, shadowOffset: { width: 0, height: 0 }, elevation: 10,
+  },
+  kaide: {
+    alignSelf: "stretch", marginTop: 10, marginHorizontal: 4,
+    borderTopLeftRadius: 12, borderTopRightRadius: 12,
+    borderWidth: 1, borderBottomWidth: 0, overflow: "hidden",
+    alignItems: "center", justifyContent: "center",
+  },
+  kaideParilti: { position: "absolute", top: 0, left: 12, right: 12, height: 1.5 },
+
+  satir: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
+    borderRadius: 16, paddingVertical: 11, paddingHorizontal: 13, marginBottom: 9, overflow: "hidden",
+  },
+  siraYuva: { width: 26, alignItems: "center", justifyContent: "center" },
+  siraMadalya: { height: 26, borderRadius: 13, borderWidth: 1 },
+
+  puan: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
+  },
+  kisiHap: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999,
+    backgroundColor: C.green + "1A", borderWidth: 1, borderColor: C.green + "44",
+  },
+  odaKapak: { width: 42, height: 42 },
+  odaSahne: { width: 42, height: 42, borderRadius: 13, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
+
+  bos: { alignItems: "center", paddingVertical: 54, paddingHorizontal: 18 },
+  bosIkon: {
+    width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center",
+    backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "3D",
+  },
 });
