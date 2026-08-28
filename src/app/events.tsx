@@ -4,6 +4,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { EV_TAGS, EVENTS, type EventItem } from "@/data/events";
 import { Icon } from "@/icons/Icon";
@@ -40,7 +41,8 @@ export default function EventsScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#0A1E2E", "#08080C"]} deg={170} locations={[0, 0.52]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={[C.gold + "1A", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
@@ -52,17 +54,8 @@ export default function EventsScreen() {
           <View style={{ width: 34 }} />
         </View>
 
-        <View style={styles.tabs}>
-          {["Tümü", "Yayında", "Yakında"].map((t, i) => {
-            const on = i === tab;
-            return (
-              <Pressable key={t} onPress={() => { haptic.select(); setTab(i); }} style={styles.tab}>
-                <Txt weight={on ? "extrabold" : "medium"} size={14} color={on ? "#fff" : "rgba(255,255,255,.42)"}>{t}</Txt>
-                {on && <Gradient colors={["#22D3EE", "#0E7490"]} deg={90} style={styles.tabUnderline} />}
-              </Pressable>
-            );
-          })}
-        </View>
+        {/* Kendi kopya sekme çubuğu vardı; uygulamanın ortak Tabs'ı */}
+        <Tabs items={["Tümü", "Yayında", "Yakında"]} active={tab} set={setTab} fill pad={16} />
 
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
           {tab === 0 && featured && (
@@ -99,8 +92,9 @@ export default function EventsScreen() {
                         <Txt weight="extrabold" size={9} color={tg.c}>{tg.t}</Txt>
                       </View>
                       {isJoined && (
-                        <View style={[styles.evTag, { backgroundColor: "#34D3991F", borderColor: "#34D39944" }]}>
-                          <Txt weight="extrabold" size={9} color="#34D399">✓ Katıldın</Txt>
+                        <View style={[styles.evTag, { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#34D3991F", borderColor: "#34D39944" }]}>
+                          <Icon name="check" size={9} sw={3.5} color="#34D399" />
+                          <Txt weight="extrabold" size={9} color="#34D399">Katıldın</Txt>
                         </View>
                       )}
                     </View>
@@ -148,8 +142,9 @@ export default function EventsScreen() {
                     </View>
                     <Pressable onPress={() => act(openEv)} disabled={openEv.tag === "bitti"} style={{ marginTop: 18, borderRadius: 16, overflow: "hidden", opacity: openEv.tag === "bitti" ? 0.45 : 1 }}>
                       <Gradient colors={[openEv.c1, openEv.c2]} deg={135} style={styles.detailCta}>
+                        {joined.includes(openEv.id) && <Icon name="check" size={15} sw={3} color="#fff" />}
                         <Txt weight="extrabold" size={14} color="#fff">
-                          {joined.includes(openEv.id) ? "✓ Katıldın" : openEv.tag === "bitti" ? "Etkinlik Sona Erdi" : openEv.tag === "yakinda" ? "Hatırlatıcı Kur" : "Etkinliğe Katıl"}
+                          {joined.includes(openEv.id) ? "Katıldın" : openEv.tag === "bitti" ? "Etkinlik Sona Erdi" : openEv.tag === "yakinda" ? "Hatırlatıcı Kur" : "Etkinliğe Katıl"}
                         </Txt>
                       </Gradient>
                     </Pressable>
@@ -172,6 +167,7 @@ export default function EventsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   tabs: { flexDirection: "row", marginTop: 6, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.08)" },
@@ -190,6 +186,6 @@ const styles = StyleSheet.create({
   detailClose: { position: "absolute", top: 14, left: 14, width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,.35)", borderWidth: 1, borderColor: "rgba(255,255,255,.25)", alignItems: "center", justifyContent: "center" },
   detailTag: { position: "absolute", bottom: 14, left: 16, backgroundColor: "rgba(0,0,0,.4)", borderWidth: 1, borderColor: "rgba(255,255,255,.4)", borderRadius: 999, paddingVertical: 4, paddingHorizontal: 12 },
   detailInfo: { marginTop: 12, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)", borderRadius: 14, padding: 14 },
-  detailCta: { paddingVertical: 15, alignItems: "center" },
+  detailCta: { flexDirection: "row", gap: 7, paddingVertical: 15, alignItems: "center" },
   toast: { position: "absolute", alignSelf: "center", maxWidth: "86%", backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: `${C.gold}55`, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 999 },
 });

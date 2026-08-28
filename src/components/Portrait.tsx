@@ -41,13 +41,17 @@ export function Portrait({
 
   return (
     <View style={{ width: size, height: size }}>
+      {/* Halka ve kırpma AYRI katmanlarda.
+          Tek View'de `borderWidth` + `overflow:"hidden"` birlikte kullanılınca
+          çocuk, dış yarıçapa göre kırpılıyor; foto köşelerden halkanın altına
+          taşıp avatar "tam oturmamış" görünüyordu. Dıştaki View yalnız halkayı
+          çiziyor, içteki View iç yarıçapla kırpıyor. */}
       <View
         style={[
           {
             width: size,
             height: size,
             borderRadius: size / 2,
-            overflow: "hidden",
             borderWidth: 2,
             borderColor: ringColor,
           },
@@ -62,6 +66,7 @@ export function Portrait({
             : null,
         ]}
       >
+        <View style={{ flex: 1, borderRadius: (size - 4) / 2, overflow: "hidden" }}>
         {/* taban silüet */}
         <Svg viewBox="0 0 100 100" width="100%" height="100%" style={StyleSheet.absoluteFill}>
           <RadialGradient id={gid} cx="50%" cy="32%" r="120%">
@@ -95,6 +100,7 @@ export function Portrait({
             onError={() => setImgOk(false)}
           />
         )}
+        </View>
       </View>
 
       {/* Mikrofon-kapalı rozeti sağ altta. Eskiden avatarın tam ortasının

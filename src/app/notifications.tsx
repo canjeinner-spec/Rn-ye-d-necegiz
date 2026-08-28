@@ -61,7 +61,8 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#16121F", "#08080C"]} deg={180} locations={[0, 0.55]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={[C.gold + "1A", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
@@ -83,14 +84,15 @@ export default function NotificationsScreen() {
             return (
               <Pressable key={k} onPress={() => { haptic.select(); setTab(k); }} style={styles.tab}>
                 {on ? (
-                  <Gradient colors={["#7C3AED", "#5B21B6"]} deg={135} style={StyleSheet.absoluteFill} />
+                  <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={StyleSheet.absoluteFill} />
                 ) : (
                   <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(255,255,255,.06)" }]} />
                 )}
-                <Txt weight="extrabold" size={12} color={on ? "#fff" : C.dim}>{label}</Txt>
+                {/* Seçili hap altın dolgulu; üstünde beyaz yazı okunmuyordu */}
+                <Txt weight="extrabold" size={12} color={on ? "#241A05" : C.dim}>{label}</Txt>
                 {cnt > 0 && (
-                  <View style={[styles.badge, { backgroundColor: on ? "rgba(255,255,255,.25)" : C.red }]}>
-                    <Txt weight="extrabold" size={9} color="#fff">{cnt}</Txt>
+                  <View style={[styles.badge, { backgroundColor: on ? "rgba(36,26,5,.30)" : C.red }]}>
+                    <Txt weight="extrabold" size={9} color={on ? "#241A05" : "#fff"}>{cnt}</Txt>
                   </View>
                 )}
               </Pressable>
@@ -147,6 +149,7 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   tabsScroll: { flexGrow: 0, flexShrink: 0 },

@@ -5,6 +5,7 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Portrait } from "@/components/Portrait";
+import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { FRIEND_LIST, FRIEND_REQS, type Friend, type FriendReq } from "@/data/friends";
 import { Icon } from "@/icons/Icon";
@@ -56,7 +57,9 @@ export default function FriendsScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#0A2A1E", "#08080C"]} deg={170} locations={[0, 0.52]} style={StyleSheet.absoluteFill} />
+      {/* Zemin yeşildi (#0A2A1E) — uygulamanın siyah-altınına çekildi. */}
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={[C.gold + "1A", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
@@ -68,22 +71,14 @@ export default function FriendsScreen() {
           <View style={{ width: 34 }} />
         </View>
 
-        <View style={styles.tabs}>
-          {["Arkadaşlar", "İstekler"].map((t, i) => {
-            const on = i === tab;
-            return (
-              <Pressable key={t} onPress={() => { haptic.select(); setTab(i); }} style={styles.tab}>
-                <Txt weight={on ? "extrabold" : "medium"} size={14} color={on ? "#fff" : "rgba(255,255,255,.42)"}>{t}</Txt>
-                {i === 1 && reqs.length > 0 && (
-                  <View style={styles.reqBadge}>
-                    <Txt weight="extrabold" size={10} color="#fff">{reqs.length}</Txt>
-                  </View>
-                )}
-                {on && <Gradient colors={["#34D399", "#059669"]} deg={90} style={styles.tabUnderline} />}
-              </Pressable>
-            );
-          })}
-        </View>
+        {/* Kendi kopya sekme çubuğu vardı; uygulamanın ortak Tabs'ı */}
+        <Tabs
+          items={["Arkadaşlar", reqs.length > 0 ? `İstekler (${reqs.length})` : "İstekler"]}
+          active={tab}
+          set={setTab}
+          fill
+          pad={16}
+        />
 
         <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 24 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {tab === 0 ? (
@@ -141,9 +136,9 @@ export default function FriendsScreen() {
                     {r.note && <Txt size={12} color={C.dim} lh={1.5} style={styles.reqNote}>"{r.note}"</Txt>}
                     <View style={{ flexDirection: "row", gap: 10, marginTop: 11, marginLeft: 60 }}>
                       <Pressable onPress={() => accept(i)} style={{ flex: 1, borderRadius: 12, overflow: "hidden" }}>
-                        <Gradient colors={["#34D399", "#059669"]} deg={135} style={styles.reqBtn}>
-                          <Icon name="check" size={15} color="#04231A" sw={3} />
-                          <Txt weight="extrabold" size={12.5} color="#04231A">Kabul Et</Txt>
+                        <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.reqBtn}>
+                          <Icon name="check" size={15} color="#241A05" sw={3} />
+                          <Txt weight="extrabold" size={12.5} color="#241A05">Kabul Et</Txt>
                         </Gradient>
                       </Pressable>
                       <Pressable onPress={() => reject(i)} style={[styles.reqBtn, { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" }]}>
@@ -177,15 +172,12 @@ export default function FriendsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  tabs: { flexDirection: "row", marginTop: 6, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.08)" },
-  tab: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 13 },
-  tabUnderline: { position: "absolute", bottom: -1, width: 30, height: 3, borderRadius: 3 },
-  reqBadge: { minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 999, backgroundColor: "#F43F5E", alignItems: "center", justifyContent: "center" },
   search: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 14, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)", marginBottom: 14 },
   searchInput: { flex: 1, color: C.text, fontSize: 12.5, padding: 0 },
-  group: { borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
+  group: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 70 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 12 },
   chatBtn: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(52,211,153,.12)", borderWidth: 1, borderColor: "rgba(52,211,153,.3)" },
