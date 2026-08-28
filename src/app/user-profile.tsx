@@ -19,6 +19,7 @@ import { block, getBlockState, unblock } from "@/data/remote/blockRepo";
 import { getOrCreateConversation } from "@/data/remote/dmRepo";
 import { follow, getFollowState, unfollow } from "@/data/remote/followRepo";
 import { getPublicProfile, type PublicProfile } from "@/data/remote/profileRepo";
+import { getUserRoomCount } from "@/data/remote/roomsRepo";
 import { reportUserById } from "@/data/remote/reportRepo";
 import { getVisitorCount, recordVisit } from "@/data/remote/visitRepo";
 import { Icon } from "@/icons/Icon";
@@ -57,6 +58,7 @@ export default function UserProfileScreen() {
   const [followers, setFollowers] = useState<number | null>(null);
   const [followingCount, setFollowingCount] = useState<number | null>(null);
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
+  const [roomCount, setRoomCount] = useState<number | null>(null);
   useEffect(() => {
     if (!isSupabaseConfigured || !params.publicId) return;
     let alive = true;
@@ -72,6 +74,7 @@ export default function UserProfileScreen() {
           setFollowing(s.isFollowing);
         }).catch(() => {});
         getVisitorCount(p.id).then((c) => { if (alive) setVisitorCount(c); }).catch(() => {});
+        getUserRoomCount(p.id).then((c) => { if (alive) setRoomCount(c); }).catch(() => {});
         getBlockState(p.id).then((b) => { if (!alive) return; setBlocked(b.iBlocked); setBlockedByThem(b.blockedByThem); }).catch(() => {});
       }
     }).catch(() => {});
@@ -93,8 +96,10 @@ export default function UserProfileScreen() {
   };
 
   const name = profile?.kullanici_adi || params.name || "Kullanıcı";
-  const lv = profile?.seviye_id ?? (Number(params.lv) || 28);
-  const id = profile?.public_id || params.publicId || "1149663822";
+  // Uydurma varsayılanlar kaldırıldı: profil yüklenmediyse seviye 0, ID "—".
+  // Eskiden her bilinmeyen kullanıcı LV.28 ve ID 1149663822 görünüyordu.
+  const lv = profile?.seviye_id ?? (Number(params.lv) || 0);
+  const id = profile?.public_id || params.publicId || "—";
   // Yetki rozeti DB'den: self ise store rolü, değilse DB ekonomi_rolu.
   const dbRole = self ? myRole : profile?.ekonomi_rolu === "developer" ? "developer" : profile?.ekonomi_rolu === "super_admin" ? "super_admin" : "user";
   const photo = profile?.profil_resmi || undefined;
@@ -193,15 +198,19 @@ export default function UserProfileScreen() {
                 <KopyaBtn deger={id} />
               </View>
             )}
-            <View style={{ flexDirection: "row", gap: 14, marginTop: 11, alignItems: "center" }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <Txt weight="extrabold" size={12} color="#5EEAD4">LV.{lv}</Txt>
-              </View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <Icon name="male" size={14} color={gender === "k" ? "#FB7185" : "#60A5FA"} />
-                <Txt weight="bold" size={12} color={gender === "k" ? "#FB7185" : "#60A5FA"}>{gender === "k" ? "Kadın" : "Erkek"}</Txt>
-              </View>
-              <Txt weight="bold" size={12} color="#6EE7B7">🇹🇷 {country || "Türkiye"}</Txt>
+            {/* Yalnızca gerçekten bilinenler. Eskiden cinsiyet boşsa "Erkek",
+                ülke boşsa "🇹🇷 Türkiye" yazıyordu — ikisi de uydurmaydı. */}
+            <View style={{ flexDirection: "row", gap: 14, marginTop: 11, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
+              {lv > 0 && <Txt weight="extrabold" size={12} color="#5EEAD4">LV.{lv}</Txt>}
+              {!!gender && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <Icon name="male" size={14} color={gender === "k" ? "#FB7185" : "#60A5FA"} />
+                  <Txt weight="bold" size={12} color={gender === "k" ? "#FB7185" : "#60A5FA"}>{gender === "k" ? "Kadın" : "Erkek"}</Txt>
+                </View>
+              )}
+              {!!country && (
+                <Txt weight="bold" size={12} color="#6EE7B7">{country === "Türkiye" ? "🇹🇷 " : ""}{country}</Txt>
+              )}
             </View>
             <Txt size={11.5} color={bio ? C.text : C.dim2} lh={1.5} align="center" style={{ marginTop: 12, paddingHorizontal: 20 }}>{bio || "Açıklama kısmı boş"}</Txt>
           </View>
@@ -232,11 +241,14 @@ export default function UserProfileScreen() {
 
           {tab === 0 ? (
             <View style={{ paddingHorizontal: 2 }}>
+              {/* Sabit "959 oda" yazıyordu; artık oda_uyeleri'nden gerçek sayı.
+                  Açılacak bir liste ekranı olmadığı için ok işareti yok. */}
               <View style={styles.rowCard}>
                 <Txt weight="extrabold" size={13.5} color={C.text}>Katıldığı Odalar</Txt>
                 <View style={{ flex: 1 }} />
-                <Txt weight="semibold" size={12} color={C.dim}>959 oda</Txt>
-                <Icon name="chev" size={15} color={C.dim2} />
+                <Txt weight="semibold" size={12} color={C.dim}>
+                  {roomCount != null ? `${roomCount} oda` : "—"}
+                </Txt>
               </View>
               {/* MVP: Hediye bölümü gizli (FEATURES.profileGift) */}
               {FEATURES.profileGift && (
@@ -262,8 +274,35 @@ export default function UserProfileScreen() {
               )}
             </View>
           ) : (
-            <View style={{ padding: 18 }}>
-              <Txt size={12.5} color={C.dim} lh={1.6}>Bu kullanıcı henüz profil bilgisi eklememiş.</Txt>
+            /* Eskiden koşulsuz "henüz profil bilgisi eklememiş" yazıyordu —
+               kullanıcı bio/şehir/ülke doldurmuş olsa bile. Artık DB'de ne
+               varsa o listeleniyor, gerçekten boşsa uyarı görünüyor. */
+            <View style={{ paddingHorizontal: 18, paddingVertical: 6 }}>
+              {(() => {
+                const satirlar: { etiket: string; deger: string }[] = [];
+                if (bio) satirlar.push({ etiket: "Hakkında", deger: bio });
+                if (profile?.sehir || country) satirlar.push({ etiket: "Konum", deger: [profile?.sehir, country].filter(Boolean).join(", ") });
+                if (gender) satirlar.push({ etiket: "Cinsiyet", deger: gender === "k" ? "Kadın" : "Erkek" });
+                if (lv > 0) satirlar.push({ etiket: "Seviye", deger: `LV.${lv}` });
+                satirlar.push({ etiket: "ID", deger: id });
+                if (satirlar.length === 1) {
+                  return <Txt size={12.5} color={C.dim} lh={1.6} style={{ paddingVertical: 12 }}>Bu kullanıcı henüz profil bilgisi eklememiş.</Txt>;
+                }
+                return (
+                  <View style={styles.bilgiGrup}>
+                    {satirlar.map((s, i) => (
+                      <View key={s.etiket}>
+                        {i > 0 && <View style={styles.bilgiAyirici} />}
+                        <View style={styles.bilgiSatir}>
+                          <Txt weight="semibold" size={12.5} color={C.dim}>{s.etiket}</Txt>
+                          <View style={{ flex: 1 }} />
+                          <Txt weight="bold" size={12.5} color={C.text} align="right" lh={1.5} style={{ maxWidth: "62%" }}>{s.deger}</Txt>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()}
             </View>
           )}
         </ScrollView>
@@ -436,6 +475,9 @@ const styles = StyleSheet.create({
   tab: { flex: 1, alignItems: "center", paddingVertical: 13 },
   tabUnderline: { position: "absolute", bottom: 0, width: 30, height: 2.5, borderRadius: 3, backgroundColor: C.gold },
   rowCard: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 15, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.06)" },
+  bilgiGrup: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", paddingHorizontal: 14, marginTop: 8 },
+  bilgiAyirici: { height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,.08)" },
+  bilgiSatir: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 13 },
   giftCard: { flexDirection: "row", alignItems: "center", borderRadius: 16, paddingVertical: 15, paddingHorizontal: 16, backgroundColor: "rgba(124,58,237,.12)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)" },
   giftIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: `${C.gold}1A`, borderWidth: 1, borderColor: `${C.gold}40`, marginRight: 11 },
   menu: { position: "absolute", right: 14, borderRadius: 14, overflow: "hidden", minWidth: 150, backgroundColor: "#1C1A24", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },

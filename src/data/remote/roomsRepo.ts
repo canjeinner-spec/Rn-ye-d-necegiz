@@ -198,6 +198,20 @@ export async function getRoomMembers(odaId: number): Promise<{ members: RoomMemb
   return { members, myRole };
 }
 
+/**
+ * Bir kullanıcının üye olduğu oda sayısı — profildeki "Katıldığı Odalar".
+ * oda_uyeleri SELECT politikası herkese açık (021), ayrı bir RPC gerekmiyor.
+ */
+export async function getUserRoomCount(userId: number): Promise<number> {
+  const sb = requireSupabase();
+  const { count, error } = await sb
+    .from("oda_uyeleri")
+    .select("oda_id", { count: "exact", head: true })
+    .eq("kullanici_id", userId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 /** Odaya üye ol (kendi adına, 'uye'). Zaten üyeyse sessizce geçer. */
 export async function joinRoomMembership(odaId: number): Promise<void> {
   const sb = requireSupabase();
