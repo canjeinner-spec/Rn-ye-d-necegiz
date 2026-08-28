@@ -681,8 +681,19 @@ export default function RoomScreen() {
 
   return (
     <View style={styles.root}>
-      {/* Mat & ferah oda zemini (renkli Scene yerine) */}
-      <Gradient colors={["#1E1E22", "#161619", "#0F0F11"]} deg={180} style={StyleSheet.absoluteFill} />
+      {/* Oda zemini = seçilen tema.
+          Burada sabit bir gri gradyan vardı; tema yalnızca üst bardaki 36px'lik
+          çipin içinde kullanılıyordu, yani tema değiştirmek odada hiçbir şeyi
+          değiştirmiyordu. Sahne geri geldi, üstüne de okunabilirlik için koyu
+          bir perde çekildi — renk hissediliyor ama yazılar sırıtmıyor. */}
+      <Scene kind={room.scene} />
+      <Gradient
+        colors={["rgba(14,14,17,.62)", "rgba(14,14,17,.78)", "rgba(11,11,13,.90)"]}
+        deg={180}
+        locations={[0, 0.45, 1]}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <KeyboardAware>
           <View style={styles.topbar}>

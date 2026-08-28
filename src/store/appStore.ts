@@ -446,12 +446,22 @@ export const useApp = create<AppState>((set, get) => ({
       kickedUsers: [],
     }),
   // Canlı ayar güncellemesi: odadayken tema/kapak/isim/duyuru değişince yansıt.
+  // İçinde bulunduğum odayı günceller. Bu oda AYNI ZAMANDA kendi odamsa
+  // myRoom da güncellenmeli — yoksa kapak/tema değiştirdikten sonra profildeki
+  // "Odam" kartı eski hâlini göstermeye devam ediyordu.
   patchCurrentRoom: (p) =>
-    set((s) => ({
-      currentRoom: s.currentRoom ? { ...s.currentRoom, ...p } : s.currentRoom,
-      ...(p.name != null ? { roomName: p.name } : {}),
-      ...(p.announce != null ? { roomAnnounce: p.announce } : {}),
-    })),
+    set((s) => {
+      const guncel = s.currentRoom ? { ...s.currentRoom, ...p } : s.currentRoom;
+      const benimOdam =
+        !!guncel && !!s.myRoom &&
+        (s.myRoom.dbId != null ? s.myRoom.dbId === guncel.dbId : s.myRoom.id === guncel.id);
+      return {
+        currentRoom: guncel,
+        ...(benimOdam ? { myRoom: { ...s.myRoom!, ...p } } : null),
+        ...(p.name != null ? { roomName: p.name } : {}),
+        ...(p.announce != null ? { roomAnnounce: p.announce } : {}),
+      };
+    }),
   leaveRoom: () => set({ inRoom: false, currentRoom: null }),
 
   makeMyRoom: () => {
@@ -475,9 +485,11 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   openMyRoom: () => {
-    const { myRoom, makeMyRoom, userPhoto, enterRoom } = get();
-    let r = myRoom || makeMyRoom();
-    r = { ...r, photo: userPhoto || r.photo };
+    const { myRoom, makeMyRoom, enterRoom } = get();
+    // Odanın kendi kapağı varsa ona dokunma. Eskiden her açılışta
+    // `photo: userPhoto || r.photo` deniyordu; kullanıcının profil fotoğrafı
+    // odanın kapağını eziyor, ayarlanan oda fotoğrafı hiç görünmüyordu.
+    const r = myRoom || makeMyRoom();
     enterRoom(r);
     return r;
   },
