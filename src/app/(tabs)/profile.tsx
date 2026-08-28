@@ -153,7 +153,6 @@ export default function ProfileTab() {
         <View style={styles.cover}>
           <Gradient colors={["#1B1626", "#12101A", "#08080C"]} deg={165} style={StyleSheet.absoluteFill} />
           <Gradient colors={[C.gold + "2E", "transparent"]} deg={155} style={styles.coverGlow} pointerEvents="none" />
-          <View style={styles.coverLine} pointerEvents="none" />
           <SafeAreaView edges={["top"]}>
             <View style={{ height: 40 }} />
           </SafeAreaView>
@@ -307,7 +306,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   cover: { height: 104, position: "relative", overflow: "hidden" },
   coverGlow: { position: "absolute", right: -60, top: -70, width: 230, height: 200, borderRadius: 115 },
-  coverLine: { position: "absolute", left: 0, right: 0, bottom: 0, height: StyleSheet.hairlineWidth, backgroundColor: "rgba(232,179,65,.30)" },
   statStrip: { flexDirection: "row", alignItems: "center", marginTop: 16, borderRadius: 18, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   statDivider: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: "rgba(255,255,255,.12)" },
   walletIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "3D", marginRight: 11 },
