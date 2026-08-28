@@ -22,6 +22,7 @@ import { BigGiftOverlay } from "@/components/BigGiftOverlay";
 import { GiftFx } from "@/components/GiftFx";
 import { Pill } from "@/components/Pill";
 import { Portrait } from "@/components/Portrait";
+import { RoomEntryGate } from "@/components/RoomEntryGate";
 import { RolePill } from "@/components/RolePill";
 import { Scene } from "@/components/Scene";
 import { Sheet } from "@/components/Sheet";
@@ -362,6 +363,8 @@ export default function RoomScreen() {
   const [bigGift, setBigGift] = useState<{ gift: Gift; qty: number } | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  // Giriş perdesi bitene kadar oda ekranı arkada hazırlanır.
+  const [girisTamam, setGirisTamam] = useState(false);
   // currentRoom'a bağlı (donuk değil) → sahip kapak/tema değiştirince canlı yansır.
   const roomPhoto = room?.photo ?? null;
   const [stub, setStub] = useState<string | null>(null);
@@ -696,6 +699,14 @@ export default function RoomScreen() {
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
+      {/* Giriş perdesi: "Odaya giriliyor…" + işlem görmüş odada uyarı */}
+      {!girisTamam && (
+        <RoomEntryGate
+          room={room}
+          onDevam={() => setGirisTamam(true)}
+          onVazgec={() => { leaveRoom(); router.back(); }}
+        />
+      )}
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <KeyboardAware>
           <View style={styles.topbar}>

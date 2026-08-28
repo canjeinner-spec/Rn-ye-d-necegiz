@@ -206,6 +206,9 @@ export type AdminRoomEdit = {
   hostPublicId: string | null;
   uyeSayisi: number;
   aktifKatilimci: number;
+  // 054: yönetim işlemi işareti
+  islemGordu?: boolean;
+  islemSebep?: string | null;
 };
 
 export async function getRoomForEdit(odaId: number): Promise<AdminRoomEdit | null> {
@@ -226,6 +229,9 @@ export async function getRoomForEdit(odaId: number): Promise<AdminRoomEdit | nul
     hostPublicId: r.sahip_public_id ?? null,
     uyeSayisi: Number(r.uye_sayisi ?? 0),
     aktifKatilimci: Number(r.aktif_katilimci ?? 0),
+    // 054 uygulanmamışsa bu alanlar gelmez; undefined → işaretsiz sayılır.
+    islemGordu: !!r.islem_gordu,
+    islemSebep: r.islem_sebep ?? null,
   };
 }
 export type AdminRoomHit = { id: number; publicId: string | null; ad: string; photo?: string };
@@ -262,6 +268,16 @@ export async function changeRoomPublicId(odaId: number, yeni: string): Promise<v
 export async function setRoomCover(odaId: number, kapak: string | null): Promise<void> {
   const sb = requireSupabase();
   const { error } = await sb.rpc("admin_oda_kapak_ayarla", { p_oda: odaId, p_kapak: kapak });
+  if (error) throw error;
+}
+/**
+ * Odayı "işlem yapıldı" olarak işaretle / işareti kaldır (054).
+ * İşaretli odada sahip bilgileri düzenleyemez (RLS) ve odaya giren kullanıcı
+ * girişte uyarılır.
+ */
+export async function setRoomFlagged(odaId: number, isaretli: boolean, sebep?: string | null): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("admin_oda_islem_isaretle", { p_oda: odaId, p_isaretli: isaretli, p_sebep: sebep ?? null });
   if (error) throw error;
 }
 

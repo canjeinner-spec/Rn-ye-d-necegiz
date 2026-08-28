@@ -23,6 +23,9 @@ export type Room = {
   daily?: number;
   dbId?: number; // odalar.id (gerçek DB odası). Yoksa mock oda.
   createdAt?: number; // odalar.olusturulma_tarihi — "Yeni" sekmesi bunu sıralar
+  // 054: yönetici bu odaya işlem yaptı mı (girişte uyarı, sahibe düzenleme kilidi)
+  islemGordu?: boolean;
+  islemSebep?: string;
 };
 
 export type Seat = {

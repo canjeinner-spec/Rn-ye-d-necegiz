@@ -9,7 +9,7 @@ const TEMEL_COLS =
 // 052_oda_vitrin.sql ile gelen kolonlar. Migration uygulanmamış bir projede
 // bunları istemek 42703 döndürür ve TÜM oda listesi çöker — bu yüzden
 // istekler once/sonra kalıbıyla korunuyor (aşağıdaki odalariGetir).
-const VITRIN_COLS = "resmi, gunluk_sira";
+const VITRIN_COLS = "resmi, gunluk_sira, islem_gordu, islem_sebep";
 const SELECT_COLS = `${TEMEL_COLS}, ${VITRIN_COLS}`;
 
 /** Kolon yok hatası mı? (PostgREST → undefined column) */
@@ -31,6 +31,8 @@ type OdaRow = {
   olusturulma_tarihi: string;
   resmi?: boolean;
   gunluk_sira?: number | null;
+  islem_gordu?: boolean;
+  islem_sebep?: string | null;
 };
 
 export const SCENES: SceneKind[] = ["official", "club", "lounge", "night", "fire"];
@@ -63,6 +65,8 @@ function mapRoom(r: OdaRow, hostName: string, myId: number | null): Room {
     // bu yüzden gerçek odalar asla resmî olamıyor/sıraya giremiyordu.
     official: r.resmi || undefined,
     daily: r.gunluk_sira ?? undefined,
+    islemGordu: r.islem_gordu || undefined,
+    islemSebep: r.islem_sebep ?? undefined,
   };
 }
 

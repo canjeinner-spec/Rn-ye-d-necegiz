@@ -9,7 +9,7 @@ import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import {
-  changeRoomPublicId, getActionHistory, getRoomForEdit, setRoomCover, updateRoom,
+  changeRoomPublicId, getActionHistory, getRoomForEdit, setRoomCover, setRoomFlagged, updateRoom,
   type AdminAction, type AdminRoomEdit,
 } from "@/data/remote/adminRepo";
 import { uploadAvatar } from "@/data/remote/storageRepo";
@@ -27,7 +27,13 @@ function zaman(at: number) {
   return `${d.getDate()} ${AYLAR[d.getMonth()]} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 const ROLE_LABEL: Record<string, string> = { user: "Kullanıcı", developer: "Geliştirici", super_admin: "Süper Yönetici" };
-const ISLEM_LABEL: Record<string, string> = { oda_guncelle: "Oda güncellendi", oda_id_degistir: "Oda ID değiştirildi" };
+const ISLEM_LABEL: Record<string, string> = {
+  oda_guncelle: "Oda güncellendi",
+  oda_id_degistir: "Oda ID değiştirildi",
+  oda_kapak_degistir: "Kapak değiştirildi",
+  oda_islem_isaretle: "İşlem yapıldı olarak işaretlendi",
+  oda_islem_kaldir: "İşlem işareti kaldırıldı",
+};
 
 export default function AdminRoomEdit() {
   const router = useRouter();
@@ -46,6 +52,7 @@ export default function AdminRoomEdit() {
   const [ad, setAd] = useState("");
   const [aciklama, setAciklama] = useState("");
   const [newId, setNewId] = useState("");
+  const [islemSebep, setIslemSebep] = useState("");
 
   const flash = (m: string) => { setNote(m); setTimeout(() => setNote(""), 2400); };
   const load = useCallback(() => {
@@ -128,6 +135,44 @@ export default function AdminRoomEdit() {
                 <Txt weight="displayBold" size={15} color="#fff" numberOfLines={1}>{r.ad}</Txt>
                 <Txt weight="semibold" size={11} color={C.dim} style={{ marginTop: 2 }}>ID: {r.publicId} · Sahip: {r.hostName}</Txt>
                 <Txt size={10} color={C.dim2} style={{ marginTop: 2 }}>{r.uyeSayisi} üye · {r.aktifKatilimci} aktif · {r.herkeseAcik ? "Herkese açık" : "Özel"}</Txt>
+              </View>
+            </View>
+
+            {/* İşlem işareti (054): işaretliyken oda sahibi hiçbir bilgiyi
+                düzenleyemez ve odaya girenler uyarılır. */}
+            <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>YÖNETİM İŞLEMİ</Txt>
+            <View style={[styles.group, r.islemGordu && { borderColor: "rgba(251,113,133,.40)" }]}>
+              <View style={{ padding: 13, gap: 10 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
+                  <View style={[styles.rowIkon, { backgroundColor: r.islemGordu ? "rgba(251,113,133,.14)" : "rgba(255,255,255,.05)" }]}>
+                    <Icon name="ban" size={16} color={r.islemGordu ? "#FB7185" : C.dim} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Txt weight="extrabold" size={12.5} color={r.islemGordu ? "#FB7185" : C.text}>
+                      {r.islemGordu ? "Bu odaya işlem yapıldı" : "İşlem yapılmadı"}
+                    </Txt>
+                    <Txt size={10.5} color={C.dim} lh={1.4} style={{ marginTop: 2 }}>
+                      {r.islemGordu
+                        ? (r.islemSebep || "Sebep belirtilmedi")
+                        : "İşaretlersen sahip düzenleyemez, girenler uyarılır."}
+                    </Txt>
+                  </View>
+                </View>
+
+                {r.islemGordu ? (
+                  <Pressable disabled={busy} onPress={() => run(() => setRoomFlagged(r.id, false), "İşlem işareti kaldırıldı", { islemGordu: undefined, islemSebep: undefined })} style={[styles.kapakBtn, { backgroundColor: `${C.green}16`, borderColor: `${C.green}4D` }]}>
+                    <Icon name="check" size={13} sw={2.5} color={C.green} />
+                    <Txt weight="extrabold" size={12} color={C.green}>İşareti Kaldır</Txt>
+                  </Pressable>
+                ) : (
+                  <>
+                    <TextInput value={islemSebep} onChangeText={setIslemSebep} placeholder="Sebep (kullanıcıya gösterilir)" placeholderTextColor={C.dim2} style={styles.input} />
+                    <Pressable disabled={busy} onPress={() => run(() => setRoomFlagged(r.id, true, islemSebep), "Oda işaretlendi", { islemGordu: true, islemSebep: islemSebep.trim() || undefined }).then(() => setIslemSebep(""))} style={[styles.kapakBtn, { backgroundColor: "#E5484D", borderColor: "#E5484D" }]}>
+                      <Icon name="ban" size={13} color="#FFECEC" />
+                      <Txt weight="extrabold" size={12} color="#FFECEC">İşlem Yapıldı Olarak İşaretle</Txt>
+                    </Pressable>
+                  </>
+                )}
               </View>
             </View>
 
@@ -231,6 +276,7 @@ const styles = StyleSheet.create({
   saveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 11, borderRadius: 12, backgroundColor: `${C.gold}14`, borderWidth: 1, borderColor: `${C.gold}44` },
   actBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 11, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` },
   lockedInfo: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: C.line, marginTop: 8 },
+  rowIkon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   kapakOnizleme: { width: 62, height: 62, borderRadius: 16, overflow: "hidden", backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
   kapakBos: { flex: 1, alignItems: "center", justifyContent: "center" },
   kapakBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5 },

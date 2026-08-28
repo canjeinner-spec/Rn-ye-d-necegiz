@@ -71,6 +71,8 @@ export default function RoomManageScreen() {
   const dbId = currentRoom?.dbId;
   const live = !!dbId && isSupabaseConfigured;
   const isOwner = !!currentRoom?.owner; // ayar düzenleme yalnız sahip (RLS de zorlar)
+  // 054: yönetim işlemi görmüş odada sahip hiçbir bilgiyi düzenleyemez.
+  const kilitli = !!currentRoom?.islemGordu;
   const [bans, setBans] = useState<RoomBan[]>([]);
   const reloadBans = useCallback(() => {
     if (!live || !dbId) return;
@@ -93,6 +95,7 @@ export default function RoomManageScreen() {
   const [pass, setPass] = useState("");
 
   const openEdit = (key: "name" | "announce", label: string, value: string, multiline?: boolean) => {
+    if (kilitli) { haptic.warning(); return; }
     haptic.light();
     setEdit({ key, label, multiline });
     setTmp(value);
@@ -112,6 +115,7 @@ export default function RoomManageScreen() {
     setEdit(null);
   };
   const toggleLock = () => {
+    if (kilitli) { haptic.warning(); return; }
     haptic.light();
     if (roomLocked) {
       setRoomLocked(false); setRoomPass("");
@@ -142,6 +146,24 @@ export default function RoomManageScreen() {
         </View>
 
         <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 6, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
+          {/* İşlem görmüş odada sahip hiçbir bilgiyi düzenleyemez (054).
+              Sunucu da RLS ile engelliyor; bu, sebebi görünür kılan uyarı. */}
+          {kilitli && (
+            <View style={styles.islemUyari}>
+              <View style={styles.islemIkon}>
+                <Icon name="ban" size={16} color="#FB7185" />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Txt weight="extrabold" size={12.5} color="#FB7185">Bu odaya işlem yapıldı</Txt>
+                <Txt size={11} color={C.dim} lh={1.45} style={{ marginTop: 3 }}>
+                  {currentRoom?.islemSebep
+                    ? `${currentRoom.islemSebep} — düzenleme kapalı.`
+                    : "Yönetim işlemi sürerken oda bilgilerini düzenleyemezsin."}
+                </Txt>
+              </View>
+            </View>
+          )}
+
           {/* Görsel ayarlar — kapak ve tema listede yan yana iki önizleme.
               Eskiden ikisi de 34px'lik aynı Scene küçük resmiyle satır halindeydi,
               üst üste iki tıpatıp satır gibi görünüyordu. */}
@@ -149,7 +171,7 @@ export default function RoomManageScreen() {
             <>
               <Bolum baslik="ODA GÖRÜNÜMÜ" />
               <View style={{ flexDirection: "row", gap: 11 }}>
-                <Pressable onPress={() => router.navigate("/room-manage-edit?section=avatar")} style={styles.onizlemeKart}>
+                <Pressable disabled={kilitli} onPress={() => router.navigate("/room-manage-edit?section=avatar")} style={[styles.onizlemeKart, kilitli && styles.kapali]}>
                   {/* Oda fotoğrafı kare değil yuvarlak: her yerde avatar gibi gösteriliyor */}
                   <View style={[styles.onizleme, styles.onizlemeOrtali]}>
                     <View style={styles.odaAvatar}>
@@ -167,7 +189,7 @@ export default function RoomManageScreen() {
                   </View>
                 </Pressable>
 
-                <Pressable onPress={() => router.navigate("/room-manage-edit?section=tema")} style={styles.onizlemeKart}>
+                <Pressable disabled={kilitli} onPress={() => router.navigate("/room-manage-edit?section=tema")} style={[styles.onizlemeKart, kilitli && styles.kapali]}>
                   <View style={styles.onizleme}>
                     <Scene kind={currentRoom?.scene ?? "club"} />
                   </View>
@@ -184,7 +206,7 @@ export default function RoomManageScreen() {
           )}
 
           <Bolum baslik="ODA BİLGİLERİ" />
-          <View style={styles.group}>
+          <View style={[styles.group, kilitli && styles.kapali]}>
             <Satir icon="edit" tint={C.purple2} baslik="Oda İsmi" deger={roomName} onPress={() => openEdit("name", "Oda İsmi", roomName)} />
             <View style={styles.divider} />
             <Satir icon="chat" tint={C.teal} baslik="Duyuru" deger={roomAnnounce} onPress={() => openEdit("announce", "Duyuru", roomAnnounce, true)} />
@@ -223,7 +245,7 @@ export default function RoomManageScreen() {
           <Bolum baslik="GİZLİLİK" />
 
           <View style={styles.group}>
-            <Pressable onPress={toggleLock} style={[styles.row, roomLocked && { backgroundColor: `${C.gold}0F` }]}>
+            <Pressable disabled={kilitli} onPress={toggleLock} style={[styles.row, roomLocked && { backgroundColor: `${C.gold}0F` }, kilitli && styles.kapali]}>
               <View style={[styles.rowIcon, { backgroundColor: roomLocked ? `${C.gold}1A` : "rgba(255,255,255,.06)" }]}>
                 <Icon name={roomLocked ? "lock" : "unlock"} size={15} color={roomLocked ? C.gold : C.dim} />
               </View>
@@ -326,6 +348,9 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  islemUyari: { flexDirection: "row", alignItems: "center", gap: 11, marginTop: 14, padding: 13, borderRadius: 16, backgroundColor: "rgba(251,113,133,.10)", borderWidth: 1.5, borderColor: "rgba(251,113,133,.34)" },
+  islemIkon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.14)", borderWidth: 1, borderColor: "rgba(251,113,133,.30)" },
+  kapali: { opacity: 0.45 },
   bolum: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 22, marginBottom: 10 },
   group: { borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
   // Ayırıcılar satırın metniyle hizalanır: 13 dolgu + öndeki kutu + 12 boşluk.
