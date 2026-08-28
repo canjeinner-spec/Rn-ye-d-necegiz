@@ -1,37 +1,59 @@
 /**
- * MVP arayüz bayrakları.
+ * Arayüz bayrakları.
  *
- * Bu öğeler MVP lansmanı için arayüzden GİZLENDİ; kodları/ekranları/rotaları
- * yerinde duruyor. İleride geri getirmek için ilgili bayrağı `true` yapman
- * yeterli — ekstra bir şey yapmana gerek yok.
+ * MVP lansmanı için bir süre kapalı tutulan bölümler 28 Ağustos 2026'da
+ * kullanıcı isteğiyle AÇILDI. Ekranlar/rotalar zaten yerindeydi, yalnızca
+ * girişleri gizliydi.
+ *
+ * ⚠️ ÖNEMLİ — AÇIK ama HENÜZ SAHTE olanlar:
+ * Aşağıdaki bölümlerin ekranları tasarım olarak hazır ama **hiçbir DB
+ * bağlantısı yok** (`src/data/remote/*Repo.ts` kullanmıyorlar) ve arkalarında
+ * tablo da yok. Yani görünürler, gezilebilirler, ama gerçek bir iş yapmazlar:
+ *
+ *   store / vip / inventory      → sabit ürün listeleri; satın alma yok
+ *   agency-panel (yayıncı)       → sabit kazanç/ajans sayıları
+ *   gift-history                 → sabit geçmiş
+ *   friends / events             → data/friends.ts, data/events.ts (sabit)
+ *   rank sekmesi                 → data/seed.ts'teki RANKS/AGENCY_RANKS/
+ *                                  STREAMER_RANKS (sabit)
+ *   hediye gönderme (roomGift /
+ *   dmGift / profileGift)        → animasyon oynar ama BAKİYE DÜŞMEZ,
+ *                                  alıcıya bir şey geçmez, kayıt tutulmaz
+ *   giftCoupon                   → kupon doğrulaması yok
+ *
+ * GERÇEK olan: `visitors` (visitRepo) ve `notifications` (Faz 3).
+ *
+ * Bunları gerçeğe bağlamak için sırasıyla gerekenler: hediye kataloğu +
+ * gönderim RPC'si (bakiyeden düşen, atomik), envanter tablosu, ajans/yayıncı
+ * tabloları, sıralama görünümleri (materialized view + zamanlanmış yenileme).
  */
 export const FEATURES = {
   /** Oda alt barındaki hediye ikonu (hediye gönderme) */
-  roomGift: false,
+  roomGift: true,
   /** Profil menüsündeki "Yayıncı Paneli" (yayıncı merkezi) girişi */
-  streamerPanel: false,
+  streamerPanel: true,
   /** Profil menüsündeki "Hediye Geçmişi" girişi */
-  giftHistory: false,
+  giftHistory: true,
   /** Profil menüsündeki "Hediye Kuponu Gir" girişi */
-  giftCoupon: false,
+  giftCoupon: true,
   /** Profildeki "Mağaza" tile'ı */
-  store: false,
+  store: true,
   /** Profil menüsündeki "Aron VIP" girişi */
-  vip: false,
-  /** Alt navigasyondaki "Sıralama" sekmesi (rank ekranı sidebar'dan erişilir) */
-  rankTab: false,
+  vip: true,
+  /** Alt navigasyondaki "Sıralama" sekmesi */
+  rankTab: true,
   /** Profildeki "Eşyalarım" (envanter) tile'ı */
-  inventory: false,
+  inventory: true,
   /** DM'deki "Arkadaşlık" kısayolu */
-  friends: false,
+  friends: true,
   /** DM'deki "Etkinlik" kısayolu */
-  events: false,
-  /** DM'deki "Bildirim" kısayolu (artık gerçek — Faz 3) */
+  events: true,
+  /** DM'deki "Bildirim" kısayolu (gerçek — Faz 3) */
   notifications: true,
-  /** DM'deki "Ziyaretçi" kısayolu (ekran profilden de açılır) */
-  visitors: false,
+  /** DM'deki "Ziyaretçi" kısayolu (gerçek — visitRepo) */
+  visitors: true,
   /** Başkasının profilindeki "Hediye" bölümü (Hediye Gönder) */
-  profileGift: false,
+  profileGift: true,
   /** DM sohbet kutusundaki hediye butonu */
-  dmGift: false,
+  dmGift: true,
 } as const;

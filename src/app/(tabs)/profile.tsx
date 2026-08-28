@@ -100,9 +100,7 @@ export default function ProfileTab() {
 
   const tiles: { type: TileType; lbl: string; onPress: () => void }[] = [
     { type: "tasks", lbl: "Görevler", onPress: () => { haptic.light(); router.navigate("/tasks"); } },
-    // MVP: Mağaza tile'ı gizli (FEATURES.store)
     ...(FEATURES.store ? [{ type: "store" as TileType, lbl: "Mağaza", onPress: () => { haptic.light(); router.navigate("/store"); } }] : []),
-    // MVP: Eşyalarım (envanter) tile'ı gizli (FEATURES.inventory)
     ...(FEATURES.inventory ? [{ type: "items" as TileType, lbl: "Eşyalarım", onPress: () => { haptic.light(); router.navigate("/inventory"); } }] : []),
     { type: "level", lbl: "Level", onPress: () => { haptic.light(); router.navigate("/level"); } },
   ];
@@ -111,16 +109,12 @@ export default function ProfileTab() {
     // Yalnızca yetkili hesaplar (developer / super_admin) görür
     ...(role !== "user" ? [{ ic: "gear" as IconName, g1: "#F5CE6E", g2: "#B45309", t: "Yönetim", s: "Raporlar ve kullanıcı işlemleri", onPress: () => { haptic.light(); router.navigate("/admin"); } }] : []),
     { ic: "mic", g1: "#C8A24A", g2: "#7A5A16", t: "Odam", s: "Kendi sesli sohbet odanı aç", onPress: goMyRoom },
-    // MVP: Aron VIP gizli (FEATURES.vip)
     ...(FEATURES.vip ? [{ ic: "crown" as IconName, g1: "#F5CE6E", g2: "#B45309", t: "Aron VIP", s: "Özel ayrıcalıkların kilidini aç", onPress: () => { haptic.light(); router.navigate("/vip"); } }] : []),
-    // MVP: Yayıncı Paneli (yayıncı merkezi) gizli (FEATURES.streamerPanel)
     ...(isStreamer && FEATURES.streamerPanel ? [{ ic: "mic" as IconName, g1: "#34D399", g2: "#059669", t: "Yayıncı Paneli", s: "Kazancını ve ajansını yönet", onPress: () => { haptic.light(); router.navigate("/agency-panel"); } }] : []),
-    // MVP: Hediye Geçmişi gizli (FEATURES.giftHistory)
     ...(FEATURES.giftHistory ? [{ ic: "gift" as IconName, g1: "#EC4899", g2: "#BE185D", t: "Hediye Geçmişi", s: "Gönderdiğin & aldığın hediyeler", onPress: () => { haptic.light(); router.navigate("/gift-history"); } }] : []),
     { ic: "userAdd", g1: "#34D399", g2: "#0F6B4B", t: "Arkadaşını Davet Et", s: "Davet et, beraber elmas kazanın", onPress: () => { haptic.light(); router.navigate("/referral"); } },
     { ic: "trophy", g1: "#F5CE6E", g2: "#8A5E12", t: "Rozetlerim", s: rozetOzet, onPress: () => { haptic.light(); router.navigate("/badges"); } },
     { ic: "idcard", g1: "#F5CE6E", g2: "#B45309", t: "Özel ID", s: "Prestijli kısa ID'leri keşfet", onPress: () => { haptic.light(); router.navigate("/special-id"); } },
-    // MVP: Hediye Kuponu Gir gizli (FEATURES.giftCoupon)
     ...(FEATURES.giftCoupon ? [{ ic: "ticket" as IconName, g1: "#06B6D4", g2: "#0891B2", t: "Hediye Kuponu Gir", s: "Kodunu gir, ödülünü al", onPress: openSheet(() => setCouponOpen(true)) }] : []),
   ];
 

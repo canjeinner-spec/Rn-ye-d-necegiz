@@ -834,7 +834,6 @@ export default function RoomScreen() {
                 returnKeyType="send"
               />
             </View>
-            {/* MVP: oda içi hediye ikonu gizli (FEATURES.roomGift) */}
             {FEATURES.roomGift && (
               <Pressable onPress={() => setGiftOpen(true)} style={styles.giftBtnBig}>
                 <Gradient colors={["#EC4899", "#BE185D"]} deg={135} style={styles.giftMini}>

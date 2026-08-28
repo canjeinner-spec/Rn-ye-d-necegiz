@@ -282,7 +282,6 @@ export default function DMChatScreen() {
               <View style={styles.inputWrap}>
                 <TextInput value={input} onChangeText={setInput} onSubmitEditing={send} placeholder="Mesajını yaz..." placeholderTextColor={C.dim2} style={styles.input} returnKeyType="send" />
               </View>
-              {/* MVP: hediye butonu gizli (FEATURES.dmGift) */}
               {FEATURES.dmGift && (
                 <Pressable onPress={() => setGiftOpen(true)} style={styles.giftBtn}>
                   <Icon name="crown" size={18} color={C.gold2} />

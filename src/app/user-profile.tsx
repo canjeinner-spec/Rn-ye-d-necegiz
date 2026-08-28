@@ -250,7 +250,6 @@ export default function UserProfileScreen() {
                   {roomCount != null ? `${roomCount} oda` : "—"}
                 </Txt>
               </View>
-              {/* MVP: Hediye bölümü gizli (FEATURES.profileGift) */}
               {FEATURES.profileGift && (
                 <View style={{ padding: 16, paddingBottom: 0 }}>
                   <Txt weight="extrabold" size={13.5} color={C.text} style={{ marginBottom: 10 }}>Hediye</Txt>
