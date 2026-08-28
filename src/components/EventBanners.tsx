@@ -78,6 +78,23 @@ function InfoBanner({ b }: { b: EventBanner }) {
 
 function Banner({ b, onPress }: { b: EventBanner; onPress: () => void }) {
   const localImg = BANNER_IMG[b.id];
+  /**
+   * Fotoğraflı banner'da çerçeve, GÖRSELİN kendi oranını alır.
+   *
+   * Sabit orandaki bir çerçeveye farklı oranda bir foto koyunca iki kötü
+   * seçenek kalıyordu: "cover" alt-üstü kesiyor, "contain" yanlarda boşluk
+   * bırakıyordu. Yükleme kırpması 16:9 → 5:2 → 7:2 diye değiştiği için
+   * eskiden yüklenmiş her foto bir gün mutlaka uyuşmuyor.
+   *
+   * Görselin gerçek oranını okuyup çerçeveye veriyoruz: ne kırpılıyor ne
+   * boşluk kalıyor. Aşırı uçlar (çok kare / çok ince) sınırlanıyor.
+   */
+  const [oran, setOran] = useState(BANNER_ORAN);
+  const olcu = (w: number, h: number) => {
+    if (!w || !h) return;
+    setOran(Math.min(4.2, Math.max(2.2, w / h)));
+  };
+
   return (
     <Pressable onPress={onPress} style={{ width: SCREEN, paddingHorizontal: 14 }}>
       {localImg ? (
@@ -87,15 +104,15 @@ function Banner({ b, onPress }: { b: EventBanner; onPress: () => void }) {
       ) : b.kind === "about" || b.kind === "update" ? (
         <InfoBanner b={b} />
       ) : (
-        <View style={styles.banner}>
+        <View style={[styles.banner, b.image ? { aspectRatio: oran } : null]}>
           {b.image ? (
-            /* Fotoğraf çerçeveyi TAM doldurur. Daha önce "contain" + arkada
-               bulanık kopya vardı; kırpma oranı çerçeveyle aynı olmadığı için
-               yanlarda bulanık boşluk kalıyor, foto eksikmiş gibi duruyordu.
-               Kırpma artık çerçeveyle aynı oranda (BANNER_ORAN), o yüzden
-               "cover" hiçbir şey kesmeden tam oturuyor. */
             <>
-              <Image source={{ uri: b.image }} style={StyleSheet.absoluteFill} contentFit="cover" />
+              <Image
+                source={{ uri: b.image }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                onLoad={(e) => olcu(e.source?.width ?? 0, e.source?.height ?? 0)}
+              />
               <Gradient colors={["rgba(8,8,12,.10)", "rgba(8,8,12,.70)"]} deg={180} style={StyleSheet.absoluteFill} pointerEvents="none" />
             </>
           ) : (
