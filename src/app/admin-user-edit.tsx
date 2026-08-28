@@ -8,6 +8,7 @@ import { CenterModal } from "@/components/CenterModal";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
+import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import {
   accountBan, accountUnban, changeEmail, changePublicId, freezeAsset, getActionHistory,
@@ -17,6 +18,7 @@ import {
 } from "@/data/remote/adminRepo";
 import { uploadAvatar } from "@/data/remote/storageRepo";
 import { Icon } from "@/icons/Icon";
+import { type IconName } from "@/icons/paths";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
@@ -36,6 +38,8 @@ const ISLEM_LABEL: Record<string, string> = {
   ad_degistir: "Ad değiştirildi", avatar_degistir: "Avatar değiştirildi",
 };
 const SECTION_TITLE: Record<string, string> = { economy: "Ekonomi", penalty: "Cezai İşlemler", identity: "Kimlik & Bilgi", history: "İşlem Geçmişi" };
+/** Sekme sırası — admin-user'daki bölüm satırlarıyla aynı sırada. */
+const SECTIONS = ["economy", "penalty", "identity", "history"];
 
 const BAN_CHIPS = [["30dk", 30], ["1s", 60], ["1g", 1440], ["7g", 10080], ["Kalıcı", null], ["Manuel", "manual"]] as const;
 
@@ -49,11 +53,68 @@ function sureAdi(dk: number) {
 /** Geri alınamaz işlemler için onay penceresi verisi. */
 type Onay = { baslik: string; metin: string; btn: string; fn: () => void };
 
+/* ── Ortak kontroller ────────────────────────────────────────────────────────
+   Ekranda tek bir "chip" stili vardı ve hem SEÇİM (elmas/altın, ceza süresi,
+   rol) hem AKSİYON (avatarı değiştir, hak ver, dondur) için kullanılıyordu;
+   neyin seçenek neyin buton olduğu anlaşılmıyordu. Üçü artık ayrı:
+   Secim = seçenek, Aksiyon = dolgulu buton, Anahtar = aç/kapa.            */
+
+function Secim({ on, label, tint = C.gold, disabled, onPress, children }: {
+  on: boolean; label: string; tint?: string; disabled?: boolean; onPress: () => void; children?: React.ReactNode;
+}) {
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={() => { haptic.select(); onPress(); }}
+      style={[styles.secim, on && { backgroundColor: `${tint}1F`, borderColor: `${tint}66` }, disabled && { opacity: 0.4 }]}
+    >
+      {children}
+      <Txt weight="bold" size={11} color={on ? tint : C.dim}>{label}</Txt>
+    </Pressable>
+  );
+}
+
+function Aksiyon({ label, icon, tint, dolu, disabled, genis, onPress }: {
+  label: string; icon?: IconName; tint: string; dolu?: boolean; disabled?: boolean; genis?: boolean; onPress: () => void;
+}) {
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      style={[
+        styles.aksiyon,
+        genis ? { flex: 1 } : null,
+        dolu ? { backgroundColor: tint, borderColor: tint } : { backgroundColor: `${tint}16`, borderColor: `${tint}4D` },
+        disabled && { opacity: 0.4 },
+      ]}
+    >
+      {icon && <Icon name={icon} size={14} sw={2.2} color={dolu ? "#141018" : tint} />}
+      <Txt weight="extrabold" size={12.5} color={dolu ? "#141018" : tint}>{label}</Txt>
+    </Pressable>
+  );
+}
+
+function Anahtar({ on, disabled, onPress }: { on: boolean; disabled?: boolean; onPress: () => void }) {
+  return (
+    <Pressable disabled={disabled} onPress={onPress} style={[styles.anahtar, { backgroundColor: on ? C.green : "rgba(255,255,255,.13)", alignItems: on ? "flex-end" : "flex-start" }, disabled && { opacity: 0.4 }]}>
+      <View style={styles.anahtarTopuz} />
+    </Pressable>
+  );
+}
+
+/** Bölüm başlığı — hepsi aynı aralıkta olsun diye. */
+function Baslik({ children, tint = C.dim }: { children: React.ReactNode; tint?: string }) {
+  return <Txt weight="bold" size={10.5} color={tint} style={styles.lbl}>{children}</Txt>;
+}
+
 export default function AdminUserEdit() {
   const router = useRouter();
   const params = useLocalSearchParams<{ userId?: string; section?: string }>();
   const userId = params.userId ? parseInt(String(params.userId), 10) : NaN;
-  const section = String(params.section || "economy");
+  // Bölüm artık yerel state: dört bölüm ayrı sayfaydı, birinden diğerine
+  // geçmek için geri gidip kullanıcıya tekrar girmek gerekiyordu. URL
+  // parametresi yalnızca başlangıç bölümünü belirliyor.
+  const [section, setSection] = useState(String(params.section || "economy"));
   const myRole = useApp((s) => s.role);
   const isDev = myRole === "developer";
 
@@ -142,11 +203,36 @@ export default function AdminUserEdit() {
         <KeyboardAware>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}><Icon name="back" size={16} color={C.text} /></Pressable>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Txt weight="displayBold" size={16} color="#fff" numberOfLines={1}>{SECTION_TITLE[section] || "Düzenle"}</Txt>
-            {d && <Txt size={10.5} color={C.dim} numberOfLines={1}>{d.name} · ID: {d.publicId}</Txt>}
-          </View>
+          {/* Hangi kullanıcıyı yönettiğin her bölümde görünsün */}
+          {d ? (
+            <>
+              <Portrait name={d.name} size={34} photo={d.photo} ring={d.rol === "user" ? undefined : C.gold} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Txt weight="displayBold" size={14.5} color="#fff" numberOfLines={1}>{d.name}</Txt>
+                <Txt size={10.5} color={C.dim} numberOfLines={1}>ID: {d.publicId}</Txt>
+              </View>
+              {(d.hesapYasakli || d.micBanned) && (
+                <View style={styles.uyariRozet}>
+                  <Icon name="ban" size={11} color="#FB7185" />
+                  <Txt weight="extrabold" size={9} color="#FB7185">{d.hesapYasakli ? "YASAKLI" : "MİC YASAK"}</Txt>
+                </View>
+              )}
+            </>
+          ) : (
+            <Txt weight="displayBold" size={16} color="#fff">{SECTION_TITLE[section] || "Düzenle"}</Txt>
+          )}
         </View>
+
+        {/* Bölümler arası geçiş — eskiden her biri ayrı sayfaydı */}
+        {d && (
+          <Tabs
+            items={["Ekonomi", "Ceza", "Kimlik", "Geçmiş"]}
+            active={SECTIONS.indexOf(section)}
+            set={(i: number) => setSection(SECTIONS[i])}
+            fill
+            pad={14}
+          />
+        )}
 
         {loading ? (
           <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={C.gold} /></View>
@@ -163,31 +249,42 @@ export default function AdminUserEdit() {
             {/* ================= EKONOMİ ================= */}
             {section === "economy" && (
               <>
-                <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>BAKİYE VER / AL</Txt>
-                <View style={styles.group}>
-                  <View style={{ padding: 12, gap: 8 }}>
-                    <View style={{ flexDirection: "row", gap: 6 }}>
-                      {(["elmas", "altin"] as const).map((a) => (
-                        <Pressable key={a} onPress={() => setAsset(a)} style={[styles.chip, { flexDirection: "row", gap: 5 }, asset === a && { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` }]}>
-                          {a === "elmas" ? <DiamondBadge size={13} /> : <CoinBadge size={13} />}
-                          <Txt weight="bold" size={10.5} color={asset === a ? C.gold2 : C.dim}>{a === "elmas" ? "Elmas" : "Altın"}</Txt>
-                        </Pressable>
-                      ))}
-                      <TextInput value={amount} onChangeText={setAmount} keyboardType="number-pad" placeholder="Miktar" placeholderTextColor={C.dim2} style={[styles.input, { flex: 1 }]} />
-                    </View>
-                    <View style={{ flexDirection: "row", gap: 8 }}>
-                      <Pressable disabled={busy} onPress={() => doGrant(1)} style={[styles.actBtn, { backgroundColor: `${C.green}14`, borderColor: `${C.green}44` }]}>
-                        <Icon name="plus" size={13} sw={2.5} color={C.green} /><Txt weight="extrabold" size={12} color={C.green}>Ver</Txt>
-                      </Pressable>
-                      <Pressable disabled={busy} onPress={() => doGrant(-1)} style={[styles.actBtn, { backgroundColor: "rgba(251,113,133,.1)", borderColor: "rgba(251,113,133,.3)" }]}>
-                        <Icon name="x" size={13} color="#FB7185" /><Txt weight="extrabold" size={12} color="#FB7185">Al</Txt>
-                      </Pressable>
-                    </View>
-                    <Txt size={9.5} color={C.dim2} lh={1.4}>Güncel: {d.elmas.toLocaleString("tr-TR")} elmas · {d.altin.toLocaleString("tr-TR")} altın</Txt>
+                {/* Mevcut bakiye önce görünsün — ne verdiğini/aldığını
+                    bilmeden işlem yapılıyordu, güncel bakiye en altta
+                    küçük gri bir satırdı. */}
+                <View style={[styles.group, { flexDirection: "row", marginTop: 4 }]}>
+                  <View style={styles.bakiyeKutu}>
+                    <DiamondBadge size={18} />
+                    <Txt weight="displayBold" size={19} color={d.elmasDondu ? "#7DD3FC" : "#fff"}>{d.elmas.toLocaleString("tr-TR")}</Txt>
+                    <Txt weight="bold" size={9} color={C.dim2} style={{ letterSpacing: 0.3 }}>{d.elmasDondu ? "ELMAS · DONUK" : "ELMAS"}</Txt>
+                  </View>
+                  <View style={styles.dikeyAyirici} />
+                  <View style={styles.bakiyeKutu}>
+                    <CoinBadge size={18} />
+                    <Txt weight="displayBold" size={19} color={d.altinDondu ? "#FCD34D" : "#fff"}>{d.altin.toLocaleString("tr-TR")}</Txt>
+                    <Txt weight="bold" size={9} color={C.dim2} style={{ letterSpacing: 0.3 }}>{d.altinDondu ? "ALTIN · DONUK" : "ALTIN"}</Txt>
                   </View>
                 </View>
 
-                <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>DONDURMA (HARCAMA KİLİDİ)</Txt>
+                <Baslik>BAKİYE VER / AL</Baslik>
+                <View style={styles.group}>
+                  <View style={{ padding: 13, gap: 11 }}>
+                    <View style={{ flexDirection: "row", gap: 7 }}>
+                      {(["elmas", "altin"] as const).map((a) => (
+                        <Secim key={a} on={asset === a} label={a === "elmas" ? "Elmas" : "Altın"} onPress={() => setAsset(a)}>
+                          {a === "elmas" ? <DiamondBadge size={13} /> : <CoinBadge size={13} />}
+                        </Secim>
+                      ))}
+                    </View>
+                    <TextInput value={amount} onChangeText={setAmount} keyboardType="number-pad" placeholder="Miktar" placeholderTextColor={C.dim2} style={styles.input} />
+                    <View style={{ flexDirection: "row", gap: 9 }}>
+                      <Aksiyon genis dolu tint="#34D399" icon="plus" label="Ver" disabled={busy} onPress={() => doGrant(1)} />
+                      <Aksiyon genis tint="#FB7185" icon="x" label="Al" disabled={busy} onPress={() => doGrant(-1)} />
+                    </View>
+                  </View>
+                </View>
+
+                <Baslik>DONDURMA (HARCAMA KİLİDİ)</Baslik>
                 <View style={styles.group}>
                   {([["elmas", d.elmasDondu], ["altin", d.altinDondu]] as const).map(([a, frozen], i) => (
                     <View key={a}>
@@ -196,13 +293,10 @@ export default function AdminUserEdit() {
                         {a === "elmas" ? <DiamondBadge size={16} /> : <CoinBadge size={16} />}
                         <View style={{ flex: 1 }}>
                           <Txt weight="bold" size={12.5} color={C.text}>{a === "elmas" ? "Elmas" : "Altın"}</Txt>
-                          <Txt size={10} color={frozen ? "#FB7185" : C.dim} style={{ marginTop: 1 }}>{frozen ? "Donduruldu — harcayamaz" : "Serbest"}</Txt>
+                          <Txt size={10} color={frozen ? "#7DD3FC" : C.dim} style={{ marginTop: 1 }}>{frozen ? "Donduruldu — harcayamaz" : "Serbest"}</Txt>
                         </View>
-                        <Pressable disabled={busy} onPress={() => run(() => freezeAsset(d.id, a, !frozen), frozen ? "Çözüldü" : "Donduruldu")}
-                          style={[styles.chip, frozen ? { backgroundColor: `${C.green}14`, borderColor: `${C.green}44` } : { backgroundColor: "rgba(125,211,252,.12)", borderColor: "rgba(125,211,252,.32)" }]}>
-                          <Icon name={frozen ? "unlock" : "lock"} size={12} color={frozen ? C.green : "#7DD3FC"} />
-                          <Txt weight="bold" size={10.5} color={frozen ? C.green : "#7DD3FC"} style={{ marginLeft: 4 }}>{frozen ? "Çöz" : "Dondur"}</Txt>
-                        </Pressable>
+                        {/* Aç/kapa durumu için buton değil anahtar */}
+                        <Anahtar on={frozen} disabled={busy} onPress={() => run(() => freezeAsset(d.id, a, !frozen), frozen ? "Çözüldü" : "Donduruldu")} />
                       </View>
                     </View>
                   ))}
@@ -213,48 +307,48 @@ export default function AdminUserEdit() {
             {/* ================= CEZAİ İŞLEMLER ================= */}
             {section === "penalty" && (
               <>
-                <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>MİKROFON YASAĞI</Txt>
+                <Baslik>MİKROFON YASAĞI</Baslik>
                 {d.micBanned ? (
                   <View style={styles.group}><View style={styles.gRow}>
                     <View style={{ flex: 1 }}>
                       <Txt weight="extrabold" size={12.5} color="#FB7185">Mikrofon yasaklı</Txt>
                       <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>{d.micBitis ? `Bitiş: ${zaman(d.micBitis)}` : "Kalıcı"}{d.micSebep ? ` · ${d.micSebep}` : ""}</Txt>
                     </View>
-                    <Pressable disabled={busy} onPress={() => run(() => micUnban(d.id), "Yasak kaldırıldı")} style={[styles.chip, { backgroundColor: `${C.green}14`, borderColor: `${C.green}44` }]}><Txt weight="bold" size={10.5} color={C.green}>Kaldır</Txt></Pressable>
+                    <Aksiyon tint="#34D399" icon="check" label="Kaldır" disabled={busy} onPress={() => run(() => micUnban(d.id), "Yasak kaldırıldı")} />
                   </View></View>
                 ) : (
                   <View style={styles.group}><View style={{ padding: 12, gap: 8 }}>
                     <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
                       {BAN_CHIPS.map(([lb, v]) => (
-                        <Pressable key={lb} onPress={() => setMicMin(v as number | null | "manual")} style={[styles.chip, micMin === v && { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` }]}><Txt weight="bold" size={10.5} color={micMin === v ? C.gold2 : C.dim}>{lb}</Txt></Pressable>
+                        <Secim key={lb} on={micMin === v} label={lb} onPress={() => setMicMin(v as number | null | "manual")} />
                       ))}
                     </View>
                     {micMin === "manual" && <TextInput value={micManual} onChangeText={setMicManual} keyboardType="number-pad" placeholder="Dakika" placeholderTextColor={C.dim2} style={styles.input} />}
                     <TextInput value={micReason} onChangeText={setMicReason} placeholder="Sebep (opsiyonel)" placeholderTextColor={C.dim2} style={styles.input} />
-                    <Pressable disabled={busy} onPress={doMicBan} style={styles.dangerBtn}><Icon name="micoff" size={14} color="#FB7185" /><Txt weight="extrabold" size={12} color="#FB7185">Mikrofon Yasağı Ver</Txt></Pressable>
+                    <Aksiyon tint="#FB7185" icon="micoff" label="Mikrofon Yasağı Ver" disabled={busy} onPress={doMicBan} />
                     <Txt size={9.5} color={C.dim2} lh={1.4}>Yasaklı kullanıcı odalara girip dinler ama yazamaz / mikrofona çıkamaz.</Txt>
                   </View></View>
                 )}
 
-                <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>HESAP YASAĞI (UYGULAMA GENELİ)</Txt>
+                <Baslik>HESAP YASAĞI (UYGULAMA GENELİ)</Baslik>
                 {d.hesapYasakli ? (
                   <View style={styles.group}><View style={styles.gRow}>
                     <View style={{ flex: 1 }}>
                       <Txt weight="extrabold" size={12.5} color="#FB7185">Hesap yasaklı</Txt>
                       <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>{d.hesapBitis ? `Bitiş: ${zaman(d.hesapBitis)}` : "Kalıcı"}{d.hesapSebep ? ` · ${d.hesapSebep}` : ""}</Txt>
                     </View>
-                    <Pressable disabled={busy} onPress={() => run(() => accountUnban(d.id), "Yasak kaldırıldı")} style={[styles.chip, { backgroundColor: `${C.green}14`, borderColor: `${C.green}44` }]}><Txt weight="bold" size={10.5} color={C.green}>Kaldır</Txt></Pressable>
+                    <Aksiyon tint="#34D399" icon="check" label="Kaldır" disabled={busy} onPress={() => run(() => accountUnban(d.id), "Yasak kaldırıldı")} />
                   </View></View>
                 ) : (
                   <View style={styles.group}><View style={{ padding: 12, gap: 8 }}>
                     <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
                       {BAN_CHIPS.map(([lb, v]) => (
-                        <Pressable key={lb} onPress={() => setAccMin(v as number | null | "manual")} style={[styles.chip, accMin === v && { backgroundColor: "rgba(251,113,133,.12)", borderColor: "rgba(251,113,133,.34)" }]}><Txt weight="bold" size={10.5} color={accMin === v ? "#FB7185" : C.dim}>{lb}</Txt></Pressable>
+                        <Secim key={lb} on={accMin === v} label={lb} tint="#FB7185" onPress={() => setAccMin(v as number | null | "manual")} />
                       ))}
                     </View>
                     {accMin === "manual" && <TextInput value={accManual} onChangeText={setAccManual} keyboardType="number-pad" placeholder="Dakika" placeholderTextColor={C.dim2} style={styles.input} />}
                     <TextInput value={accReason} onChangeText={setAccReason} placeholder="Sebep (kullanıcıya gösterilir)" placeholderTextColor={C.dim2} style={styles.input} />
-                    <Pressable disabled={busy} onPress={doAccBan} style={styles.dangerBtn}><Icon name="ban" size={14} color="#FB7185" /><Txt weight="extrabold" size={12} color="#FB7185">Hesabı Yasakla</Txt></Pressable>
+                    <Aksiyon dolu tint="#E5484D" icon="ban" label="Hesabı Yasakla" disabled={busy} onPress={doAccBan} />
                     <Txt size={9.5} color={C.dim2} lh={1.4}>Yasaklı kullanıcı uygulamayı hiç kullanamaz; oturumu kapatılır ve girişte sebep + süreyle karşılaşır.</Txt>
                   </View></View>
                 )}
@@ -265,29 +359,27 @@ export default function AdminUserEdit() {
             {section === "identity" && (
               <>
                 {/* Ad + avatar: developer VE super_admin düzenleyebilir */}
-                <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>AD & AVATAR</Txt>
+                <Baslik>AD & AVATAR</Baslik>
                 <View style={styles.group}><View style={{ padding: 12, gap: 10 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                    <Portrait name={d.name} size={48} photo={d.photo} />
-                    <View style={{ flex: 1, gap: 6 }}>
-                      <Pressable disabled={busy} onPress={doAvatar} style={[styles.chip, { alignSelf: "flex-start" }]}>
-                        <Icon name="camera" size={12} color={C.gold2} /><Txt weight="bold" size={10.5} color={C.gold2} style={{ marginLeft: 5 }}>Avatarı Değiştir</Txt>
-                      </Pressable>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 13 }}>
+                    <Portrait name={d.name} size={54} photo={d.photo} />
+                    <View style={{ flex: 1, gap: 7 }}>
+                      <Aksiyon tint={C.gold2} icon="camera" label="Avatarı Değiştir" disabled={busy} onPress={doAvatar} />
                       {!!d.photo && (
-                        <Pressable disabled={busy} onPress={() => run(() => updateUserIdentity(d.id, undefined, ""), "Avatar kaldırıldı")} style={[styles.chip, { alignSelf: "flex-start" }]}>
-                          <Icon name="trash" size={12} color="#FB7185" /><Txt weight="bold" size={10.5} color="#FB7185" style={{ marginLeft: 5 }}>Avatarı Kaldır</Txt>
-                        </Pressable>
+                        <Aksiyon tint="#FB7185" icon="trash" label="Avatarı Kaldır" disabled={busy} onPress={() => run(() => updateUserIdentity(d.id, undefined, ""), "Avatar kaldırıldı")} />
                       )}
                     </View>
                   </View>
-                  <View style={{ flexDirection: "row", gap: 8 }}>
-                    <TextInput value={newName} onChangeText={setNewName} placeholder={`Mevcut ad: ${d.name}`} placeholderTextColor={C.dim2} style={[styles.input, { flex: 1 }]} />
-                    <Pressable disabled={busy || newName.trim().length < 2} onPress={() => run(() => updateUserIdentity(d.id, newName.trim()), "Ad değişti").then(() => setNewName(""))} style={[styles.actBtn, { flex: 0, paddingHorizontal: 16, opacity: newName.trim().length >= 2 ? 1 : 0.4 }]}><Txt weight="extrabold" size={12} color={C.gold2}>Kaydet</Txt></Pressable>
+                  {/* Girdi ve kaydet alt alta: yan yanayken buton daralıp
+                      dokunması zor bir şeride dönüşüyordu. */}
+                  <View style={{ gap: 8 }}>
+                    <TextInput value={newName} onChangeText={setNewName} placeholder={`Mevcut ad: ${d.name}`} placeholderTextColor={C.dim2} style={styles.input} />
+                    <Aksiyon dolu tint={C.gold2} label="Adı Kaydet" disabled={busy || newName.trim().length < 2} onPress={() => run(() => updateUserIdentity(d.id, newName.trim()), "Ad değişti").then(() => setNewName(""))} />
                   </View>
                 </View></View>
 
                 {/* Bilgiler: e-posta (görüntüleme herkese) + kayıt tarihi */}
-                <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>BİLGİLER</Txt>
+                <Baslik>BİLGİLER</Baslik>
                 <View style={styles.group}>
                   <View style={{ padding: 12 }}>
                     <Txt weight="bold" size={10} color={C.dim2}>E-POSTA</Txt>
@@ -301,19 +393,19 @@ export default function AdminUserEdit() {
                 </View>
 
                 {/* Özel ID hakları: beta = kapsül, premium = premium kart. Yalnız yönetici verir. */}
-                <Txt weight="bold" size={10.5} color={C.gold} style={styles.lbl}>ÖZEL ID HAKLARI</Txt>
+                <Baslik tint={C.gold}>ÖZEL ID HAKLARI</Baslik>
                 <View style={styles.group}><View style={{ padding: 12, gap: 10 }}>
                   {([["beta_tester", "Beta Tester", "Kapsül ID (6-7 hane) hakkı"], ["premium_hak", "Premium Hak", "Premium ID (≤5 hane) hakkı"]] as const).map(([alan, baslik, alt]) => {
                     const acik = alan === "beta_tester" ? !!haklar?.beta_tester : !!haklar?.premium_hak;
                     return (
+                      /* "Hak Var ✓" / "Hak Ver" bir butondu ama aslında
+                         aç/kapa durumu; anahtara çevrildi. */
                       <View key={alan} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                         <View style={{ flex: 1 }}>
                           <Txt weight="bold" size={12} color={C.text}>{baslik}</Txt>
-                          <Txt size={10} color={C.dim} style={{ marginTop: 2 }}>{alt}</Txt>
+                          <Txt size={10} color={acik ? "#6EE7B7" : C.dim} style={{ marginTop: 2 }}>{acik ? `Hak verildi · ${alt}` : alt}</Txt>
                         </View>
-                        <Pressable disabled={busy || !haklar} onPress={() => run(() => setUserHak(d.id, alan, !acik), acik ? `${baslik} kaldırıldı` : `${baslik} verildi`)} style={[styles.chip, acik && { backgroundColor: `${C.green}18`, borderColor: `${C.green}55` }]}>
-                          <Txt weight="extrabold" size={10.5} color={acik ? "#6EE7B7" : C.dim}>{acik ? "Hak Var ✓" : "Hak Ver"}</Txt>
-                        </Pressable>
+                        <Anahtar on={acik} disabled={busy || !haklar} onPress={() => run(() => setUserHak(d.id, alan, !acik), acik ? `${baslik} kaldırıldı` : `${baslik} verildi`)} />
                       </View>
                     );
                   })}
@@ -325,40 +417,48 @@ export default function AdminUserEdit() {
                 {isDev ? (
                   <>
                     {/* Rol: yalnızca developer */}
-                    <Txt weight="bold" size={10.5} color={C.gold} style={styles.lbl}>ROL (DEVELOPER)</Txt>
+                    <Baslik tint={C.gold}>ROL (DEVELOPER)</Baslik>
                     <View style={styles.group}><View style={{ padding: 12, gap: 8 }}>
                       <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
                         {(["user", "developer", "super_admin"] as const).map((rl) => (
-                          <Pressable key={rl} disabled={busy || d.rol === rl} onPress={() => run(() => setPlatformRole(d.id, rl), "Rol güncellendi")} style={[styles.chip, d.rol === rl && { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` }]}>
-                            <Txt weight="bold" size={10.5} color={d.rol === rl ? C.gold2 : C.dim}>{ROLE_LABEL[rl]}</Txt>
-                          </Pressable>
+                          <Secim key={rl} on={d.rol === rl} label={ROLE_LABEL[rl]} disabled={busy || d.rol === rl} onPress={() => run(() => setPlatformRole(d.id, rl), "Rol güncellendi")} />
                         ))}
                       </View>
                     </View></View>
 
-                    <Txt weight="bold" size={10.5} color={C.gold} style={styles.lbl}>GELİŞTİRİCİ — KİMLİK BİLGİLERİ</Txt>
+                    <Baslik tint={C.gold}>GELİŞTİRİCİ — KİMLİK BİLGİLERİ</Baslik>
                     <View style={styles.group}><View style={{ padding: 12, gap: 10 }}>
                       <View style={{ gap: 6 }}>
                         <Txt weight="bold" size={10} color={C.dim2}>KULLANICI ID</Txt>
-                        <View style={{ flexDirection: "row", gap: 8 }}>
-                          <TextInput value={newId} onChangeText={setNewId} placeholder={`Mevcut: ${d.publicId}`} placeholderTextColor={C.dim2} style={[styles.input, { flex: 1 }]} />
-                          <Pressable disabled={busy || !newId.trim()} onPress={() => run(() => changePublicId(d.id, newId), "ID değişti").then(() => setNewId(""))} style={[styles.actBtn, { flex: 0, paddingHorizontal: 16, opacity: newId.trim() ? 1 : 0.4 }]}><Txt weight="extrabold" size={12} color={C.gold2}>Kaydet</Txt></Pressable>
+                        <View style={{ gap: 8 }}><TextInput value={newId} onChangeText={setNewId} placeholder={`Mevcut: ${d.publicId}`} placeholderTextColor={C.dim2} style={[styles.input, { flex: 1 }]} />
+                          <Aksiyon dolu tint={C.gold2} label="Kaydet" disabled={busy || !newId.trim()} onPress={() => run(() => changePublicId(d.id, newId), "ID değişti").then(() => setNewId(""))} />
                         </View>
                       </View>
                       <View style={styles.divider} />
                       <View style={{ gap: 6 }}>
                         <Txt weight="bold" size={10} color={C.dim2}>E-POSTA DÜZENLE</Txt>
-                        <View style={{ flexDirection: "row", gap: 8 }}>
-                          <TextInput value={newEmail} onChangeText={setNewEmail} autoCapitalize="none" keyboardType="email-address" placeholder={d.email || "yeni@eposta.com"} placeholderTextColor={C.dim2} style={[styles.input, { flex: 1 }]} />
-                          <Pressable disabled={busy || !newEmail.includes("@")} onPress={() => run(() => changeEmail(d.id, newEmail), "E-posta değişti").then(() => setNewEmail(""))} style={[styles.actBtn, { flex: 0, paddingHorizontal: 16, opacity: newEmail.includes("@") ? 1 : 0.4 }]}><Txt weight="extrabold" size={12} color={C.gold2}>Kaydet</Txt></Pressable>
+                        <View style={{ gap: 8 }}><TextInput value={newEmail} onChangeText={setNewEmail} autoCapitalize="none" keyboardType="email-address" placeholder={d.email || "yeni@eposta.com"} placeholderTextColor={C.dim2} style={[styles.input, { flex: 1 }]} />
+                          <Aksiyon dolu tint={C.gold2} label="Kaydet" disabled={busy || !newEmail.includes("@")} onPress={() => run(() => changeEmail(d.id, newEmail), "E-posta değişti").then(() => setNewEmail(""))} />
                         </View>
                       </View>
                       <View style={styles.divider} />
                       <View style={{ gap: 6 }}>
                         <Txt weight="bold" size={10} color={C.dim2}>ŞİFRE SIFIRLA</Txt>
-                        <View style={{ flexDirection: "row", gap: 8 }}>
-                          <TextInput value={newPw} onChangeText={setNewPw} secureTextEntry placeholder="Yeni şifre (≥6)" placeholderTextColor={C.dim2} style={[styles.input, { flex: 1 }]} />
-                          <Pressable disabled={busy || newPw.length < 6} onPress={() => run(() => resetPassword(d.id, newPw), "Şifre sıfırlandı").then(() => setNewPw(""))} style={[styles.actBtn, { flex: 0, paddingHorizontal: 16, opacity: newPw.length >= 6 ? 1 : 0.4 }]}><Txt weight="extrabold" size={12} color={C.gold2}>Sıfırla</Txt></Pressable>
+                        <View style={{ gap: 8 }}>
+                          <TextInput value={newPw} onChangeText={setNewPw} secureTextEntry placeholder="Yeni şifre (≥6)" placeholderTextColor={C.dim2} style={styles.input} />
+                          {/* Şifre sıfırlama da geri alınamaz — onay ister */}
+                          <Aksiyon
+                            tint="#FB7185"
+                            icon="lock"
+                            label="Şifreyi Sıfırla"
+                            disabled={busy || newPw.length < 6}
+                            onPress={() => setOnay({
+                              baslik: "Şifreyi sıfırla?",
+                              metin: `${d.name} kullanıcısının şifresi değiştirilecek. Mevcut şifresiyle bir daha giriş yapamaz.`,
+                              btn: "Sıfırla",
+                              fn: () => run(() => resetPassword(d.id, newPw), "Şifre sıfırlandı").then(() => setNewPw("")),
+                            })}
+                          />
                         </View>
                       </View>
                     </View></View>
@@ -383,7 +483,7 @@ export default function AdminUserEdit() {
                   <View style={styles.sumCol}><Txt weight="displayBold" size={16} color="#5EEAD4">{new Set((history ?? []).map((h) => h.actorId)).size}</Txt><Txt size={8.5} color={C.dim2}>yönetici</Txt></View>
                 </View>
 
-                <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>UYGULANAN İŞLEMLER</Txt>
+                <Baslik>UYGULANAN İŞLEMLER</Baslik>
                 {history && history.length > 0 ? (
                   <View style={styles.group}>
                     {history.map((h, i) => (
@@ -444,6 +544,15 @@ const styles = StyleSheet.create({
   onayKart: { borderRadius: 24, padding: 22, alignItems: "center", backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(251,113,133,.28)" },
   onayIkon: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.14)", borderWidth: 1, borderColor: "rgba(251,113,133,.34)" },
   onayBtn: { flex: 1, paddingVertical: 13, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  // Seçim çipi: bir seçeneği işaretler, tek başına bir şey yapmaz.
+  secim: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 8, paddingHorizontal: 13, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
+  // Aksiyon butonu: basınca iş yapar. Seçimden ayrılsın diye köşeli ve dolgun.
+  aksiyon: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 13, borderWidth: 1.5 },
+  anahtar: { width: 44, height: 25, borderRadius: 999, padding: 2.5, justifyContent: "center" },
+  anahtarTopuz: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },
+  uyariRozet: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 999, backgroundColor: "rgba(251,113,133,.14)", borderWidth: 1, borderColor: "rgba(251,113,133,.34)" },
+  bakiyeKutu: { flex: 1, alignItems: "center", gap: 4, paddingVertical: 14 },
+  dikeyAyirici: { width: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,.12)" },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   group: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
