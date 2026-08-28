@@ -23,6 +23,7 @@ import { GiftFx } from "@/components/GiftFx";
 import { Pill } from "@/components/Pill";
 import { Portrait } from "@/components/Portrait";
 import { RoomEntryGate } from "@/components/RoomEntryGate";
+import { RoomBadges } from "@/components/RoomBadges";
 import { RolePill } from "@/components/RolePill";
 import { Scene } from "@/components/Scene";
 import { Sheet } from "@/components/Sheet";
@@ -721,9 +722,15 @@ export default function RoomScreen() {
                   <Txt weight="extrabold" size={13.5} color="#fff" numberOfLines={1}>
                     {roomName}
                   </Txt>
-                  <Txt weight="semibold" size={10.5} color="rgba(255,255,255,.55)" style={{ marginTop: 1 }}>
-                    ID: {room.id}
-                  </Txt>
+                  {/* Odanın kazandığı rozetler ID'nin hemen yanında, dar
+                      aralıkla. Rozetler yalnızca oda listesindeki kartta
+                      görünüyordu; odanın içinde hiç yoktu. */}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 1 }}>
+                    <Txt weight="semibold" size={10.5} color="rgba(255,255,255,.55)">
+                      ID: {room.id}
+                    </Txt>
+                    {!!room.badges?.length && <RoomBadges badges={room.badges} size={14} />}
+                  </View>
                 </View>
               </Pressable>
               <View style={{ flex: 1 }} />
