@@ -16,6 +16,14 @@ import { Gradient } from "@/theme/Gradient";
 
 const { width: SCREEN } = Dimensions.get("window");
 
+/**
+ * Banner en/boy oranı. Tek doğru kaynak: yükleme ekranındaki kırpma
+ * (admin-banner-edit) ve buradaki çerçeve aynı oranı kullanmalı — eskiden
+ * kırpma 16:9 idi ama çerçeve sabit 118px yükseklikle ~3:1 çiziyordu, bu
+ * yüzden yüklenen fotoğrafın alt-üstü kayboluyordu.
+ */
+export const BANNER_ORAN = 5 / 2;
+
 /** Banner id → paketlenmiş görsel. Verilen banner tam-kaplama görsel olarak basılır. */
 const BANNER_IMG: Record<string, number> = {
   guncelleme: require("../../assets/images/update-banner.png"),
@@ -75,8 +83,14 @@ function Banner({ b, onPress }: { b: EventBanner; onPress: () => void }) {
       ) : (
         <View style={styles.banner}>
           {b.image ? (
+            /* Fotoğraf hiç kırpılmasın: arkada bulanık bir kopya çerçeveyi
+               doldurur, önde görselin tamamı "contain" ile oturur. Banner
+               oranında yüklenen foto tam kaplar; farklı orandaki eski
+               banner'larda boşluk siyah bant yerine kendi renkleriyle dolar. */
             <>
-              <Image source={{ uri: b.image }} style={StyleSheet.absoluteFill} contentFit="cover" />
+              <Image source={{ uri: b.image }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={22} />
+              <View style={styles.blurTint} pointerEvents="none" />
+              <Image source={{ uri: b.image }} style={StyleSheet.absoluteFill} contentFit="contain" />
               <Gradient colors={["rgba(8,8,12,.15)", "rgba(8,8,12,.72)"]} deg={180} style={StyleSheet.absoluteFill} pointerEvents="none" />
             </>
           ) : (
@@ -155,7 +169,8 @@ export function EventBanners() {
 }
 
 const styles = StyleSheet.create({
-  banner: { height: 118, borderRadius: 20, overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
+  banner: { width: "100%", aspectRatio: BANNER_ORAN, borderRadius: 20, overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
+  blurTint: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(8,8,12,.42)" },
   glow: { position: "absolute", right: -28, top: -34, width: 150, height: 150, borderRadius: 75 },
   emblem: { width: 62, height: 62, borderRadius: 19, overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.2)" },
   tag: { paddingVertical: 1.5, paddingHorizontal: 6, borderRadius: 5 },

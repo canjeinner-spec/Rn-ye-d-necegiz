@@ -649,10 +649,9 @@ export default function RoomScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <KeyboardAware>
           <View style={styles.topbar}>
+            {/* Geri oku yok: odadan çıkış zaten sağdaki güç düğmesinde ve
+                sistemin geri hareketinde. Oda çipi en sola dayanıyor. */}
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Pressable onPress={minimize} hitSlop={8} style={{ padding: 2 }}>
-                <Icon name="back" size={22} color="#fff" />
-              </Pressable>
               <Pressable onPress={() => { setPanelOpen(true); }} style={styles.roomChip}>
                 <View style={styles.thumb}>
                   {room.photo ? <Image source={{ uri: room.photo }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
@@ -1040,7 +1039,9 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
     paddingRight: 13,
     borderRadius: 14,
-    maxWidth: "66%",
+    // Geri oku kalkınca çip sola kayar; topbar dolgusunun bir kısmını da yer.
+    marginLeft: -7,
+    maxWidth: "72%",
     backgroundColor: "rgba(0,0,0,.35)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,.14)",

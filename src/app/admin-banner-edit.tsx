@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { BANNER_ORAN } from "@/components/EventBanners";
 import { Txt } from "@/components/Txt";
 import {
   createBanner, getBanner, updateBanner,
@@ -61,7 +62,9 @@ export default function AdminBannerEdit() {
     if (busy) return;
     setBusy(true);
     try {
-      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [16, 9], quality: 0.85, base64: true });
+      // Kırpma oranı banner çerçevesiyle birebir aynı olmalı, yoksa burada
+      // seçilen alanın alt-üstü ana ekranda görünmez.
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [5, 2], quality: 0.85, base64: true });
       if (!res.canceled && res.assets[0]?.base64) setFoto(await uploadAvatar(res.assets[0].base64, res.assets[0].uri));
     } catch { flash("Foto yüklenemedi"); }
     finally { setBusy(false); }
@@ -139,6 +142,7 @@ export default function AdminBannerEdit() {
                 </Pressable>
                 {!!foto && <Pressable onPress={() => setFoto(null)}><Icon name="x" size={14} color="#FB7185" /></Pressable>}
               </View>
+              <Txt size={9.5} color={C.dim2} lh={1.4}>Önerilen ölçü 1500×600 (5:2). Önizleme banner'da göreceğinin birebir aynısı.</Txt>
               {!!foto && <View style={styles.preview}><Image source={{ uri: foto }} style={StyleSheet.absoluteFill} contentFit="cover" /></View>}
             </View></View>
 
@@ -192,7 +196,8 @@ const styles = StyleSheet.create({
   chip: { flexDirection: "row", alignItems: "center", paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", justifyContent: "center" },
   sablonChip: { flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   note: { marginBottom: 4, marginTop: 8, paddingVertical: 9, borderRadius: 12, backgroundColor: `${C.gold}14`, borderWidth: 1, borderColor: `${C.gold}33` },
-  preview: { width: "100%", aspectRatio: 16 / 9, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.04)" },
+  // Ana ekrandaki banner çerçevesiyle aynı oran — önizleme yanıltmasın.
+  preview: { width: "100%", aspectRatio: BANNER_ORAN, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.04)" },
   delBtn: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.1)", borderWidth: 1, borderColor: "rgba(251,113,133,.28)" },
   addBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 11, borderRadius: 12, backgroundColor: `${C.gold}14`, borderWidth: 1, borderColor: `${C.gold}44` },
   saveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 12, backgroundColor: C.gold2, marginTop: 20 },
