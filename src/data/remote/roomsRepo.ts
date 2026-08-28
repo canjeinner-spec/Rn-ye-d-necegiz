@@ -35,7 +35,9 @@ function mapRoom(r: OdaRow, hostName: string, myId: number | null): Room {
     online: r.aktif_katilimci_sayisi,
     mic: 0, // canlı koltuk verisi Faz 4 (presence) ile gelecek
     extra: r.aktif_katilimci_sayisi,
-    live: true,
+    // "live" sabit true idi; boş oda dahil her oda "Canlı" rozeti alıyordu.
+    // İçinde kimse yoksa oda canlı değildir.
+    live: r.aktif_katilimci_sayisi > 0,
     scene: toScene(r.kategori),
     locked: !r.herkese_acik,
     owner: myId != null && r.olusturan_id === myId,
@@ -196,6 +198,16 @@ export async function getRoomMembers(odaId: number): Promise<{ members: RoomMemb
     .sort((a, b) => order[a.rol] - order[b.rol] || a.katilma.localeCompare(b.katilma));
   const myRole = me ? (rows.find((r) => r.kullanici_id === me.id)?.rol ?? null) : null;
   return { members, myRole };
+}
+
+/** Üye olduğum odaların dbId listesi — ana sayfadaki "Katıldıklarım" sekmesi. */
+export async function getMyRoomIds(): Promise<number[]> {
+  const sb = requireSupabase();
+  const me = await getMyProfile();
+  if (!me) return [];
+  const { data, error } = await sb.from("oda_uyeleri").select("oda_id").eq("kullanici_id", me.id);
+  if (error) throw error;
+  return ((data as { oda_id: number }[]) ?? []).map((r) => r.oda_id);
 }
 
 /**

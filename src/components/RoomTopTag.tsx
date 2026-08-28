@@ -25,17 +25,17 @@ export function RoomTopTag({ kind, rank = 1 }: { kind: RoomTier; rank?: number }
   const daily = kind === "daily";
   return (
     <View style={styles.tag}>
-      <Gradient colors={daily ? ["#A78BFA", "#7C3AED"] : ["#60A5FA", "#2563EB"]} deg={135} style={StyleSheet.absoluteFill} />
-      <Txt weight="extrabold" size={10.5} color="#fff" style={{ letterSpacing: 0.3 }}>{daily ? `Daily Top${rank}` : "Resmî Oda"}</Txt>
+      <Gradient colors={daily ? ["#F5CE6E", "#B4791C"] : ["#E8C36B", "#8A5E12"]} deg={135} style={StyleSheet.absoluteFill} />
+      <Txt weight="extrabold" size={10.5} color="#2E2105" style={{ letterSpacing: 0.3 }}>{daily ? `Daily Top${rank}` : "Resmî Oda"}</Txt>
       {daily && <Shimmer />}
     </View>
   );
 }
 
 export function RoomCrest({ kind }: { kind: RoomTier }) {
-  const fill = kind === "daily" ? "#C4B5FD" : "#93C5FD";
+  const fill = kind === "daily" ? "#F0D9A0" : "#E3C588";
   return (
-    <Svg width={124} height={124} viewBox="0 0 100 100">
+    <Svg width={96} height={96} viewBox="0 0 100 100">
       {kind === "daily" ? (
         <>
           <Path d="M28 18 H72 V32 C72 46 62 55 50 55 C38 55 28 46 28 32 Z" fill={fill} fillOpacity={0.18} />
