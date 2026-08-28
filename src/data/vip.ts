@@ -4,9 +4,14 @@
 export type VipTierKey = "asil" | "hukumdar";
 export type VipTier = { name: string; color: string; grad: [string, string]; price: string; monthly: number; count: number };
 
+/**
+ * Kademe renkleri uygulamanın siyah-altın temasına göre:
+ * Asil = bronz (giriş kademesi), Hükümdar = parlak altın (en üst).
+ * Hükümdar eskiden mordu; tema dışıydı ve "üst kademe" hissi vermiyordu.
+ */
 export const VIP_TIERS: Record<VipTierKey, VipTier> = {
-  asil: { name: "Asil", color: "#D9A05B", grad: ["#D9A05B", "#8A5A2B"], price: "₺299,99", monthly: 2100, count: 11 },
-  hukumdar: { name: "Hükümdar", color: "#A855F7", grad: ["#A855F7", "#7C3AED"], price: "₺599,99", monthly: 4500, count: 14 },
+  asil: { name: "Asil", color: "#D9A05B", grad: ["#E0A45C", "#8A5A2B"], price: "₺299,99", monthly: 2100, count: 11 },
+  hukumdar: { name: "Hükümdar", color: "#F5CE6E", grad: ["#FBE08C", "#C8922B"], price: "₺599,99", monthly: 4500, count: 14 },
 };
 
 export type VipPerk = { d: string; t: string; s: string };

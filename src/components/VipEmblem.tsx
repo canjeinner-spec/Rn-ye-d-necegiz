@@ -29,14 +29,16 @@ export function VipEmblem({ tier = "asil", s = 120 }: { tier?: VipTierKey; s?: n
               : [["0", "#FDE7C4"], ["0.5", "#D9A05B"], ["1", "#8A5A2B"]]
             ).map(([o, c]) => <Stop key={o} offset={o} stopColor={c} />)}
           </LinearGradient>
+          {/* Taşlar ve hale, kademe renkleriyle uyumlu (Hükümdar mordu;
+              kademe altına çevrilince amblem tek başına mor kalıyordu). */}
           <LinearGradient id={`${gid}_jewel`} x1="0" y1="0" x2="1" y2="1">
             {(royal
-              ? [["0", "#D8B4FE"], ["1", "#7C3AED"]]
+              ? [["0", "#FFF6D6"], ["1", "#C8922B"]]
               : [["0", "#FCA5A5"], ["1", "#B45309"]]
             ).map(([o, c]) => <Stop key={o} offset={o} stopColor={c} />)}
           </LinearGradient>
           <RadialGradient id={`${gid}_halo`} cx="0.5" cy="0.5" r="0.5">
-            <Stop offset="0" stopColor={royal ? "rgba(168,85,247,.5)" : "rgba(245,206,110,.4)"} />
+            <Stop offset="0" stopColor={royal ? "rgba(245,206,110,.55)" : "rgba(217,160,91,.4)"} />
             <Stop offset="1" stopColor="rgba(0,0,0,0)" />
           </RadialGradient>
         </Defs>
