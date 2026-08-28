@@ -6,6 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { CenterModal } from "@/components/CenterModal";
 import { EquippedBadge } from "@/components/EquippedBadge";
+import { KopyaBtn } from "@/components/KopyaBtn";
 import { OzelIdGosterim } from "@/components/OzelId";
 import { PngBadge } from "@/components/PngBadge";
 import { levelTierBadge } from "@/data/badges";
@@ -137,7 +138,6 @@ export default function UserProfileScreen() {
     setActiveDM(thread);
     router.navigate("/dm-chat");
   };
-  const copyId = () => { haptic.select(); setCopied(true); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => setCopied(false), 1200); };
   const toggleBlock = () => {
     setMenu(false);
     haptic.medium();
@@ -185,14 +185,13 @@ export default function UserProfileScreen() {
             {self && myOzelId && myOzelIdTip && myOzelIdTema ? (
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
                 <OzelIdGosterim id={myOzelId} tip={myOzelIdTip} tema={myOzelIdTema} premiumWidth={92} kapsulSize={9} />
-                <Icon name="copy" size={12} color={C.dim2} />
+                <KopyaBtn deger={myOzelId} />
               </View>
             ) : (
-              <Pressable onPress={copyId} style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
                 <Txt weight="semibold" size={11.5} color={C.dim}>ID: {id}</Txt>
-                <Icon name="copy" size={12} color={C.dim2} />
-                {copied && <Txt weight="bold" size={9.5} color={C.green}>Kopyalandı</Txt>}
-              </Pressable>
+                <KopyaBtn deger={id} />
+              </View>
             )}
             <View style={{ flexDirection: "row", gap: 14, marginTop: 11, alignItems: "center" }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>

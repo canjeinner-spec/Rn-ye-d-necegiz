@@ -18,6 +18,7 @@ import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { getFollowCounts } from "@/data/remote/followRepo";
 import { EquippedBadge } from "@/components/EquippedBadge";
+import { KopyaBtn } from "@/components/KopyaBtn";
 import { getUserBadges, type KazanilmisRozet } from "@/data/remote/badgeRepo";
 import { getVisitorCount } from "@/data/remote/visitRepo";
 import { updateMyProfile } from "@/data/remote/profileRepo";
@@ -167,12 +168,12 @@ export default function ProfileTab() {
                   <Pressable onPress={() => { haptic.light(); setOzelIdInfo(true); }}>
                     <OzelIdGosterim id={ozelId} tip={ozelIdTip} tema={ozelIdTema} premiumWidth={88} kapsulSize={8} />
                   </Pressable>
-                  <Icon name="copy" size={12} color={C.dim2} />
+                  <KopyaBtn deger={ozelId} />
                 </View>
               ) : (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
                   <Txt weight="semibold" size={10.5} color={C.dim}>ID: {publicId || "—"}</Txt>
-                  <Icon name="copy" size={12} color={C.dim2} />
+                  <KopyaBtn deger={publicId} />
                 </View>
               )}
             </View>

@@ -259,13 +259,23 @@ export default function RoomScreen() {
   // Oda içi rolüm: DB odada gerçek üyelikten (sahip→host, yardimci→mod);
   // mock odada eski demo davranışı (host) korunur.
   const [myRoomRole, setMyRoomRole] = useState<"host" | "mod" | "user">(isDbRoom ? "user" : "host");
+  // uid -> rol. Odadaki kullanıcılar listesinde kimin sahip/yardımcı olduğunu
+  // göstermek için; eskiden yalnız kendi rolüm alınıp liste atılıyordu, bu
+  // yüzden canlı odada hiç kimsenin rolü görünmüyordu.
+  const [roomRoles, setRoomRoles] = useState<Map<number, "host" | "mod">>(new Map());
   useEffect(() => {
     if (!isDbRoom || !dbId) return;
     let alive = true;
     getRoomMembers(dbId)
-      .then(({ myRole }) => {
+      .then(({ members, myRole }) => {
         if (!alive) return;
         setMyRoomRole(myRole === "sahip" ? "host" : myRole === "yardimci" ? "mod" : "user");
+        const m = new Map<number, "host" | "mod">();
+        for (const u of members) {
+          if (u.rol === "sahip") m.set(u.id, "host");
+          else if (u.rol === "yardimci") m.set(u.id, "mod");
+        }
+        setRoomRoles(m);
       })
       .catch(() => {});
     return () => { alive = false; };
@@ -841,6 +851,7 @@ export default function RoomScreen() {
           {isDbRoom
             ? liveMembers.map((m) => {
                 const isMe = m.uid === myDbId;
+                const rol = roomRoles.get(m.uid);
                 return (
                   <Pressable
                     key={m.uid}
@@ -851,10 +862,18 @@ export default function RoomScreen() {
                     }}
                     style={styles.userRow}
                   >
-                    <Portrait name={m.name} size={40} ring="rgba(255,255,255,.14)" online photo={isMe ? userPhoto || undefined : m.photo} />
+                    <Portrait
+                      name={m.name}
+                      size={40}
+                      ring={rol === "host" ? C.gold : rol === "mod" ? C.teal : "rgba(255,255,255,.14)"}
+                      glow={!!rol}
+                      online
+                      photo={isMe ? userPhoto || undefined : m.photo}
+                    />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        <Txt weight="extrabold" size={12.5} color={C.text}>{isMe ? userName : m.name}</Txt>
+                        <Txt weight="extrabold" size={12.5} color={rol === "host" ? C.gold2 : C.text}>{isMe ? userName : m.name}</Txt>
+                        {rol && <RolePill type={rol} />}
                         {isMe && privileged && <AuthorityTag size={8} />}
                       </View>
                       <Txt weight="semibold" size={10} color={C.green} style={{ marginTop: 3 }}>Odada</Txt>

@@ -1,11 +1,13 @@
 import { BlurView } from "expo-blur";
+import * as Clipboard from "expo-clipboard";
 import { Image } from "expo-image";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Animated, { SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Portrait } from "@/components/Portrait";
+import { RolePill } from "@/components/RolePill";
 import { Scene } from "@/components/Scene";
 import { Txt } from "@/components/Txt";
 import { getRoomMembers, joinRoomMembership, leaveRoomMembership, removeRoomMember, setRoomMemberRole, type RoomMember, type RoomRole } from "@/data/remote/roomsRepo";
@@ -129,6 +131,18 @@ export function RoomPanel(props: Props) {
     try { await setRoomMemberRole(dbId, m.id, rol); reloadMembers(); } catch (e) { console.warn("[rol-ata]", (e as Error)?.message || e); }
   };
 
+  // Oda ID'sini panoya kopyala. Kopyalama ikonu önceden yalnızca süstü.
+  const [kopyalandi, setKopyalandi] = useState(false);
+  const kopyaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (kopyaTimer.current) clearTimeout(kopyaTimer.current); }, []);
+  const idKopyala = async () => {
+    haptic.success();
+    try { await Clipboard.setStringAsync(String(room.id)); } catch { /* pano yoksa sessiz geç */ }
+    setKopyalandi(true);
+    if (kopyaTimer.current) clearTimeout(kopyaTimer.current);
+    kopyaTimer.current = setTimeout(() => setKopyalandi(false), 1400);
+  };
+
   const uyeSayisi = live ? dbMembers.length : members.length;
   // Room tipinde sahibin fotoğrafı yok, yalnızca adı var. Gerçek odada üye
   // listesindeki "sahip" kaydından alınıyor — orada profil resmi mevcut.
@@ -194,10 +208,11 @@ export function RoomPanel(props: Props) {
                       <Txt weight="displayBold" size={18} color="#fff" numberOfLines={1} style={{ flexShrink: 1 }}>{roomName}</Txt>
                       {locked && <Icon name="lock" size={14} color={C.gold} />}
                     </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
+                    <Pressable onPress={idKopyala} hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
                       <Txt weight="semibold" size={11} color="rgba(255,255,255,.62)">ID: {room.id}</Txt>
-                      <Icon name="copy" size={11} color="rgba(255,255,255,.45)" />
-                    </View>
+                      <Icon name={kopyalandi ? "check" : "copy"} size={11} sw={kopyalandi ? 3 : undefined} color={kopyalandi ? C.green : "rgba(255,255,255,.45)"} />
+                      {kopyalandi && <Txt weight="bold" size={9.5} color={C.green}>Kopyalandı</Txt>}
+                    </Pressable>
                   </View>
                 </View>
               </View>
@@ -259,20 +274,17 @@ export function RoomPanel(props: Props) {
                       const canEdit =
                         m.rol !== "sahip" &&
                         (myRole === "sahip" || canManage || (myRole === "yardimci" && m.rol === "uye"));
-                      const roleColor = m.rol === "sahip" ? C.gold2 : m.rol === "yardimci" ? C.purple2 : C.dim;
-                      const roleLabel = m.rol === "sahip" ? "Sahip" : m.rol === "yardimci" ? "Yardımcı" : null;
+                      // Rol etiketi uygulamanın her yerinde aynı olsun diye RolePill
+                      // ("Oda Sahibi" / "Yardımcı"); burada "Sahip" yazıyordu.
+                      const rol = m.rol === "sahip" ? "host" : m.rol === "yardimci" ? "mod" : null;
                       return (
                         <View key={m.id}>
                           <Pressable onPress={canEdit ? () => setExpanded(isOpen ? null : i) : undefined} style={styles.memberRow}>
-                            <Portrait name={m.name} size={42} photo={m.photo} />
+                            <Portrait name={m.name} size={42} photo={m.photo} ring={rol === "host" ? C.gold : rol === "mod" ? C.teal : undefined} glow={!!rol} />
                             <View style={{ flex: 1, minWidth: 0 }}>
                               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                                <Txt weight="extrabold" size={13} color={m.rol === "sahip" ? C.gold2 : C.text}>{m.name}</Txt>
-                                {roleLabel && (
-                                  <View style={{ borderRadius: 999, paddingVertical: 2, paddingHorizontal: 7, backgroundColor: (m.rol === "sahip" ? C.gold : C.purple2) + "1F", borderWidth: 1, borderColor: (m.rol === "sahip" ? C.gold : C.purple2) + "44" }}>
-                                    <Txt weight="extrabold" size={9} color={roleColor}>{roleLabel}</Txt>
-                                  </View>
-                                )}
+                                <Txt weight="extrabold" size={13} color={rol === "host" ? C.gold2 : C.text}>{m.name}</Txt>
+                                {rol && <RolePill type={rol} />}
                               </View>
                               <Txt size={10.5} color={C.dim2} style={{ marginTop: 2 }}>ID: {m.publicId}</Txt>
                             </View>
@@ -301,20 +313,15 @@ export function RoomPanel(props: Props) {
                   members.map((m, i) => {
                     const isOpen = expanded === i;
                     const canEdit = canManage && m.role !== "host";
-                    const roleColor = m.role === "host" ? C.gold2 : m.role === "mod" ? C.purple2 : C.dim;
-                    const roleLabel = m.role === "host" ? "Sahip" : m.role === "mod" ? "Yardımcı" : null;
+                    const rol = m.role === "host" ? "host" : m.role === "mod" ? "mod" : null;
                     return (
                       <View key={m.name + i}>
                         <Pressable onPress={canEdit ? () => setExpanded(isOpen ? null : i) : undefined} style={styles.memberRow}>
-                          <Portrait name={m.name} size={42} online={m.active} />
+                          <Portrait name={m.name} size={42} online={m.active} ring={rol === "host" ? C.gold : rol === "mod" ? C.teal : undefined} glow={!!rol} />
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                              <Txt weight="extrabold" size={13} color={m.role === "host" ? C.gold2 : C.text}>{m.name}</Txt>
-                              {roleLabel && (
-                                <View style={{ borderRadius: 999, paddingVertical: 2, paddingHorizontal: 7, backgroundColor: (m.role === "host" ? C.gold : C.purple2) + "1F", borderWidth: 1, borderColor: (m.role === "host" ? C.gold : C.purple2) + "44" }}>
-                                  <Txt weight="extrabold" size={9} color={roleColor}>{roleLabel}</Txt>
-                                </View>
-                              )}
+                              <Txt weight="extrabold" size={13} color={rol === "host" ? C.gold2 : C.text}>{m.name}</Txt>
+                              {rol && <RolePill type={rol} />}
                             </View>
                             <Txt size={10.5} color={C.dim2} style={{ marginTop: 2 }}>{m.active ? "Bugün" : "1 gün önce"} aktifti</Txt>
                           </View>
