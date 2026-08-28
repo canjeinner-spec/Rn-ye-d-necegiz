@@ -1071,7 +1071,21 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,.09)",
   },
   thumb: { width: 32, height: 32, borderRadius: 9, overflow: "hidden" },
-  trophy: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 3, paddingLeft: 7, paddingRight: 8, borderRadius: 8, backgroundColor: "rgba(217,119,6,.25)" },
+  // Oda çipiyle aynı dil: sol duvara yapışık, solu köşeli, sağı ovalleşiyor.
+  trophy: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 3.5,
+    paddingLeft: 12,
+    paddingRight: 10,
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+    borderTopRightRadius: 999,
+    borderBottomRightRadius: 999,
+    marginLeft: -14,
+    backgroundColor: "rgba(217,119,6,.25)",
+  },
   countBadge: { alignItems: "center", justifyContent: "center", minWidth: 34, height: 34, paddingHorizontal: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,.1)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
   // WePlay'de ızgaranın yatay dolgusu yok: sütunlar tam ekranın dörtte biri.
   // Dolgu koydukça sütun daralıyor, aynı çaptaki koltuk sıkışık görünüyordu.
