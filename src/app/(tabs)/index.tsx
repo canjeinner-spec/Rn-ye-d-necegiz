@@ -152,16 +152,22 @@ export default function Home() {
   );
 
   /**
-   * GÖRÜNÜRLÜK KURALI — her sekmede geçerli: gizli (kilitli), yasaklandığım
-   * ve boş odalar listede ASLA görünmez. Kilitli oda zaten "listede
-   * görünmez" sözüyle kilitleniyor; girilemeyecek ya da bomboş bir odayı
-   * listelemenin de faydası yok. Kendi odam istisna — boş da olsa görürüm.
+   * GÖRÜNÜRLÜK KURALI — her sekmede, istisnasız geçerli. Listede yeri
+   * olmayan odalar:
+   *   • gizli/kilitli   — zaten "listede görünmez" sözüyle kilitleniyor
+   *   • yasaklandığım   — giremeyeceğim odayı listelemenin anlamı yok
+   *   • işlem görmüş    — yönetim işlemi olan oda tanıtılmaz (054)
+   *   • boş             — içinde kimse olmayan odaya sokmanın faydası yok
+   * (Silinmiş odalar zaten sunucuda RLS ile eleniyor.)
+   *
+   * Kendi odam için istisna YOK: sahip odasına profildeki "Odam"
+   * bölümünden giriyor, listeye boş oda düşürmeye gerek kalmıyor.
    */
   const gorunur = useMemo(() => {
     const yasak = new Set(yasakliOdaIds ?? []);
     return tumOdalar.filter((r) => {
-      if (r.owner) return true;
       if (r.locked) return false;
+      if (r.islemGordu) return false;
       if (r.dbId != null && yasak.has(r.dbId)) return false;
       return r.online > 0;
     });
@@ -237,7 +243,7 @@ export default function Home() {
                     ? "Resmî odalar açıldığında burada listelenir."
                     : tab === 2
                       ? `Son ${YENI_ODA_GUN} günde açılmış aktif bir oda yok.`
-                      : "Boş, kilitli ve yasaklı odalar listelenmez. Sen bir oda açarak başlayabilirsin."}
+                      : "Boş, kilitli, yasaklı ve işlem görmüş odalar listelenmez. Sen bir oda açarak başlayabilirsin."}
                 </Txt>
               </View>
             )}
