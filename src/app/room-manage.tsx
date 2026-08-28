@@ -10,6 +10,7 @@ import { Scene } from "@/components/Scene";
 import { Txt } from "@/components/Txt";
 import { listRoomBans, setRoomPassword, unbanRoomUser, updateRoomSettings, type RoomBan } from "@/data/remote/roomsRepo";
 import { Icon } from "@/icons/Icon";
+import { type IconName } from "@/icons/paths";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
@@ -27,6 +28,36 @@ function kickZamani(at: number) {
 }
 
 type EditField = { key: "name" | "announce"; label: string; multiline?: boolean } | null;
+
+/** Bölüm başlığı — üç bölümün de aralığı ve tipografisi aynı olsun diye tek yerde. */
+function Bolum({ baslik, adet }: { baslik: string; adet?: number }) {
+  return (
+    <View style={styles.bolum}>
+      <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5 }}>{baslik}</Txt>
+      {!!adet && (
+        <View style={styles.countPill}>
+          <Txt weight="extrabold" size={9.5} color={C.red}>{adet}</Txt>
+        </View>
+      )}
+    </View>
+  );
+}
+
+/** Ayar satırı — ikon kutusu + başlık + mevcut değer + ok. */
+function Satir({ icon, tint, baslik, deger, onPress }: { icon: IconName; tint: string; baslik: string; deger: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={styles.row}>
+      <View style={[styles.rowIcon, { backgroundColor: `${tint}1A` }]}>
+        <Icon name={icon} size={15} color={tint} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Txt weight="extrabold" size={12.5} color={C.text}>{baslik}</Txt>
+        <Txt size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>{deger || "—"}</Txt>
+      </View>
+      <Icon name="chev" size={14} color={C.dim2} />
+    </Pressable>
+  );
+}
 
 export default function RoomManageScreen() {
   const router = useRouter();
@@ -102,79 +133,61 @@ export default function RoomManageScreen() {
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
             <Icon name="back" size={16} color={C.text} />
           </Pressable>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Icon name="gear" size={17} color={C.gold} />
+          <View style={{ flex: 1, minWidth: 0 }}>
             <Txt weight="displayBold" size={16} color="#fff">Oda Yönetimi</Txt>
+            <Txt weight="semibold" size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>
+              {roomName}{currentRoom?.id ? ` · ID:${currentRoom.id}` : ""}
+            </Txt>
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
-          <Txt weight="bold" size={10.5} color={C.dim} style={styles.sectionLbl}>ODA BİLGİLERİ</Txt>
-
-          <View style={styles.group}>
-            {live && isOwner && (
-              <>
-                <Pressable onPress={() => router.navigate("/room-manage-edit?section=avatar")} style={[styles.row, styles.rowInGroup]}>
-                  <View style={styles.avatarThumb}>
-                    {currentRoom?.photo ? <Image source={{ uri: currentRoom.photo }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={currentRoom?.scene ?? "club"} />}
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 6, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
+          {/* Görsel ayarlar — kapak ve tema listede yan yana iki önizleme.
+              Eskiden ikisi de 34px'lik aynı Scene küçük resmiyle satır halindeydi,
+              üst üste iki tıpatıp satır gibi görünüyordu. */}
+          {live && isOwner && (
+            <>
+              <Bolum baslik="ODA GÖRÜNÜMÜ" />
+              <View style={{ flexDirection: "row", gap: 11 }}>
+                <Pressable onPress={() => router.navigate("/room-manage-edit?section=avatar")} style={styles.onizlemeKart}>
+                  <View style={styles.onizleme}>
+                    {currentRoom?.photo
+                      ? <Image source={{ uri: currentRoom.photo }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                      : <View style={styles.onizlemeBos}><Icon name="camera" size={20} color={C.dim2} /></View>}
                   </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Txt weight="extrabold" size={12.5} color={C.text}>Avatar</Txt>
-                    <Txt size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>{currentRoom?.photo ? "Kapak fotoğrafı ayarlı" : "Henüz kapak yok"}</Txt>
+                  <View style={styles.onizlemeAlt}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Txt weight="extrabold" size={12} color={C.text}>Kapak</Txt>
+                      <Txt size={9.5} color={C.dim} numberOfLines={1} style={{ marginTop: 1 }}>{currentRoom?.photo ? "Ayarlı" : "Yok"}</Txt>
+                    </View>
+                    <Icon name="edit" size={13} color={C.dim2} />
                   </View>
-                  <Icon name="chev" size={14} color={C.dim2} />
                 </Pressable>
 
-                <View style={styles.divider} />
-
-                <Pressable onPress={() => router.navigate("/room-manage-edit?section=tema")} style={[styles.row, styles.rowInGroup]}>
-                  <View style={[styles.avatarThumb, { alignItems: "center", justifyContent: "center" }]}>
+                <Pressable onPress={() => router.navigate("/room-manage-edit?section=tema")} style={styles.onizlemeKart}>
+                  <View style={styles.onizleme}>
                     <Scene kind={currentRoom?.scene ?? "club"} />
                   </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Txt weight="extrabold" size={12.5} color={C.text}>Tema</Txt>
-                    <Txt size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>{THEME_LABEL[currentRoom?.scene ?? "club"]}</Txt>
+                  <View style={styles.onizlemeAlt}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Txt weight="extrabold" size={12} color={C.text}>Tema</Txt>
+                      <Txt size={9.5} color={C.dim} numberOfLines={1} style={{ marginTop: 1 }}>{THEME_LABEL[currentRoom?.scene ?? "club"]}</Txt>
+                    </View>
+                    <Icon name="edit" size={13} color={C.dim2} />
                   </View>
-                  <Icon name="chev" size={14} color={C.dim2} />
                 </Pressable>
-
-                <View style={styles.divider} />
-              </>
-            )}
-
-            <Pressable onPress={() => openEdit("name", "Oda İsmi", roomName)} style={[styles.row, styles.rowInGroup]}>
-              <View style={[styles.rowIcon, { backgroundColor: `${C.purple2}1A` }]}>
-                <Icon name="edit" size={15} color={C.purple2} />
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Txt weight="extrabold" size={12.5} color={C.text}>Oda İsmi</Txt>
-                <Txt size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>{roomName || "—"}</Txt>
-              </View>
-              <Icon name="chev" size={14} color={C.dim2} />
-            </Pressable>
+            </>
+          )}
 
+          <Bolum baslik="ODA BİLGİLERİ" />
+          <View style={styles.group}>
+            <Satir icon="edit" tint={C.purple2} baslik="Oda İsmi" deger={roomName} onPress={() => openEdit("name", "Oda İsmi", roomName)} />
             <View style={styles.divider} />
-
-            <Pressable onPress={() => openEdit("announce", "Duyuru", roomAnnounce, true)} style={[styles.row, styles.rowInGroup]}>
-              <View style={[styles.rowIcon, { backgroundColor: `${C.teal}1A` }]}>
-                <Icon name="chat" size={15} color={C.teal} />
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Txt weight="extrabold" size={12.5} color={C.text}>Duyuru</Txt>
-                <Txt size={10.5} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>{roomAnnounce || "—"}</Txt>
-              </View>
-              <Icon name="chev" size={14} color={C.dim2} />
-            </Pressable>
+            <Satir icon="chat" tint={C.teal} baslik="Duyuru" deger={roomAnnounce} onPress={() => openEdit("announce", "Duyuru", roomAnnounce, true)} />
           </View>
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 22, marginBottom: 10 }}>
-            <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5 }}>ODADAN ATILANLAR</Txt>
-            {kickList.length > 0 && (
-              <View style={styles.countPill}>
-                <Txt weight="extrabold" size={9.5} color={C.red}>{kickList.length}</Txt>
-              </View>
-            )}
-          </View>
+          <Bolum baslik="ODADAN ATILANLAR" adet={kickList.length} />
 
           {kickList.length === 0 ? (
             <View style={styles.emptyKick}>
@@ -185,8 +198,8 @@ export default function RoomManageScreen() {
             <View style={styles.group}>
               {kickList.map((k, i) => (
                 <View key={k.key}>
-                  {i > 0 && <View style={styles.divider} />}
-                  <View style={[styles.row, styles.rowInGroup, { gap: 11 }]}>
+                  {i > 0 && <View style={styles.dividerGenis} />}
+                  <View style={[styles.row, { gap: 11 }]}>
                     <Portrait name={k.name} size={40} photo={k.photo || undefined} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Txt weight="extrabold" size={12.5} color={C.text} numberOfLines={1}>{k.name}</Txt>
@@ -204,10 +217,10 @@ export default function RoomManageScreen() {
             </View>
           )}
 
-          <Txt weight="bold" size={10.5} color={C.dim} style={[styles.sectionLbl, { marginTop: 22 }]}>GİZLİLİK</Txt>
+          <Bolum baslik="GİZLİLİK" />
 
           <View style={styles.group}>
-            <Pressable onPress={toggleLock} style={[styles.row, styles.rowInGroup, roomLocked && { backgroundColor: `${C.gold}0F` }]}>
+            <Pressable onPress={toggleLock} style={[styles.row, roomLocked && { backgroundColor: `${C.gold}0F` }]}>
               <View style={[styles.rowIcon, { backgroundColor: roomLocked ? `${C.gold}1A` : "rgba(255,255,255,.06)" }]}>
                 <Icon name={roomLocked ? "lock" : "unlock"} size={15} color={roomLocked ? C.gold : C.dim} />
               </View>
@@ -310,16 +323,20 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  sectionLbl: { letterSpacing: 0.5, marginBottom: 10 },
+  bolum: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 22, marginBottom: 10 },
   group: { borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 58 },
+  // Ayırıcılar satırın metniyle hizalanır: 13 dolgu + öndeki kutu + 12 boşluk.
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 59 },
+  dividerGenis: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 64 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13 },
-  rowInGroup: { marginBottom: 0 },
   countPill: { minWidth: 18, paddingHorizontal: 6, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: `${C.red}29`, borderWidth: 1, borderColor: `${C.red}4D` },
+  onizlemeKart: { flex: 1, borderRadius: 16, overflow: "hidden", backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
+  onizleme: { height: 78, backgroundColor: "rgba(255,255,255,.04)" },
+  onizlemeBos: { flex: 1, alignItems: "center", justifyContent: "center" },
+  onizlemeAlt: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 9, paddingHorizontal: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line },
   emptyKick: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: C.line },
   unkickBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 11, borderRadius: 10, backgroundColor: `${C.green}1F`, borderWidth: 1, borderColor: `${C.green}47` },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  avatarThumb: { width: 34, height: 34, borderRadius: 10, overflow: "hidden", backgroundColor: "rgba(255,255,255,.04)" },
   toggle: { width: 42, height: 24, borderRadius: 999, padding: 2, justifyContent: "center" },
   knob: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },
   dialog: { borderRadius: 24, padding: 22, backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },

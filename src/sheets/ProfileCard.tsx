@@ -59,9 +59,9 @@ function sayi(n: number) {
 /** Üçlü istatistik şeridi — takipçi / takip / seviye. */
 function Stat({ deger, etiket, renk }: { deger: string; etiket: string; renk?: string }) {
   return (
-    <View style={{ flex: 1, alignItems: "center", paddingVertical: 11 }}>
-      <Txt weight="displayBold" size={16} color={renk ?? "#fff"}>{deger}</Txt>
-      <Txt weight="semibold" size={9.5} color={C.dim2} style={{ marginTop: 3, letterSpacing: 0.3 }}>{etiket}</Txt>
+    <View style={{ flex: 1, alignItems: "center", paddingVertical: 10 }}>
+      <Txt weight="displayBold" size={15} color={renk ?? "#fff"}>{deger}</Txt>
+      <Txt weight="semibold" size={9} color={C.dim2} style={{ marginTop: 2, letterSpacing: 0.3 }}>{etiket}</Txt>
     </View>
   );
 }
@@ -194,8 +194,10 @@ export function ProfileCard({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View entering={SlideInDown.duration(280)} style={styles.sheet}>
           <Pressable>
-            <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-            <Gradient colors={["rgba(32,28,44,0.82)", "rgba(14,12,20,0.9)"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
+            {/* Rozet açıklama kartıyla aynı cam doku: yoğun bulanıklık, çok düşük
+                dolgu opaklığı. Arkadaki oda hafifçe görünsün diye kalın gradyan yok. */}
+            <BlurView intensity={22} tint="dark" style={StyleSheet.absoluteFill} />
+            <Gradient colors={["rgba(30,26,42,0.30)", "rgba(12,11,18,0.42)"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
 
             {/* Role göre renklenen tepe ışığı + üst kenardaki ince parıltı */}
             {!reportView && (
@@ -205,7 +207,7 @@ export function ProfileCard({
               </>
             )}
 
-            <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 24 + insets.bottom }} keyboardShouldPersistTaps="handled">
+            <ScrollView contentContainerStyle={{ padding: 17, paddingBottom: 20 + insets.bottom }} keyboardShouldPersistTaps="handled">
               {reportView ? (
                 <View>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 }}>
@@ -302,28 +304,20 @@ export function ProfileCard({
                     <View>
                       {/* avatarın arkasındaki yumuşak hale */}
                       <View style={[styles.avatarHalo, { backgroundColor: vurgu + "1F", shadowColor: vurgu }]} pointerEvents="none" />
-                      <Portrait name={user.name} size={92} ring={vurgu} glow online frameBorder="#101016" photo={foto} />
-                      {/* Seviye henüz bilinmiyorsa (sohbetten açılan kart, profil yüklenmedi) çip yok */}
-                      {seviye > 0 && (
-                        <View style={styles.lvChipYuva} pointerEvents="none">
-                          <View style={styles.lvChip}>
-                            <Gradient colors={["#5EEAD4", "#0EA5A4"]} deg={135} style={styles.lvChipFill}>
-                              <Txt weight="displayBold" size={10} color="#04231A">LV.{seviye}</Txt>
-                            </Gradient>
-                          </View>
-                        </View>
-                      )}
+                      <Portrait name={user.name} size={78} ring={vurgu} glow online frameBorder="#101016" photo={foto} />
                     </View>
 
-                    <Txt weight="displayBold" size={20} color="#fff" style={{ marginTop: 12 }} numberOfLines={1}>{user.name}</Txt>
+                    <Txt weight="displayBold" size={18} color="#fff" style={{ marginTop: 10 }} numberOfLines={1}>{user.name}</Txt>
 
-                    {/* Roller + gerçek rozetler (seviye rütbesi + kuşanılan) */}
+                    {/* Roller + rozetler. Seviye burada profildeki gibi RÜTBE ROZETİ
+                        olarak duruyor — avatarın üstünde ayrı bir "LV" yazısı yok,
+                        iki ekran aynı şeyi aynı biçimde gösteriyor. */}
                     <View style={styles.rozetSatiri}>
                       {isOwner && <RolePill type="host" />}
                       {user.mod && !isOwner && <RolePill type="mod" />}
                       {user.authority && <AuthorityTag />}
-                      <PngBadge name={levelTierBadge(seviye)} size={26} />
-                      <EquippedBadge kod={kusanilan} size={26} />
+                      <PngBadge name={levelTierBadge(seviye)} size={28} />
+                      <EquippedBadge kod={kusanilan} size={28} />
                     </View>
 
                     {/* Kimlik — özel kimliği varsa kapsülü, yoksa sade ID */}
@@ -412,26 +406,23 @@ export function ProfileCard({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(3,3,8,.6)" },
-  sheet: { maxHeight: "86%", borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden", borderTopWidth: 1, borderColor: "rgba(255,255,255,.16)", backgroundColor: "rgba(16,14,22,0.6)" },
-  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 210 },
+  backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(3,3,8,.34)" },
+  sheet: { maxHeight: "78%", borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: "hidden", borderTopWidth: 1, borderColor: "rgba(255,255,255,.20)", backgroundColor: "rgba(16,14,22,.30)" },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 190 },
   glint: { position: "absolute", top: 0, left: 34, right: 34, height: 1.5 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   gearMenu: { position: "absolute", right: 20, top: 56, width: 210, borderRadius: 16, overflow: "hidden", backgroundColor: "rgba(28,24,40,0.98)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)", zIndex: 10 },
   gearItem: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderTopWidth: 1, borderTopColor: C.line },
-  avatarHalo: { position: "absolute", top: -14, left: -14, right: -14, bottom: -14, borderRadius: 70, shadowOpacity: 0.85, shadowRadius: 26, shadowOffset: { width: 0, height: 0 }, elevation: 10 },
-  lvChipYuva: { position: "absolute", left: 0, right: 0, bottom: -3, alignItems: "center" },
-  lvChip: { borderRadius: 999, borderWidth: 2, borderColor: "#101016", overflow: "hidden" },
-  lvChipFill: { paddingVertical: 2.5, paddingHorizontal: 9 },
-  rozetSatiri: { flexDirection: "row", gap: 7, marginTop: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "center" },
+  avatarHalo: { position: "absolute", top: -13, left: -13, right: -13, bottom: -13, borderRadius: 60, shadowOpacity: 0.85, shadowRadius: 24, shadowOffset: { width: 0, height: 0 }, elevation: 10 },
+  rozetSatiri: { flexDirection: "row", gap: 7, marginTop: 9, alignItems: "center", flexWrap: "wrap", justifyContent: "center" },
   idPill: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 4.5, paddingHorizontal: 11, borderRadius: 999, borderWidth: 1 },
-  statStrip: { flexDirection: "row", alignItems: "center", marginTop: 18, borderRadius: 18, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)" },
-  statDivider: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: "rgba(255,255,255,.12)" },
-  bioKutu: { marginTop: 12, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.07)" },
-  primaryBtn: { alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 13, borderRadius: 16, backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.11)" },
-  actionGroup: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", overflow: "hidden" },
-  actionDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 43 },
-  actionRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  statStrip: { flexDirection: "row", alignItems: "center", marginTop: 15, borderRadius: 16, backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
+  statDivider: { width: StyleSheet.hairlineWidth, height: 26, backgroundColor: "rgba(255,255,255,.14)" },
+  bioKutu: { marginTop: 10, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 13, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)" },
+  primaryBtn: { alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 11, borderRadius: 14, backgroundColor: "rgba(255,255,255,.07)", borderWidth: 1, borderColor: "rgba(255,255,255,.13)" },
+  actionGroup: { borderRadius: 14, backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)", overflow: "hidden" },
+  actionDivider: { height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,.10)", marginLeft: 43 },
+  actionRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 14 },
   reasonRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 13, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 8, borderWidth: 1 },
   reasonIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.12)", borderWidth: 1, borderColor: "rgba(251,113,133,.25)" },
   detailInput: { backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 14, color: C.text, fontSize: 12.5, fontFamily: "PlusJakartaSans_500Medium", height: 84, textAlignVertical: "top" },
