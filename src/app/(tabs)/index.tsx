@@ -13,7 +13,7 @@ import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { PEOPLE } from "@/data/people";
-import { getMyRoomIds, listRooms } from "@/data/remote/roomsRepo";
+import { getMyBannedRoomIds, listRooms } from "@/data/remote/roomsRepo";
 import { useCachedResource } from "@/lib/cache";
 import { ROOMS, type Room } from "@/data/seed";
 import { RoomPasswordGate } from "@/sheets/RoomPasswordGate";
@@ -143,27 +143,41 @@ export default function Home() {
   const dbIds = new Set(dbRooms.map((r) => r.id));
   const tumOdalar = [...dbRooms, ...ROOMS.filter((r) => !dbIds.has(r.id))];
 
-  // Üye olduğum odalar — "Katıldıklarım" sekmesi için.
-  const { data: uyeOdaIds } = useCachedResource<number[]>(
-    "rooms:mine", () => getMyRoomIds(), { persist: true, enabled: isSupabaseConfigured && !!session },
+  // Yasaklandığım odalar — listede hiç görünmemeli.
+  const { data: yasakliOdaIds } = useCachedResource<number[]>(
+    "rooms:banned", () => getMyBannedRoomIds(), { persist: true, enabled: isSupabaseConfigured && !!session },
   );
+
+  /**
+   * GÖRÜNÜRLÜK KURALI — her sekmede geçerli: gizli (kilitli), yasaklandığım
+   * ve boş odalar listede ASLA görünmez. Kilitli oda zaten "listede
+   * görünmez" sözüyle kilitleniyor; girilemeyecek ya da bomboş bir odayı
+   * listelemenin de faydası yok. Kendi odam istisna — boş da olsa görürüm.
+   */
+  const gorunur = useMemo(() => {
+    const yasak = new Set(yasakliOdaIds ?? []);
+    return tumOdalar.filter((r) => {
+      if (r.owner) return true;
+      if (r.locked) return false;
+      if (r.dbId != null && yasak.has(r.dbId)) return false;
+      return r.online > 0;
+    });
+  }, [dbRooms, yasakliOdaIds]);
 
   // Sekmeler daha önce hiçbir şey yapmıyordu: dördü de aynı listeyi
   // gösteriyordu (tab state'i yalnızca çubuğu boyuyordu).
   const rooms = useMemo(() => {
     switch (tab) {
-      case 1: // Popüler — kalabalıktan seyreğe, boş odalar listede yok
-        return sirala(tumOdalar.filter((r) => r.online > 0));
-      case 2: // Yakında — henüz kimsenin olmadığı odalar
-        return sirala(tumOdalar.filter((r) => r.online === 0), (a, b) => a.name.localeCompare(b.name, "tr"));
-      case 3: { // Katıldıklarım — üyeliğim olan odalar
-        const set = new Set(uyeOdaIds ?? []);
-        return sirala(tumOdalar.filter((r: Room) => (r.dbId != null && set.has(r.dbId)) || r.owner));
-      }
+      case 1: // Popüler — en kalabalıktan seyreğe
+        return sirala(gorunur);
+      case 2: // Yeni — en son kurulan oda önce
+        return sirala(gorunur, (a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+      case 3: // Resmî — yalnızca resmî odalar
+        return sirala(gorunur.filter((r) => r.official));
       default:
-        return sirala(tumOdalar);
+        return sirala(gorunur);
     }
-  }, [tab, dbRooms, uyeOdaIds]);
+  }, [tab, gorunur]);
 
   const enterAndGo = (room: Room) => {
     haptic.light();
@@ -191,12 +205,11 @@ export default function Home() {
           </Pressable>
         </View>
 
-        {/* "Takip Edilen" → "Katıldıklarım": oda takibi diye bir şey yok,
-            gerçek olan üyelik (oda_uyeleri). */}
-        <Tabs items={["Keşfet", "Popüler", "Yakında", "Katıldıklarım"]} active={tab} set={setTab} />
-
         <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
           <EventBanners />
+          {/* Sekmeler banner'ın ÜSTÜNDEYDİ; artık banner ile oda listesinin
+              arasında, yani filtrelediği listenin hemen başında duruyor. */}
+          <Tabs items={["Keşfet", "Popüler", "Yeni", "Resmî"]} active={tab} set={setTab} pad={14} />
           <View style={{ paddingHorizontal: 12, paddingTop: 14, gap: 10 }}>
             {rooms.length > 0 ? (
               rooms.map((r) => <RoomRow key={r.id} room={r} onPress={() => onRoomPress(r)} />)
@@ -207,12 +220,12 @@ export default function Home() {
                   <Icon name="mic" size={20} color={C.gold} />
                 </View>
                 <Txt weight="displayBold" size={14} color="#fff" style={{ marginTop: 12 }}>
-                  {tab === 1 ? "Şu an açık oda yok" : tab === 2 ? "Bekleyen oda yok" : "Henüz bir odaya katılmadın"}
+                  {tab === 3 ? "Şu an açık resmî oda yok" : "Şu an açık oda yok"}
                 </Txt>
                 <Txt size={11.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 6, maxWidth: 250 }}>
                   {tab === 3
-                    ? "Bir odaya girip Katıl dediğinde burada listelenir."
-                    : "Keşfet sekmesinden tüm odalara göz atabilirsin."}
+                    ? "Resmî odalar açıldığında burada listelenir."
+                    : "Boş, kilitli ve yasaklı odalar listelenmez. Sen bir oda açarak başlayabilirsin."}
                 </Txt>
               </View>
             )}

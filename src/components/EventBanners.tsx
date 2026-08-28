@@ -21,8 +21,11 @@ const { width: SCREEN } = Dimensions.get("window");
  * (admin-banner-edit) ve buradaki çerçeve aynı oranı kullanmalı — eskiden
  * kırpma 16:9 idi ama çerçeve sabit 118px yükseklikle ~3:1 çiziyordu, bu
  * yüzden yüklenen fotoğrafın alt-üstü kayboluyordu.
+ *
+ * 5:2 iken banner oda kartlarının yanında fazla iri kalıyordu (390pt ekranda
+ * ~145px, kart 62px); 16:5 ile ~113px'e indi, listeyle dengesi kuruldu.
  */
-export const BANNER_ORAN = 5 / 2;
+export const BANNER_ORAN = 16 / 5;
 
 /** Banner id → paketlenmiş görsel. Verilen banner tam-kaplama görsel olarak basılır. */
 const BANNER_IMG: Record<string, number> = {

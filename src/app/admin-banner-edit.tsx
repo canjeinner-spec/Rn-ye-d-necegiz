@@ -64,7 +64,7 @@ export default function AdminBannerEdit() {
     try {
       // Kırpma oranı banner çerçevesiyle birebir aynı olmalı, yoksa burada
       // seçilen alanın alt-üstü ana ekranda görünmez.
-      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [5, 2], quality: 0.85, base64: true });
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [16, 5], quality: 0.85, base64: true });
       if (!res.canceled && res.assets[0]?.base64) setFoto(await uploadAvatar(res.assets[0].base64, res.assets[0].uri));
     } catch { flash("Foto yüklenemedi"); }
     finally { setBusy(false); }
@@ -142,7 +142,7 @@ export default function AdminBannerEdit() {
                 </Pressable>
                 {!!foto && <Pressable onPress={() => setFoto(null)}><Icon name="x" size={14} color="#FB7185" /></Pressable>}
               </View>
-              <Txt size={9.5} color={C.dim2} lh={1.4}>Önerilen ölçü 1500×600 (5:2). Önizleme banner'da göreceğinin birebir aynısı.</Txt>
+              <Txt size={9.5} color={C.dim2} lh={1.4}>Önerilen ölçü 1600×500 (16:5). Önizleme banner'da göreceğinin birebir aynısı.</Txt>
               {!!foto && <View style={styles.preview}><Image source={{ uri: foto }} style={StyleSheet.absoluteFill} contentFit="cover" /></View>}
             </View></View>
 

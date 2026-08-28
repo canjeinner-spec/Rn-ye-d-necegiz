@@ -65,7 +65,9 @@ export function Tabs({ items, active, set, pad = 18, fill = false }: TabsProps) 
           onPress={() => { if (i !== active) { haptic.select(); set(i); } }}
           style={fill ? styles.tabFill : styles.tab}
         >
-          <Txt weight={i === active ? "extrabold" : "semibold"} size={fill ? 13 : 12.5} color={i === active ? C.gold : C.dim}>
+          {/* Pasif sekmeler de biraz kalın: "semibold" fazla siliktı,
+              "bold" seçili olanla yarışmadan okunur kalıyor. */}
+          <Txt weight={i === active ? "extrabold" : "bold"} size={fill ? 13 : 13} color={i === active ? C.gold : C.dim}>
             {t}
           </Txt>
         </Pressable>

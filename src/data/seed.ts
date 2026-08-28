@@ -22,6 +22,7 @@ export type Room = {
   friends?: number;
   daily?: number;
   dbId?: number; // odalar.id (gerçek DB odası). Yoksa mock oda.
+  createdAt?: number; // odalar.olusturulma_tarihi — "Yeni" sekmesi bunu sıralar
 };
 
 export type Seat = {

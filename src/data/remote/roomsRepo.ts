@@ -44,6 +44,8 @@ function mapRoom(r: OdaRow, hostName: string, myId: number | null): Room {
     crowd: [],
     photo: r.kapak_url || undefined,
     announce: r.aciklama || undefined,
+    // "Yeni" sekmesi kuruluş tarihine göre sıralıyor.
+    createdAt: Date.parse(r.olusturulma_tarihi) || undefined,
   };
 }
 
@@ -200,7 +202,20 @@ export async function getRoomMembers(odaId: number): Promise<{ members: RoomMemb
   return { members, myRole };
 }
 
-/** Üye olduğum odaların dbId listesi — ana sayfadaki "Katıldıklarım" sekmesi. */
+/**
+ * Yasaklandığım odaların dbId listesi. Bu odalar oda listesinde hiç
+ * görünmemeli — girilemeyecek bir odayı listelemek anlamsız.
+ */
+export async function getMyBannedRoomIds(): Promise<number[]> {
+  const sb = requireSupabase();
+  const me = await getMyProfile();
+  if (!me) return [];
+  const { data, error } = await sb.from("oda_yasaklari").select("oda_id").eq("kullanici_id", me.id);
+  if (error) throw error;
+  return ((data as { oda_id: number }[]) ?? []).map((r) => r.oda_id);
+}
+
+/** Üye olduğum odaların dbId listesi. */
 export async function getMyRoomIds(): Promise<number[]> {
   const sb = requireSupabase();
   const me = await getMyProfile();
