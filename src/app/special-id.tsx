@@ -3,8 +3,10 @@ import { type ReactNode, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { KopyaBtn } from "@/components/KopyaBtn";
 import { OzelIdGosterim, OzelIdKart as OzelIdKartView } from "@/components/OzelId";
 import { PremiumBanner, PREMIUM_FRAMES } from "@/components/PremiumBanner";
+import { Tabs } from "@/components/Tabs";
 import { ThroneCard } from "@/components/ThroneCard";
 import { Txt } from "@/components/Txt";
 import {
@@ -22,25 +24,26 @@ import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
 
+/** Sıralama bölüm başlığı — iki yanında ince altın çizgi. */
 function TierBanner({ label }: { label: string }) {
   return (
-    <View style={{ alignItems: "center" }}>
+    <View style={styles.tierRow}>
+      <Gradient colors={["transparent", C.gold + "66"]} deg={90} style={styles.tierLine} />
       <View style={styles.tierBanner}>
-        <Txt size={11} color={C.gold2}>❧</Txt>
-        <Txt weight="displayBold" size={13} color={C.gold2}>{label}</Txt>
-        <Txt size={11} color={C.gold2}>☙</Txt>
+        <Icon name="crown" size={12} color={C.gold2} />
+        <Txt weight="displayBold" size={12.5} color={C.gold2}>{label}</Txt>
       </View>
+      <Gradient colors={[C.gold + "66", "transparent"]} deg={90} style={styles.tierLine} />
     </View>
   );
 }
 
+/** Bölüm başlığı — eskiden ◆◇ / ◇◆ süslemeleri vardı. */
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <View style={styles.sectionTitle}>
-      <Txt size={12} color={C.gold}>◆◇</Txt>
-      <Txt weight="displayBold" size={14.5} color={C.gold2} style={{ letterSpacing: 0.5 }}>{children}</Txt>
-      <Txt size={12} color={C.gold}>◇◆</Txt>
-    </View>
+    <Txt weight="bold" size={10.5} color={C.dim} style={styles.sectionTitle}>
+      {children}
+    </Txt>
   );
 }
 
@@ -113,11 +116,13 @@ function KapsulBolumu() {
         <View style={{ marginTop: 14 }}>
           <OzelIdGosterim id={ozelId!} tip={ozelIdTip} tema={ozelIdTema} premiumWidth={250} kapsulSize={16} />
         </View>
-        <View style={{ flexDirection: "row", gap: 20, marginTop: 16 }}>
-          <Pressable onPress={() => { haptic.light(); setTip(ozelIdTip!); setIdText(ozelId!); setTema(ozelIdTema); setDuzenle(true); }}>
-            <Txt weight="extrabold" size={12} color={C.gold2}>Değiştir ↻</Txt>
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
+          <Pressable onPress={() => { haptic.light(); setTip(ozelIdTip!); setIdText(ozelId!); setTema(ozelIdTema); setDuzenle(true); }} style={[styles.altBtn, { borderColor: C.gold + "55", backgroundColor: C.gold + "14" }]}>
+            <Icon name="edit" size={13} color={C.gold2} />
+            <Txt weight="extrabold" size={12} color={C.gold2}>Değiştir</Txt>
           </Pressable>
-          <Pressable onPress={kaldir}>
+          <Pressable onPress={kaldir} style={styles.altBtn}>
+            <Icon name="trash" size={13} color={C.dim} />
             <Txt weight="extrabold" size={12} color={C.dim}>Kaldır</Txt>
           </Pressable>
         </View>
@@ -129,8 +134,10 @@ function KapsulBolumu() {
   if (hicYetki) {
     return (
       <View style={{ alignItems: "center", marginTop: 18 }}>
-        <Txt size={22}>🔒</Txt>
-        <Txt weight="bold" size={12.5} color={C.gold2} align="center" style={{ marginTop: 8 }}>Özel ID hakkın yok</Txt>
+        <View style={styles.kilitIkon}>
+          <Icon name="lock" size={19} color={C.gold} />
+        </View>
+        <Txt weight="bold" size={12.5} color={C.gold2} align="center" style={{ marginTop: 10 }}>Özel ID hakkın yok</Txt>
         <Txt size={11} color={C.dim} lh={1.5} align="center" style={{ marginTop: 6 }}>
           Kapsül ID için Beta Tester olman, premium ID için yetkili ataması gerekir. Hak verilince buradan alabilirsin.
         </Txt>
@@ -147,7 +154,9 @@ function KapsulBolumu() {
     <View style={{ marginTop: 16 }}>
       {kapsulYetki && !premiumHak && !claimed && (
         <View style={styles.betaNote}>
-          <Txt size={14}>🎖️</Txt>
+          <View style={styles.betaIkon}>
+            <Icon name="idcard" size={13} color={C.gold2} />
+          </View>
           <Txt weight="semibold" size={11} color={C.gold2} style={{ flex: 1 }} lh={1.4}>
             Beta Tester olarak <Txt weight="extrabold" size={11} color={C.gold2}>ücretsiz</Txt> kapsül kimlik hakkın var. Aşağıdan seç.
           </Txt>
@@ -249,88 +258,66 @@ export default function SpecialIdScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#2A2012", "#0B0905"]} deg={180} locations={[0, 0.55]} style={StyleSheet.absoluteFill} />
+      {/* Zemin diğer ekranlarla aynı siyah-altın; eskiden kahverengiydi
+          (#2A2012 → #0B0905) ve tek başına duruyordu. */}
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={[C.gold + "24", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
             <Icon name="back" size={16} color={C.text} />
           </Pressable>
-          <View style={{ flex: 1 }} />
-          <Pressable style={styles.rulesBtn}>
-            <Txt weight="bold" size={11} color={C.gold2}>Kurallar</Txt>
-          </Pressable>
+          <View style={{ flex: 1, alignItems: "center" }}>
+            <Txt weight="displayBold" size={17} color="#fff">Özel ID</Txt>
+          </View>
+          <View style={{ width: 34 }} />
         </View>
 
-        <View style={{ alignItems: "center", paddingVertical: 8 }}>
-          <Txt weight="displayBold" size={34} color={C.gold2} style={{ letterSpacing: 2 }}>Özel ID</Txt>
-        </View>
-
-        <View style={styles.tabs}>
-          {["Özel ID Havuzu", "Zenginler Sıralaması"].map((t, i) => {
-            const on = i === tab;
-            return (
-              <Pressable
-                key={t}
-                onPress={() => { haptic.select(); setTab(i); }}
-                style={[styles.tab, { borderTopLeftRadius: i === 0 ? 12 : 0, borderBottomLeftRadius: i === 0 ? 12 : 0, borderTopRightRadius: i === 1 ? 12 : 0, borderBottomRightRadius: i === 1 ? 12 : 0, overflow: "hidden" }]}
-              >
-                {on ? (
-                  <Gradient colors={["#F5CE6E", "#C8922B"]} deg={180} style={styles.tabInner}>
-                    <Txt weight="extrabold" size={12.5} color="#3A2A05">{t}</Txt>
-                  </Gradient>
-                ) : (
-                  <View style={[styles.tabInner, { backgroundColor: "rgba(255,255,255,.04)" }]}>
-                    <Txt weight="extrabold" size={12.5} color={C.dim}>{t}</Txt>
-                  </View>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
+        {/* Sekmeler: iki bitişik gradyan buton yerine kayan alt çizgi */}
+        <Tabs items={["Özel ID Havuzu", "Zenginler"]} active={tab} set={setTab} fill pad={16} />
 
         <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
           {tab === 0 ? (
             <>
-              <SectionTitle>Özel ID Kimliğin</SectionTitle>
+              <SectionTitle>HESABIM</SectionTitle>
               <View style={styles.profileCard}>
+                <Gradient colors={[C.gold + "16", "transparent"]} deg={160} style={StyleSheet.absoluteFill} pointerEvents="none" />
+                <View style={styles.cardSheen} pointerEvents="none" />
                 <View style={{ alignItems: "center" }}>
-                  <Txt weight="bold" size={12} color={C.gold2}>Hesap ID'm</Txt>
-                  <Txt weight="displayBold" size={22} color="#fff" style={{ marginTop: 6, letterSpacing: 1 }}>{publicId || "—"}</Txt>
+                  <Txt weight="bold" size={10} color={C.dim} style={{ letterSpacing: 0.6 }}>HESAP ID'M</Txt>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 6 }}>
+                    <Txt weight="displayBold" size={22} color="#fff" style={{ letterSpacing: 1 }}>{publicId || "—"}</Txt>
+                    <KopyaBtn deger={publicId} size={13} />
+                  </View>
                 </View>
-                <Gradient colors={["transparent", `${C.gold}66`, "transparent"]} deg={90} style={styles.profileDivider} />
+                <View style={styles.profileDivider} />
+                {/* Buradaki dört kutuluk "Bu Ay Yüklenen Altın / Bu Ayki Seviye /
+                    Sıralama" tablosu tamamen yer tutucuydu (hep 0 ve "Yok");
+                    besleyecek bir veri kaynağı yok, kaldırıldı. */}
                 <KapsulBolumu />
-                <View style={styles.statGrid}>
-                  {([["Bu Ay Yüklenen Altın", "0"], ["Bu Ayki Seviye", "Yok"], ["Bu Ayki Sıralama", "0"], ["Geçen Ayki Seviye", "Yok"]] as const).map(([l, v]) => (
-                    <View key={l} style={styles.statRow}>
-                      <Txt weight="semibold" size={10.5} color={C.dim} style={{ flex: 1 }}>{l}</Txt>
-                      <View style={styles.statVal}>
-                        <Txt weight="extrabold" size={11.5} color={C.text}>{v}</Txt>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-                <Pressable onPress={() => { haptic.light(); router.navigate("/diamond-load"); }} style={{ marginTop: 18, borderRadius: 999, overflow: "hidden" }}>
-                  <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.uploadBtn}>
-                    <Txt weight="displayBold" size={14} color="#3A2A05" style={{ letterSpacing: 0.5 }}>Yükleme Yap</Txt>
-                  </Gradient>
-                </Pressable>
               </View>
+
+              <Pressable onPress={() => { haptic.light(); router.navigate("/diamond-load"); }} style={{ marginTop: 14, borderRadius: 16, overflow: "hidden" }}>
+                <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.uploadBtn}>
+                  <Txt weight="extrabold" size={13.5} color="#3A2A05">Yükleme Yap</Txt>
+                </Gradient>
+              </Pressable>
             </>
           ) : (
             <>
-              <View style={{ marginTop: 20, marginBottom: 12 }}>
+              <View style={{ marginTop: 18, marginBottom: 16 }}>
                 <TierBanner label="Süper Özel ID" />
               </View>
-              <View style={{ paddingHorizontal: 40 }}>
+              <View style={{ paddingHorizontal: 52 }}>
                 <ThroneCard id={THRONE_SUPER.id} name={THRONE_SUPER.name} big />
               </View>
 
-              <View style={{ marginTop: 24, marginBottom: 14 }}>
+              <View style={{ marginTop: 26, marginBottom: 18 }}>
                 <TierBanner label="2. Seviye Özel ID" />
               </View>
               <View style={styles.throneGrid}>
                 {THRONE_T2.map((e) => (
-                  <View key={e.id} style={{ width: "45%" }}>
+                  <View key={e.id} style={{ width: "47%" }}>
                     <ThroneCard id={e.id} name={e.name} />
                   </View>
                 ))}
@@ -347,20 +334,20 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  rulesBtn: { height: 34, paddingHorizontal: 12, borderRadius: 12, backgroundColor: "rgba(0,0,0,.3)", alignItems: "center", justifyContent: "center" },
-  tabs: { flexDirection: "row", marginHorizontal: 16 },
-  tab: { flex: 1 },
-  tabInner: { paddingVertical: 11, alignItems: "center" },
-  tierBanner: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 7, paddingHorizontal: 22, borderRadius: 8, backgroundColor: "#241805", borderWidth: 1.5, borderColor: `${C.gold}55` },
-  sectionTitle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 22, marginBottom: 14 },
-  profileCard: { borderRadius: 18, padding: 16, paddingVertical: 18, backgroundColor: "rgba(245,206,110,.06)", borderWidth: 1, borderColor: `${C.gold}33` },
-  profileDivider: { alignSelf: "stretch", height: 2, marginTop: 8 },
-  statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 18 },
-  statRow: { width: "47%", flexGrow: 1, flexDirection: "row", alignItems: "center", gap: 8 },
-  statVal: { minWidth: 54, paddingVertical: 7, borderRadius: 8, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: C.line, alignItems: "center" },
-  uploadBtn: { paddingVertical: 15, alignItems: "center" },
-  throneGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 18, columnGap: 14 },
-  betaNote: { flexDirection: "row", alignItems: "center", gap: 8, padding: 11, borderRadius: 12, backgroundColor: "rgba(245,206,110,.08)", borderWidth: 1, borderColor: `${C.gold}44`, marginBottom: 6 },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 240 },
+  tierRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  tierLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  tierBanner: { flexDirection: "row", alignItems: "center", gap: 7, paddingVertical: 6, paddingHorizontal: 16, borderRadius: 999, backgroundColor: C.gold + "14", borderWidth: 1, borderColor: `${C.gold}4D` },
+  sectionTitle: { letterSpacing: 0.5, marginTop: 20, marginBottom: 10 },
+  profileCard: { borderRadius: 20, padding: 16, paddingVertical: 18, backgroundColor: "rgba(18,15,24,.72)", borderWidth: 1, borderColor: `${C.gold}3D`, overflow: "hidden" },
+  cardSheen: { position: "absolute", top: 0, left: 26, right: 26, height: 1, backgroundColor: "rgba(255,255,255,.26)" },
+  profileDivider: { alignSelf: "stretch", height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,.12)", marginTop: 16 },
+  uploadBtn: { paddingVertical: 14, alignItems: "center", borderRadius: 16 },
+  altBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 9, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: "rgba(255,255,255,.05)" },
+  kilitIkon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "3D" },
+  throneGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 22, columnGap: 12 },
+  betaNote: { flexDirection: "row", alignItems: "center", gap: 9, padding: 11, borderRadius: 12, backgroundColor: "rgba(245,206,110,.08)", borderWidth: 1, borderColor: `${C.gold}44`, marginBottom: 6 },
+  betaIkon: { width: 26, height: 26, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1F", borderWidth: 1, borderColor: C.gold + "44" },
   kapsulGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginTop: 12 },
   kapsulCell: { width: 104, alignItems: "center", gap: 3, paddingVertical: 6, paddingHorizontal: 4, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.03)" },
   bannerGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginTop: 12 },
