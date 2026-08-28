@@ -1082,9 +1082,9 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 999,
     // topbar'ın 14'lük yatay dolgusunu iptal ederek ekran kenarına dayanır.
     marginLeft: -14,
-    // Oda adı kısa olunca çip güdük kalıyordu; Yalla'da hep uzun bir hap
-    // gibi durur. Alt sınır verip sağdaki ikonlara kadar uzanmasını sağlıyoruz.
-    minWidth: "62%",
+    // Oda adı kısa olunca çip güdük kalmasın diye alt sınır var. Yalla'daki
+    // çip ekranın ~%46'sı; bu satır ekranın %93'ü olduğundan karşılığı ~%50.
+    minWidth: "50%",
     maxWidth: "76%",
     backgroundColor: "rgba(255,255,255,.09)",
   },
