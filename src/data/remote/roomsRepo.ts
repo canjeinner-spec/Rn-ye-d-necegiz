@@ -3,8 +3,19 @@ import { type Room } from "@/data/seed";
 import { requireSupabase } from "@/lib/supabase";
 import { getMyProfile } from "@/data/remote/profileRepo";
 
-const SELECT_COLS =
+const TEMEL_COLS =
   "id, public_id, ad, aciklama, kategori, kapak_url, herkese_acik, olusturan_id, koltuk_sayisi, aktif_katilimci_sayisi, olusturulma_tarihi";
+
+// 052_oda_vitrin.sql ile gelen kolonlar. Migration uygulanmamış bir projede
+// bunları istemek 42703 döndürür ve TÜM oda listesi çöker — bu yüzden
+// istekler once/sonra kalıbıyla korunuyor (aşağıdaki odalariGetir).
+const VITRIN_COLS = "resmi, gunluk_sira";
+const SELECT_COLS = `${TEMEL_COLS}, ${VITRIN_COLS}`;
+
+/** Kolon yok hatası mı? (PostgREST → undefined column) */
+function kolonYok(e: unknown) {
+  return (e as { code?: string })?.code === "42703";
+}
 
 type OdaRow = {
   id: number;
@@ -18,6 +29,8 @@ type OdaRow = {
   koltuk_sayisi: number;
   aktif_katilimci_sayisi: number;
   olusturulma_tarihi: string;
+  resmi?: boolean;
+  gunluk_sira?: number | null;
 };
 
 export const SCENES: SceneKind[] = ["official", "club", "lounge", "night", "fire"];
@@ -46,6 +59,10 @@ function mapRoom(r: OdaRow, hostName: string, myId: number | null): Room {
     announce: r.aciklama || undefined,
     // "Yeni" sekmesi kuruluş tarihine göre sıralıyor.
     createdAt: Date.parse(r.olusturulma_tarihi) || undefined,
+    // 052: resmî oda rozeti ve Daily Top sırası. Önceden hiç okunmuyordu,
+    // bu yüzden gerçek odalar asla resmî olamıyor/sıraya giremiyordu.
+    official: r.resmi || undefined,
+    daily: r.gunluk_sira ?? undefined,
   };
 }
 
@@ -62,23 +79,43 @@ async function fetchHostNames(ids: number[]): Promise<Map<number, string>> {
   return map;
 }
 
+/**
+ * odalar sorgusu — vitrin kolonlarıyla dener, kolonlar yoksa (052 henüz
+ * uygulanmamışsa) temel kolonlarla tekrar dener.
+ *
+ * Daha önce client'ı uygulanmamış bir migration'a bağlamak tüm profil
+ * okumalarını çökertmişti; aynı hatayı oda listesinde tekrarlamamak için.
+ */
+async function odalariGetir<T>(
+  kur: (cols: string) => PromiseLike<{ data: unknown; error: unknown }>,
+): Promise<T> {
+  const ilk = await kur(SELECT_COLS);
+  if (!ilk.error) return ilk.data as T;
+  if (!kolonYok(ilk.error)) throw ilk.error;
+  console.warn("[odalar] vitrin kolonlari yok (052 uygulanmamis) — temel kolonlara dusuluyor");
+  const geri = await kur(TEMEL_COLS);
+  if (geri.error) throw geri.error;
+  return geri.data as T;
+}
+
 /** Herkese açık odalar (kalabalığa göre sıralı). */
 export async function listRooms(limit = 50): Promise<Room[]> {
   const sb = requireSupabase();
-  const [{ data, error }, me] = await Promise.all([
+  const [data, me] = await Promise.all([
     // Not: silinmis filtresi RLS policy'sinde (USING) zaten var; client'ta
     // silinmis kolonuna SELECT yetkisi olmadığından burada filtrelemeyiz.
-    sb
-      .from("odalar")
-      .select(SELECT_COLS)
-      .eq("herkese_acik", true)
-      .order("aktif_katilimci_sayisi", { ascending: false })
-      .order("olusturulma_tarihi", { ascending: false })
-      .limit(limit),
+    odalariGetir<OdaRow[] | null>((cols) =>
+      sb
+        .from("odalar")
+        .select(cols)
+        .eq("herkese_acik", true)
+        .order("aktif_katilimci_sayisi", { ascending: false })
+        .order("olusturulma_tarihi", { ascending: false })
+        .limit(limit),
+    ),
     getMyProfile().catch(() => null),
   ]);
-  if (error) throw error;
-  const rows = (data as OdaRow[]) ?? [];
+  const rows = data ?? [];
   const hosts = await fetchHostNames(rows.map((r) => r.olusturan_id).filter((x): x is number => x != null));
   return rows.map((r) => mapRoom(r, hosts.get(r.olusturan_id ?? -1) || "Kullanıcı", me?.id ?? null));
 }
@@ -93,15 +130,16 @@ export async function getMyRoom(): Promise<Room | null> {
   const sb = requireSupabase();
   const me = await getMyProfile();
   if (!me) return null;
-  const { data, error } = await sb
-    .from("odalar")
-    .select(SELECT_COLS)
-    .eq("olusturan_id", me.id)
-    .order("id", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data ? mapRoom(data as OdaRow, me.kullanici_adi, me.id) : null;
+  const data = await odalariGetir<OdaRow | null>((cols) =>
+    sb
+      .from("odalar")
+      .select(cols)
+      .eq("olusturan_id", me.id)
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  );
+  return data ? mapRoom(data, me.kullanici_adi, me.id) : null;
 }
 
 /** 6 haneli benzersiz oda ID'si (çakışmada birkaç kez dener). */

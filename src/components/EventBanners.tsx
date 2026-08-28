@@ -23,9 +23,12 @@ const { width: SCREEN } = Dimensions.get("window");
  * yüzden yüklenen fotoğrafın alt-üstü kayboluyordu.
  *
  * 5:2 iken banner oda kartlarının yanında fazla iri kalıyordu (390pt ekranda
- * ~145px, kart 62px); 16:5 ile ~113px'e indi, listeyle dengesi kuruldu.
+ * ~145px, kart 62px). 7:2 ile ~103px — liste ile dengeli.
+ *
+ * Kırpma bu oranla AYNI olduğu için fotoğraf "cover" ile çerçeveyi tam
+ * doldurur: ne kırpılır ne de yanlarda boşluk kalır.
  */
-export const BANNER_ORAN = 16 / 5;
+export const BANNER_ORAN = 7 / 2;
 
 /** Banner id → paketlenmiş görsel. Verilen banner tam-kaplama görsel olarak basılır. */
 const BANNER_IMG: Record<string, number> = {
@@ -86,15 +89,14 @@ function Banner({ b, onPress }: { b: EventBanner; onPress: () => void }) {
       ) : (
         <View style={styles.banner}>
           {b.image ? (
-            /* Fotoğraf hiç kırpılmasın: arkada bulanık bir kopya çerçeveyi
-               doldurur, önde görselin tamamı "contain" ile oturur. Banner
-               oranında yüklenen foto tam kaplar; farklı orandaki eski
-               banner'larda boşluk siyah bant yerine kendi renkleriyle dolar. */
+            /* Fotoğraf çerçeveyi TAM doldurur. Daha önce "contain" + arkada
+               bulanık kopya vardı; kırpma oranı çerçeveyle aynı olmadığı için
+               yanlarda bulanık boşluk kalıyor, foto eksikmiş gibi duruyordu.
+               Kırpma artık çerçeveyle aynı oranda (BANNER_ORAN), o yüzden
+               "cover" hiçbir şey kesmeden tam oturuyor. */
             <>
-              <Image source={{ uri: b.image }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={22} />
-              <View style={styles.blurTint} pointerEvents="none" />
-              <Image source={{ uri: b.image }} style={StyleSheet.absoluteFill} contentFit="contain" />
-              <Gradient colors={["rgba(8,8,12,.15)", "rgba(8,8,12,.72)"]} deg={180} style={StyleSheet.absoluteFill} pointerEvents="none" />
+              <Image source={{ uri: b.image }} style={StyleSheet.absoluteFill} contentFit="cover" />
+              <Gradient colors={["rgba(8,8,12,.10)", "rgba(8,8,12,.70)"]} deg={180} style={StyleSheet.absoluteFill} pointerEvents="none" />
             </>
           ) : (
             <>
@@ -173,7 +175,6 @@ export function EventBanners() {
 
 const styles = StyleSheet.create({
   banner: { width: "100%", aspectRatio: BANNER_ORAN, borderRadius: 20, overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
-  blurTint: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(8,8,12,.42)" },
   glow: { position: "absolute", right: -28, top: -34, width: 150, height: 150, borderRadius: 75 },
   emblem: { width: 62, height: 62, borderRadius: 19, overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.2)" },
   tag: { paddingVertical: 1.5, paddingHorizontal: 6, borderRadius: 5 },
