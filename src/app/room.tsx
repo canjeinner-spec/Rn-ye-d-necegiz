@@ -80,10 +80,12 @@ function SeatItem({
   onPress: () => void;
 }) {
   if (!seat) {
+    // WePlay: dolgusuz halka + iri artı. Zemin halkanın içinden görünür,
+    // koltuklar sahnede ağırlık yapmaz.
     return (
       <Pressable style={styles.seat} onPress={onPress}>
-        <View style={[styles.emptySeat, { borderColor: locked ? C.gold + "66" : "rgba(255,255,255,.14)" }]}>
-          <Icon name={locked ? "lock" : "plus"} size={locked ? 16 : 20} sw={2} color={locked ? C.gold : C.dim2} />
+        <View style={[styles.emptySeat, { borderColor: locked ? C.gold + "99" : C.gold + "52" }]}>
+          <Icon name={locked ? "lock" : "plus"} size={locked ? 17 : 25} sw={locked ? 2 : 1.8} color={locked ? C.gold : C.dim} />
         </View>
         {locked && <Txt weight="semibold" size={10} color={C.gold}>Kilitli</Txt>}
       </Pressable>
@@ -97,7 +99,7 @@ function SeatItem({
         {seat.speaking && <SpeakingRing />}
         <Portrait
           name={seat.name}
-          size={52}
+          size={54}
           muted={seat.muted}
           photo={isMe ? userPhoto || undefined : undefined}
           ring={ring}
@@ -706,9 +708,9 @@ export default function RoomScreen() {
               <Pressable onPress={() => { if (isMine) openMyCard(); else if (host) tapOccupant(host); }} style={styles.hostSeat}>
                 <View>
                   {host?.speaking && <SpeakingRing />}
-                  <Portrait name={isMine ? "Sen" : host!.name} size={70} muted={host?.muted} ring={C.gold} glow photo={isMine ? userPhoto || undefined : undefined} />
+                  <Portrait name={isMine ? "Sen" : host!.name} size={84} muted={host?.muted} ring={C.gold} glow photo={isMine ? userPhoto || undefined : undefined} />
                 </View>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap", justifyContent: "center", maxWidth: 140 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8, flexWrap: "wrap", justifyContent: "center", maxWidth: 150 }}>
                   <Txt weight="semibold" size={11} color="#fff">{isMine ? userName : host!.name}</Txt>
                   {isMine && privileged && <AuthorityTag size={8} />}
                 </View>
@@ -1031,27 +1033,29 @@ const styles = StyleSheet.create({
   micBanRow: { alignSelf: "stretch", marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line },
   micQueueFab: { position: "absolute", right: 12, bottom: 12, width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(20,18,28,.9)", borderWidth: 1, borderColor: C.gold + "55" },
   micQueueRozet: { position: "absolute", top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", backgroundColor: C.gold2, borderWidth: 1.5, borderColor: C.bg },
+  // Yalla tarzı: tam yuvarlatılmış (kapsül), açık ve yumuşak beyaz saydamlık,
+  // sert kenarlık yok. Koyu/opak kutu yerine zemine karışan bir hap.
   roomChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
     paddingVertical: 4,
     paddingLeft: 4,
-    paddingRight: 13,
-    borderRadius: 14,
+    paddingRight: 15,
+    borderRadius: 999,
     // Geri oku kalkınca çip sola kayar; topbar dolgusunun bir kısmını da yer.
     marginLeft: -7,
     maxWidth: "72%",
-    backgroundColor: "rgba(0,0,0,.35)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,.14)",
+    backgroundColor: "rgba(255,255,255,.13)",
   },
   thumb: { width: 32, height: 32, borderRadius: 9, overflow: "hidden" },
   trophy: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 3, paddingLeft: 7, paddingRight: 8, borderRadius: 8, backgroundColor: "rgba(217,119,6,.25)" },
   countBadge: { alignItems: "center", justifyContent: "center", minWidth: 34, height: 34, paddingHorizontal: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,.1)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
-  stage: { paddingHorizontal: 14, paddingTop: 6, paddingBottom: 4 },
-  hostSeat: { alignItems: "center", marginBottom: 10 },
-  grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 12 },
+  // WePlay oranları: sahibi belirgin şekilde büyük, koltuklar arasında bol
+  // dikey nefes. Sahne kalabalık değil, ferah duruyor.
+  stage: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10 },
+  hostSeat: { alignItems: "center", marginBottom: 18 },
+  grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 20 },
   barIcon: { minWidth: 34, height: 42, alignItems: "center", justifyContent: "center" },
   giftMini: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   giftBtnBig: { width: 46, height: 46, alignItems: "center", justifyContent: "center" },
@@ -1073,8 +1077,8 @@ const styles = StyleSheet.create({
   },
   reportCard: { backgroundColor: "#181620", borderRadius: 24, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
   reportDetailInput: { backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 14, color: C.text, fontSize: 12.5, height: 84, textAlignVertical: "top" },
-  seat: { width: "25%", alignItems: "center", gap: 5 },
-  emptySeat: { width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.02)" },
+  seat: { width: "25%", alignItems: "center", gap: 6 },
+  emptySeat: { width: 54, height: 54, borderRadius: 27, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   seatLock: { position: "absolute", bottom: -2, right: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: "#0A0A0F", borderWidth: 1, borderColor: C.gold + "66", alignItems: "center", justifyContent: "center" },
   speakRing: { position: "absolute", top: -7, left: -7, right: -7, bottom: -7, borderRadius: 999, borderWidth: 2, borderColor: C.teal },
   bottombar: { flexDirection: "row", gap: 5, paddingHorizontal: 10, paddingTop: 10, paddingBottom: 6, alignItems: "center" },
