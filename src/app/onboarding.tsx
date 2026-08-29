@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View }
 import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { Alan } from "@/components/Alan";
 import { LoginBackground } from "@/components/LoginBackground";
 
 import { AronMark } from "@/components/AronMark";
@@ -16,6 +17,7 @@ import { PRESET_AVATARS } from "@/data/onboarding";
 import { signInWithEmail, signInWithGoogle, signUpWithEmail } from "@/data/remote/authRepo";
 import { getMyProfile, updateMyProfile } from "@/data/remote/profileRepo";
 import { uploadAvatar } from "@/data/remote/storageRepo";
+import { epostaKontrol, kullaniciAdiKontrol, sifreGucu } from "@/lib/authValidation";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
@@ -24,6 +26,25 @@ import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
 type Step = "home" | "email" | "register";
+
+/** Şifre gücü — dolu kademe sayısı skoru, sağda en yakın iki eksik. */
+function GucCubugu({ g }: { g: ReturnType<typeof sifreGucu> }) {
+  return (
+    <View style={{ marginTop: 11 }}>
+      <View style={{ flexDirection: "row", gap: 5 }}>
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: i < g.skor ? g.renk : "rgba(255,255,255,.08)" }} />
+        ))}
+      </View>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 8 }}>
+        <Txt weight="extrabold" size={10.5} color={g.renk}>{g.etiket}</Txt>
+        {g.ipuclari.length > 0 && (
+          <Txt size={10} color={C.dim2} numberOfLines={1} align="right" style={{ flex: 1 }}>{g.ipuclari.join(" · ")}</Txt>
+        )}
+      </View>
+    </View>
+  );
+}
 
 function GoldButton({ label, disabled, loading, onPress }: { label: string; disabled?: boolean; loading?: boolean; onPress: () => void }) {
   return (
@@ -48,6 +69,10 @@ export default function Onboarding() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
+  const [pass2, setPass2] = useState("");
+  const [gorunur, setGorunur] = useState(false);
+  /** E-posta hatası yazarken değil, alandan çıkınca gösterilsin. */
+  const [epostaDokunuldu, setEpostaDokunuldu] = useState(false);
 
   // Profil tamamlama adımı
   const [rName, setRName] = useState("");
@@ -55,11 +80,36 @@ export default function Onboarding() {
   const [rGender, setRGender] = useState<"e" | "k" | null>(null);
   const [rPhoto, setRPhoto] = useState<string | null>(null);
   const [rBase64, setRBase64] = useState<string | null>(null); // yüklenecek görselin base64'ü (preset'te null)
+  const [adDokunuldu, setAdDokunuldu] = useState(false);
 
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const passValid = pass.length >= 6;
-  const emailFormOk = emailValid && passValid;
-  const regValid = rName.trim().length >= 2 && !!rGender;
+  const kayit = mode === "signup";
+
+  // Girişte YALNIZCA biçim kontrolü yapılır: eleme kuralları sonradan geldi,
+  // eski hesaplar (ör. rakamla başlayan bir adres) kendi hesabına giremezse
+  // kilitlenirdi. Sıkı eleme sadece yeni kayıtta.
+  const bicimOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const epostaSonuc = kayit
+    ? epostaKontrol(email)
+    : { ok: bicimOk, hata: bicimOk ? undefined : "Geçerli bir e-posta adresi gir." };
+  const epostaHata = epostaDokunuldu && email.trim().length > 0 && !epostaSonuc.ok ? epostaSonuc.hata : null;
+
+  const guc = sifreGucu(pass, email);
+  const sifreOk = kayit ? guc.yeterli : pass.length >= 6;
+  const tekrarOk = !kayit || (pass2.length > 0 && pass2 === pass);
+  const emailFormOk = epostaSonuc.ok && sifreOk && tekrarOk;
+
+  /** Giriş ↔ kayıt geçişi: karşı moda ait alanlar ve uyarılar temizlenir. */
+  const modDegistir = () => {
+    haptic.light();
+    setErr(null);
+    setNotice(null);
+    setPass2("");
+    setEpostaDokunuldu(false);
+    setMode(kayit ? "login" : "signup");
+  };
+  const adSonuc = kullaniciAdiKontrol(rName);
+  const adHata = adDokunuldu && rName.trim().length > 0 && !adSonuc.ok ? adSonuc.hata : null;
+  const regValid = adSonuc.ok && !!rGender;
 
   const enterApp = async () => {
     await loadProfile();
@@ -188,6 +238,7 @@ export default function Onboarding() {
     <View style={styles.root}>
       {/* Düz gradyan yerine üç katmanlı hareketli sahne */}
       <LoginBackground />
+
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <KeyboardAware>
 
@@ -208,7 +259,11 @@ export default function Onboarding() {
               <Animated.View entering={FadeInUp.delay(250).duration(600)} style={styles.homeFooter}>
                 <GoldButton label="E-posta ile Devam Et" onPress={() => { haptic.light(); setErr(null); setStep("email"); }} />
                 <Pressable onPress={handleGoogle} disabled={busy} style={[styles.altBtn, busy && { opacity: 0.5 }]}>
-                  <Txt weight="bold" size={13} color={C.text}>G  Google ile Devam Et</Txt>
+                  {/* Metnin içine kaçmış "G" harfi yerine gerçek bir rozet. */}
+                  <View style={styles.gRozet}>
+                    <Txt weight="displayBold" size={12} color="#1B1B1F">G</Txt>
+                  </View>
+                  <Txt weight="bold" size={13} color={C.text}>Google ile Devam Et</Txt>
                 </Pressable>
                 {err && <Txt weight="semibold" size={11.5} color={C.red} align="center">{err}</Txt>}
                 {notice && <Txt weight="semibold" size={11.5} color={C.green} align="center" lh={1.5}>{notice}</Txt>}
@@ -217,112 +272,193 @@ export default function Onboarding() {
           )}
 
           {step === "email" && (
-            <View style={styles.stepTop}>
+            <ScrollView contentContainerStyle={styles.stepTop} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               <Back to="home" />
+
               <View style={{ alignItems: "center" }}>
-                <AronMark s={58} />
-                <Txt weight="displayBold" size={21} color="#fff" style={{ marginTop: 16 }}>
-                  {mode === "login" ? "Tekrar hoş geldin" : "Hesabını oluştur"}
+                <AronMark s={60} />
+                {/* Kayıt iki adımlı; kullanıcı nerede olduğunu görsün. */}
+                {kayit && (
+                  <View style={styles.adimRozet}>
+                    <Txt weight="extrabold" size={9.5} color={C.gold2} style={{ letterSpacing: 1 }}>ADIM 1 / 2</Txt>
+                  </View>
+                )}
+                <Txt weight="displayBold" size={21} color="#fff" style={{ marginTop: kayit ? 12 : 16 }}>
+                  {kayit ? "Hesabını oluştur" : "Tekrar hoş geldin"}
                 </Txt>
-                <Txt size={12} color={C.dim} lh={1.5} align="center" style={{ marginTop: 8 }}>
-                  {mode === "login" ? "E-posta ve şifrenle giriş yap." : "E-posta ve bir şifre belirle, hemen başlayalım."}
+                <Txt size={12} color={C.dim} lh={1.5} align="center" style={{ marginTop: 8, maxWidth: 280 }}>
+                  {kayit
+                    ? "E-posta ve güçlü bir şifre belirle. Sıradaki adımda profilini kuracağız."
+                    : "E-posta ve şifrenle kaldığın yerden devam et."}
                 </Txt>
               </View>
 
-              <View style={{ marginTop: 28 }}>
-                <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5 }}>E-POSTA</Txt>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
+              <View style={{ marginTop: 24 }}>
+                <Alan
+                  etiket="E-POSTA"
+                  deger={email}
+                  degistir={setEmail}
                   placeholder="ornek@eposta.com"
-                  placeholderTextColor={C.dim2}
-                  style={[styles.input, { marginTop: 8, borderColor: email && !emailValid ? C.red : "rgba(255,255,255,.1)" }]}
+                  klavye="email-address"
+                  hata={epostaHata}
+                  odakDegisti={(o) => { if (!o) setEpostaDokunuldu(true); }}
                 />
 
-                <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5, marginTop: 18 }}>ŞİFRE</Txt>
-                <TextInput
-                  value={pass}
-                  onChangeText={setPass}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  placeholder="En az 6 karakter"
-                  placeholderTextColor={C.dim2}
-                  style={[styles.input, { marginTop: 8, borderColor: pass && !passValid ? C.red : "rgba(255,255,255,.1)" }]}
+                <Alan
+                  etiket="ŞİFRE"
+                  deger={pass}
+                  degistir={setPass}
+                  placeholder={kayit ? "En az 8 karakter" : "Şifren"}
+                  gizli
+                  gorunur={gorunur}
+                  gozBas={() => setGorunur(!gorunur)}
+                  hata={!kayit && pass.length > 0 && pass.length < 6 ? "Şifre en az 6 karakter." : null}
                 />
-                {pass && !passValid ? <Txt weight="semibold" size={10.5} color={C.red} style={{ marginTop: 8 }}>Şifre en az 6 karakter olmalı</Txt> : null}
+                {kayit && pass.length > 0 && <GucCubugu g={guc} />}
 
-                {err && <Txt weight="semibold" size={11.5} color={C.red} style={{ marginTop: 14 }} lh={1.5}>{err}</Txt>}
-                {notice && <Txt weight="semibold" size={11.5} color={C.green} style={{ marginTop: 14 }} lh={1.5}>{notice}</Txt>}
+                {/* Kayıtta şifre tekrarı — girişte yok, iki ekran birbirinin
+                    kopyası gibi durmasın ve yanlış yazılan şifreyle hesap
+                    açılmasın. */}
+                {kayit && (
+                  <Alan
+                    etiket="ŞİFRE TEKRAR"
+                    deger={pass2}
+                    degistir={setPass2}
+                    placeholder="Şifreni bir daha yaz"
+                    gizli
+                    gorunur={gorunur}
+                    hata={pass2.length > 0 && pass2 !== pass ? "Şifreler eşleşmiyor." : null}
+                    sagRozet={pass2.length > 0 && pass2 === pass ? <Icon name="check" size={16} color={C.green} /> : undefined}
+                  />
+                )}
 
-                <Pressable onPress={() => { setErr(null); setNotice(null); setMode(mode === "login" ? "signup" : "login"); }} style={{ marginTop: 18, alignSelf: "center" }}>
-                  <Txt weight="bold" size={11.5} color={C.gold}>
-                    {mode === "login" ? "Hesabın yok mu? Kayıt ol" : "Zaten hesabın var mı? Giriş yap"}
-                  </Txt>
+                {err && <Txt weight="semibold" size={11.5} color={C.red} style={{ marginTop: 16 }} lh={1.5}>{err}</Txt>}
+                {notice && <Txt weight="semibold" size={11.5} color={C.green} style={{ marginTop: 16 }} lh={1.5}>{notice}</Txt>}
+
+                <Pressable onPress={modDegistir} style={styles.gecisBtn}>
+                  <Txt size={11.5} color={C.dim}>{kayit ? "Zaten hesabın var mı? " : "Hesabın yok mu? "}</Txt>
+                  <Txt weight="extrabold" size={11.5} color={C.gold}>{kayit ? "Giriş yap" : "Kayıt ol"}</Txt>
                 </Pressable>
               </View>
 
-              <View style={{ flex: 1 }} />
-              <GoldButton label={mode === "login" ? "Giriş Yap" : "Kayıt Ol"} disabled={!emailFormOk} loading={busy} onPress={submitEmail} />
-            </View>
+              {/* Buton dipte kalsın; kayıtta alanlar uzayınca içerik kayar. */}
+              <View style={{ flex: 1, minHeight: 26 }} />
+              <GoldButton label={kayit ? "Kayıt Ol" : "Giriş Yap"} disabled={!emailFormOk} loading={busy} onPress={submitEmail} />
+            </ScrollView>
           )}
 
           {step === "register" && (
-            <ScrollView contentContainerStyle={{ padding: 30, paddingTop: 24 }} keyboardShouldPersistTaps="handled">
-              <Txt weight="displayBold" size={21} color="#fff" style={{ marginTop: 8 }}>Profilini oluştur</Txt>
-              <Txt size={12} color={C.dim} lh={1.5} style={{ marginTop: 8 }}>Seni nasıl görelim? Birkaç bilgi yeterli.</Txt>
+            <ScrollView contentContainerStyle={styles.kayitScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <View style={[styles.adimRozet, { alignSelf: "flex-start", marginTop: 4 }]}>
+                <Txt weight="extrabold" size={9.5} color={C.gold2} style={{ letterSpacing: 1 }}>ADIM 2 / 2</Txt>
+              </View>
+              <Txt weight="displayBold" size={21} color="#fff" style={{ marginTop: 12 }}>Profilini oluştur</Txt>
+              <Txt size={12} color={C.dim} lh={1.5} style={{ marginTop: 8 }}>Odalarda seni bu bilgilerle görecekler.</Txt>
 
-              <View style={{ alignItems: "center", marginTop: 24 }}>
+              {/* Ekranın odağı avatar: küçük bir daire + altına sıkışmış altı
+                  yuvarlak yerine, altın halkalı büyük avatar ve altında yazdıkça
+                  güncellenen ad önizlemesi. */}
+              <View style={{ alignItems: "center", marginTop: 26 }}>
                 <Pressable onPress={pickImage} style={styles.avatarWrap}>
-                  <View style={[styles.avatar, { borderColor: rPhoto ? C.gold : "rgba(255,255,255,.15)" }]}>
-                    {rPhoto ? <Image source={{ uri: rPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Icon name="camera" size={30} color={C.dim} />}
-                  </View>
+                  <Gradient
+                    colors={rPhoto ? [C.gold2, "#B4802A"] : ["rgba(255,255,255,.18)", "rgba(255,255,255,.05)"]}
+                    deg={135}
+                    style={styles.avatarHalka}
+                  >
+                    <View style={styles.avatar}>
+                      {rPhoto
+                        ? <Image source={{ uri: rPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                        : <Icon name="camera" size={26} color={C.dim} />}
+                    </View>
+                  </Gradient>
                   <View style={styles.camBadge}>
-                    <Icon name="camera" size={14} sw={2} color="#241A05" />
+                    <Icon name="camera" size={13} sw={2} color="#241A05" />
                   </View>
                 </Pressable>
-                <Txt weight="semibold" size={10.5} color={C.dim2} style={{ marginTop: 9 }}>Fotoğraf yükle veya hazır olanlardan seç</Txt>
-                <View style={{ flexDirection: "row", gap: 9, marginTop: 12, flexWrap: "wrap", justifyContent: "center" }}>
-                  {PRESET_AVATARS.map((u) => {
-                    const on = rPhoto === u;
-                    return (
-                      <Pressable key={u} onPress={() => { setRPhoto(u); setRBase64(null); }} style={[styles.preset, { borderColor: on ? C.gold : "rgba(255,255,255,.12)" }]}>
-                        <Image source={{ uri: u }} style={StyleSheet.absoluteFill} contentFit="cover" />
-                      </Pressable>
-                    );
-                  })}
-                </View>
+
+                <Txt weight="displayBold" size={15} color={rName.trim() ? "#fff" : C.dim2} numberOfLines={1} style={{ marginTop: 13 }}>
+                  {rName.trim() || "kullanıcı adın"}
+                </Txt>
+                <Txt weight="semibold" size={10.5} color={C.dim2} style={{ marginTop: 3 }}>
+                  {rPhoto ? "Değiştirmek için fotoğrafa dokun" : "Fotoğraf yüklemek için dokun"}
+                </Txt>
               </View>
 
-              <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5, marginTop: 26 }}>KULLANICI ADI</Txt>
-              <TextInput value={rName} onChangeText={setRName} maxLength={20} autoCapitalize="none" placeholder="Örn: gece_yıldızı" placeholderTextColor={C.dim2}
-                style={[styles.input, { marginTop: 8, borderColor: rName && rName.trim().length < 2 ? C.red : "rgba(255,255,255,.1)" }]} />
+              <View style={styles.ayirici}>
+                <View style={styles.cizgi} />
+                <Txt weight="bold" size={9.5} color={C.dim2} style={{ letterSpacing: 1 }}>HAZIR AVATARLAR</Txt>
+                <View style={styles.cizgi} />
+              </View>
 
-              <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5, marginTop: 20 }}>CİNSİYET</Txt>
+              {/* Sarmalanmış ızgara yerine yatay şerit — yeni avatar eklendikçe
+                  ekran aşağı doğru şişmez. */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 2 }}>
+                {PRESET_AVATARS.map((u) => {
+                  const on = rPhoto === u;
+                  return (
+                    <Pressable key={u} onPress={() => { haptic.select(); setRPhoto(u); setRBase64(null); }} style={[styles.preset, { borderColor: on ? C.gold : "rgba(255,255,255,.12)" }]}>
+                      <Image source={{ uri: u }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                      {on && (
+                        <View style={styles.presetTik}>
+                          <Icon name="check" size={10} sw={3} color="#241A05" />
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
+              <View style={{ marginTop: 8 }}>
+                <Alan
+                  etiket="KULLANICI ADI"
+                  deger={rName}
+                  degistir={(s) => setRName(s.slice(0, 20))}
+                  placeholder="gece_yildizi"
+                  hata={adHata}
+                  odakDegisti={(o) => { if (!o) setAdDokunuldu(true); }}
+                  solRozet={<Txt weight="extrabold" size={15} color={C.dim2} style={{ marginRight: 5 }}>@</Txt>}
+                  sagRozet={<Txt weight="bold" size={10.5} color={rName.length >= 18 ? C.gold : C.dim2}>{rName.length}/20</Txt>}
+                />
+              </View>
+
+              <Txt weight="bold" size={10} color={C.dim} style={{ letterSpacing: 0.7, marginTop: 22 }}>CİNSİYET</Txt>
               <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
-                {([["e", "Erkek", "#60A5FA"], ["k", "Kadın", "#FB7185"]] as const).map(([v, lb, col]) => {
+                {/* Kadın seçeneği de erkek ikonuyla çiziliyordu; artık kendi ikonu var. */}
+                {([["e", "Erkek", "#60A5FA", "male"], ["k", "Kadın", "#FB7185", "female"]] as const).map(([v, lb, col, ik]) => {
                   const on = rGender === v;
                   return (
-                    <Pressable key={v} onPress={() => setRGender(v)} style={[styles.genderBtn, { backgroundColor: on ? col + "1F" : "rgba(255,255,255,.05)", borderColor: on ? col : "rgba(255,255,255,.1)" }]}>
-                      <Icon name="male" size={15} color={on ? col : C.dim} />
+                    <Pressable key={v} onPress={() => { haptic.select(); setRGender(v); }} style={[styles.genderBtn, { backgroundColor: on ? col + "1C" : "rgba(255,255,255,.05)", borderColor: on ? col : "rgba(255,255,255,.1)" }]}>
+                      <Icon name={ik} size={16} color={on ? col : C.dim} />
                       <Txt weight="extrabold" size={13} color={on ? col : C.dim}>{lb}</Txt>
                     </Pressable>
                   );
                 })}
               </View>
 
-              <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5, marginTop: 20 }}>BİYOGRAFİ <Txt weight="semibold" size={10.5} color={C.dim2}>(opsiyonel)</Txt></Txt>
-              <TextInput value={rBio} onChangeText={setRBio} maxLength={120} multiline placeholder="Kendinden kısaca bahset... örn: Müzik ve gece sohbetleri 🎧" placeholderTextColor={C.dim2}
-                style={[styles.input, { marginTop: 8, height: 80, textAlignVertical: "top", paddingTop: 12 }]} />
-              <Txt size={9.5} color={C.dim2} align="right" style={{ marginTop: 4 }}>{rBio.length}/120</Txt>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 22 }}>
+                <Txt weight="bold" size={10} color={C.dim} style={{ letterSpacing: 0.7 }}>
+                  BİYOGRAFİ <Txt weight="semibold" size={10} color={C.dim2}>· opsiyonel</Txt>
+                </Txt>
+                <Txt weight="bold" size={10} color={rBio.length >= 110 ? C.gold : C.dim2}>{rBio.length}/120</Txt>
+              </View>
+              <TextInput
+                value={rBio}
+                onChangeText={setRBio}
+                maxLength={120}
+                multiline
+                placeholder="Kendinden kısaca bahset — örn: Müzik ve gece sohbetleri"
+                placeholderTextColor={C.dim2}
+                style={styles.bio}
+              />
 
-              {err && <Txt weight="semibold" size={11.5} color={C.red} style={{ marginTop: 14 }} lh={1.5}>{err}</Txt>}
+              {err && <Txt weight="semibold" size={11.5} color={C.red} style={{ marginTop: 16 }} lh={1.5}>{err}</Txt>}
 
-              <View style={{ marginTop: 30 }}>
+              <View style={{ marginTop: 26 }}>
                 <GoldButton label="Aron'a Başla" disabled={!regValid} loading={busy} onPress={finishProfile} />
               </View>
+              <Txt size={10} color={C.dim2} align="center" lh={1.5} style={{ marginTop: 12 }}>
+                Bilgilerini sonradan profilinden değiştirebilirsin.
+              </Txt>
             </ScrollView>
           )}
         </KeyboardAware>
@@ -349,13 +485,23 @@ const styles = StyleSheet.create({
   home: { flex: 1 },
   brand: { alignItems: "center", paddingTop: 18 },
   homeFooter: { paddingHorizontal: 30, paddingBottom: 8, gap: 10 },
-  stepTop: { flex: 1, paddingHorizontal: 30, paddingTop: 44 },
+  /** Form adımı: alanlar doğrudan sahnenin üstünde durur, panel/perde yok. */
+  stepTop: { flexGrow: 1, paddingHorizontal: 30, paddingTop: 44, paddingBottom: 20 },
+  adimRozet: { marginTop: 14, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: "rgba(232,179,65,.32)", backgroundColor: "rgba(232,179,65,.10)" },
+  gecisBtn: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 20 },
+  gRozet: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
   back: { position: "absolute", left: 20, top: 8, zIndex: 2, width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  altBtn: { paddingVertical: 13, borderRadius: 15, borderWidth: 1, borderColor: "rgba(255,255,255,.1)", backgroundColor: "rgba(255,255,255,.05)", alignItems: "center" },
-  input: { height: 50, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, color: C.text, fontSize: 15, fontFamily: "PlusJakartaSans_700Bold" },
-  avatarWrap: { width: 100, height: 100 },
-  avatar: { width: 100, height: 100, borderRadius: 50, overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 2, backgroundColor: "rgba(255,255,255,.05)" },
-  camBadge: { position: "absolute", right: 2, bottom: 2, width: 30, height: 30, borderRadius: 15, backgroundColor: C.gold2, borderWidth: 2.5, borderColor: "#0A0A0F", alignItems: "center", justifyContent: "center" },
-  preset: { width: 46, height: 46, borderRadius: 23, overflow: "hidden", borderWidth: 2 },
-  genderBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 14, borderWidth: 1.5 },
+  altBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingVertical: 13, borderRadius: 15, borderWidth: 1, borderColor: "rgba(255,255,255,.1)", backgroundColor: "rgba(255,255,255,.05)" },
+  kayitScroll: { paddingHorizontal: 30, paddingTop: 24, paddingBottom: 34 },
+  bio: { minHeight: 92, marginTop: 8, borderWidth: 1, borderColor: "rgba(255,255,255,.1)", borderRadius: 14, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, backgroundColor: "rgba(255,255,255,.05)", color: C.text, fontSize: 14, lineHeight: 20, fontFamily: "PlusJakartaSans_700Bold", textAlignVertical: "top" },
+  ayirici: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 26, marginBottom: 12 },
+  cizgi: { flex: 1, height: 1, backgroundColor: "rgba(255,255,255,.08)" },
+  avatarWrap: { width: 116, height: 116 },
+  /** Altın halka: gradyan çerçeve, içindeki daire fotoğrafı kırpar. */
+  avatarHalka: { width: 116, height: 116, borderRadius: 58, padding: 2.5, alignItems: "center", justifyContent: "center" },
+  avatar: { width: 111, height: 111, borderRadius: 56, overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: "#121218" },
+  camBadge: { position: "absolute", right: 1, bottom: 1, width: 32, height: 32, borderRadius: 16, backgroundColor: C.gold2, borderWidth: 3, borderColor: "#0A0A0F", alignItems: "center", justifyContent: "center" },
+  preset: { width: 52, height: 52, borderRadius: 26, overflow: "hidden", borderWidth: 2 },
+  presetTik: { position: "absolute", right: -1, bottom: -1, width: 18, height: 18, borderRadius: 9, backgroundColor: C.gold2, borderWidth: 1.5, borderColor: "#0A0A0F", alignItems: "center", justifyContent: "center" },
+  genderBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5 },
 });
