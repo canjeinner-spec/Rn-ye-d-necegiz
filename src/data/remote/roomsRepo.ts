@@ -17,6 +17,18 @@ function kolonYok(e: unknown) {
   return (e as { code?: string })?.code === "42703";
 }
 
+/**
+ * Tablo/fonksiyon yok hatası mı?
+ *
+ * 055 (oda_takip, oda_ziyaretleri) Supabase'de çalıştırılmamışsa Odam ekranı
+ * çökmesin, sekmeler boş görünsün diye. Aynı ders daha önce alınmıştı:
+ * uygulanmamış migration'a bağlanan SELECT tüm profil okumalarını çökertmişti.
+ */
+function tabloYok(e: unknown) {
+  const c = (e as { code?: string })?.code;
+  return c === "42P01" || c === "42883" || c === "PGRST202" || c === "PGRST205";
+}
+
 type OdaRow = {
   id: number;
   public_id: string;
@@ -574,4 +586,135 @@ export async function createRoom(input: {
     throw error;
   }
   throw lastErr ?? new Error("Oda oluşturulamadı.");
+}
+
+// ---------------------------------------------------------------------------
+// Odam ekranı — "Son günlerde" / "Katıl" / "Takip et"
+//
+// Üç sekme de ROOMS (data/seed.ts) sabitinin dilimlerini gösteriyordu. Artık
+// üçü de üç ayrı gerçek kaynaktan okunuyor: oda_ziyaretleri, oda_uyeleri,
+// oda_takip. 055 uygulanmamışsa liste boş döner, ekran çalışmaya devam eder.
+// ---------------------------------------------------------------------------
+
+/** dbId listesini Room'a çevirir; dönen dizi ids'teki SIRAYI korur. */
+async function odalariIdIleGetir(ids: number[]): Promise<Room[]> {
+  if (ids.length === 0) return [];
+  const sb = requireSupabase();
+  const [data, me] = await Promise.all([
+    odalariGetir<OdaRow[] | null>((cols) => sb.from("odalar").select(cols).in("id", ids)),
+    getMyProfile().catch(() => null),
+  ]);
+  const rows = data ?? [];
+  const hosts = await fetchHostNames(rows.map((r) => r.olusturan_id).filter((x): x is number => x != null));
+  const bul = new Map<number, Room>();
+  for (const r of rows) {
+    bul.set(r.id, mapRoom(r, hosts.get(r.olusturan_id ?? -1) || "Kullanıcı", me?.id ?? null));
+  }
+  // Silinmiş/gizlenmiş odalar RLS yüzünden gelmez; sessizce listeden düşerler.
+  return ids.map((id) => bul.get(id)).filter((r): r is Room => !!r);
+}
+
+/**
+ * Odaya girişi ziyaret geçmişine yazar (oda başına tek satır, sayaç artar).
+ * Best-effort: hata olursa odaya giriş engellenmemeli.
+ */
+export async function ziyaretKaydet(odaId: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("oda_ziyaret_kaydet", { p_oda_id: odaId });
+  if (error && !tabloYok(error)) throw error;
+}
+
+/** Odam listelerinde kullanılan oda + (varsa) son ziyaret zamanı. */
+export type OdamOdasi = Room & { sonZiyaret?: number };
+
+/** "Son günlerde" — son ziyaret ettiğim odalar, en yeniden eskiye. */
+export async function sonZiyaretEdilenOdalar(limit = 20): Promise<OdamOdasi[]> {
+  const sb = requireSupabase();
+  const me = await getMyProfile();
+  if (!me) return [];
+  const { data, error } = await sb
+    .from("oda_ziyaretleri")
+    .select("oda_id, son_giris")
+    .eq("kullanici_id", me.id)
+    .order("son_giris", { ascending: false })
+    .limit(limit);
+  if (error) {
+    if (tabloYok(error)) return [];
+    throw error;
+  }
+  const satirlar = (data as { oda_id: number; son_giris: string }[]) ?? [];
+  const zaman = new Map(satirlar.map((r) => [r.oda_id, Date.parse(r.son_giris)]));
+  const odalar = await odalariIdIleGetir(satirlar.map((r) => r.oda_id));
+  return odalar.map((o) => ({ ...o, sonZiyaret: o.dbId != null ? zaman.get(o.dbId) : undefined }));
+}
+
+/** "Katıl" — üye olduğum odalar (oda_uyeleri, en son katıldığım üstte). */
+export async function katildigimOdalar(limit = 50): Promise<Room[]> {
+  const sb = requireSupabase();
+  const me = await getMyProfile();
+  if (!me) return [];
+  const { data, error } = await sb
+    .from("oda_uyeleri")
+    .select("oda_id, katilma_tarihi")
+    .eq("kullanici_id", me.id)
+    .order("katilma_tarihi", { ascending: false })
+    .limit(limit);
+  if (error) {
+    if (tabloYok(error)) return [];
+    throw error;
+  }
+  return odalariIdIleGetir(((data as { oda_id: number }[]) ?? []).map((r) => r.oda_id));
+}
+
+/** "Takip et" — takip ettiğim odalar. */
+export async function takipEttigimOdalar(limit = 50): Promise<Room[]> {
+  const sb = requireSupabase();
+  const me = await getMyProfile();
+  if (!me) return [];
+  const { data, error } = await sb
+    .from("oda_takip")
+    .select("oda_id, tarih")
+    .eq("kullanici_id", me.id)
+    .order("tarih", { ascending: false })
+    .limit(limit);
+  if (error) {
+    if (tabloYok(error)) return [];
+    throw error;
+  }
+  return odalariIdIleGetir(((data as { oda_id: number }[]) ?? []).map((r) => r.oda_id));
+}
+
+/** Bu odayı takip ediyor muyum? (055 yoksa: hayır) */
+export async function odaTakiptenMi(odaId: number): Promise<boolean> {
+  const sb = requireSupabase();
+  const me = await getMyProfile();
+  if (!me) return false;
+  const { count, error } = await sb
+    .from("oda_takip")
+    .select("oda_id", { count: "exact", head: true })
+    .eq("kullanici_id", me.id)
+    .eq("oda_id", odaId);
+  if (error) {
+    if (tabloYok(error)) return false;
+    throw error;
+  }
+  return (count ?? 0) > 0;
+}
+
+/** Odayı takip et. Zaten takiptesen sessizce geçer. */
+export async function odaTakipEt(odaId: number): Promise<void> {
+  const sb = requireSupabase();
+  const me = await getMyProfile();
+  if (!me) throw new Error("Profil bulunamadı.");
+  const { error } = await sb.from("oda_takip").insert({ kullanici_id: me.id, oda_id: odaId });
+  if (error && (error as { code?: string }).code !== "23505") throw error;
+}
+
+/** Oda takibini bırak. */
+export async function odaTakiptenCik(odaId: number): Promise<void> {
+  const sb = requireSupabase();
+  const me = await getMyProfile();
+  if (!me) return;
+  const { error } = await sb.from("oda_takip").delete().eq("kullanici_id", me.id).eq("oda_id", odaId);
+  if (error) throw error;
 }

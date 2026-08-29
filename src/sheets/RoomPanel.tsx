@@ -10,7 +10,7 @@ import { Portrait } from "@/components/Portrait";
 import { RolePill } from "@/components/RolePill";
 import { Scene } from "@/components/Scene";
 import { Txt } from "@/components/Txt";
-import { getRoomMembers, joinRoomMembership, leaveRoomMembership, removeRoomMember, setRoomMemberRole, type RoomMember, type RoomRole } from "@/data/remote/roomsRepo";
+import { getRoomMembers, joinRoomMembership, leaveRoomMembership, odaTakipEt, odaTakiptenCik, odaTakiptenMi, removeRoomMember, setRoomMemberRole, type RoomMember, type RoomRole } from "@/data/remote/roomsRepo";
 import { type Room } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
@@ -101,6 +101,37 @@ export function RoomPanel(props: Props) {
       .catch((e) => console.warn("[oda-uye]", e?.message || e));
   }, [live, dbId]);
   useEffect(() => { reloadMembers(); }, [reloadMembers]);
+
+  // ---- Takip (055_oda_takip) --------------------------------------------
+  // "Takip Et" yalnızca yerel bir state'i çeviriyordu: panel kapanınca
+  // unutuluyor, Odam ekranındaki "Takip et" sekmesine hiçbir şey düşmüyordu.
+  const [takipBusy, setTakipBusy] = useState(false);
+  useEffect(() => {
+    if (!live || !dbId) return;
+    let gecerli = true;
+    odaTakiptenMi(dbId)
+      .then((v) => { if (gecerli) setFollowing(v); })
+      .catch((e) => console.warn("[oda-takip]", (e as Error)?.message || e));
+    return () => { gecerli = false; };
+  }, [live, dbId]);
+
+  const toggleTakip = async () => {
+    haptic.light();
+    if (!live || !dbId) { setFollowing((f) => !f); return; } // sahte oda: eski davranış
+    if (takipBusy) return;
+    const yeni = !following;
+    setFollowing(yeni); // iyimser: düğme anında tepki versin
+    setTakipBusy(true);
+    try {
+      if (yeni) await odaTakipEt(dbId);
+      else await odaTakiptenCik(dbId);
+    } catch (e) {
+      setFollowing(!yeni); // yazılamadıysa geri al, yalan söylemesin
+      console.warn("[oda-takip]", (e as Error)?.message || e);
+    } finally {
+      setTakipBusy(false);
+    }
+  };
 
   const isMember = live ? myRole != null : joined;
   const toggleJoin = async () => {
@@ -359,7 +390,7 @@ export function RoomPanel(props: Props) {
                   </Gradient>
                 )}
               </Pressable>
-              <Pressable onPress={() => setFollowing((f) => !f)} style={[styles.actBtn, { flex: 1, borderWidth: 1.5, borderColor: following ? C.gold : "rgba(255,255,255,.14)", backgroundColor: following ? C.gold + "12" : "rgba(255,255,255,.05)" }]}>
+              <Pressable onPress={toggleTakip} disabled={takipBusy} style={[styles.actBtn, { flex: 1, borderWidth: 1.5, opacity: takipBusy ? 0.7 : 1, borderColor: following ? C.gold : "rgba(255,255,255,.14)", backgroundColor: following ? C.gold + "12" : "rgba(255,255,255,.05)" }]}>
                 <Icon name={following ? "check" : "heart"} size={16} sw={following ? 2.5 : 1.7} color={following ? C.gold2 : C.text} />
                 <Txt weight="extrabold" size={13.5} color={following ? C.gold2 : C.text}>{following ? "Takiptesin" : "Takip Et"}</Txt>
               </Pressable>

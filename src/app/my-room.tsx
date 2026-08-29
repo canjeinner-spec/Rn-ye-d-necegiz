@@ -1,23 +1,59 @@
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
-import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Portrait } from "@/components/Portrait";
 import { Scene } from "@/components/Scene";
+import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
+import {
+  katildigimOdalar,
+  sonZiyaretEdilenOdalar,
+  takipEttigimOdalar,
+  type OdamOdasi,
+} from "@/data/remote/roomsRepo";
 import { PEOPLE } from "@/data/people";
-import { ROOMS, type Room } from "@/data/seed";
+import { type Room } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
 const TABS = ["Son günlerde", "Katıl", "Takip et"];
 
-function RoomCard({ room, onPress }: { room: Room; onPress: () => void }) {
+/**
+ * Üç sekmenin üç ayrı gerçek kaynağı (055 + 021):
+ *   0 Son günlerde → oda_ziyaretleri   (odaya her girişte yazılır)
+ *   1 Katıl        → oda_uyeleri       (oda panelindeki "Katıl")
+ *   2 Takip et     → oda_takip         (oda panelindeki "Takip Et")
+ * Önceden üçü de ROOMS sabitinin farklı dilimleriydi.
+ */
+const YUKLEYICILER = [sonZiyaretEdilenOdalar, katildigimOdalar, takipEttigimOdalar];
+
+const BOS_METIN = [
+  "Henüz bir odaya girmedin. Girdiğin odalar burada birikir.",
+  "Hiçbir odaya katılmadın. Bir odanın panelinden \"Katıl\" diyebilirsin.",
+  "Takip ettiğin oda yok. Oda panelindeki \"Takip Et\" ile ekleyebilirsin.",
+];
+
+/** "az önce · 12 dk · 3 sa · 2 gün" — Son günlerde sekmesindeki zaman etiketi. */
+function neZaman(ms?: number): string | null {
+  if (!ms) return null;
+  const fark = Math.max(0, Date.now() - ms);
+  const dk = Math.floor(fark / 60000);
+  if (dk < 1) return "az önce";
+  if (dk < 60) return `${dk} dk önce`;
+  const sa = Math.floor(dk / 60);
+  if (sa < 24) return `${sa} sa önce`;
+  const gun = Math.floor(sa / 24);
+  return gun < 7 ? `${gun} gün önce` : `${Math.floor(gun / 7)} hafta önce`;
+}
+
+function RoomCard({ room, altYazi, onPress }: { room: OdamOdasi; altYazi?: string | null; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={styles.card}>
       <View style={styles.cardThumb}>
@@ -29,19 +65,25 @@ function RoomCard({ room, onPress }: { room: Room; onPress: () => void }) {
           {room.locked && <Icon name="lock" size={12} color={C.dim2} />}
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 7 }}>
-          <View style={{ flexDirection: "row" }}>
-            {room.crowd.slice(0, 4).map((n, i) => (
-              <View key={n + i} style={{ marginLeft: i === 0 ? 0 : -8, borderRadius: 11, borderWidth: 2, borderColor: "#15131C" }}>
-                <Portrait name={n} size={22} />
-              </View>
-            ))}
-          </View>
-          <Txt weight="bold" size={11} color={C.dim}>{room.online}</Txt>
+          {/* Gerçek odalarda crowd boş gelir (canlı koltuk verisi Faz 4);
+              o zaman avatar dizisi yerine sahibin adı yazılır. */}
+          {room.crowd.length > 0 ? (
+            <View style={{ flexDirection: "row" }}>
+              {room.crowd.slice(0, 4).map((n, i) => (
+                <View key={n + i} style={{ marginLeft: i === 0 ? 0 : -8, borderRadius: 11, borderWidth: 2, borderColor: "#14131B" }}>
+                  <Portrait name={n} size={22} />
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Txt weight="semibold" size={11} color={C.dim2} numberOfLines={1} style={{ flexShrink: 1 }}>@{room.host}</Txt>
+          )}
+          {altYazi && <Txt weight="semibold" size={11} color={C.dim2}>· {altYazi}</Txt>}
         </View>
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-        <Icon path="M4 12h2M9 7v10M14 4v16M19 9v6" size={15} color={C.green} />
-        <Txt weight="extrabold" size={12} color={C.green}>{room.extra + room.mic}</Txt>
+        <Icon path="M4 12h2M9 7v10M14 4v16M19 9v6" size={15} color={room.live ? C.green : C.dim2} />
+        <Txt weight="extrabold" size={12} color={room.live ? C.green : C.dim2}>{room.online}</Txt>
       </View>
     </Pressable>
   );
@@ -53,9 +95,37 @@ export default function MyRoomHub() {
   const [tab, setTab] = useState(0);
   const [creating, setCreating] = useState(false);
 
-  const live = ROOMS.filter((r) => r.live && !r.official);
-  const lists = [live, live.slice(0, 3), live.slice(1, 4)];
-  const list = lists[tab];
+  /** Sekme başına liste; null = henüz yüklenmedi. */
+  const [listeler, setListeler] = useState<(OdamOdasi[] | null)[]>([null, null, null]);
+  const [yenileniyor, setYenileniyor] = useState(false);
+  const [hata, setHata] = useState<string | null>(null);
+  const list = listeler[tab];
+
+  const yukle = useCallback(async (i: number) => {
+    if (!isSupabaseConfigured) {
+      setListeler((l) => l.map((v, j) => (j === i ? [] : v)));
+      return;
+    }
+    try {
+      const sonuc = await YUKLEYICILER[i]();
+      setListeler((l) => l.map((v, j) => (j === i ? sonuc : v)));
+      setHata(null);
+    } catch (e) {
+      console.warn("[odam]", (e as Error)?.message || e);
+      setListeler((l) => l.map((v, j) => (j === i ? [] : v)));
+      setHata("Liste yüklenemedi. Bağlantını kontrol et.");
+    }
+  }, []);
+
+  // Ekrana her dönüşte açık sekmeyi tazele: odadan çıkıp geldiğinde "Son
+  // günlerde" listesinin en üstünde o oda olmalı.
+  useFocusEffect(useCallback(() => { yukle(tab); }, [tab, yukle]));
+
+  const yenile = async () => {
+    setYenileniyor(true);
+    await yukle(tab);
+    setYenileniyor(false);
+  };
 
   const enterMine = async () => {
     haptic.light();
@@ -81,6 +151,10 @@ export default function MyRoomHub() {
 
   return (
     <View style={styles.root}>
+      {/* Ekran düz siyahtı ve içindeki kart mor gradyandı — uygulamanın
+          geri kalanı siyah-altın. Diğer ekranlarla aynı zemin + altın hale. */}
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={[C.gold + "1A", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
@@ -89,33 +163,67 @@ export default function MyRoomHub() {
           <Txt weight="displayBold" size={17} color="#fff">Odam</Txt>
         </View>
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-          <Txt weight="extrabold" size={12} color={C.dim} style={{ marginBottom: 8, letterSpacing: 0.3 }}>ODAM</Txt>
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={yenileniyor} onRefresh={yenile} tintColor={C.dim} />}
+        >
+          <Txt weight="bold" size={10} color={C.dim} style={{ marginBottom: 9, letterSpacing: 0.8 }}>ODAM</Txt>
           <Pressable onPress={enterMine} style={styles.mineCard}>
             <View style={styles.mineThumb}>
               {(myRoom?.photo || userPhoto) ? <Image source={{ uri: myRoom?.photo || userPhoto || "" }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind="club" />}
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Txt weight="extrabold" size={15} color="#fff" numberOfLines={1}>{myRoom ? myRoom.name : `${userName} Odası`}</Txt>
-              <Txt weight="semibold" size={11.5} color="#C4B5FD" style={{ marginTop: 4 }}>{myRoom ? "Odana geri dön" : "Henüz odan yok — oluşturmak için dokun"}</Txt>
+              {myRoom ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 6 }}>
+                  <View style={styles.idHap}>
+                    <Txt weight="bold" size={9.5} color={C.gold2}>ID {myRoom.id}</Txt>
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <View style={[styles.nokta, { backgroundColor: myRoom.live ? C.green : C.dim2 }]} />
+                    <Txt weight="semibold" size={10.5} color={C.dim}>{myRoom.live ? `${myRoom.online} kişi içeride` : "Şu an boş"}</Txt>
+                  </View>
+                </View>
+              ) : (
+                <Txt weight="semibold" size={11.5} color={C.dim} style={{ marginTop: 4 }}>Henüz odan yok — oluşturmak için dokun</Txt>
+              )}
             </View>
-            <Gradient colors={["#A855F7", "#6D28D9"]} deg={135} style={styles.mineBtn}>
-              <Txt weight="extrabold" size={12.5} color="#fff">{myRoom ? "Gir" : "Oluştur"}</Txt>
-              <Icon name="chev" size={13} color="#fff" />
+            <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.mineBtn}>
+              <Txt weight="extrabold" size={12.5} color="#241A05">{myRoom ? "Gir" : "Oluştur"}</Txt>
+              <Icon name="chev" size={13} sw={2.2} color="#241A05" />
             </Gradient>
           </Pressable>
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 18, marginBottom: 14 }}>
-            {TABS.map((t, i) => (
-              <Pressable key={t} onPress={() => setTab(i)} style={{ paddingBottom: 7 }}>
-                <Txt weight={i === tab ? "extrabold" : "semibold"} size={i === tab ? 16 : 14.5} color={i === tab ? C.text : C.dim2}>{t}</Txt>
-                {i === tab && <View style={styles.tabUnderline} />}
-              </Pressable>
-            ))}
+          {/* Elle çizilmiş yeşil çizgili sekmeler yerine ortak Tabs
+              (kayan altın çizgi) — uygulamanın her yerindeki sekmelerle aynı. */}
+          <View style={{ marginBottom: 14 }}>
+            <Tabs items={TABS} active={tab} set={setTab} pad={0} />
           </View>
 
-          {list.map((r) => <RoomCard key={r.id} room={r} onPress={() => openRoom(r)} />)}
-          {list.length === 0 && <Txt size={12.5} color={C.dim} align="center" style={{ paddingVertical: 50 }}>Burada gösterilecek oda yok.</Txt>}
+          {list === null ? (
+            <View style={{ paddingVertical: 54 }}>
+              <ActivityIndicator color={C.dim} />
+            </View>
+          ) : list.length > 0 ? (
+            list.map((r) => (
+              <RoomCard
+                key={r.id}
+                room={r}
+                altYazi={tab === 0 ? neZaman(r.sonZiyaret) : null}
+                onPress={() => openRoom(r)}
+              />
+            ))
+          ) : (
+            <View style={{ paddingVertical: 46, alignItems: "center", gap: 10 }}>
+              <View style={styles.bosIkon}>
+                <Icon name={tab === 2 ? "heart" : tab === 1 ? "users" : "door"} size={20} color={C.dim2} />
+              </View>
+              <Txt size={12.5} color={C.dim} align="center" lh={1.55} style={{ maxWidth: 250 }}>
+                {hata ?? BOS_METIN[tab]}
+              </Txt>
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -124,12 +232,15 @@ export default function MyRoomHub() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  mineCard: { flexDirection: "row", alignItems: "center", gap: 14, padding: 14, borderRadius: 20, marginBottom: 22, overflow: "hidden", backgroundColor: "rgba(124,58,237,.1)", borderWidth: 1, borderColor: "rgba(168,85,247,.3)" },
-  mineThumb: { width: 66, height: 66, borderRadius: 17, overflow: "hidden" },
+  mineCard: { flexDirection: "row", alignItems: "center", gap: 14, padding: 14, borderRadius: 20, marginBottom: 22, overflow: "hidden", backgroundColor: C.gold + "0F", borderWidth: 1, borderColor: C.gold + "3D" },
+  mineThumb: { width: 66, height: 66, borderRadius: 17, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
   mineBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 9, paddingHorizontal: 15, borderRadius: 999 },
-  tabUnderline: { position: "absolute", bottom: 0, left: 0, width: 26, height: 3, borderRadius: 3, backgroundColor: C.green },
-  card: { flexDirection: "row", alignItems: "center", gap: 13, padding: 12, borderRadius: 18, marginBottom: 12, backgroundColor: "#15131C", borderWidth: 1, borderColor: "rgba(255,255,255,.07)" },
+  idHap: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7, backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "33" },
+  nokta: { width: 6, height: 6, borderRadius: 3 },
+  card: { flexDirection: "row", alignItems: "center", gap: 13, padding: 12, borderRadius: 18, marginBottom: 10, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   cardThumb: { width: 62, height: 62, borderRadius: 15, overflow: "hidden" },
+  bosIkon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
 });

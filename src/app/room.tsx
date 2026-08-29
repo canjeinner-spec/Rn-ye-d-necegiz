@@ -37,7 +37,7 @@ import { RoomStats } from "@/sheets/RoomStats";
 import { type Gift } from "@/data/gifts";
 import { reportRoom } from "@/data/remote/reportRepo";
 import { addXp } from "@/data/remote/xpRepo";
-import { amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, logRoomMovement, toScene, type MicBan } from "@/data/remote/roomsRepo";
+import { amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, logRoomMovement, toScene, ziyaretKaydet, type MicBan } from "@/data/remote/roomsRepo";
 import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
@@ -488,6 +488,10 @@ export default function RoomScreen() {
 
     addXp("oda_katilim"); // günde 1 kez sayılır (sunucu tavanlar)
     logRoomMovement(dbId, "giris"); // moderasyon geçmişi (best-effort)
+    // Odam > "Son günlerde" listesinin kaynağı. Hareket logu yönetici gözüyle
+    // tutuluyor (SELECT'i kullanıcıya kapalı), bu ise kullanıcının kendi
+    // geçmişi — oda başına tek satır.
+    ziyaretKaydet(dbId).catch((e) => console.warn("[ziyaret]", e?.message || e));
 
     return () => {
       alive = false; chanRef.current = null; ch.untrack(); sb.removeChannel(ch);
