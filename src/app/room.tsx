@@ -515,6 +515,12 @@ export default function RoomScreen() {
   const [bigGift, setBigGift] = useState<{ gift: Gift; qty: number } | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  /** Alt bar: ikon satırı mı, yazma satırı mı. */
+  const [yaziyor, setYaziyor] = useState(false);
+  /** Alt bardaki ☰ — oda araçları ızgarası. */
+  const [araclarOpen, setAraclarOpen] = useState(false);
+  /** Koltuktayken alt bardaki yüz düğmesi — tek dokunuşla sohbete emoji. */
+  const [emojiAcik, setEmojiAcik] = useState(false);
   // Giriş perdesi ARTIK BU EKRANDA DEĞİL: odaya girmeden önce, çıkılan
   // ekranın üstünde gösteriliyor (components/RoomEntryGate + AppOverlays).
   // Buraya gelindiğinde kontroller çoktan geçmiş demektir; oda doğrudan
@@ -852,11 +858,13 @@ export default function RoomScreen() {
     setTimeout(() => setSeatToast(""), 1800);
   };
 
-  const send = () => {
-    if (!input.trim()) return;
+  /** `metin` verilirse kutudan değil doğrudan gönderir (hızlı emoji). */
+  const send = (metin?: string) => {
+    const ham = metin ?? input;
+    if (!ham.trim()) return;
     if (micBan) { setMicBanModal(true); return; } // mic yasaklı → yazamaz
-    const t = input.trim();
-    setInput("");
+    const t = ham.trim();
+    if (metin === undefined) { setInput(""); setYaziyor(false); }
     if (isDbRoom && chanRef.current) {
       // Anlık yayın (DB'ye yazmaz). self:true sayesinde kendi mesajımız da
       // broadcast dinleyicisine düşer → çift eklemeyiz.
@@ -981,6 +989,8 @@ export default function RoomScreen() {
     queueSend({ kind: "approve", uid });
   };
   const myRaised = myDbId != null && micQueue.some((e) => e.uid === myDbId);
+  /** Koltukta mıyım — alt bardaki ilk yuvanın ne olacağını belirler. */
+  const oturuyorum = isMine || mySeat !== null;
   const toggleMyMic = () => {
     const next = !micOn;
     haptic.light();
@@ -1269,43 +1279,116 @@ export default function RoomScreen() {
                 );
               })}
             </ScrollView>
-            {/* Mikrofon sırası — el kaldırma jesti mikrofon ikonundan daha anlaşılır */}
-            <Pressable onPress={() => { haptic.light(); setQueueOpen(true); }} style={styles.micQueueFab} hitSlop={6}>
-              <Icon name="hand" size={18} color={C.gold} />
-              {isDbRoom && micQueue.length > 0 && (
-                <View style={styles.micQueueRozet}>
-                  <Txt weight="extrabold" size={9} color="#241A05">{micQueue.length}</Txt>
-                </View>
-              )}
-            </Pressable>
           </View>
 
-          <View style={styles.bottombar}>
-            <Pressable onPress={() => { setSpeakerOn((v) => !v); toast(speakerOn ? "Ses kapatıldı" : "Ses açıldı"); }} style={styles.barIcon}>
-              <Icon name="mega" size={22} color={speakerOn ? "#fff" : C.dim2} />
-            </Pressable>
-            <Pressable onPress={toggleMyMic} style={styles.barIcon}>
-              <Icon name={micOn ? "mic" : "micoff"} size={21} color={micOn ? C.gold2 : "#fff"} />
-            </Pressable>
-            <View style={[styles.inputWrap, { marginLeft: 4, marginRight: 6 }]}>
-              <TextInput
-                value={input}
-                onChangeText={setInput}
-                onSubmitEditing={send}
-                placeholder="Bir şeyler yaz..."
-                placeholderTextColor={C.dim2}
-                style={styles.input}
-                returnKeyType="send"
-              />
+          {/*
+            Alt bar iki hâlli.
+            Kapalıyken sohbet kutusu ekranın altını kaplıyordu; odaya girer
+            girmez göze çarpan ilk şey boş bir yazı kutusuydu. Artık yerinde
+            "Yaz …" hapı var, dokununca satır yazma moduna geçiyor.
+
+            İlk yuva duruma göre değişir: koltuktaysan mikrofon anahtarı,
+            değilsen hoparlör. Koltukta değilken mikrofonu açıp kapatmanın
+            anlamı yok; koltuktayken de en çok gereken düğme o.
+          */}
+          {/* Hızlı emoji — tek dokunuşla sohbete düşer, klavye açılmaz. */}
+          {emojiAcik && !yaziyor && (
+            <View style={styles.emojiSatiri}>
+              {["👋", "👍", "😂", "❤️", "🔥", "👏", "😮", "😍"].map((e) => (
+                <Pressable
+                  key={e}
+                  onPress={() => { haptic.light(); send(e); setEmojiAcik(false); }}
+                  style={styles.emojiHucre}
+                >
+                  <Txt size={22}>{e}</Txt>
+                </Pressable>
+              ))}
             </View>
-            {FEATURES.roomGift && (
-              <Pressable onPress={() => setGiftOpen(true)} style={styles.giftBtnBig}>
-                <Gradient colors={["#EC4899", "#BE185D"]} deg={135} style={styles.giftMini}>
-                  <Icon name="gift" size={21} color="#FBCFE8" />
+          )}
+
+          {yaziyor ? (
+            <View style={styles.bottombar}>
+              {/* Birine seslenmek için — imleç zaten kutuda, @ yazıp devam eder */}
+              <Pressable onPress={() => setInput((t) => (t.endsWith("@") ? t : t + "@"))} style={styles.barYuvarlak}>
+                <Txt weight="extrabold" size={17} color="rgba(255,255,255,.9)">@</Txt>
+              </Pressable>
+              <View style={styles.inputWrap}>
+                <TextInput
+                  value={input}
+                  onChangeText={setInput}
+                  onSubmitEditing={() => send()}
+                  onBlur={() => { if (!input.trim()) setYaziyor(false); }}
+                  autoFocus
+                  placeholder="Lütfen nazikçe konuşun"
+                  placeholderTextColor={C.dim2}
+                  style={styles.input}
+                  returnKeyType="send"
+                />
+              </View>
+              <Pressable onPress={() => send()} disabled={!input.trim()} style={{ opacity: input.trim() ? 1 : 0.4 }}>
+                <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.gonderBtn}>
+                  <Icon name="send" size={17} color="#241A05" />
                 </Gradient>
               </Pressable>
-            )}
-          </View>
+            </View>
+          ) : (
+            <View style={styles.bottombar}>
+              {/* Hoparlör yerinde kalır; koltuktaysan sağına mikrofon ve emoji eklenir,
+                  "Yaz …" hapı da yuvarlak sohbet düğmesine küçülür. */}
+              <Pressable
+                onPress={() => { setSpeakerOn((v) => !v); toast(speakerOn ? "Ses kapatıldı" : "Ses açıldı"); }}
+                style={styles.barYuvarlak}
+              >
+                <Icon name="mega" size={20} color={speakerOn ? "#fff" : C.dim2} />
+              </Pressable>
+
+              {oturuyorum && (
+                <Pressable onPress={toggleMyMic} style={styles.barYuvarlak}>
+                  <Icon name={micOn ? "mic" : "micoff"} size={20} color={micOn ? C.gold2 : "#fff"} />
+                </Pressable>
+              )}
+
+              {oturuyorum && (
+                <Pressable onPress={() => { haptic.light(); setEmojiAcik((v) => !v); }} style={styles.barYuvarlak}>
+                  <Txt size={19}>{emojiAcik ? "×" : "🙂"}</Txt>
+                </Pressable>
+              )}
+
+              {oturuyorum ? (
+                <Pressable onPress={() => { haptic.light(); setYaziyor(true); }} style={styles.barYuvarlak}>
+                  <Icon name="chat" size={19} color="#fff" />
+                </Pressable>
+              ) : (
+                <Pressable onPress={() => { haptic.light(); setYaziyor(true); }} style={styles.yazHap}>
+                  <Icon name="chat" size={15} color="rgba(255,255,255,.75)" />
+                  <Txt weight="semibold" size={13} color="rgba(255,255,255,.55)">Yaz …</Txt>
+                </Pressable>
+              )}
+
+              {oturuyorum && <View style={{ flex: 1 }} />}
+
+              <Pressable onPress={() => { haptic.light(); setAraclarOpen(true); }} style={styles.barYuvarlak}>
+                <Icon name="menu" size={20} color="#fff" />
+              </Pressable>
+
+              <Pressable onPress={() => { haptic.light(); setQueueOpen(true); }} style={styles.barYuvarlak}>
+                <Icon name="hand" size={19} color={myRaised ? C.gold2 : "#fff"} />
+                {isDbRoom && micQueue.length > 0 && (
+                  <View style={styles.barRozet}>
+                    <Txt weight="extrabold" size={9} color="#241A05">{micQueue.length}</Txt>
+                  </View>
+                )}
+              </Pressable>
+
+              {FEATURES.roomGift && (
+                <Pressable onPress={() => setGiftOpen(true)} style={styles.hediyeBtn}>
+                  <Gradient colors={["#F9A8D4", "#EC4899", "#BE185D"]} deg={135} style={styles.hediyeIc}>
+                    <Icon name="gift" size={21} color="#FFF1F7" />
+                  </Gradient>
+                </Pressable>
+              )}
+            </View>
+          )}
         </KeyboardAware>
 
         {seatToast !== "" && (
@@ -1397,6 +1480,50 @@ export default function RoomScreen() {
                 );
               })}
         </ScrollView>
+      </Sheet>
+
+      {/*
+        ☰ — oda araçları.
+        Referanstaki ızgaranın karşılığı, ama içine gerçekten çalışan işler
+        kondu: müzik/foto gibi henüz olmayan şeyler için ölü düğme koymadık.
+      */}
+      <Sheet visible={araclarOpen} onClose={() => setAraclarOpen(false)}>
+        <Txt weight="displayBold" size={15} color="#fff" style={{ marginBottom: 2 }}>Oda Araçları</Txt>
+        <View style={styles.aracIzgara}>
+          {[
+            { ad: "Oda Profili", ikon: "idcard" as const, bas: () => setPanelOpen(true), rozet: null as string | null },
+            { ad: "Odadakiler", ikon: "users" as const, bas: () => setUserList(true), rozet: null as string | null },
+            { ad: "Mikrofon Sırası", ikon: "hand" as const, bas: () => setQueueOpen(true), rozet: isDbRoom && micQueue.length > 0 ? String(micQueue.length) : null },
+            { ad: "Katkı Sıralaması", ikon: "trophy" as const, bas: () => setContribOpen(true), rozet: null as string | null },
+            { ad: "Oda İstatistiği", ikon: "bars" as const, bas: () => setStatsOpen(true), rozet: null as string | null },
+            ...(MY_ROLE === "host"
+              ? [{ ad: "Oda Ayarları", ikon: "gear" as const, bas: () => router.navigate("/room-manage"), rozet: null as string | null }]
+              : []),
+            {
+              ad: speakerOn ? "Sesi Kapat" : "Sesi Aç",
+              ikon: "mega" as const,
+              bas: () => { setSpeakerOn((v) => !v); toast(speakerOn ? "Ses kapatıldı" : "Ses açıldı"); },
+              rozet: null as string | null,
+            },
+            { ad: "Şikayet Et", ikon: "flag" as const, bas: () => setReportOpen(true), rozet: null as string | null },
+          ].map((a) => (
+            <Pressable
+              key={a.ad}
+              onPress={() => { haptic.light(); setAraclarOpen(false); a.bas(); }}
+              style={styles.aracHucre}
+            >
+              <View style={styles.aracIkon}>
+                <Icon name={a.ikon} size={22} color={C.gold2} />
+                {a.rozet && (
+                  <View style={styles.aracRozet}>
+                    <Txt weight="extrabold" size={9.5} color="#04140C">{a.rozet}</Txt>
+                  </View>
+                )}
+              </View>
+              <Txt weight="semibold" size={10.5} color="rgba(255,255,255,.82)" align="center" lh={1.3} numberOfLines={2}>{a.ad}</Txt>
+            </Pressable>
+          ))}
+        </View>
       </Sheet>
 
       <Sheet visible={seatSheet !== null} onClose={() => setSeatSheet(null)}>
@@ -1589,8 +1716,6 @@ const styles = StyleSheet.create({
   topbar: { paddingHorizontal: 14, paddingTop: 4, paddingBottom: 6 },
   micBanIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.12)", borderWidth: 1, borderColor: "rgba(251,113,133,.3)" },
   micBanRow: { alignSelf: "stretch", marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line },
-  micQueueFab: { position: "absolute", right: 12, bottom: 12, width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(20,18,28,.9)", borderWidth: 1, borderColor: C.gold + "55" },
-  micQueueRozet: { position: "absolute", top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", backgroundColor: C.gold2, borderWidth: 1.5, borderColor: C.bg },
   // Yalla tarzı: çip ekranın sol kenarına yapışır, bu yüzden solu köşeli
   // başlar ve sağa doğru ovalleşir. Dolgu çok düşük opaklıkta beyaz —
   // kendi kutusu gibi durmaz, zemine karışır.
@@ -1634,9 +1759,44 @@ const styles = StyleSheet.create({
   stage: { paddingTop: 10, paddingBottom: 10 },
   hostSeat: { alignItems: "center", marginBottom: 18 },
   grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 22 },
-  barIcon: { minWidth: 34, height: 42, alignItems: "center", justifyContent: "center" },
-  giftMini: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
-  giftBtnBig: { width: 46, height: 46, alignItems: "center", justifyContent: "center" },
+  // Alt bar — WePlay/Yalla düzeni: yuvarlak düğmeler + ortada "Yaz …" hapı.
+  barYuvarlak: {
+    width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,.10)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
+  },
+  barRozet: {
+    position: "absolute", top: -2, right: -2, minWidth: 17, height: 17, borderRadius: 9,
+    paddingHorizontal: 4, alignItems: "center", justifyContent: "center",
+    backgroundColor: C.gold2, borderWidth: 1.5, borderColor: "#0B0A11",
+  },
+  yazHap: {
+    flex: 1, flexDirection: "row", alignItems: "center", gap: 8, height: 42,
+    paddingHorizontal: 15, borderRadius: 21,
+    backgroundColor: "rgba(255,255,255,.10)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
+  },
+  gonderBtn: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
+  emojiSatiri: {
+    flexDirection: "row", justifyContent: "space-between", marginHorizontal: 10, marginBottom: 2,
+    paddingVertical: 6, paddingHorizontal: 6, borderRadius: 22,
+    backgroundColor: "rgba(20,18,28,.92)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)",
+  },
+  emojiHucre: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  hediyeBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    shadowColor: "#EC4899", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.45, shadowRadius: 8, elevation: 6,
+  },
+  hediyeIc: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "rgba(255,255,255,.35)" },
+  // Araç ızgarası
+  aracIzgara: { flexDirection: "row", flexWrap: "wrap", marginTop: 4 },
+  aracHucre: { width: "25%", alignItems: "center", paddingVertical: 14, gap: 9 },
+  aracIkon: {
+    width: 52, height: 52, borderRadius: 18, alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
+  },
+  aracRozet: {
+    position: "absolute", top: -5, right: -8, minWidth: 20, height: 18, borderRadius: 9,
+    paddingHorizontal: 5, alignItems: "center", justifyContent: "center", backgroundColor: C.green,
+  },
   bubble: { alignSelf: "flex-start", maxWidth: "94%", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 15, borderTopLeftRadius: 5, borderWidth: 1 },
   // İçerik kadar geniş: eskiden alignSelf "stretch" idi, kısa bir hediye adı
   // için bile satır sohbetin tamamını kaplıyordu.
@@ -1675,10 +1835,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,.13)",
   },
   input: { color: C.text, fontSize: 13, fontFamily: "PlusJakartaSans_500Medium", minWidth: 0, paddingVertical: 10 },
-  sendBtnWrap: { width: 42, height: 42 },
-  sendBtn: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
-  giftBtnWrap: { width: 50, height: 50, borderRadius: 25, shadowColor: "#EC4899", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 9, elevation: 6 },
-  giftBtn: { width: 50, height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center" },
   toast: { position: "absolute", alignSelf: "center", bottom: 90, backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: C.gold + "55", paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999 },
   actionBtn: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", borderRadius: 14, padding: 14, marginTop: 8 },
   userRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 10, borderRadius: 14, backgroundColor: "rgba(255,255,255,.03)" },
