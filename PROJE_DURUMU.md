@@ -504,16 +504,19 @@ Canlı veritabanı 29 Ağustos'ta yoklandı. Sırayla çalıştırılacaklar:
 | Dosya | Ne yapıyor | Durum |
 |---|---|---|
 | `053_admin_oda_kapak.sql` | `admin_oda_kapak_ayarla` — yönetici oda kapağını değiştirir/kaldırır | ❌ **eksik** → kapak düğmeleri hata verir |
-| `063_enum_etiketleri_sabitlendi.sql` | Enum etiketlerini gerçek değerlere sabitler (**mağaza satın alması bunsuz çalışmaz**) + anon EXECUTE'u geri alır | ⏳ **bekliyor** |
+| `064_yardimci_fonksiyon_yetkileri.sql` | Dört yardımcı fonksiyonda kalan anon erişimini kapatır | ⏳ bekliyor |
 
-051-052, 054-062 **uygulandı** (059-062 birleşik dosyayla, 30 Ağustos).
-`fn_kaynak` düşürüldü.
+051-052, 054-063 **uygulandı** (30 Ağustos). `fn_kaynak` düşürüldü.
+063 sonrası anon erişimi ölçüldü: hediye/sıralama/görev/cüzdan RPC'lerinin
+hepsi ve `hediyeler`/`esyalar`/`gorevler` tabloları **kapalı** (42501).
 
-> **063 neden şart:** 062'de `islem_tipi` etiketini bilmiyorduk, aday listesine
-> `magaza`/`satin_alma`/`harcama` yazmıştık. Gerçeği **`magaza_satin_alma`**;
-> hiçbir aday tutmadığı için şu an her mağaza satın alması hata veriyor.
-> 063 bunu ve görev ödülünün yanlış kovaya (`bonus`+`admin_ekleme` yerine
-> `campaign`+`kampanya_odulu`) yazılmasını düzeltiyor.
+> **YETKİ KURALI — pahalıya patlayan ders:** PostgreSQL yeni fonksiyona
+> **PUBLIC**'e EXECUTE verir ve `anon` PUBLIC'in içindedir. Yani
+> `REVOKE ... FROM anon` tek başına KAPATMAZ — rolün kendi grant'ını siler,
+> PUBLIC'ten geleni değil. Her yeni fonksiyonda önce
+> `REVOKE ALL ... FROM PUBLIC`, sonra hedef role `GRANT`.
+> 064 tam olarak bu yüzden gerekti (`_enum_etiket`, `_enum_liste`,
+> `_siralama_baslangic`, `_bugun_tr` açık kalmıştı).
 
 > **Kritik kural:** Client kodunu uygulanmamış migration'a bağlama. Daha önce
 > `kusanilan_rozet` DB'de yokken SELECT'e eklendi ve **tüm profil okumaları**
