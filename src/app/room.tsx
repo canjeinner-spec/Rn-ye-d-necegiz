@@ -302,7 +302,23 @@ function ActionRow({ icon, color, label, onPress }: { icon: IconName; color: str
 
 export default function RoomScreen() {
   const router = useRouter();
-  const { currentRoom, userPhoto, userName, userLevel, roomName, roomAnnounce, roomLocked, role, leaveRoom, fireBroadcast, kickFromRoom, patchCurrentRoom } = useApp();
+  // Seçicisiz `useApp()` TÜM store'a abone oluyordu: 5 saniyede bir çalışan
+  // hesap yasağı yoklaması (set({banChecked:true})) bile bu ekranı baştan
+  // render ediyordu. Alan alan abone oluyoruz.
+  const currentRoom = useApp((s) => s.currentRoom);
+  const userPhoto = useApp((s) => s.userPhoto);
+  const userName = useApp((s) => s.userName);
+  const userLevel = useApp((s) => s.userLevel);
+  const roomName = useApp((s) => s.roomName);
+  const roomAnnounce = useApp((s) => s.roomAnnounce);
+  const roomLocked = useApp((s) => s.roomLocked);
+  const role = useApp((s) => s.role);
+  const leaveRoom = useApp((s) => s.leaveRoom);
+  const fireBroadcast = useApp((s) => s.fireBroadcast);
+  const kickFromRoom = useApp((s) => s.kickFromRoom);
+  const patchCurrentRoom = useApp((s) => s.patchCurrentRoom);
+  const koltugum = useApp((s) => s.koltugum);
+  const koltukYaz = useApp((s) => s.koltukYaz);
   const session = useApp((s) => s.session);
   const myDbId = useApp((s) => s.dbId);
   const myPublicId = useApp((s) => s.publicId);
@@ -445,7 +461,15 @@ export default function RoomScreen() {
   /** DB'ye en son yazdığımız kişi sayısı — aynı sayıyı tekrar yazmayalım. */
   const sayacRef = useRef<number | null>(null);
   /** Girişi duyurulmuş uid'ler — aynı kişi iki kez duyurulmasın. */
-  const duyurulanlarRef = useRef<Set<number>>(new Set());
+  /** uid -> duyurduğumuz `katildi` damgası. Damga ilerlerse yeniden duyurulur. */
+  const duyurulanlarRef = useRef<Map<number, number>>(new Map());
+  // TEŞHİS (geçici): ekran gerçekten yeniden mi kuruluyor?
+  useEffect(() => {
+    console.log(`[oda] MOUNT dbId=${dbId} koltukBaslangic=${JSON.stringify(koltukBaslangic)}`);
+    return () => console.log("[oda] UNMOUNT");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /** Bu ekranın odaya katılma anı — presence yükünde taşınır. */
   const katildiRef = useRef<number>(Date.now());
   /** Oda sahibinin güncel profili (DB'den) — host koltuğunun kaynağı. */
@@ -469,9 +493,12 @@ export default function RoomScreen() {
   const chatRef = useRef<ScrollView>(null);
   const [input, setInput] = useState("");
   const [speakerOn, setSpeakerOn] = useState(true);
-  const [micOn, setMicOn] = useState(isMine);
+  // Koltuk/mikrofon başlangıcı STORE'dan: ekran yeniden kurulursa koltuk
+  // düşmesin (bkz. appStore.koltugum).
+  const koltukBaslangic = koltugum && koltugum.odaId === dbId ? koltugum : null;
+  const [micOn, setMicOn] = useState(koltukBaslangic ? koltukBaslangic.mic : isMine);
   const [seatLocks, setSeatLocks] = useState<boolean[]>(() => Array(8).fill(false));
-  const [mySeat, setMySeat] = useState<number | null>(null);
+  const [mySeat, setMySeat] = useState<number | null>(koltukBaslangic ? koltukBaslangic.koltuk : null);
   const [seatSheet, setSeatSheet] = useState<number | null>(null);
   const [seatToast, setSeatToast] = useState("");
   const [exitModal, setExitModal] = useState(false);
@@ -719,18 +746,25 @@ export default function RoomScreen() {
       // efekti bende görünmüyor"un sebebi buydu. Artık presence yükündeki
       // `katildi` damgasına da bakıyoruz: son 15 saniyede girmiş biri, ilk
       // sync'te görünse bile duyurulur. `duyurulanlarRef` tekrarı önler.
-      const onceki = girenlerRef.current;
+      // Ölçüt "önceki sync'te yoktu" DEĞİL, presence yükündeki `katildi`
+      // damgası. Hızlı çık-gir yapınca karşı taraf seni arada hiç "yok"
+      // görmüyor (iki sync tek diff'te birleşiyor), o yüzden eski kural
+      // girişi kaçırıyordu — "bazen görünüyor bazen görünmüyor" buydu.
+      // Damga ilerlemişse yeniden girmiştir, yeniden duyurulur.
       const simdi = Date.now();
       for (const m of members) {
         if (m.uid === myDbId) continue; // kendi efektim mount'ta zaten oynuyor
-        if (duyurulanlarRef.current.has(m.uid)) continue;
-        const yeniGeldi = onceki ? !onceki.has(m.uid) : !!m.katildi && simdi - m.katildi < 15000;
-        if (!yeniGeldi) continue;
-        duyurulanlarRef.current.add(m.uid);
+        const damga = m.katildi ?? 0;
+        const duyurulan = duyurulanlarRef.current.get(m.uid);
+        if (duyurulan != null && damga <= duyurulan) continue; // değişmemiş
+        duyurulanlarRef.current.set(m.uid, damga);
+        // İlk kez görüyorsak ve girişi eskiyse (odada zaten oturuyordu),
+        // sessizce kaydet — odaya girene "15 kişi girdi" diye yağdırmayalım.
+        if (duyurulan == null && !(damga && simdi - damga < 15000)) continue;
         setGirisKuyrugu((q) => [...q, { anahtar: `${m.uid}-${simdi}`, uid: m.uid, ad: m.name, tema: m.giris ?? null }]);
       }
-      // Odadan çıkanı listeden düş ki tekrar girince yine duyurulsun.
-      for (const uid of [...duyurulanlarRef.current]) {
+      // Odadan çıkanı unut ki tekrar girince yine duyurulsun.
+      for (const uid of [...duyurulanlarRef.current.keys()]) {
         if (!members.some((m) => m.uid === uid)) duyurulanlarRef.current.delete(uid);
       }
       girenlerRef.current = new Set(members.map((m) => m.uid));
@@ -848,6 +882,7 @@ export default function RoomScreen() {
     const wasNull = mySeat === null;
     setMySeat(idx);
     setMicOn(true);
+    if (dbId != null) koltukYaz(dbId, idx, true);
     // Presence'i effect'in bir sonraki turunu beklemeden yaz — arada karşı
     // taraf koltuğu boş görüyordu.
     presenceYaz({ koltuk: idx, mic: true });
@@ -859,6 +894,7 @@ export default function RoomScreen() {
     setSeats((p) => p.map((t, i) => (i === mySeat ? null : t)));
     setMySeat(null);
     setMicOn(false);
+    if (dbId != null) koltukYaz(dbId, null, false);
     presenceYaz({ koltuk: null, mic: false });
     setSeatSheet(null);
     toast("Mikrofondan indin");
@@ -949,6 +985,7 @@ export default function RoomScreen() {
     const next = !micOn;
     haptic.light();
     setMicOn(next);
+    if (dbId != null) koltukYaz(dbId, isMine ? -1 : mySeat, next);
     presenceYaz({ mic: next });
     if (isMine) setHost((h) => (h ? { ...h, muted: !next } : h));
     else if (mySeat !== null) setSeats((p) => p.map((t, i) => (i === mySeat && t ? { ...t, muted: !next } : t)));

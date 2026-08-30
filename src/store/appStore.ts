@@ -102,6 +102,16 @@ type AppState = {
   currentRoom: Room | null;
   inRoom: boolean;
   /**
+   * Odadaki koltuğum — ekran state'i DEĞİL, store'da.
+   *
+   * `mySeat` room.tsx'te useState'ti; ekran herhangi bir sebeple yeniden
+   * kurulunca (fast refresh, üst ağaçta bir remount) null'a dönüyor ve
+   * presence "koltuktan indi" diye yazılıyordu — karşı taraf seni mikrofonda
+   * göremiyordu. Store'da durunca remount koltuğu düşürmüyor.
+   */
+  koltugum: { odaId: number; koltuk: number | null; mic: boolean } | null;
+  koltukYaz: (odaId: number, koltuk: number | null, mic: boolean) => void;
+  /**
    * Girilmek üzere olan oda — giriş perdesi bunun için açılır.
    *
    * Odaya girmeden ÖNCE yapılan kontroller (oda yasağı, işlem görmüş oda,
@@ -435,6 +445,8 @@ export const useApp = create<AppState>((set, get) => ({
   myRoom: null,
   currentRoom: null,
   inRoom: false,
+  koltugum: null,
+  koltukYaz: (odaId, koltuk, mic) => set({ koltugum: { odaId, koltuk, mic } }),
   girisAdayi: null,
   kusanili: { ...BOS_KUSANILI },
   broadcast: null,
@@ -517,7 +529,7 @@ export const useApp = create<AppState>((set, get) => ({
         ...(guncelMi(s.currentRoom) && p.announce !== undefined ? { roomAnnounce: p.announce || "" } : {}),
       };
     }),
-  leaveRoom: () => set({ inRoom: false, currentRoom: null, girisAdayi: null }),
+  leaveRoom: () => set({ inRoom: false, currentRoom: null, girisAdayi: null, koltugum: null }),
   odayaGirDene: (r) => set({ girisAdayi: r }),
   girisIptal: () => set({ girisAdayi: null }),
 
