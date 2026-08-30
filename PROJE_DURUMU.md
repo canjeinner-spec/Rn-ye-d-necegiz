@@ -892,9 +892,15 @@ etiket listesini yazan** bir hata veriyor. Yani ilk denemede doğru etiket
 >
 > Çalıştırılmayı bekleyen migration listesi §10'un başında.
 
-1. **Oda içi senkron hatası** — koltuk karşı tarafta bir süre sonra kayboluyor.
-   `room.tsx`'teki geçici `[presence]` teşhis logları Metro'dan okunacak,
-   sebep bulunup **loglar kaldırılacak**.
+1. **Oda içi senkron hatası — sebep bulundu (30 Ağustos), doğrulanacak.**
+   `ch.subscribe` geri çağrısı kurulduğu andaki `presenceYaz`ı kapatıyordu;
+   içindeki `mySeat` hep `null`dı. Soket düşüp yeniden bağlanınca (iOS
+   uygulama arkaplana alınınca soketi kapatır) Supabase aynı geri çağrıyı
+   tekrar `SUBSCRIBED` ile çağırıyor ve presence `koltuk: null` olarak
+   yeniden yazılıyordu → karşı tarafta mikrofondan düşüyordun ama odada
+   görünmeye devam ediyordun. Artık `presenceYazRef` ile hep tazesi
+   çağrılıyor, ayrıca uygulama öne dönünce (`AppState`) presence tazeleniyor.
+   İki cihazda doğrulanınca `[presence]` teşhis logları **kaldırılacak**.
 2. ~~Mağaza/envanter taşıması~~ — **yapılmayacak, karar 30 Ağustos.** 056'nın
    tabloları (`esyalar`/`kullanici_esyalari`) çalışıyor ve yerinde kalıyor;
    `magaza_esyalari`/`kullanici_envanteri` boş duruyor. Taşınan tek şey ALTIN

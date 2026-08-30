@@ -2,6 +2,7 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AppState,
   Dimensions,
   Modal,
   Platform,
@@ -453,6 +454,18 @@ export default function RoomScreen() {
   const sitFirstEmptyRef = useRef<() => void>(() => {});
   const memberMapRef = useRef<Map<number, { name: string; photo?: string; publicId?: string }>>(new Map());
   const chanRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
+  /**
+   * Her zaman EN GÜNCEL presenceYaz.
+   *
+   * Kanal efekti bir kez kuruluyor; `ch.subscribe` geri çağrısı o anki
+   * `presenceYaz`ı kapatıyordu — içindeki `mySeat` hep null'dı. Soket
+   * düşüp yeniden bağlanınca (uygulama arkaplana alınınca iOS soketi kapatır)
+   * Supabase aynı geri çağrıyı tekrar SUBSCRIBED ile çağırıyor ve presence
+   * `koltuk: null` olarak yeniden yazılıyordu: karşı tarafta mikrofondan
+   * düşüyordun ama odada görünmeye devam ediyordun. Ref ile hep tazesi
+   * çağrılıyor.
+   */
+  const presenceYazRef = useRef<(u?: { koltuk?: number | null; mic?: boolean }) => Promise<void>>(async () => {});
   const chatRef = useRef<ScrollView>(null);
   const [input, setInput] = useState("");
   const [speakerOn, setSpeakerOn] = useState(true);
@@ -776,8 +789,9 @@ export default function RoomScreen() {
       }
     });
 
+    // Yeniden bağlanmada da tetiklenir; bu yüzden ref üzerinden (yukarı bak).
     ch.subscribe(async (status) => {
-      if (status === "SUBSCRIBED") await presenceYaz();
+      if (status === "SUBSCRIBED") await presenceYazRef.current();
     });
 
     addXp("oda_katilim"); // günde 1 kez sayılır (sunucu tavanlar)
@@ -895,6 +909,21 @@ export default function RoomScreen() {
 
   // Koltuk / mikrofon değişince presence tazelensin.
   useEffect(() => { presenceYaz(); }, [presenceYaz]);
+  useEffect(() => { presenceYazRef.current = presenceYaz; }, [presenceYaz]);
+
+  /**
+   * Uygulama öne dönünce presence'ı tazele.
+   *
+   * Arkaplanda soket kapanıyor; geri gelince kanal yeniden abone oluyor ama
+   * presence yeniden yazılmazsa odadakiler bizi koltukta göremiyor.
+   */
+  useEffect(() => {
+    if (!isDbRoom) return;
+    const s = AppState.addEventListener("change", (durum) => {
+      if (durum === "active") presenceYazRef.current();
+    });
+    return () => s.remove();
+  }, [isDbRoom]);
 
   // Mikrofon sırası aksiyonları (broadcast; self:true → kendi eventimiz de düşer)
   const queueSend = (payload: object) => chanRef.current?.send({ type: "broadcast", event: "mic_queue", payload });
