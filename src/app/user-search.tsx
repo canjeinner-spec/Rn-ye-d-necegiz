@@ -17,7 +17,7 @@ import { C } from "@/theme/colors";
 
 export default function UserSearchScreen() {
   const router = useRouter();
-  const { enterRoom } = useApp();
+  const { odayaGirDene } = useApp();
   const [q, setQ] = useState("");
   const [results, setResults] = useState<PublicProfile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,8 +55,7 @@ export default function UserSearchScreen() {
   const openRoom = () => {
     if (!room) return;
     haptic.light();
-    enterRoom(room);
-    router.replace("/room");
+    odayaGirDene(room);
   };
 
   const openProfile = (u: PublicProfile) => {

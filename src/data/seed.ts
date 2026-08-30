@@ -3,6 +3,8 @@ import { type SceneKind } from "@/components/Scene";
 import { C } from "@/theme/colors";
 
 export type Room = {
+  /** odayi kuran kullanicinin id'si (kullanicilar.id) — sahip eslemesi isimle degil bununla yapilir */
+  ownerId?: number;
   id: string;
   name: string;
   host: string;
@@ -40,7 +42,10 @@ export type Seat = {
   publicId?: string;
 };
 
-export type ChatMsg = { name: string; time: string; text: string; mod?: boolean; host?: boolean; myOwn?: boolean; photo?: string; uid?: number; publicId?: string; sys?: "mesaj" | "uyari"; baslik?: string };
+/** Sohbete düşen hediye satırı — kim, kime, ne, kaç tane. */
+export type HediyeSatiri = { emoji: string; ad: string; adet: number; kime: string; renk: string };
+
+export type ChatMsg = { name: string; time: string; text: string; mod?: boolean; host?: boolean; myOwn?: boolean; photo?: string; uid?: number; publicId?: string; sys?: "mesaj" | "uyari"; baslik?: string; hediye?: HediyeSatiri };
 
 export type DM = {
   name: string;

@@ -7,12 +7,13 @@ import { C } from "@/theme/colors";
 import { AccountBanBlock } from "./AccountBanBlock";
 import { GlobalBroadcast } from "./GlobalBroadcast";
 import { MinimizedRoomBanner } from "./MinimizedRoomBanner";
+import { RoomEntryGate } from "./RoomEntryGate";
 
 export function AppOverlays() {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const { inRoom, currentRoom, broadcast, enterRoom, clearBroadcast } = useApp();
+  const { inRoom, currentRoom, broadcast, enterRoom, clearBroadcast, leaveRoom, girisAdayi, odayaGirDene, girisIptal } = useApp();
   const hesapYasak = useApp((s) => s.hesapYasak);
   const session = useApp((s) => s.session);
   const banChecked = useApp((s) => s.banChecked);
@@ -41,17 +42,30 @@ export function AppOverlays() {
           room={currentRoom}
           bottom={92 + insets.bottom}
           onPress={() => router.navigate("/room")}
+          // Şeritten doğrudan çıkış: önce odaya dönmek zorunda kalmasın.
+          onLeave={leaveRoom}
         />
       )}
       {broadcast && (
         <GlobalBroadcast
           data={broadcast}
-          top={insets.top + 6}
+          // Durum çubuğunun dibindeydi, ekranın en tepesinde duruyordu.
+          // Üst barın altına indi.
+          top={insets.top + 56}
           onGo={() => {
-            enterRoom(broadcast.room);
             clearBroadcast();
-            router.navigate("/room");
+            odayaGirDene(broadcast.room);
           }}
+        />
+      )}
+
+      {/* Odaya giriş perdesi — hangi ekrandaysak onun üstünde açılır,
+          kontroller geçerse odaya girilir. */}
+      {girisAdayi && (
+        <RoomEntryGate
+          room={girisAdayi}
+          onDevam={() => { enterRoom(girisAdayi); router.navigate("/room"); }}
+          onVazgec={girisIptal}
         />
       )}
     </>

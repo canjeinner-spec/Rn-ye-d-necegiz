@@ -91,7 +91,7 @@ function RoomCard({ room, altYazi, onPress }: { room: OdamOdasi; altYazi?: strin
 
 export default function MyRoomHub() {
   const router = useRouter();
-  const { myRoom, userName, userPhoto, openMyRoom, createMyRoom, enterRoom } = useApp();
+  const { myRoom, userName, userPhoto, createMyRoom, odayaGirDene } = useApp();
   const [tab, setTab] = useState(0);
   const [creating, setCreating] = useState(false);
 
@@ -130,8 +130,9 @@ export default function MyRoomHub() {
   const enterMine = async () => {
     haptic.light();
     if (myRoom) {
-      openMyRoom();
-      router.navigate("/room");
+      // Kendi odan da perdeden geçiyor: odaya işlem uygulandıysa (054) sahibi
+      // de uyarıyı görmeli — düzenleme kapalı ve oda listelerde görünmüyor.
+      odayaGirDene(myRoom);
       return;
     }
     if (creating) return;
@@ -145,8 +146,7 @@ export default function MyRoomHub() {
   };
   const openRoom = (r: Room) => {
     haptic.light();
-    enterRoom(r);
-    router.navigate("/room");
+    odayaGirDene(r);
   };
 
   return (

@@ -132,7 +132,7 @@ function Bos({ baslik, alt }: { baslik: string; alt: string }) {
 
 export default function RankTab() {
   const router = useRouter();
-  const enterRoom = useApp((s) => s.enterRoom);
+  const odayaGirDene = useApp((s) => s.odayaGirDene);
   const [tab, setTab] = useState(0);
 
   // "Odalar" sekmesi GERÇEK: kalabalığa göre sıralı oda listesi.
@@ -145,7 +145,7 @@ export default function RankTab() {
     .sort((a, b) => b.online - a.online)
     .slice(0, 20);
 
-  const girOdaya = (r: Room) => { haptic.light(); enterRoom(r); router.navigate("/room"); };
+  const girOdaya = (r: Room) => { haptic.light(); odayaGirDene(r); };
 
   return (
     <View style={styles.root}>

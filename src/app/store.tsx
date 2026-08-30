@@ -1,200 +1,185 @@
-import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from "react-native-svg";
 
 import { CoinBadge } from "@/components/Coins";
-import { FramePreview } from "@/components/FramePreview";
-import { Portrait } from "@/components/Portrait";
+import { EsyaOnizleme } from "@/components/EsyaOnizleme";
+import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
-import { STORE_FRAMES, type StoreFrameCat } from "@/data/store";
+import { NADIRLIK } from "@/data/esyaTemalari";
+import { katalog, satinAl, type Esya, type EsyaTip } from "@/data/remote/esyaRepo";
+import { esyalarim } from "@/data/remote/esyaRepo";
+import { getMyBalance } from "@/data/remote/walletRepo";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
-import { useApp } from "@/store/appStore";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { C } from "@/theme/colors";
+import { Gradient } from "@/theme/Gradient";
 
-const COINS = 12400;
-const WALLET_USD = 142.5;
-
-const CATS = ["Standart", "VIP ✦", "Yayıncı"];
-const CAT_KEYS: StoreFrameCat[] = ["standart", "vip", "yayinci"];
-const CAT_COLORS = [
-  { active: C.gold, dim: `${C.gold}22` },
-  { active: C.purple2, dim: `${C.purple}22` },
-  { active: C.green, dim: `${C.green}22` },
+const SEKMELER: [EsyaTip, string][] = [
+  ["cerceve", "Çerçeveler"],
+  ["giris", "Giriş Efekti"],
+  ["balon", "Sohbet Balonu"],
 ];
 
-function MagazaIcon({ size = 24 }: { size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Defs>
-        <LinearGradient id="mag_g" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor="#F5CE6E" />
-          <Stop offset="1" stopColor="#C8922B" />
-        </LinearGradient>
-      </Defs>
-      <Path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" fill="url(#mag_g)" opacity={0.95} />
-      <Line x1="3" y1="6" x2="21" y2="6" stroke="#FDE68A" strokeWidth="1.4" strokeLinecap="round" />
-      <Path d="M16 10a4 4 0 01-8 0" stroke="#FDE68A" strokeWidth="1.8" strokeLinecap="round" fill="none" />
-      <Circle cx="9.5" cy="10" r="1" fill="#FDE68A" opacity={0.7} />
-      <Circle cx="14.5" cy="10" r="1" fill="#FDE68A" opacity={0.7} />
-    </Svg>
-  );
-}
-
+/**
+ * Mağaza — 056 kataloğundan okur, altınla gerçekten satın alır.
+ *
+ * Eskiden: katalog data/store.ts sabitiydi (9 çerçeve), bakiye ekranda yazan
+ * `const COINS = 12400` sabitiydi, "Satın Al" yalnızca yerel bir Set'e
+ * ekliyordu. Hiçbiri kaydedilmiyordu.
+ */
 export default function StoreScreen() {
   const router = useRouter();
-  const isStreamer = useApp((s) => s.isStreamer);
-  const [tab, setTab] = useState(0);
-  const [payMode, setPayMode] = useState<"coins" | "wallet">("coins");
-  const [owned, setOwned] = useState<Set<string>>(new Set());
-  const [msg, setMsg] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [tabIx, setTabIx] = useState(0);
+  const [urunler, setUrunler] = useState<Esya[] | null>(null);
+  const [sahip, setSahip] = useState<Set<string>>(new Set());
+  const [altin, setAltin] = useState<number | null>(null);
+  const [alinan, setAlinan] = useState<string | null>(null); // işlemdeki eşya
+  const [mesaj, setMesaj] = useState<{ metin: string; hata: boolean } | null>(null);
 
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const tip = SEKMELER[tabIx][0];
 
-  const flash = (t: string) => {
-    setMsg(t);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setMsg(null), 2200);
+  const yukle = useCallback(async () => {
+    if (!isSupabaseConfigured) { setUrunler([]); return; }
+    try {
+      const [k, ben, bakiye] = await Promise.all([
+        katalog(),
+        esyalarim().catch(() => []),
+        getMyBalance().catch(() => null),
+      ]);
+      setUrunler(k);
+      setSahip(new Set(ben.filter((e) => e.bitis == null || e.bitis > Date.now()).map((e) => e.id)));
+      if (bakiye) setAltin(bakiye.altin);
+    } catch (e) {
+      console.warn("[magaza]", (e as Error)?.message || e);
+      setUrunler([]);
+      setMesaj({ metin: "Mağaza yüklenemedi.", hata: true });
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { yukle(); }, [yukle]));
+
+  const satinAlBas = async (e: Esya) => {
+    if (alinan) return;
+    haptic.light();
+    setAlinan(e.id);
+    setMesaj(null);
+    try {
+      const yeni = await satinAl(e.id);
+      setAltin(yeni.altin);
+      setSahip((s) => new Set(s).add(e.id));
+      haptic.success();
+      setMesaj({ metin: `${e.ad} alındı — Eşyalarım'dan kuşanabilirsin.`, hata: false });
+    } catch (err) {
+      haptic.warning();
+      const m = (err as Error)?.message || "Satın alınamadı.";
+      setMesaj({ metin: m.replace(/^.*Yetersiz altın.*$/i, "Yetersiz altın."), hata: true });
+    } finally {
+      setAlinan(null);
+    }
   };
 
-  const frames = STORE_FRAMES.filter((f) => f.cat === CAT_KEYS[tab]);
-  const cc = CAT_COLORS[tab];
-
-  const buy = (f: (typeof STORE_FRAMES)[number]) => {
-    if (owned.has(f.id)) return;
-    const useWallet = payMode === "wallet" && f.usd != null;
-    const cost = useWallet ? f.usd! : f.coins;
-    const bal = useWallet ? WALLET_USD : COINS;
-    if (cost > bal) { haptic.warning(); flash("Yetersiz bakiye!"); return; }
-    haptic.success();
-    setOwned((p) => new Set([...p, f.id]));
-    flash(`"${f.name}" çerçeven aktif edildi ✓`);
-  };
+  const liste = (urunler ?? []).filter((u) => u.tip === tip);
 
   return (
     <View style={styles.root}>
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={[C.gold + "1A", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
+
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
             <Icon name="back" size={16} color={C.text} />
           </Pressable>
-          <MagazaIcon size={24} />
-          <Txt weight="displayBold" size={17} color="#fff">Mağaza</Txt>
-          <View style={{ flex: 1 }} />
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+          <Txt weight="displayBold" size={16} color="#fff" style={{ flex: 1 }}>Mağaza</Txt>
+          <View style={styles.bakiye}>
             <CoinBadge size={15} />
-            <Txt weight="extrabold" size={12} color={C.gold}>{COINS.toLocaleString("tr-TR")}</Txt>
+            <Txt weight="extrabold" size={12.5} color={C.gold2}>
+              {altin == null ? "—" : altin.toLocaleString("tr-TR")}
+            </Txt>
           </View>
-          {isStreamer && (
-            <Txt weight="extrabold" size={12} color="#6EE7B7" style={{ marginLeft: 8 }}>${WALLET_USD.toFixed(2)}</Txt>
-          )}
+          <Pressable onPress={() => { haptic.light(); router.navigate("/inventory"); }} style={styles.iconBtn}>
+            <Icon name="ticket" size={15} color={C.gold2} />
+          </Pressable>
         </View>
 
-        <View style={styles.cats}>
-          {CATS.map((c, i) => {
-            const on = i === tab;
-            return (
-              <Pressable
-                key={c}
-                onPress={() => { haptic.select(); setTab(i); }}
-                style={[styles.catBtn, { borderColor: on ? CAT_COLORS[i].active : C.line, backgroundColor: on ? CAT_COLORS[i].dim : C.card }]}
-              >
-                <Txt weight="extrabold" size={11} color={on ? CAT_COLORS[i].active : C.dim}>{c}</Txt>
-              </Pressable>
-            );
-          })}
-        </View>
+        <Tabs items={SEKMELER.map(([, ad]) => ad)} active={tabIx} set={setTabIx} pad={16} />
 
-        {tab === 2 && isStreamer && (
-          <View style={styles.payRow}>
-            {(["coins", "wallet"] as const).map((m) => {
-              const on = payMode === m;
-              return (
-                <Pressable
-                  key={m}
-                  onPress={() => { haptic.select(); setPayMode(m); }}
-                  style={[styles.payBtn, { borderColor: on ? C.gold : C.line, backgroundColor: on ? `${C.gold}14` : C.card }]}
-                >
-                  {m === "coins" ? (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+        {mesaj && (
+          <View style={[styles.mesaj, mesaj.hata ? styles.mesajHata : styles.mesajOk]}>
+            <Icon name={mesaj.hata ? "warn" : "check"} size={14} sw={2.2} color={mesaj.hata ? C.red : C.green} />
+            <Txt weight="semibold" size={11.5} color={mesaj.hata ? C.red : C.green} lh={1.4} style={{ flex: 1 }}>
+              {mesaj.metin}
+            </Txt>
+          </View>
+        )}
+
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
+          {urunler === null ? (
+            <View style={{ paddingVertical: 54 }}><ActivityIndicator color={C.dim} /></View>
+          ) : liste.length === 0 ? (
+            <View style={{ alignItems: "center", paddingVertical: 50, gap: 10 }}>
+              <View style={styles.bosIkon}><Icon name="bank" size={20} color={C.dim2} /></View>
+              <Txt size={12.5} color={C.dim} align="center" lh={1.55} style={{ maxWidth: 250 }}>
+                Katalog boş görünüyor. 056 migration'ı çalıştırıldı mı?
+              </Txt>
+            </View>
+          ) : (
+            <View style={styles.grid}>
+              {liste.map((u) => {
+                const bende = sahip.has(u.id);
+                const nad = NADIRLIK[u.nadirlik] ?? NADIRLIK.standart;
+                const yetersiz = altin != null && altin < u.fiyatAltin;
+                return (
+                  <View key={u.id} style={[styles.card, { borderColor: bende ? C.green + "44" : "rgba(255,255,255,.08)" }]}>
+                    <View style={[styles.nadirlikRozet, { borderColor: nad.renk + "55", backgroundColor: nad.renk + "18" }]}>
+                      <Txt weight="extrabold" size={8.5} color={nad.renk} style={{ letterSpacing: 0.5 }}>{nad.ad.toUpperCase()}</Txt>
+                    </View>
+
+                    <View style={styles.onizleme}>
+                      <EsyaOnizleme tip={u.tip} tema={u.tema} size={58} />
+                    </View>
+
+                    <Txt weight="extrabold" size={12.5} color={C.text} numberOfLines={1}>{u.ad}</Txt>
+                    <Txt size={9.5} color={C.dim2} numberOfLines={2} lh={1.45} align="center" style={{ marginTop: 3, minHeight: 26 }}>
+                      {u.aciklama}
+                    </Txt>
+
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 8 }}>
                       <CoinBadge size={13} />
-                      <Txt weight="bold" size={11} color={on ? C.gold2 : C.dim}>Coin</Txt>
+                      <Txt weight="extrabold" size={12.5} color={C.gold2}>{u.fiyatAltin.toLocaleString("tr-TR")}</Txt>
+                      <Txt weight="semibold" size={9.5} color={C.dim2}>· {u.sureGun ? `${u.sureGun} gün` : "süresiz"}</Txt>
                     </View>
-                  ) : (
-                    <Txt weight="bold" size={11} color={on ? C.gold2 : C.dim}>💳 Cüzdan</Txt>
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
 
-        {msg && (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.toast}>
-            <Txt weight="bold" size={11.5} color={C.green} align="center">{msg}</Txt>
-          </Animated.View>
-        )}
-
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
-          <View style={styles.grid}>
-            {frames.map((f) => {
-              const isOwned = owned.has(f.id);
-              const useWallet = payMode === "wallet" && f.usd != null && tab === 2 && isStreamer;
-              const canAfford = useWallet ? WALLET_USD >= (f.usd ?? 0) : COINS >= f.coins;
-              const btnBg = isOwned
-                ? `${C.green}22`
-                : !canAfford
-                  ? "rgba(255,255,255,.06)"
-                  : tab === 1 ? `${C.purple}26` : tab === 2 ? `${C.green}22` : `${C.gold}1A`;
-              const btnColor = isOwned
-                ? C.green
-                : !canAfford
-                  ? C.dim2
-                  : tab === 1 ? C.purple2 : tab === 2 ? C.green : C.gold2;
-              return (
-                <View key={f.id} style={[styles.card, { borderColor: isOwned ? cc.active : C.line }]}>
-                  {isOwned && (
-                    <View style={styles.ownedTick}>
-                      <Txt weight="extrabold" size={11} color="#022C22">✓</Txt>
-                    </View>
-                  )}
-                  <View style={{ width: 56, height: 56 }}>
-                    <Portrait name="Sen" size={56} ring="transparent" glow={false} online={false} />
-                    <FramePreview id={f.id} size={56} />
+                    <Pressable
+                      onPress={() => satinAlBas(u)}
+                      disabled={!!alinan}
+                      style={{ width: "100%", marginTop: 11, borderRadius: 12, overflow: "hidden", opacity: alinan && alinan !== u.id ? 0.5 : 1 }}
+                    >
+                      {bende ? (
+                        <View style={[styles.btn, { backgroundColor: C.green + "14", borderWidth: 1, borderColor: C.green + "40" }]}>
+                          <Icon name="check" size={13} sw={2.5} color="#6EE7B7" />
+                          <Txt weight="extrabold" size={11.5} color="#6EE7B7">{u.sureGun ? "Uzat" : "Sende var"}</Txt>
+                        </View>
+                      ) : alinan === u.id ? (
+                        <View style={[styles.btn, { backgroundColor: "rgba(255,255,255,.06)" }]}>
+                          <ActivityIndicator size="small" color={C.gold} />
+                        </View>
+                      ) : (
+                        <Gradient colors={yetersiz ? ["#3A3A44", "#26262E"] : [C.gold2, "#C8922B"]} deg={135} style={styles.btn}>
+                          <Txt weight="extrabold" size={11.5} color={yetersiz ? C.dim : "#241A05"}>
+                            {yetersiz ? "Altın yetmiyor" : "Satın Al"}
+                          </Txt>
+                        </Gradient>
+                      )}
+                    </Pressable>
                   </View>
-                  <View style={{ alignItems: "center", marginTop: 8 }}>
-                    <Txt weight="extrabold" size={12} color={C.text}>{f.name}</Txt>
-                    <Txt size={10} color={C.dim} align="center" style={{ marginTop: 2 }}>{f.desc}</Txt>
-                  </View>
-                  <Pressable
-                    onPress={() => buy(f)}
-                    disabled={isOwned}
-                    style={[styles.buyBtn, { backgroundColor: btnBg }]}
-                  >
-                    {isOwned ? (
-                      <Txt weight="extrabold" size={11.5} color={btnColor}>Aktif</Txt>
-                    ) : (
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                        {useWallet ? (
-                          <Txt weight="extrabold" size={11.5} color={btnColor}>${f.usd}</Txt>
-                        ) : (
-                          <>
-                            <CoinBadge size={13} />
-                            <Txt weight="extrabold" size={11.5} color={btnColor}>{f.coins.toLocaleString("tr-TR")}</Txt>
-                          </>
-                        )}
-                        {!canAfford && <Txt weight="extrabold" size={11.5} color={btnColor}> — Yetersiz</Txt>}
-                      </View>
-                    )}
-                  </Pressable>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -203,15 +188,17 @@ export default function StoreScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  header: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
+  header: { flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  cats: { flexDirection: "row", gap: 6, paddingHorizontal: 16, marginTop: 10 },
-  catBtn: { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 12, borderWidth: 1 },
-  payRow: { flexDirection: "row", gap: 6, paddingHorizontal: 16, marginTop: 10 },
-  payBtn: { flex: 1, paddingVertical: 7, alignItems: "center", borderRadius: 11, borderWidth: 1 },
-  toast: { marginHorizontal: 20, marginTop: 10, backgroundColor: `${C.green}18`, borderWidth: 1, borderColor: `${C.green}44`, borderRadius: 12, paddingVertical: 9, paddingHorizontal: 13 },
+  bakiye: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: C.gold + "38", backgroundColor: C.gold + "12" },
+  mesaj: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 16, marginTop: 12, padding: 11, borderRadius: 13, borderWidth: 1 },
+  mesajOk: { backgroundColor: C.green + "12", borderColor: C.green + "33" },
+  mesajHata: { backgroundColor: C.red + "12", borderColor: C.red + "33" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  card: { width: "47%", flexGrow: 1, backgroundColor: C.card, borderWidth: 1, borderRadius: 18, paddingVertical: 14, paddingHorizontal: 12, alignItems: "center" },
-  ownedTick: { position: "absolute", top: 8, right: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: C.green, alignItems: "center", justifyContent: "center", zIndex: 2 },
-  buyBtn: { width: "100%", paddingVertical: 9, borderRadius: 11, alignItems: "center", marginTop: 10 },
+  card: { width: "47%", flexGrow: 1, borderRadius: 18, paddingTop: 30, paddingHorizontal: 12, paddingBottom: 12, alignItems: "center", borderWidth: 1, backgroundColor: "rgba(255,255,255,.04)" },
+  nadirlikRozet: { position: "absolute", top: 9, left: 9, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7, borderWidth: 1 },
+  onizleme: { height: 66, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 9, borderRadius: 12 },
+  bosIkon: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
 });

@@ -7,6 +7,7 @@ import { type Room } from "@/data/seed";
 import { deleteAccount, getMyAccountBan, getSession, onAuthChange, signOut, type AccountBan } from "@/data/remote/authRepo";
 import { evaluateBadges } from "@/data/remote/badgeRepo";
 import { betaKapsulHatirlat, ensureMyProfile, getMyProfile } from "@/data/remote/profileRepo";
+import { benimKusanilanlarim, BOS_KUSANILI, type Kusanili } from "@/data/remote/esyaRepo";
 import { createRoom, getMyRoom, listRooms } from "@/data/remote/roomsRepo";
 import { listPosts } from "@/data/remote/feedRepo";
 import { addXp } from "@/data/remote/xpRepo";
@@ -80,6 +81,14 @@ type AppState = {
   ozelId: string | null; // DB: kullanicilar.ozel_id (vitrin ID)
   ozelIdTip: "premium" | "kapsul" | null; // DB: ozel_id_tip
   ozelIdTema: string | null; // DB: ozel_id_tema (premium: banner · kapsul: kart anahtarı)
+  /**
+   * Kuşanılan eşyaların TEMA anahtarları (056): çerçeve, giriş efekti, balon.
+   * Kendi avatarımı/mesajımı çizerken buradan okunuyor; başkalarınınki odada
+   * presence yükünden, profilde kusanili_esyalar görünümünden gelir.
+   */
+  kusanili: Kusanili;
+  /** Kuşanılanları DB'den tazele (satın alma / kuşanma sonrası). */
+  kusanilanlariYenile: () => Promise<void>;
   /** DB: kullanicilar.kusanilan_rozet — profilde gösterilen rozet kodu */
   kusanilanRozet: string | null;
   setKusanilanRozet: (kod: string | null) => void;
@@ -92,6 +101,14 @@ type AppState = {
   myRoom: Room | null;
   currentRoom: Room | null;
   inRoom: boolean;
+  /**
+   * Girilmek üzere olan oda — giriş perdesi bunun için açılır.
+   *
+   * Odaya girmeden ÖNCE yapılan kontroller (oda yasağı, işlem görmüş oda,
+   * bağlantı) perde açıkken çalışır. Önceden önce odaya giriliyor, kontrol
+   * sonra yapılıyordu; yasaklı kullanıcı odayı bir an görüp dışarı atılıyordu.
+   */
+  girisAdayi: Room | null;
   broadcast: BroadcastData | null;
   activeDM: DMThread | null;
   setActiveDM: (d: DMThread | null) => void;
@@ -120,6 +137,10 @@ type AppState = {
   /** Yönetim ekranından düzenlenen odayı (dbId ile) store'a yansıt. */
   patchRoomByDbId: (dbId: number, p: Partial<Room>) => void;
   leaveRoom: () => void;
+  /** Odaya girmeyi dene — perde açılır, kontroller geçerse odaya girilir. */
+  odayaGirDene: (r: Room) => void;
+  /** Perdeyi kapat, odaya girme. */
+  girisIptal: () => void;
   makeMyRoom: () => Room;
   openMyRoom: () => Room;
   createMyRoom: () => Promise<Room>;
@@ -288,6 +309,7 @@ export const useApp = create<AppState>((set, get) => ({
           profilEksik: null,
           inRoom: false,
           currentRoom: null,
+          girisAdayi: null,
         });
         return true;
       }
@@ -341,9 +363,17 @@ export const useApp = create<AppState>((set, get) => ({
       // Kuralı tutan rozetleri otomatik ver (049). Sunucu idempotent — zaten
       // kazanılmışları tekrar vermez, hata olursa sessizce geçilir.
       evaluateBadges().catch(() => {});
+      // Kuşanılan çerçeve/giriş/balon (056) — avatarın ve mesajlarının
+      // görünümü buna bağlı, açılışta bir kez okunur.
+      get().kusanilanlariYenile();
     } catch {
       // sessizce geç — oturum geçerli, profil sonradan yüklenebilir
     }
+  },
+
+  kusanilanlariYenile: async () => {
+    const k = await benimKusanilanlarim().catch(() => null);
+    if (k) set({ kusanili: k });
   },
 
   signOutApp: async () => {
@@ -405,6 +435,8 @@ export const useApp = create<AppState>((set, get) => ({
   myRoom: null,
   currentRoom: null,
   inRoom: false,
+  girisAdayi: null,
+  kusanili: { ...BOS_KUSANILI },
   broadcast: null,
   activeDM: null,
   setActiveDM: (d) => set({ activeDM: d }),
@@ -441,6 +473,8 @@ export const useApp = create<AppState>((set, get) => ({
     set({
       currentRoom: r,
       inRoom: true,
+      // Perde işini bitirdi; aday temizlenir.
+      girisAdayi: null,
       roomName: r.name,
       roomAnnounce: r.announce || (r.official ? "Resmî odaya hoş geldiniz! Lütfen nazik olun, keyifli sohbetler dileriz." : "Herkes davetli, saygıyı koru 🌙"),
       roomLocked: !!r.locked,
@@ -483,7 +517,9 @@ export const useApp = create<AppState>((set, get) => ({
         ...(guncelMi(s.currentRoom) && p.announce !== undefined ? { roomAnnounce: p.announce || "" } : {}),
       };
     }),
-  leaveRoom: () => set({ inRoom: false, currentRoom: null }),
+  leaveRoom: () => set({ inRoom: false, currentRoom: null, girisAdayi: null }),
+  odayaGirDene: (r) => set({ girisAdayi: r }),
+  girisIptal: () => set({ girisAdayi: null }),
 
   makeMyRoom: () => {
     const { userName, userPhoto } = get();

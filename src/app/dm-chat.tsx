@@ -297,7 +297,7 @@ export default function DMChatScreen() {
         </KeyboardAware>
       </SafeAreaView>
 
-      <GiftSheet visible={giftOpen} onClose={() => setGiftOpen(false)} recipients={[{ name: peer.name, muted: false, lv: 0 }]} coins={860} onSend={sendGift} />
+      <GiftSheet visible={giftOpen} onClose={() => setGiftOpen(false)} recipients={[{ name: peer.name }]} onSend={sendGift} onBakiyeYukle={() => { setGiftOpen(false); router.navigate("/wallet"); }} />
     </View>
   );
 }

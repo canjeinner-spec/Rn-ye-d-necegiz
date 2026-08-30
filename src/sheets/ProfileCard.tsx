@@ -9,6 +9,7 @@ import { EquippedBadge } from "@/components/EquippedBadge";
 import { KeyboardAware } from "@/components/KeyboardAware";
 import { OzelIdGosterim } from "@/components/OzelId";
 import { PngBadge } from "@/components/PngBadge";
+import { FramePreview } from "@/components/FramePreview";
 import { Portrait } from "@/components/Portrait";
 import { RolePill } from "@/components/RolePill";
 import { Txt } from "@/components/Txt";
@@ -39,6 +40,8 @@ export type ProfileCardUser = Seat & {
   publicId?: string;
   /** mikrofonda oturuyorsam — kendi kartımdan inebilmek için */
   onLeaveSeat?: () => void;
+  /** kuşandığı çerçeve teması (056) — kart açılınca burada gösterilir */
+  cerceve?: string | null;
 };
 
 const REPORT_REASONS: { ic: IconName; t: string }[] = [
@@ -304,7 +307,19 @@ export function ProfileCard({
                     <View>
                       {/* avatarın arkasındaki yumuşak hale */}
                       <View style={[styles.avatarHalo, { backgroundColor: vurgu + "1F", shadowColor: vurgu }]} pointerEvents="none" />
-                      <Portrait name={user.name} size={78} ring={vurgu} glow online frameBorder="#101016" photo={foto} />
+                      {/* Kuşanılan çerçeve (056) — kart avatarının üstünde */}
+                      <View style={{ width: 78, height: 78 }}>
+                        <Portrait
+                          name={user.name}
+                          size={78}
+                          ring={user.cerceve ? "transparent" : vurgu}
+                          glow={!user.cerceve}
+                          online
+                          frameBorder="#101016"
+                          photo={foto}
+                        />
+                        {user.cerceve && <FramePreview id={user.cerceve} size={78} />}
+                      </View>
                     </View>
 
                     <Txt weight="displayBold" size={18} color="#fff" style={{ marginTop: 10 }} numberOfLines={1}>{user.name}</Txt>

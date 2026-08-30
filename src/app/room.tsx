@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   Modal,
@@ -22,7 +22,6 @@ import { BigGiftOverlay } from "@/components/BigGiftOverlay";
 import { GiftFx } from "@/components/GiftFx";
 import { Pill } from "@/components/Pill";
 import { Portrait } from "@/components/Portrait";
-import { RoomEntryGate } from "@/components/RoomEntryGate";
 import { RoomBadges } from "@/components/RoomBadges";
 import { RolePill } from "@/components/RolePill";
 import { Scene } from "@/components/Scene";
@@ -34,11 +33,15 @@ import { ProfileCard, type ProfileCardUser } from "@/sheets/ProfileCard";
 import { MicQueueSheet } from "@/sheets/MicQueueSheet";
 import { RoomPanel } from "@/sheets/RoomPanel";
 import { RoomStats } from "@/sheets/RoomStats";
-import { type Gift } from "@/data/gifts";
+import { type Gift, TIER_RING } from "@/data/gifts";
+import { hediyeGonder } from "@/data/remote/hediyeRepo";
 import { reportRoom } from "@/data/remote/reportRepo";
 import { addXp } from "@/data/remote/xpRepo";
-import { amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, logRoomMovement, toScene, ziyaretKaydet, type MicBan } from "@/data/remote/roomsRepo";
-import { CHAT0, SEATS, type ChatMsg, type Seat } from "@/data/seed";
+import { odaSahibi, type OdaSahibi, amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, logRoomMovement, odaKatilimciYaz, toScene, ziyaretKaydet, type MicBan } from "@/data/remote/roomsRepo";
+import { BALON_TEMALARI } from "@/data/esyaTemalari";
+import { FramePreview } from "@/components/FramePreview";
+import { GirisEfekti } from "@/components/GirisEfekti";
+import { CHAT0, SEATS, type ChatMsg, type HediyeSatiri, type Seat } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { FEATURES } from "@/lib/features";
@@ -93,6 +96,7 @@ function SeatItem({
   userPhoto,
   userName,
   privileged,
+  cerceveTema,
   onPress,
 }: {
   seat: Seat | null;
@@ -101,6 +105,8 @@ function SeatItem({
   userPhoto: string | null;
   userName: string;
   privileged: boolean;
+  /** Koltuktaki kişinin kuşandığı çerçeve teması (056) */
+  cerceveTema?: string | null;
   onPress: () => void;
 }) {
   if (!seat) {
@@ -121,14 +127,18 @@ function SeatItem({
     <Pressable style={styles.seat} onPress={onPress}>
       <View>
         {seat.speaking && <SpeakingRing />}
-        <Portrait
-          name={seat.name}
-          size={KOLTUK}
-          muted={seat.muted}
-          photo={isMe ? userPhoto || undefined : undefined}
-          ring={ring}
-          glow={seat.speaking || seat.host || seat.mod}
-        />
+        <View style={{ width: KOLTUK, height: KOLTUK }}>
+          <Portrait
+            name={seat.name}
+            size={KOLTUK}
+            muted={seat.muted}
+            photo={isMe ? userPhoto || undefined : undefined}
+            ring={cerceveTema ? "transparent" : ring}
+            glow={!cerceveTema && (seat.speaking || seat.host || seat.mod)}
+          />
+          {/* Kuşanılan çerçeve koltukta da çiziliyor (056) */}
+          {cerceveTema && <FramePreview id={cerceveTema} size={KOLTUK} />}
+        </View>
         {locked && (
           <View style={styles.seatLock}>
             <Icon name="lock" size={10} color={C.gold} />
@@ -143,11 +153,29 @@ function SeatItem({
   );
 }
 
+/** Odadaki canlı üye — presence yükünden (kuşanılan eşyalar + koltuk dahil). */
+type LiveMember = {
+  uid: number;
+  name: string;
+  photo?: string;
+  publicId?: string;
+  cerceve?: string;
+  balon?: string;
+  giris?: string;
+  /** Oturduğu koltuk (0-7) — null ise mikrofonda değil */
+  koltuk?: number | null;
+  /** Mikrofonu açık mı */
+  mic?: boolean;
+  /** Odaya katılma anı (epoch ms) — giriş efektini bir kez oynatmak için */
+  katildi?: number;
+};
+
 function ChatRow({
   m,
   userName,
   userPhoto,
   privileged,
+  balonTema,
   onSelfPress,
   onTapUser,
 }: {
@@ -155,6 +183,8 @@ function ChatRow({
   userName: string;
   userPhoto: string | null;
   privileged: boolean;
+  /** Gönderenin kuşandığı sohbet balonu teması (056) */
+  balonTema?: string | null;
   onSelfPress: () => void;
   onTapUser?: (m: ChatMsg) => void;
 }) {
@@ -163,24 +193,49 @@ function ChatRow({
   const isMe = !!m.myOwn || m.name === "Sen";
   const displayName = isMe ? userName : m.name;
   const tap = () => (isMe ? onSelfPress() : onTapUser?.(m));
-  // sohbet baloncuğu — kuşanılan balona göre tema (envanter: sohbet_balonu)
+  // sohbet baloncuğu — kuşanılan balon varsa onun teması, yoksa rol rengi
   const bubble = m.myOwn ? "gold" : m.host ? "host" : m.mod ? "mod" : "plain";
+  const balonT = balonTema ? BALON_TEMALARI[balonTema] : null;
   return (
     <View style={{ flexDirection: "row", gap: 9, alignItems: "flex-start" }}>
+      {/* Sohbette çerçeve YOK: 30px avatarda halka okunmuyor, satırı
+          kalabalıklaştırıyordu. Çerçeve mikrofonda ve kullanıcı kartında. */}
       <Pressable onPress={tap}>
         <Portrait name={m.name} size={30} photo={isMe ? userPhoto || undefined : m.photo} />
       </Pressable>
       <View style={{ flex: 1, minWidth: 0, alignItems: "flex-start" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
           <Pressable onPress={tap}>
-            <Txt weight="extrabold" size={11.5} color={m.host ? C.gold : m.mod ? C.teal : isMe ? C.gold2 : "rgba(255,255,255,.7)"}>
+            <Txt weight="extrabold" size={11.5} color={balonT ? balonT.ad : m.host ? C.gold : m.mod ? C.teal : isMe ? C.gold2 : "rgba(255,255,255,.7)"}>
               {displayName}
             </Txt>
           </Pressable>
           {role && <RolePill type={role} />}
           {isMe && privileged && <AuthorityTag size={8} />}
         </View>
-        {bubble === "gold" ? (
+        {/* Hediye satırı: normal baloncuk yerine hediyenin kendi kapsülü.
+            Animasyon birkaç saniyede geçiyordu, sohbette iz kalmıyordu. */}
+        {m.hediye ? (
+          <View style={[styles.hediyeSatiri, { borderColor: m.hediye.renk + "59" }]}>
+            <Gradient colors={[m.hediye.renk + "24", "rgba(255,255,255,.03)"]} deg={110} style={StyleSheet.absoluteFill} />
+            <View style={[styles.hediyeIkon, { borderColor: m.hediye.renk + "4D", backgroundColor: m.hediye.renk + "1A" }]}>
+              <Txt size={17}>{m.hediye.emoji}</Txt>
+            </View>
+            <View style={{ minWidth: 0, flexShrink: 1 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Txt weight="extrabold" size={12} color="#fff" numberOfLines={1} style={{ flexShrink: 1 }}>{m.hediye.ad}</Txt>
+                <Txt weight="extrabold" size={11.5} color={m.hediye.renk}>×{m.hediye.adet}</Txt>
+              </View>
+              <Txt weight="semibold" size={10} color={C.gold2} numberOfLines={1} style={{ marginTop: 1 }}>
+                → {m.hediye.kime}
+              </Txt>
+            </View>
+          </View>
+        ) : balonT ? (
+          <View style={[styles.bubble, { backgroundColor: balonT.bg, borderColor: balonT.kenar }]}>
+            <Txt weight="semibold" size={12.5} color={balonT.yazi} lh={1.4}>{m.text}</Txt>
+          </View>
+        ) : bubble === "gold" ? (
           <Gradient colors={["#FBE08C", "#E0A93C"]} deg={130} style={[styles.bubble, { borderColor: "#FFF2C2" }]}>
             <Txt weight="semibold" size={12.5} color="#2A1D04" lh={1.4}>{m.text}</Txt>
           </Gradient>
@@ -252,7 +307,10 @@ export default function RoomScreen() {
   const myPublicId = useApp((s) => s.publicId);
   const privileged = role !== "user";
   const room = currentRoom;
-  const isMine = !!room && (room.owner === true || room.host === "Sen");
+  // ownerId de bakılıyor: oda listesi profil yüklenmeden önce çekilmişse
+  // mapRoom `owner`ı false hesaplıyordu ve oda sahibi kendi odasında
+  // ziyaretçi sanılıyordu (sahip koltuğu yerine normal koltuğa oturuyordu).
+  const isMine = !!room && (room.owner === true || (room.ownerId != null && room.ownerId === myDbId) || room.host === "Sen");
 
   // Gerçek (DB) oda mı? → canlı sohbet + presence
   const dbId = room?.dbId;
@@ -328,16 +386,69 @@ export default function RoomScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDbRoom, dbId]);
 
-  const [host, setHost] = useState<Seat | null>(() => SEATS.find((s) => s.host) ?? null);
+  /**
+   * Oda GERÇEK mi (DB kaydı var mı)?
+   *
+   * `isDbRoom` ayrıca oturum + Supabase yapılandırması istiyor; o bayrak
+   * realtime için doğru ama GÖRÜNÜM için fazla kırılgan: oturum bir an null
+   * olsa demo koltukları (Mervee, Zeno, Ardaowski…) gerçek odada beliriyordu.
+   * Sahte veri yalnızca dbId'si olmayan odalarda kullanılmalı.
+   */
+  const gercekOda = dbId != null;
+
+  // Sahibin profili odaya girerken bir kez çekilir; odadayken fotoğrafını
+  // değiştirirse presence zaten anlık taşır.
+  useEffect(() => {
+    if (dbId == null || !isSupabaseConfigured) return;
+    let alive = true;
+    odaSahibi(dbId)
+      .then((s) => {
+        if (!alive) return;
+        console.log(`[sahip] id=${s?.id} ad=${s?.ad} foto=${(s?.foto || "-").slice(0, 40)}`);
+        setSahipProfil(s);
+      })
+      .catch((e) => console.log("[sahip] HATA", (e as Error)?.message || e));
+    return () => { alive = false; };
+  }, [dbId]);
+
+  const [host, setHost] = useState<Seat | null>(() => (dbId != null ? null : SEATS.find((s) => s.host) ?? null));
   const [seats, setSeats] = useState<(Seat | null)[]>(() => {
     const arr: (Seat | null)[] = Array(8).fill(null);
+    if (dbId != null) return arr; // gerçek odada mock kimse oturmaz
     SEATS.filter((s) => !s.host).forEach((s, i) => {
       if (i < 8) arr[i] = s;
     });
     return arr;
   });
-  const [msgs, setMsgs] = useState<ChatMsg[]>(() => (isDbRoom ? [] : CHAT0));
-  const [liveMembers, setLiveMembers] = useState<{ uid: number; name: string; photo?: string; publicId?: string }[]>([]);
+  const [msgs, setMsgs] = useState<ChatMsg[]>(() => (dbId != null ? [] : CHAT0));
+  const [liveMembers, setLiveMembers] = useState<LiveMember[]>([]);
+  /** Kendi kuşandıklarım (056) — kendi mesajım ve giriş efektim için. */
+  const kusanili = useApp((s) => s.kusanili);
+
+  // Kendi giriş efektim: odaya her girişte bir kez oynar.
+  //
+  // Önceden presence SUBSCRIBED dalında tetikleniyordu; presence yalnızca
+  // GERÇEK (DB) odalarda kuruluyor, demo odalarda hiç çalışmıyordu — bu
+  // yüzden efekt "bazen" oynuyor gibi görünüyordu. Artık odanın türünden
+  // bağımsız: ekran açılır açılmaz kuşandığın efekt oynar.
+  useEffect(() => {
+    const g = useApp.getState().kusanili.giris;
+    if (!g) return;
+    setGirisKuyrugu((q) => [...q, { anahtar: `ben-${Date.now()}`, uid: useApp.getState().dbId ?? undefined, ad: useApp.getState().userName, tema: g }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /** Sırayla oynayacak giriş bildirimleri (aynı anda tek hap). tema null → sade. */
+  const [girisKuyrugu, setGirisKuyrugu] = useState<{ anahtar: string; uid?: number; ad: string; tema: string | null }[]>([]);
+  /** Bir önceki sync'te odada olanlar — kimin YENİ girdiğini bundan çıkarıyoruz. */
+  const girenlerRef = useRef<Set<number> | null>(null);
+  /** DB'ye en son yazdığımız kişi sayısı — aynı sayıyı tekrar yazmayalım. */
+  const sayacRef = useRef<number | null>(null);
+  /** Girişi duyurulmuş uid'ler — aynı kişi iki kez duyurulmasın. */
+  const duyurulanlarRef = useRef<Set<number>>(new Set());
+  /** Bu ekranın odaya katılma anı — presence yükünde taşınır. */
+  const katildiRef = useRef<number>(Date.now());
+  /** Oda sahibinin güncel profili (DB'den) — host koltuğunun kaynağı. */
+  const [sahipProfil, setSahipProfil] = useState<OdaSahibi | null>(null);
   const [micQueue, setMicQueue] = useState<{ uid: number; name: string; photo?: string; publicId?: string; at: number }[]>([]);
   const sitFirstEmptyRef = useRef<() => void>(() => {});
   const memberMapRef = useRef<Map<number, { name: string; photo?: string; publicId?: string }>>(new Map());
@@ -364,15 +475,45 @@ export default function RoomScreen() {
   const [bigGift, setBigGift] = useState<{ gift: Gift; qty: number } | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
-  // Giriş perdesi bitene kadar oda ekranı arkada hazırlanır.
-  const [girisTamam, setGirisTamam] = useState(false);
+  // Giriş perdesi ARTIK BU EKRANDA DEĞİL: odaya girmeden önce, çıkılan
+  // ekranın üstünde gösteriliyor (components/RoomEntryGate + AppOverlays).
+  // Buraya gelindiğinde kontroller çoktan geçmiş demektir; oda doğrudan
+  // açılır — küçültüp geri dönerken de perde görünmez.
   // currentRoom'a bağlı (donuk değil) → sahip kapak/tema değiştirince canlı yansır.
   const roomPhoto = room?.photo ?? null;
   const [stub, setStub] = useState<string | null>(null);
 
-  const sendGift = (g: Gift, qty: number, recipient: string) => {
-    g.tier === "legendary" ? haptic.heavy() : haptic.success();
+  const sendGift = async (g: Gift, qty: number, recipient: string, aliciId?: number, hediyeDbId?: number) => {
     setGiftOpen(false);
+
+    // GERÇEK gönderim (059): altın düşer, alıcının kazancı yazılır, komisyon
+    // platform havuzuna gider — hepsi DB trigger'ında. Katalog kimliği (dbId)
+    // yoksa ya da demo odadaysak eskisi gibi yalnızca gösteri oynar.
+    if (isDbRoom && aliciId != null && hediyeDbId) {
+      try {
+        await hediyeGonder(hediyeDbId, qty, aliciId, dbId ?? null);
+      } catch (e) {
+        haptic.warning();
+        toast((e as Error)?.message || "Hediye gönderilemedi");
+        return;
+      }
+    }
+
+    g.tier === "legendary" ? haptic.heavy() : haptic.success();
+
+    // Hediye sohbete de düşer: animasyon birkaç saniyede kayboluyor, kimin
+    // kime ne gönderdiği kayıt olarak kalmıyordu.
+    const hediye = { emoji: g.emoji, ad: g.name, adet: qty, kime: recipient, renk: TIER_RING[g.tier] || C.gold };
+    const saat = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+    setMsgs((m) => [...m, { name: "Sen", time: saat, text: "", myOwn: true, uid: myDbId ?? undefined, hediye }]);
+    if (isDbRoom && chanRef.current) {
+      chanRef.current.send({
+        type: "broadcast",
+        event: "chat",
+        payload: { uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined, text: "", time: saat, hediye },
+      });
+    }
+
     if (g.tier === "legendary") {
       setBigGift({ gift: g, qty });
       if (room) fireBroadcast({ sender: "Sen", recipient, qty, room, gift: g });
@@ -383,12 +524,101 @@ export default function RoomScreen() {
     setTimeout(() => setGiftFx(null), dur);
   };
 
-  const occupants = useMemo(() => [host, ...seats].filter(Boolean) as Seat[], [seats, host]);
+  /**
+   * Gerçek odada koltuklar presence'tan türetilir — herkes aynı tabloyu görür.
+   * Demo odada eski yerel state (SEATS sabiti) kullanılmaya devam eder.
+   */
+  const canliKoltuklar = useMemo<(Seat | null)[]>(() => {
+    const arr: (Seat | null)[] = Array(8).fill(null);
+    for (const m of liveMembers) {
+      const k = m.koltuk;
+      if (k == null || k < 0 || k > 7) continue;
+      const benMi = m.uid === myDbId;
+      arr[k] = {
+        name: benMi ? "Sen" : m.name,
+        muted: m.mic === false,
+        lv: 0,
+        photo: benMi ? userPhoto || undefined : m.photo,
+        publicId: benMi ? myPublicId || undefined : m.publicId,
+      };
+    }
+
+    // Kendi koltuğumu presence turunu beklemeden yerleştir. Oturunca "mikrofona
+    // geçtin" diyor ama koltuk boş kalıyordu: presence yükünün gidip geri
+    // gelmesini bekliyorduk, gecikirse ya da track sessizce düşerse hiç
+    // görünmüyordu. Karşı taraf yine presence'tan görüyor.
+    if (!isMine && mySeat != null && mySeat >= 0 && mySeat < 8) {
+      arr[mySeat] = {
+        name: "Sen",
+        muted: !micOn,
+        lv: userLevel,
+        photo: userPhoto || undefined,
+        publicId: myPublicId || undefined,
+      };
+    }
+    return arr;
+  }, [liveMembers, myDbId, userPhoto, myPublicId, isMine, mySeat, micOn, userLevel]);
+
+  const gosterilenKoltuklar = gercekOda ? canliKoltuklar : seats;
+
+  /**
+   * Sahip koltuğu. Eskiden mock SEATS'ten geliyordu — bu yüzden HER odada
+   * sahip olarak "Ardaowski" görünüyordu. Gerçek odada sahip, odanın gerçek
+   * sahibidir; odada değilse koltuğu boş/sessiz görünür.
+   */
+  const gosterilenHost = useMemo<Seat | null>(() => {
+    if (!gercekOda) return host;
+    if (isMine) {
+      return { name: "Sen", muted: !micOn, lv: userLevel, host: true, photo: userPhoto || undefined, publicId: myPublicId || undefined };
+    }
+    // Sahip kimliği DB'den kesin; presence yalnızca "şu an odada mı" der.
+    const sahipUid = sahipProfil?.id ?? room?.ownerId ?? null;
+    const canli =
+      (sahipUid != null ? liveMembers.find((m) => m.uid === sahipUid) : undefined) ??
+      liveMembers.find((m) => m.name === (sahipProfil?.ad ?? room?.host));
+
+    const ad = canli?.name ?? sahipProfil?.ad ?? room?.host;
+    if (!ad) return null;
+    return {
+      name: ad,
+      // Odadaysa canlı fotoğrafı (anlık değişirse presence taşır), değilse
+      // profilden çekilen son hâli.
+      photo: canli?.photo ?? sahipProfil?.foto,
+      publicId: canli?.publicId ?? sahipProfil?.publicId,
+      muted: canli ? canli.mic === false : true,
+      lv: 0,
+      host: true,
+    };
+  }, [gercekOda, host, isMine, micOn, userLevel, userPhoto, myPublicId, liveMembers, room?.host, room?.ownerId, sahipProfil]);
+
+  /** Sahip şu an odada mı — koltuğu soluk gösterip "Ayrıldı" yazmak için. */
+  const sahipOdada = useMemo(() => {
+    if (!gercekOda) return true;
+    if (isMine) return true;
+    const sahipUid = sahipProfil?.id ?? room?.ownerId ?? null;
+    if (sahipUid != null) return liveMembers.some((m) => m.uid === sahipUid);
+    return liveMembers.some((m) => m.name === (sahipProfil?.ad ?? room?.host));
+  }, [gercekOda, isMine, liveMembers, sahipProfil, room?.ownerId, room?.host]);
+
+  const occupants = useMemo(
+    () => [gosterilenHost, ...gosterilenKoltuklar].filter(Boolean) as Seat[],
+    [gosterilenKoltuklar, gosterilenHost],
+  );
 
   // Header/sayaç için birleşik kalabalık: DB odasında presence, yoksa koltuklar (mock)
-  const crowd = isDbRoom
-    ? liveMembers.map((m) => ({ key: "u" + m.uid, name: m.name, photo: m.uid === myDbId ? userPhoto || undefined : m.photo }))
-    : occupants.map((o, i) => ({ key: (o.name || "u") + i, name: o.name, photo: o.name === "Sen" ? userPhoto || undefined : undefined }));
+  const crowd: { key: string; name: string; photo?: string; cerceve?: string | null }[] = isDbRoom
+    ? liveMembers.map((m) => ({
+        key: "u" + m.uid,
+        name: m.name,
+        photo: m.uid === myDbId ? userPhoto || undefined : m.photo,
+        cerceve: m.uid === myDbId ? kusanili.cerceve : m.cerceve,
+      }))
+    : occupants.map((o, i) => ({
+        key: (o.name || "u") + i,
+        name: o.name,
+        photo: o.name === "Sen" ? userPhoto || undefined : undefined,
+        cerceve: o.name === "Sen" ? kusanili.cerceve : undefined,
+      }));
   const crowdCount = isDbRoom ? liveMembers.length : occupants.length;
 
   // Oda ayarları CANLI (039): sahip tema/kapak/isim/duyuru değiştirince odadakiler
@@ -432,24 +662,87 @@ export default function RoomScreen() {
     chanRef.current = ch;
 
     ch.on("presence", { event: "sync" }, () => {
-      const state = ch.presenceState() as Record<string, { uid?: number; name?: string; photo?: string; publicId?: string }[]>;
+      type PresUser = { uid?: number; name?: string; photo?: string; publicId?: string; cerceve?: string; balon?: string; giris?: string; koltuk?: number | null; mic?: boolean; katildi?: number };
+      const state = ch.presenceState() as Record<string, PresUser[]>;
       const map = new Map<number, { name: string; photo?: string; publicId?: string }>();
-      const members: { uid: number; name: string; photo?: string; publicId?: string }[] = [];
+      const members: LiveMember[] = [];
       for (const arr of Object.values(state)) {
         for (const p of arr) {
           if (p.uid == null) continue;
           map.set(p.uid, { name: p.name || "Kullanıcı", photo: p.photo, publicId: p.publicId });
-          if (!members.some((m) => m.uid === p.uid)) members.push({ uid: p.uid, name: p.name || "Kullanıcı", photo: p.photo, publicId: p.publicId });
+          if (!members.some((m) => m.uid === p.uid)) {
+            members.push({
+              uid: p.uid,
+              name: p.name || "Kullanıcı",
+              photo: p.photo,
+              publicId: p.publicId,
+              // 056: kuşanılan eşyalar presence yüküyle taşınıyor — herkesin
+              // çerçevesi/balonu için ayrı sorgu atmaya gerek kalmıyor.
+              cerceve: p.cerceve,
+              balon: p.balon,
+              giris: p.giris,
+              koltuk: p.koltuk ?? null,
+              mic: p.mic,
+              katildi: p.katildi,
+            });
+          }
         }
       }
       memberMapRef.current = map;
+
+      // TEŞHİS (geçici): presence'ta kim, hangi koltukta, fotoğrafı ne.
+      console.log(
+        "[presence] " +
+          members
+            .map((m) => `${m.uid}:${m.name}:koltuk=${m.koltuk}:mic=${m.mic ? 1 : 0}:foto=${(m.photo || "-").slice(0, 28)}`)
+            .join("  ||  "),
+      );
+
+      // Yeni gireni yakala → giriş efektini/bildirimini oynat.
+      //
+      // Eskiden yalnızca "önceki sync'te yoktu" bakılıyordu ve İLK sync
+      // tamamen atlanıyordu. İkimiz aynı anda girince karşı taraf ilk
+      // snapshot'ta beliriyor, yani hiç duyurulmuyordu — "arkadaşımın giriş
+      // efekti bende görünmüyor"un sebebi buydu. Artık presence yükündeki
+      // `katildi` damgasına da bakıyoruz: son 15 saniyede girmiş biri, ilk
+      // sync'te görünse bile duyurulur. `duyurulanlarRef` tekrarı önler.
+      const onceki = girenlerRef.current;
+      const simdi = Date.now();
+      for (const m of members) {
+        if (m.uid === myDbId) continue; // kendi efektim mount'ta zaten oynuyor
+        if (duyurulanlarRef.current.has(m.uid)) continue;
+        const yeniGeldi = onceki ? !onceki.has(m.uid) : !!m.katildi && simdi - m.katildi < 15000;
+        if (!yeniGeldi) continue;
+        duyurulanlarRef.current.add(m.uid);
+        setGirisKuyrugu((q) => [...q, { anahtar: `${m.uid}-${simdi}`, uid: m.uid, ad: m.name, tema: m.giris ?? null }]);
+      }
+      // Odadan çıkanı listeden düş ki tekrar girince yine duyurulsun.
+      for (const uid of [...duyurulanlarRef.current]) {
+        if (!members.some((m) => m.uid === uid)) duyurulanlarRef.current.delete(uid);
+      }
+      girenlerRef.current = new Set(members.map((m) => m.uid));
+
+      // Odadaki kişi sayısını DB'ye yaz (057). Bu kolon hiç yazılmıyordu:
+      // oda listesi "boş odaları gösterme" kuralını buna göre uyguladığı için
+      // yeni kurulan odalar hiçbir sekmede görünmüyordu. Yazma işini odadaki
+      // TEK bir istemci yapar (en küçük uid) — herkes yazsa gereksiz trafik olur.
+      if (dbId && myDbId != null && members.length > 0) {
+        const yazan = Math.min(...members.map((m) => m.uid));
+        if (yazan === myDbId && sayacRef.current !== members.length) {
+          sayacRef.current = members.length;
+          odaKatilimciYaz(dbId, members.length).catch(() => {});
+        }
+      }
+
       if (alive) setLiveMembers(members);
     });
 
     // Anlık sohbet — broadcast (DB yok). self:true → kendi mesajım da gelir.
     ch.on("broadcast", { event: "chat" }, ({ payload }) => {
-      const p = payload as { uid?: number; name?: string; photo?: string; publicId?: string; text: string; time: string };
+      const p = payload as { uid?: number; name?: string; photo?: string; publicId?: string; text: string; time: string; hediye?: HediyeSatiri };
       const mine = p.uid != null && p.uid === myDbId;
+      // Kendi hediyemi zaten yerel olarak ekledim; broadcast kopyasını atla.
+      if (mine && p.hediye) return;
       if (alive) setMsgs((prev) => [...prev, {
         name: mine ? userName : p.name || "Kullanıcı",
         time: p.time,
@@ -458,6 +751,7 @@ export default function RoomScreen() {
         photo: mine ? userPhoto || undefined : p.photo,
         uid: p.uid,
         publicId: mine ? myPublicId || undefined : p.publicId,
+        hediye: p.hediye,
       }]);
     });
 
@@ -483,7 +777,7 @@ export default function RoomScreen() {
     });
 
     ch.subscribe(async (status) => {
-      if (status === "SUBSCRIBED") await ch.track({ uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined });
+      if (status === "SUBSCRIBED") await presenceYaz();
     });
 
     addXp("oda_katilim"); // günde 1 kez sayılır (sunucu tavanlar)
@@ -496,6 +790,10 @@ export default function RoomScreen() {
     return () => {
       alive = false; chanRef.current = null; ch.untrack(); sb.removeChannel(ch);
       logRoomMovement(dbId, "cikis"); // best-effort: uygulama zorla kapanırsa düşmeyebilir
+      // Son çıkan sayacı sıfırlar; başkaları kaldıysa kalan en küçük uid bir
+      // sonraki sync'te doğru sayıyı zaten yazacak.
+      const kalan = Math.max(0, (girenlerRef.current?.size ?? 1) - 1);
+      odaKatilimciYaz(dbId, kalan).catch(() => {});
     };
     // userName/userPhoto oturum boyunca sabit; bağımlılığa eklemiyoruz (yeniden abone olmasın)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -536,6 +834,9 @@ export default function RoomScreen() {
     const wasNull = mySeat === null;
     setMySeat(idx);
     setMicOn(true);
+    // Presence'i effect'in bir sonraki turunu beklemeden yaz — arada karşı
+    // taraf koltuğu boş görüyordu.
+    presenceYaz({ koltuk: idx, mic: true });
     setSeatSheet(null);
     toast(wasNull ? "Mikrofona geçtin" : "Koltuk değiştirildi");
   };
@@ -544,6 +845,7 @@ export default function RoomScreen() {
     setSeats((p) => p.map((t, i) => (i === mySeat ? null : t)));
     setMySeat(null);
     setMicOn(false);
+    presenceYaz({ koltuk: null, mic: false });
     setSeatSheet(null);
     toast("Mikrofondan indin");
   };
@@ -551,11 +853,48 @@ export default function RoomScreen() {
   // Sıradan onaylanınca ilk boş (kilitsiz) koltuğa oturt — her render'da güncel state'i görsün diye ref
   sitFirstEmptyRef.current = () => {
     if (mySeat !== null) { toast("Zaten mikrofondasın"); return; }
-    const idx = seats.findIndex((s, i) => !s && !seatLocks[i]);
+    const idx = gosterilenKoltuklar.findIndex((s, i) => !s && !seatLocks[i]);
     if (idx < 0) { toast("Boş koltuk yok"); return; }
     sitHere(idx);
     toast("Mikrofona alındın 🎙");
   };
+
+  /**
+   * Presence yükünü yaz/güncelle.
+   *
+   * Koltuk ve mikrofon durumu da buraya kondu: koltuklar eskiden tamamen
+   * YEREL state'ti, kimse kimsenin mikrofona çıktığını görmüyordu. Presence
+   * broadcast'ten farklı olarak sonradan girene de aktarılır — yani odaya
+   * geç katılan da kimin mikrofonda olduğunu görür.
+   */
+  const presenceYaz = useCallback(async (ustuneYaz?: { koltuk?: number | null; mic?: boolean }) => {
+    const ch = chanRef.current;
+    if (!ch || myDbId == null) { console.log("[presence] YAZILAMADI kanal/uid yok", !!ch, myDbId); return; }
+    const k = useApp.getState().kusanili;
+    console.log(
+      `[presence] yaziyorum uid=${myDbId} koltuk=${ustuneYaz?.koltuk !== undefined ? ustuneYaz.koltuk : isMine ? -1 : mySeat} mic=${ustuneYaz?.mic ?? micOn} foto=${(userPhoto || "-").slice(0, 28)}`,
+    );
+    await ch
+      .track({
+        uid: myDbId,
+        name: userName,
+        photo: userPhoto || undefined,
+        publicId: myPublicId || undefined,
+        cerceve: k.cerceve || undefined,
+        balon: k.balon || undefined,
+        giris: k.giris || undefined,
+        // Oturma/kalkma anında state henüz güncellenmemiş olabilir; çağıran
+        // yeni değeri doğrudan geçebilsin diye üzerine yazılabiliyor.
+        koltuk: ustuneYaz?.koltuk !== undefined ? ustuneYaz.koltuk : isMine ? -1 : mySeat,
+        mic: ustuneYaz?.mic ?? micOn,
+        katildi: katildiRef.current,
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myDbId, userName, userPhoto, myPublicId, mySeat, micOn, isMine]);
+
+  // Koltuk / mikrofon değişince presence tazelensin.
+  useEffect(() => { presenceYaz(); }, [presenceYaz]);
 
   // Mikrofon sırası aksiyonları (broadcast; self:true → kendi eventimiz de düşer)
   const queueSend = (payload: object) => chanRef.current?.send({ type: "broadcast", event: "mic_queue", payload });
@@ -581,6 +920,7 @@ export default function RoomScreen() {
     const next = !micOn;
     haptic.light();
     setMicOn(next);
+    presenceYaz({ mic: next });
     if (isMine) setHost((h) => (h ? { ...h, muted: !next } : h));
     else if (mySeat !== null) setSeats((p) => p.map((t, i) => (i === mySeat && t ? { ...t, muted: !next } : t)));
     toast(next ? "Mikrofonun açık" : "Mikrofonun kapalı");
@@ -627,7 +967,7 @@ export default function RoomScreen() {
   });
   const openMyCard = () => {
     const seated = mySeat !== null;
-    const muted = isMine ? !!host?.muted : seated ? !!seats[mySeat]?.muted : !micOn;
+    const muted = isMine ? !micOn : seated ? !!gosterilenKoltuklar[mySeat]?.muted : !micOn;
     setCardUser({
       name: userName,
       muted,
@@ -638,12 +978,26 @@ export default function RoomScreen() {
       authority: privileged,
       photo: userPhoto || undefined,
       publicId: myPublicId || undefined,
+      cerceve: kusanili.cerceve,
       onLeaveSeat: seated ? leaveSeat : undefined,
     });
   };
   const tapOccupant = (s: Seat) => {
     if (s.name === "Sen") openMyCard();
     else setCardUser({ ...s, viewerRole: MY_ROLE, ...(s.host ? hostActions() : seatActions(s)) });
+  };
+  /**
+   * Giriş efekti hapına dokunma → girenin kartı.
+   *
+   * Efekt birkaç saniye ekranda kalıyor; o sırada kişi odadan çıkmış olabilir.
+   * Presence listesinde yoksa kart açmak yerine ayrıldığını söylüyoruz.
+   */
+  const girisKartiAc = (e: { uid?: number; ad: string }) => {
+    haptic.light();
+    if (e.uid != null && e.uid === myDbId) { openMyCard(); return; }
+    const uye = e.uid != null ? liveMembers.find((x) => x.uid === e.uid) : undefined;
+    if (!uye) { toast(`${e.ad} odadan ayrıldı`); return; }
+    openChatUserCard({ name: uye.name, uid: uye.uid, photo: uye.photo, publicId: uye.publicId, text: "", time: "" });
   };
   // Sohbetteki bir mesajın sahibine dokununca kart aç (koltukta da olabilir, değilse temel kart)
   const openChatUserCard = (m: ChatMsg) => {
@@ -659,6 +1013,8 @@ export default function RoomScreen() {
       lv: 0,
       photo: m.photo,
       publicId: m.publicId,
+      // Kart açılınca karşı tarafın kuşandığı çerçeve de görünsün (056)
+      cerceve: m.uid != null ? liveMembers.find((x) => x.uid === m.uid)?.cerceve : undefined,
       viewerRole: MY_ROLE,
       onKickRoom: isDbRoom && dbId && uid != null
         ? () => banRoomUser(dbId, uid).catch((e) => toast((e as Error)?.message || "Yasaklanamadı"))
@@ -704,14 +1060,6 @@ export default function RoomScreen() {
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
-      {/* Giriş perdesi: "Odaya giriliyor…" + işlem görmüş odada uyarı */}
-      {!girisTamam && (
-        <RoomEntryGate
-          room={room}
-          onDevam={() => setGirisTamam(true)}
-          onVazgec={() => { leaveRoom(); router.back(); }}
-        />
-      )}
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <KeyboardAware>
           <View style={styles.topbar}>
@@ -774,20 +1122,41 @@ export default function RoomScreen() {
           </View>
 
           <View style={styles.stage}>
-            {(host || isMine) && (
-              <Pressable onPress={() => { if (isMine) openMyCard(); else if (host) tapOccupant(host); }} style={styles.hostSeat}>
+            {(gosterilenHost || isMine) && (
+              <Pressable onPress={() => { if (isMine) openMyCard(); else if (gosterilenHost) tapOccupant(gosterilenHost); }} style={styles.hostSeat}>
                 <View>
-                  {host?.speaking && <SpeakingRing />}
-                  <Portrait name={isMine ? "Sen" : host!.name} size={SAHIP_KOLTUK} muted={host?.muted} ring={C.gold} glow photo={isMine ? userPhoto || undefined : undefined} />
+                  {gosterilenHost?.speaking && <SpeakingRing />}
+                  {/* Sahip odada değilse koltuğu soluk — döndüğünde canlanır. */}
+                  <View style={{ width: SAHIP_KOLTUK, height: SAHIP_KOLTUK, opacity: sahipOdada ? 1 : 0.42 }}>
+                    <Portrait
+                      name={isMine ? "Sen" : gosterilenHost?.name ?? "Sahip"}
+                      size={SAHIP_KOLTUK}
+                      muted={gosterilenHost?.muted}
+                      ring={isMine && kusanili.cerceve ? "transparent" : C.gold}
+                      glow={!(isMine && kusanili.cerceve)}
+                      // BUG: ziyaretçiye HER ZAMAN undefined geçiliyordu —
+                      // sahibin fotoğrafı hesaplanıyor ama Portrait'e hiç
+                      // verilmiyordu, o yüzden host koltuğu daima silüetti.
+                      photo={isMine ? userPhoto || undefined : gosterilenHost?.photo}
+                    />
+                    {isMine && kusanili.cerceve && <FramePreview id={kusanili.cerceve} size={SAHIP_KOLTUK} />}
+                  </View>
                 </View>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8, flexWrap: "wrap", justifyContent: "center", maxWidth: 150 }}>
-                  <Txt weight="semibold" size={11} color="#fff">{isMine ? userName : host!.name}</Txt>
+                  <Txt weight="semibold" size={11} color={sahipOdada ? "#fff" : C.dim}>
+                    {isMine ? userName : gosterilenHost?.name ?? "Sahip"}
+                  </Txt>
                   {isMine && privileged && <AuthorityTag size={8} />}
+                  {!sahipOdada && (
+                    <View style={styles.ayrildiCip}>
+                      <Txt weight="bold" size={9} color={C.dim}>Ayrıldı</Txt>
+                    </View>
+                  )}
                 </View>
               </Pressable>
             )}
             <View style={styles.grid}>
-              {seats.map((s, idx) => (
+              {gosterilenKoltuklar.map((s, idx) => (
                 <SeatItem
                   key={idx}
                   seat={s}
@@ -796,6 +1165,7 @@ export default function RoomScreen() {
                   userPhoto={userPhoto}
                   userName={userName}
                   privileged={privileged}
+                  cerceveTema={s?.name === "Sen" ? kusanili.cerceve : undefined}
                   onPress={() => (s ? tapOccupant(s) : tapSeat(idx))}
                 />
               ))}
@@ -803,11 +1173,35 @@ export default function RoomScreen() {
           </View>
 
           <View style={{ flex: 1 }}>
+            {/* Giriş efekti (056): mikrofonların hemen altında, sohbetin
+                başladığı hizada — soldan sağa açılıp geri toplanır. */}
+            {girisKuyrugu[0] && (
+              <GirisEfekti
+                key={girisKuyrugu[0].anahtar}
+                ad={girisKuyrugu[0].ad}
+                tema={girisKuyrugu[0].tema}
+                onBitti={() => setGirisKuyrugu((q) => q.slice(1))}
+                onBas={() => girisKartiAc(girisKuyrugu[0])}
+              />
+            )}
             <ScrollView ref={chatRef} onContentSizeChange={() => chatRef.current?.scrollToEnd({ animated: true })} style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 6, gap: 11 }}>
               <SystemBanner roomName={roomName} />
-              {msgs.map((m, i) => (
-                <ChatRow key={i} m={m} userName={userName} userPhoto={userPhoto} privileged={privileged} onSelfPress={openMyCard} onTapUser={openChatUserCard} />
-              ))}
+              {msgs.map((m, i) => {
+                // Kendi mesajımda kendi kuşandığım, başkasınınkinde presence'tan gelen tema.
+                const uyeler = m.uid != null ? liveMembers.find((x) => x.uid === m.uid) : undefined;
+                return (
+                  <ChatRow
+                    key={i}
+                    m={m}
+                    userName={userName}
+                    userPhoto={userPhoto}
+                    privileged={privileged}
+                    balonTema={m.myOwn ? kusanili.balon : uyeler?.balon}
+                    onSelfPress={openMyCard}
+                    onTapUser={openChatUserCard}
+                  />
+                );
+              })}
             </ScrollView>
             {/* Mikrofon sırası — el kaldırma jesti mikrofon ikonundan daha anlaşılır */}
             <Pressable onPress={() => { haptic.light(); setQueueOpen(true); }} style={styles.micQueueFab} hitSlop={6}>
@@ -972,7 +1366,19 @@ export default function RoomScreen() {
         <Txt weight="bold" size={13} color={C.dim} style={{ marginTop: 12, marginBottom: 4 }}>{stub}</Txt>
       </Sheet>
 
-      <GiftSheet visible={giftOpen} onClose={() => setGiftOpen(false)} recipients={occupants} coins={860} onSend={sendGift} />
+      <GiftSheet
+        visible={giftOpen}
+        onClose={() => setGiftOpen(false)}
+        // Gerçek odada alıcılar presence'tan gelir (uid'leri var, gönderim
+        // gerçekten yapılabilir); demo odada koltuklar listelenir.
+        recipients={
+          isDbRoom
+            ? liveMembers.filter((m) => m.uid !== myDbId).map((m) => ({ name: m.name, uid: m.uid, photo: m.photo }))
+            : occupants.map((o) => ({ name: o.name, host: o.host, mod: o.mod }))
+        }
+        onSend={sendGift}
+        onBakiyeYukle={() => { setGiftOpen(false); router.navigate("/wallet"); }}
+      />
 
       {panelOpen && (
         <RoomPanel
@@ -1166,6 +1572,11 @@ const styles = StyleSheet.create({
   giftMini: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   giftBtnBig: { width: 46, height: 46, alignItems: "center", justifyContent: "center" },
   bubble: { alignSelf: "flex-start", maxWidth: "94%", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 15, borderTopLeftRadius: 5, borderWidth: 1 },
+  // İçerik kadar geniş: eskiden alignSelf "stretch" idi, kısa bir hediye adı
+  // için bile satır sohbetin tamamını kaplıyordu.
+  ayrildiCip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: "rgba(255,255,255,.05)" },
+  hediyeSatiri: { flexDirection: "row", alignItems: "center", gap: 9, alignSelf: "flex-start", maxWidth: "82%", paddingVertical: 6, paddingLeft: 6, paddingRight: 12, borderRadius: 14, borderTopLeftRadius: 5, borderWidth: 1, overflow: "hidden" },
+  hediyeIkon: { width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   sysNotice: { borderRadius: 14, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12 },
   /** Hoş geldiniz sistem mesajı kapsülü — içeriği kadar geniş, sola yaslı */
   welcomeCapsule: {

@@ -59,6 +59,57 @@ const FRAMES: Record<string, Ring[]> = {
     { rOff: 4, sw: 1, g: ["#F59E0B"], dash: [0.15, 0.2], dur: 8000, dir: 1, opacity: 0.35 },
     { rOff: 8, sw: 1, g: ["#F59E0B"], dash: [0.15, 0.2], dur: 10000, dir: -1, opacity: 0.25 },
   ],
+
+  // --- 056 mağaza kataloğuyla gelen çerçeveler -----------------------------
+  // Hepsi burada çiziliyor: yeni çerçeve eklemek için asset değil, birkaç
+  // satır halka tarifi yetiyor.
+  zumrut: [
+    { rOff: 0, sw: 3, g: ["#065F46", "#34D399", "#065F46"], dur: 7000, dir: 1, glow: "#10B981" },
+    { rOff: -4, sw: 1.4, g: ["#A7F3D0"], dash: [0.1, 0.08], dur: 5000, dir: -1, opacity: 0.6 },
+  ],
+  kehribar: [
+    { rOff: 0, sw: 3, g: ["#B45309", "#FCD34D", "#B45309"], dur: 6000, dir: 1, glow: "#F59E0B" },
+    { rOff: 4, sw: 1.2, g: ["#FDE68A"], dash: [0.2, 0.16], dur: 4500, dir: -1, opacity: 0.5 },
+  ],
+  okyanus: [
+    { rOff: 0, sw: 3, g: ["#0E7490", "#22D3EE", "#0E7490"], dur: 5000, dir: 1, glow: "#22D3EE" },
+    { rOff: 4, sw: 1.5, g: ["#67E8F9"], dash: [0.24, 0.12], dur: 3500, dir: -1, glow: "#06B6D4" },
+  ],
+  gul: [
+    { rOff: 0, sw: 3, g: ["#BE185D", "#FBCFE8", "#F5CE6E"], dur: 6500, dir: 1, glow: "#F472B6" },
+    { rOff: -4, sw: 1.3, g: ["#FDE68A"], dash: [0.08, 0.12], dur: 9000, dir: -1, opacity: 0.55 },
+  ],
+  buz: [
+    { rOff: 0, sw: 2.5, g: ["#7DD3FC", "#E0F2FE", "#38BDF8"], dur: 2200, pulse: true, glow: "#7DD3FC" },
+    { rOff: 4, sw: 1.2, g: ["#E0F2FE"], dash: [0.05, 0.07], dur: 12000, dir: 1, opacity: 0.7 },
+  ],
+  safir: [
+    { rOff: 0, sw: 3.2, g: ["#1E3A8A", "#60A5FA", "#1E3A8A"], dur: 8000, dir: 1, glow: "#3B82F6" },
+    { rOff: -5, sw: 1.4, g: ["#BFDBFE"], dash: [0.12, 0.1], dur: 6000, dir: -1, opacity: 0.5 },
+  ],
+  lav: [
+    { rOff: 2, sw: 5, g: ["#1C1917", "#292524"], dur: 0 },
+    { rOff: 0, sw: 2.2, g: ["#DC2626", "#F97316", "#FCD34D"], dash: [0.3, 0.05], dur: 3000, dir: 1, glow: "#F97316" },
+  ],
+  gun_batimi: [
+    { rOff: 0, sw: 3.4, g: ["#F97316", "#F472B6", "#7C3AED"], dur: 7000, dir: 1, glow: "#FB7185" },
+    { rOff: 4, sw: 1.2, g: ["#FDBA74"], dash: [0.18, 0.14], dur: 5000, dir: -1, opacity: 0.55 },
+  ],
+  galaksi: [
+    { rOff: 0, sw: 3, g: ["#312E81", "#8B5CF6", "#EC4899", "#312E81"], dur: 9000, dir: 1, glow: "#8B5CF6" },
+    { rOff: 4, sw: 1, g: ["#E9D5FF"], dash: [0.03, 0.05], dur: 4000, dir: -1, glow: "#C084FC" },
+    { rOff: -5, sw: 1, g: ["#F0ABFC"], dash: [0.04, 0.09], dur: 6500, dir: 1, opacity: 0.45 },
+  ],
+  platin: [
+    { rOff: 0, sw: 3.2, g: ["#E5E7EB", "#9CA3AF", "#F9FAFB"], dur: 5500, dir: 1, glow: "#E5E7EB" },
+    { rOff: -4, sw: 1.2, g: ["#F9FAFB"], dash: [0.16, 0.1], dur: 8000, dir: -1, opacity: 0.6 },
+    { rOff: 5, sw: 0.9, g: ["#D1D5DB"], dash: [0.1, 0.2], dur: 11000, dir: 1, opacity: 0.35 },
+  ],
+  ejder: [
+    { rOff: 2, sw: 5.5, g: ["#0C0A09", "#292524", "#0C0A09"], dur: 0 },
+    { rOff: 0, sw: 2.4, g: ["#F59E0B", "#DC2626", "#F59E0B"], dash: [0.26, 0.06], dur: 2600, dir: 1, glow: "#F97316" },
+    { rOff: 5, sw: 1.1, g: ["#FCD34D"], dash: [0.05, 0.14], dur: 4200, dir: -1, glow: "#F59E0B", opacity: 0.7 },
+  ],
 };
 
 let UID = 0;

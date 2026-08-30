@@ -127,19 +127,30 @@ export function BigGiftOverlay({ gift, qty, sender, onDone }: { gift: Gift; qty:
           </View>
         ))}
 
+        {/* Emblem: çıplak 108px emoji yerine hediyenin renklerinden madalyon */}
         <Animated.View style={[styles.emblem, { shadowColor: gift.c1 }, emblemStyle]}>
-          <Txt size={108}>{gift.emoji}</Txt>
+          <Gradient colors={[gift.c1, gift.c2, gift.c1]} deg={135} style={styles.emblemHalka}>
+            <View style={styles.emblemIc}>
+              <Txt size={92}>{gift.emoji}</Txt>
+            </View>
+          </Gradient>
         </Animated.View>
       </View>
 
+      {/* Açıklama: dolu gradyan blok içinde "Sen · Hediye" ve altında ×3
+          yazıyordu; kim, ne, kaç tane olduğu tek bakışta okunmuyordu.
+          Artık gönderen kendi çipinde, hediye adı ortada, adet rozette. */}
       <Animated.View style={[styles.banner, bannerStyle]} pointerEvents="none">
-        <Gradient colors={[gift.c1, gift.c2]} deg={120} style={styles.bannerInner}>
-          <Txt size={26}>{gift.emoji}</Txt>
-          <View style={{ minWidth: 0 }}>
-            <Txt weight="extrabold" size={13} color="#fff" numberOfLines={1}>{sender} · {gift.name}</Txt>
-            <Txt weight="displayBold" size={16} color="#FFF7E0">×{qty}</Txt>
+        <View style={[styles.bannerInner, { borderColor: gift.c1 + "77" }]}>
+          <Gradient colors={[gift.c1 + "4D", "rgba(10,9,14,.94)"]} deg={120} style={StyleSheet.absoluteFill} />
+          <View style={[styles.gonderen, { borderColor: gift.c1 + "66", backgroundColor: gift.c1 + "24" }]}>
+            <Txt weight="extrabold" size={10.5} color={gift.c1} numberOfLines={1}>{sender}</Txt>
           </View>
-        </Gradient>
+          <Txt weight="displayBold" size={15} color="#fff" numberOfLines={1} style={{ flexShrink: 1 }}>{gift.name}</Txt>
+          <View style={[styles.bannerAdet, { borderColor: gift.c1 + "55" }]}>
+            <Txt weight="extrabold" size={13} color={gift.c1}>×{qty}</Txt>
+          </View>
+        </View>
       </Animated.View>
 
       <Animated.View style={[StyleSheet.absoluteFill, styles.flash, flashStyle]} pointerEvents="none" />
@@ -153,8 +164,12 @@ const styles = StyleSheet.create({
   ring: { position: "absolute", width: 150, height: 150, borderRadius: 75, borderWidth: 2.5 },
   particleWrap: { position: "absolute", alignItems: "center", justifyContent: "center" },
   particle: { width: 9, height: 9, borderRadius: 5 },
-  emblem: { alignItems: "center", justifyContent: "center", shadowOpacity: 0.9, shadowRadius: 26, shadowOffset: { width: 0, height: 0 } },
-  banner: { position: "absolute", left: 0, right: 0, bottom: "22%", alignItems: "center" },
-  bannerInner: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 20, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,.25)" },
+  emblem: { alignItems: "center", justifyContent: "center", shadowOpacity: 0.9, shadowRadius: 34, shadowOffset: { width: 0, height: 0 } },
+  emblemHalka: { width: 190, height: 190, borderRadius: 95, padding: 4 },
+  emblemIc: { flex: 1, borderRadius: 95, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(8,7,12,.86)" },
+  banner: { position: "absolute", left: 24, right: 24, bottom: "20%", alignItems: "center" },
+  bannerInner: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, overflow: "hidden", maxWidth: "100%" },
+  gonderen: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, borderWidth: 1, maxWidth: 120 },
+  bannerAdet: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 9, borderWidth: 1, backgroundColor: "rgba(255,255,255,.06)" },
   flash: { backgroundColor: "#fff" },
 });

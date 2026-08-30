@@ -458,7 +458,7 @@ export default function UserProfileScreen() {
         </View>
       </CenterModal>
 
-      <GiftSheet visible={giftOpen} onClose={() => setGiftOpen(false)} recipients={[{ name, muted: false, lv }]} coins={860} onSend={sendGift} />
+      <GiftSheet visible={giftOpen} onClose={() => setGiftOpen(false)} recipients={[{ name, uid: profile?.id }]} onSend={sendGift} onBakiyeYukle={() => { setGiftOpen(false); router.navigate("/wallet"); }} />
     </View>
   );
 }

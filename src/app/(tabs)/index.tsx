@@ -127,7 +127,7 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
 
 export default function Home() {
   const router = useRouter();
-  const enterRoom = useApp((s) => s.enterRoom);
+  const odayaGirDene = useApp((s) => s.odayaGirDene);
   const role = useApp((s) => s.role);
   const session = useApp((s) => s.session);
   const privileged = role !== "user";
@@ -197,8 +197,8 @@ export default function Home() {
 
   const enterAndGo = (room: Room) => {
     haptic.light();
-    enterRoom(room);
-    router.navigate("/room");
+    // Odaya doğrudan girilmiyor: perde açılır, kontroller geçerse girilir.
+    odayaGirDene(room);
   };
   const onRoomPress = (room: Room) => {
     haptic.light();

@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,16 +9,48 @@ import { Badge } from "@/components/Badge";
 import { CenterModal } from "@/components/CenterModal";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { Portrait } from "@/components/Portrait";
+import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
-import { AGENCY_MEMBERS, STREAMER_WEEK, type AgencyMember } from "@/data/agency";
+import { AGENCY_MEMBERS, type AgencyMember } from "@/data/agency";
+import {
+  kazancGunluk,
+  kazancOzeti,
+  kazancSaatlik,
+  komisyonOrani,
+  sonHediyelerim,
+  type GelenHediye,
+  type GunDilimi,
+  type KazancOzeti,
+  type SaatDilimi,
+} from "@/data/remote/hediyeRepo";
 import { SEARCH_DIR } from "@/data/search";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
-const WEEK_MAX = Math.max(...STREAMER_WEEK.map((x) => x.v));
+const GUN_ADI = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
 
+/** "14:05" — son hediyeler listesindeki saat. */
+function saatBicimi(ms: number): string {
+  if (!ms) return "";
+  return new Date(ms).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * Yayıncı Paneli.
+ *
+ * Eski hâli baştan sona YEŞİLDİ: zemin koyu yeşil (#0C2418), kazanç kartı
+ * yeşil, sekmeler yeşil dolu butonlar, çubuk grafiği yeşil, "Para Çek" yeşil,
+ * komisyon çipi yeşil. Uygulamanın geri kalanı siyah-altın. Ayrıca altın
+ * karşılığı "🪙" emojisiyle yazılıyordu ve grafikte hep 6. çubuk vurguluydu
+ * (veriyle ilgisi olmayan sabit).
+ *
+ * ⚠️ Rakamlar hâlâ örnek veri: kazanç, yayın süresi, üye listesi ve ciro
+ * data/agency.ts sabitlerinden geliyor. Gerçeğe bağlanması hediye ekonomisine
+ * (gönderilen hediyenin bakiyeden düşüp alıcıya yazılması) bağlı.
+ */
 export default function AgencyPanelScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -28,6 +60,50 @@ export default function AgencyPanelScreen() {
   const [addId, setAddId] = useState("");
   const [toast, setToast] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ---- Gerçek kazanç (058 hediye defteri) --------------------------------
+  const [ozet, setOzet] = useState<KazancOzeti | null>(null);
+  const [saatlik, setSaatlik] = useState<SaatDilimi[]>([]);
+  const [gunluk, setGunluk] = useState<GunDilimi[]>([]);
+  const [sonlar, setSonlar] = useState<GelenHediye[]>([]);
+  const [komisyon, setKomisyon] = useState(0.3);
+  /** 0 = bugün, 1 = dün */
+  const [gunOnce, setGunOnce] = useState(0);
+
+  const yukle = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      const [o, g, h, k] = await Promise.all([
+        kazancOzeti(),
+        kazancGunluk(7),
+        sonHediyelerim(15),
+        komisyonOrani(),
+      ]);
+      setOzet(o);
+      setGunluk(g);
+      setSonlar(h);
+      setKomisyon(k);
+    } catch (e) {
+      console.warn("[kazanc]", (e as Error)?.message || e);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { yukle(); }, [yukle]));
+
+  // Saatlik kırılım gün seçimine bağlı — ayrı yükleniyor.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let alive = true;
+    kazancSaatlik(gunOnce)
+      .then((r) => { if (alive) setSaatlik(r); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [gunOnce]);
+
+  const saatlikMax = Math.max(0, ...saatlik.map((x) => x.altin));
+  const enIyiSaat = saatlik.find((x) => x.altin === saatlikMax)?.saat ?? 0;
+  const gunlukMax = Math.max(0, ...gunluk.map((x) => x.altin));
+  const haftaToplam = gunluk.reduce((t, x) => t + x.altin, 0);
 
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
@@ -48,7 +124,9 @@ export default function AgencyPanelScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#0C2418", "#08080C"]} deg={170} locations={[0, 0.52]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      <Gradient colors={[C.gold + "1A", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
+
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
@@ -60,120 +138,234 @@ export default function AgencyPanelScreen() {
           <View style={{ width: 34 }} />
         </View>
 
-        <View style={styles.tabs}>
-          {["Yayıncı", "Ajansım"].map((t, i) => (
-            <Pressable key={t} onPress={() => { haptic.select(); setTab(i); }} style={{ flex: 1, borderRadius: 11, overflow: "hidden" }}>
-              {i === tab ? (
-                <Gradient colors={["#34D399", "#059669"]} deg={135} style={styles.tabInner}>
-                  <Txt weight="extrabold" size={12.5} color="#04231A">{t}</Txt>
-                </Gradient>
-              ) : (
-                <View style={styles.tabInner}>
-                  <Txt weight="extrabold" size={12.5} color={C.dim}>{t}</Txt>
-                </View>
-              )}
-            </Pressable>
-          ))}
-        </View>
+        {/* İki dolu yeşil buton yerine ortak Tabs (kayan altın çizgi) */}
+        <Tabs items={["Yayıncı", "Ajansım"]} active={tab} set={setTab} fill pad={16} />
 
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 18, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
           {tab === 0 ? (
             <>
-              <Gradient colors={["rgba(52,211,153,.22)", "rgba(5,150,105,.08)"]} deg={150} style={styles.earnCard}>
-                <Txt weight="bold" size={11.5} color="#6EE7B7">Bu ay toplam kazanç</Txt>
-                <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6, marginTop: 6 }}>
-                  <Txt weight="displayBold" size={30} color="#fff">$142.50</Txt>
-                  <Txt weight="bold" size={12} color="#6EE7B7">≈ 29.925 🪙</Txt>
+              {/* Kazanç kartı — artık gerçek: hediye defterinden (058) */}
+              <View style={styles.kazancKart}>
+                <Gradient colors={[C.gold + "1F", "rgba(255,255,255,.02)"]} deg={150} style={StyleSheet.absoluteFill} />
+
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Txt weight="bold" size={10} color={C.gold2} style={{ letterSpacing: 0.8 }}>BU AY TOPLAM KAZANÇ</Txt>
+                  <View style={{ flex: 1 }} />
+                  <View style={styles.komisyonCip}>
+                    <Txt weight="bold" size={8.5} color={C.dim2} style={{ letterSpacing: 0.5 }}>
+                      PLATFORM PAYI %{Math.round(komisyon * 100)}
+                    </Txt>
+                  </View>
                 </View>
-                <View style={{ flexDirection: "row", gap: 18, marginTop: 14 }}>
-                  {([["4.926", "Alınan hediye"], ["318 sa", "Yayın süresi"], ["#5", "Sıralama"]] as const).map(([v, l]) => (
-                    <View key={l}>
-                      <Txt weight="extrabold" size={16} color="#fff">{v}</Txt>
-                      <Txt size={10} color="#6EE7B7" style={{ marginTop: 2 }}>{l}</Txt>
+
+                <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, marginTop: 8 }}>
+                  <CoinBadge size={20} />
+                  <Txt weight="displayBold" size={32} color="#fff">
+                    {ozet ? ozet.buAy.toLocaleString("tr-TR") : "—"}
+                  </Txt>
+                </View>
+                <Txt weight="semibold" size={10.5} color={C.dim} style={{ marginTop: 4 }}>
+                  Bugün {ozet ? ozet.bugun.toLocaleString("tr-TR") : "0"} · Tüm zamanlar {ozet ? ozet.toplam.toLocaleString("tr-TR") : "0"}
+                </Txt>
+
+                <View style={styles.statSerit}>
+                  {([
+                    [ozet ? String(ozet.hediyeAy) : "0", "Alınan hediye"],
+                    [ozet ? String(ozet.kisiAy) : "0", "Gönderen kişi"],
+                    [ozet ? ozet.komisyon.toLocaleString("tr-TR") : "0", "Kesilen pay"],
+                  ] as const).map(([v, l], i) => (
+                    <View key={l} style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
+                      {i > 0 && <View style={styles.statAyirici} />}
+                      <View style={{ flex: 1, alignItems: i === 0 ? "flex-start" : "center" }}>
+                        <Txt weight="displayBold" size={15} color="#fff">{v}</Txt>
+                        <Txt weight="semibold" size={9.5} color={C.dim} style={{ marginTop: 2 }}>{l}</Txt>
+                      </View>
                     </View>
                   ))}
                 </View>
-                <Pressable onPress={() => { haptic.light(); router.navigate("/withdraw"); }} style={{ marginTop: 16, borderRadius: 13, overflow: "hidden" }}>
-                  <Gradient colors={["#34D399", "#059669"]} deg={90} style={styles.withdrawBtn}>
-                    <Txt weight="extrabold" size={13} color="#04231A">Para Çek</Txt>
+
+                <Pressable onPress={() => { haptic.light(); router.navigate("/withdraw"); }} style={styles.cekSarma}>
+                  <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.cekBtn}>
+                    <Icon name="bank" size={15} color="#241A05" />
+                    <Txt weight="extrabold" size={13} color="#241A05">Para Çek</Txt>
                   </Gradient>
                 </Pressable>
-              </Gradient>
-
-              <Txt weight="extrabold" size={13} color={C.text} style={{ marginTop: 18, marginBottom: 14 }}>Haftalık Kazanç ($)</Txt>
-              <View style={styles.chart}>
-                {STREAMER_WEEK.map((x, i) => (
-                  <View key={i} style={{ flex: 1, alignItems: "center", gap: 6 }}>
-                    <Txt weight="bold" size={9} color={C.dim}>{x.v}</Txt>
-                    <View style={{ width: "100%", maxWidth: 24, height: (x.v / WEEK_MAX) * 86, alignItems: "stretch" }}>
-                      {i === 5 ? (
-                        <Gradient colors={["#34D399", "#059669"]} deg={180} style={[styles.bar, { borderColor: "#34D399" }]} />
-                      ) : (
-                        <View style={[styles.bar, { backgroundColor: "rgba(52,211,153,.3)", borderColor: "rgba(52,211,153,.4)" }]} />
-                      )}
-                    </View>
-                    <Txt weight="semibold" size={9} color={C.dim2}>{x.d}</Txt>
-                  </View>
-                ))}
               </View>
 
-              <Txt weight="extrabold" size={13} color={C.text} style={{ marginTop: 20, marginBottom: 10 }}>Bağlı Olduğun Ajans</Txt>
-              <View style={styles.linkedAgency}>
+              {/* Saatlik kırılım — hangi saatte ne kazanıldığı hiç yoktu */}
+              <View style={styles.bolumBasi}>
+                <Txt weight="bold" size={10} color={C.dim} style={{ letterSpacing: 0.8 }}>SAATLİK KAZANÇ</Txt>
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  {(["Bugün", "Dün"] as const).map((lbl, i) => (
+                    <Pressable
+                      key={lbl}
+                      onPress={() => { haptic.select(); setGunOnce(i); }}
+                      style={[styles.miniCip, gunOnce === i && { borderColor: C.gold + "66", backgroundColor: C.gold + "1A" }]}
+                    >
+                      <Txt weight="extrabold" size={10} color={gunOnce === i ? C.gold2 : C.dim}>{lbl}</Txt>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              {saatlikMax === 0 ? (
+                <View style={styles.bosKutu}>
+                  <Txt weight="semibold" size={11.5} color={C.dim} align="center">
+                    {gunOnce === 0 ? "Bugün henüz hediye almadın." : "Dün hediye almamışsın."}
+                  </Txt>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.saatGrafik}>
+                    {saatlik.map((s) => (
+                      <View key={s.saat} style={{ flex: 1, justifyContent: "flex-end", alignItems: "center", gap: 4 }}>
+                        <View style={styles.saatYuva}>
+                          <View style={{ height: `${(s.altin / saatlikMax) * 100}%`, width: "100%", justifyContent: "flex-end" }}>
+                            {s.altin > 0 ? (
+                              <Gradient colors={[C.gold2, "#B4802A"]} deg={180} style={styles.saatCubuk} />
+                            ) : (
+                              <View style={styles.saatCubuk} />
+                            )}
+                          </View>
+                        </View>
+                        {s.saat % 6 === 0 && <Txt weight="semibold" size={8} color={C.dim2}>{s.saat}</Txt>}
+                      </View>
+                    ))}
+                  </View>
+                  <Txt weight="semibold" size={10} color={C.dim2} align="center" style={{ marginTop: 6 }}>
+                    En iyi saat: {enIyiSaat}:00 · {saatlikMax.toLocaleString("tr-TR")} altın
+                  </Txt>
+                </>
+              )}
+
+              <View style={styles.bolumBasi}>
+                <Txt weight="bold" size={10} color={C.dim} style={{ letterSpacing: 0.8 }}>SON 7 GÜN</Txt>
+                <Txt weight="bold" size={10} color={C.dim2}>{haftaToplam.toLocaleString("tr-TR")} altın</Txt>
+              </View>
+
+              <View style={styles.grafik}>
+                {gunluk.map((g, i) => {
+                  const zirve = gunlukMax > 0 && g.altin === gunlukMax;
+                  return (
+                    <View key={i} style={{ flex: 1, alignItems: "center", gap: 6 }}>
+                      <Txt weight="bold" size={9} color={zirve ? C.gold2 : C.dim2}>
+                        {g.altin >= 1000 ? `${Math.round(g.altin / 1000)}K` : g.altin}
+                      </Txt>
+                      <View style={styles.cubukYuva}>
+                        <View style={{ height: gunlukMax > 0 ? `${(g.altin / gunlukMax) * 100}%` : "0%", width: "100%", justifyContent: "flex-end" }}>
+                          {zirve ? (
+                            <Gradient colors={[C.gold2, "#B4802A"]} deg={180} style={styles.cubuk} />
+                          ) : (
+                            <View style={[styles.cubuk, { backgroundColor: C.gold + "2E", borderColor: C.gold + "3D" }]} />
+                          )}
+                        </View>
+                      </View>
+                      <Txt weight="semibold" size={9} color={zirve ? C.gold2 : C.dim2}>{GUN_ADI[new Date(g.gun).getDay()]}</Txt>
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* Son gelen hediyeler — kimden, ne, ne kazandırdı */}
+              <View style={styles.bolumBasi}>
+                <Txt weight="bold" size={10} color={C.dim} style={{ letterSpacing: 0.8 }}>SON GELEN HEDİYELER</Txt>
+              </View>
+              {sonlar.length === 0 ? (
+                <View style={styles.bosKutu}>
+                  <Txt weight="semibold" size={11.5} color={C.dim} align="center">Henüz hediye almadın.</Txt>
+                </View>
+              ) : (
+                sonlar.map((h) => (
+                  <View key={h.id} style={styles.hediyeSatiri}>
+                    <View style={styles.hediyeIkon}>
+                      <Txt size={17}>{h.emoji}</Txt>
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Txt weight="extrabold" size={12.5} color={C.text} numberOfLines={1}>
+                        {h.hediyeAd} <Txt weight="bold" size={11.5} color={C.gold2}>×{h.adet}</Txt>
+                      </Txt>
+                      <Txt weight="semibold" size={10} color={C.dim} numberOfLines={1} style={{ marginTop: 2 }}>
+                        {h.gonderen} · {saatBicimi(h.tarih)}
+                      </Txt>
+                    </View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <CoinBadge size={12} />
+                      <Txt weight="extrabold" size={12} color={C.gold2}>+{h.kazanc.toLocaleString("tr-TR")}</Txt>
+                    </View>
+                  </View>
+                ))
+              )}
+              <View style={styles.bolumBasi}>
+                <Txt weight="bold" size={10} color={C.dim} style={{ letterSpacing: 0.8 }}>BAĞLI OLDUĞUN AJANS</Txt>
+              </View>
+              <View style={styles.ajansSatiri}>
                 <AgencyEmblem s={38} />
-                <View style={{ flex: 1 }}>
-                  <Txt weight="extrabold" size={13.5} color={C.text}>Aron Stars</Txt>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Txt weight="extrabold" size={13.5} color={C.text} numberOfLines={1}>Aron Stars</Txt>
                   <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>Sahip: Ardaowski · 48 üye</Txt>
                 </View>
-                <View style={styles.commission}>
-                  <Txt weight="extrabold" size={10} color="#6EE7B7">Komisyon %70</Txt>
+                <View style={styles.komisyon}>
+                  <Txt weight="extrabold" size={10} color={C.gold2}>%70</Txt>
+                  <Txt weight="semibold" size={8.5} color={C.dim2}>komisyon</Txt>
                 </View>
               </View>
             </>
           ) : (
             <>
-              <Gradient colors={["rgba(245,206,110,.18)", "rgba(124,58,237,.1)"]} deg={150} style={styles.agencyCard}>
+              <View style={styles.ajansKart}>
+                <Gradient colors={[C.gold + "24", "rgba(255,255,255,.02)"]} deg={150} style={StyleSheet.absoluteFill} />
                 <AgencyEmblem s={50} />
-                <View style={{ flex: 1 }}>
-                  <Txt weight="displayBold" size={17} color="#fff">Aron Stars</Txt>
-                  <Txt size={10.5} color={C.dim} style={{ marginTop: 3 }}>Ajans ID: 1 · Sıralama #1</Txt>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 7 }}>
-                    <DiamondBadge size={14} />
-                    <Txt weight="extrabold" size={13} color={C.gold2}>12.6M</Txt>
-                    <Txt size={10} color={C.dim}>aylık ciro</Txt>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Txt weight="displayBold" size={17} color="#fff" numberOfLines={1}>Aron Stars</Txt>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                    <View style={styles.idCip}>
+                      <Txt weight="bold" size={9} color={C.gold2}>ID 1</Txt>
+                    </View>
+                    <View style={styles.siraCip}>
+                      <Icon name="trophy" size={9} color={C.gold2} />
+                      <Txt weight="bold" size={9} color={C.gold2}>#1</Txt>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 8 }}>
+                    <DiamondBadge size={13} />
+                    <Txt weight="extrabold" size={13} color="#67E8F9">12.6M</Txt>
+                    <Txt weight="semibold" size={10} color={C.dim}>aylık ciro</Txt>
                   </View>
                 </View>
-              </Gradient>
+              </View>
 
-              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 20, marginBottom: 10 }}>
-                <Txt weight="extrabold" size={13} color={C.text}>Üyeler ({members.length})</Txt>
-                <View style={{ flex: 1 }} />
-                <Pressable onPress={() => { haptic.light(); setAddOpen(true); }} style={{ borderRadius: 11, overflow: "hidden" }}>
-                  <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.addBtn}>
-                    <Icon name="userAdd" size={14} color="#241A05" />
-                    <Txt weight="extrabold" size={11.5} color="#241A05">Üye Ekle</Txt>
+              <View style={styles.bolumBasi}>
+                <Txt weight="bold" size={10} color={C.dim} style={{ letterSpacing: 0.8 }}>ÜYELER · {members.length}</Txt>
+                <Pressable onPress={() => { haptic.light(); setAddOpen(true); }} style={{ borderRadius: 999, overflow: "hidden" }}>
+                  <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.ekleBtn}>
+                    <Icon name="userAdd" size={13} color="#241A05" />
+                    <Txt weight="extrabold" size={11} color="#241A05">Üye Ekle</Txt>
                   </Gradient>
                 </Pressable>
               </View>
 
               {members.map((m) => (
-                <View key={m.name} style={styles.memberRow}>
+                <View key={m.name} style={styles.uyeSatiri}>
                   <Portrait name={m.name} size={42} online={m.active} />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Txt weight="extrabold" size={12.5} color={C.text}>{m.name}</Txt>
+                      <Txt weight="extrabold" size={12.5} color={C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{m.name}</Txt>
                       <Badge type="streamer" size={14} />
                     </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 9, marginTop: 3 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-                        <CoinBadge size={11} />
-                        <Txt size={10} color={C.dim}>{m.coins}</Txt>
+                        <CoinBadge size={10} />
+                        <Txt weight="semibold" size={10} color={C.dim}>{m.coins}</Txt>
                       </View>
-                      <Txt size={10} color={C.dim}>{m.hours} sa yayın</Txt>
-                      <Txt size={10} color={m.active ? "#6EE7B7" : C.dim2}>{m.active ? "● Aktif" : "○ Pasif"}</Txt>
+                      <Txt weight="semibold" size={10} color={C.dim}>{m.hours} sa</Txt>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <View style={[styles.nokta, { backgroundColor: m.active ? C.green : C.dim2 }]} />
+                        <Txt weight="semibold" size={10} color={m.active ? C.green : C.dim2}>{m.active ? "Aktif" : "Pasif"}</Txt>
+                      </View>
                     </View>
                   </View>
-                  <Pressable onPress={() => removeMember(m.name)} style={styles.removeBtn}>
-                    <Icon name="trash" size={15} color="#FB7185" />
+                  <Pressable onPress={() => removeMember(m.name)} style={styles.cikarBtn}>
+                    <Icon name="trash" size={15} color={C.red} />
                   </Pressable>
                 </View>
               ))}
@@ -184,9 +376,17 @@ export default function AgencyPanelScreen() {
 
       <CenterModal visible={addOpen} onClose={() => setAddOpen(false)}>
         <View style={styles.dialog}>
-          <Txt weight="displayBold" size={16} color="#fff" style={{ marginBottom: 6 }}>Ajansa Üye Ekle</Txt>
-          <Txt size={11.5} color={C.dim} style={{ marginBottom: 14 }}>Eklemek istediğin yayıncının ID'sini gir.</Txt>
-          <View style={styles.addInputBox}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
+            <View style={styles.dialogIkon}>
+              <Icon name="userAdd" size={17} color={C.gold2} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Txt weight="displayBold" size={16.5} color="#fff">Ajansa Üye Ekle</Txt>
+              <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>Yayıncının ID'sini gir</Txt>
+            </View>
+          </View>
+
+          <View style={styles.girisKutu}>
             <Icon name="search" size={16} color={C.dim} />
             <TextInput
               autoFocus
@@ -196,14 +396,20 @@ export default function AgencyPanelScreen() {
               maxLength={6}
               placeholder="Yayıncı ID (örn: 8821)"
               placeholderTextColor={C.dim2}
-              style={{ flex: 1, color: C.text, fontSize: 13, padding: 0 }}
+              style={{ flex: 1, color: C.text, fontSize: 14, padding: 0, fontFamily: "PlusJakartaSans_700Bold" }}
             />
           </View>
-          <Pressable onPress={addMember} style={{ marginTop: 16, borderRadius: 14, overflow: "hidden" }}>
-            <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.addConfirm}>
-              <Txt weight="extrabold" size={13.5} color="#241A05">Ekle</Txt>
-            </Gradient>
-          </Pressable>
+
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
+            <Pressable onPress={() => setAddOpen(false)} style={[styles.dialogBtn, { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: C.line }]}>
+              <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
+            </Pressable>
+            <Pressable onPress={addMember} disabled={addId.length < 3} style={{ flex: 1, borderRadius: 14, overflow: "hidden", opacity: addId.length < 3 ? 0.45 : 1 }}>
+              <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.dialogBtn}>
+                <Txt weight="extrabold" size={13} color="#241A05">Ekle</Txt>
+              </Gradient>
+            </Pressable>
+          </View>
         </View>
       </CenterModal>
 
@@ -218,22 +424,45 @@ export default function AgencyPanelScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
+  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
+  header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  tabs: { flexDirection: "row", gap: 8, marginHorizontal: 16, marginTop: 6, backgroundColor: "rgba(255,255,255,.05)", borderRadius: 14, padding: 4 },
-  tabInner: { paddingVertical: 9, alignItems: "center", borderRadius: 11 },
-  earnCard: { borderRadius: 20, padding: 18, borderWidth: 1, borderColor: "rgba(52,211,153,.25)" },
-  withdrawBtn: { paddingVertical: 13, alignItems: "center" },
-  chart: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 8, height: 120, paddingHorizontal: 4 },
-  bar: { flex: 1, borderRadius: 6, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, borderWidth: 1 },
-  linkedAgency: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
-  commission: { backgroundColor: `${C.green}1A`, borderWidth: 1, borderColor: `${C.green}44`, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 10 },
-  agencyCard: { flexDirection: "row", alignItems: "center", gap: 14, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: "rgba(245,206,110,.22)" },
-  addBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 13 },
-  memberRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 15, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.07)", marginBottom: 9 },
-  removeBtn: { width: 32, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.1)", borderWidth: 1, borderColor: "rgba(251,113,133,.25)" },
-  dialog: { borderRadius: 24, padding: 20, backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
-  addInputBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
-  addConfirm: { paddingVertical: 14, alignItems: "center" },
+
+  kazancKart: { borderRadius: 20, padding: 18, borderWidth: 1, borderColor: C.gold + "3D", overflow: "hidden" },
+  komisyonCip: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7, borderWidth: 1, borderColor: "rgba(255,255,255,.10)", backgroundColor: "rgba(255,255,255,.04)" },
+  miniCip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: "rgba(255,255,255,.04)" },
+  bosKutu: { paddingVertical: 26, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", backgroundColor: "rgba(255,255,255,.03)" },
+  saatGrafik: { flexDirection: "row", alignItems: "flex-end", gap: 2, height: 92 },
+  saatYuva: { width: "100%", flex: 1, justifyContent: "flex-end", borderRadius: 3, backgroundColor: "rgba(255,255,255,.035)" },
+  saatCubuk: { flex: 1, borderRadius: 3, backgroundColor: C.gold + "24" },
+  hediyeSatiri: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 15, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 8 },
+  hediyeIkon: { width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.gold + "33", backgroundColor: C.gold + "14" },
+  statSerit: { flexDirection: "row", alignItems: "center", marginTop: 16, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,.12)" },
+  statAyirici: { width: StyleSheet.hairlineWidth, height: 26, backgroundColor: "rgba(255,255,255,.12)" },
+  cekSarma: { marginTop: 16, borderRadius: 14, overflow: "hidden" },
+  cekBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13 },
+
+  bolumBasi: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 22, marginBottom: 11 },
+  grafik: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 8, paddingHorizontal: 4 },
+  cubukYuva: { width: "100%", maxWidth: 26, height: 92, justifyContent: "flex-end", borderRadius: 7, backgroundColor: "rgba(255,255,255,.035)" },
+  cubuk: { flex: 1, borderRadius: 7, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, borderWidth: 1, borderColor: "transparent" },
+
+  ajansSatiri: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: 16, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
+  komisyon: { alignItems: "center", paddingVertical: 5, paddingHorizontal: 11, borderRadius: 11, backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "3D" },
+
+  ajansKart: { flexDirection: "row", alignItems: "center", gap: 14, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: C.gold + "3D", overflow: "hidden" },
+  idCip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, borderWidth: 1, borderColor: C.gold + "33", backgroundColor: C.gold + "14" },
+  siraCip: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, borderWidth: 1, borderColor: C.gold + "33", backgroundColor: C.gold + "14" },
+
+  ekleBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 13 },
+  uyeSatiri: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 13, borderRadius: 16, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 9 },
+  nokta: { width: 6, height: 6, borderRadius: 3 },
+  cikarBtn: { width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: C.red + "14", borderWidth: 1, borderColor: C.red + "33" },
+
+  dialog: { borderRadius: 24, padding: 20, backgroundColor: "#12111A", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
+  dialogIkon: { width: 36, height: 36, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "33" },
+  girisKutu: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 16, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)", borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14 },
+  dialogBtn: { paddingVertical: 14, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+
   toast: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: `${C.gold}55`, paddingVertical: 11, paddingHorizontal: 18, borderRadius: 999 },
 });

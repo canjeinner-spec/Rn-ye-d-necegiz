@@ -68,6 +68,7 @@ function mapRoom(r: OdaRow, hostName: string, myId: number | null): Room {
     scene: toScene(r.kategori),
     locked: !r.herkese_acik,
     owner: myId != null && r.olusturan_id === myId,
+    ownerId: r.olusturan_id ?? undefined,
     crowd: [],
     photo: r.kapak_url || undefined,
     announce: r.aciklama || undefined,
@@ -717,4 +718,46 @@ export async function odaTakiptenCik(odaId: number): Promise<void> {
   if (!me) return;
   const { error } = await sb.from("oda_takip").delete().eq("kullanici_id", me.id).eq("oda_id", odaId);
   if (error) throw error;
+}
+
+/**
+ * Odadaki kişi sayısını yaz (057).
+ *
+ * `aktif_katilimci_sayisi` hiç yazılmıyordu: kolon 0 kalıyor, oda listesi de
+ * "boş odaları gösterme" kuralını buna bakarak uyguladığı için yeni kurulan
+ * odalar hiçbir sekmede görünmüyordu. Odadaki istemcilerden biri (en küçük
+ * uid) presence'taki gerçek sayıyı buraya yazar.
+ */
+export async function odaKatilimciYaz(odaId: number, sayi: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("oda_katilimci_yaz", { p_oda_id: odaId, p_sayi: sayi });
+  if (error && !tabloYok(error)) throw error;
+}
+
+/** Oda sahibinin güncel profili — host koltuğu presence'a bağlı kalmasın. */
+export type OdaSahibi = { id: number; ad: string; foto?: string; publicId?: string };
+
+/**
+ * Odanın sahibini DB'den okur.
+ *
+ * Host koltuğu daha önce presence'taki ADA göre eşleştiriliyordu; ad
+ * lookup'ı "Kullanıcı"ya düşünce ya da sahip adını değiştirince tutmuyor,
+ * koltuk boş silüet kalıyordu. Artık sahip kim olduğu DB'den kesin biliniyor;
+ * presence yalnızca "şu an odada mı" bilgisini veriyor.
+ */
+export async function odaSahibi(odaId: number): Promise<OdaSahibi | null> {
+  const sb = requireSupabase();
+  const { data: oda, error } = await sb.from("odalar").select("olusturan_id").eq("id", odaId).maybeSingle();
+  if (error || !oda) return null;
+  const sahipId = (oda as { olusturan_id: number | null }).olusturan_id;
+  if (sahipId == null) return null;
+
+  const { data: p } = await sb
+    .from("profiller")
+    .select("id, kullanici_adi, profil_resmi, public_id")
+    .eq("id", sahipId)
+    .maybeSingle();
+  const pr = p as { id: number; kullanici_adi: string; profil_resmi: string | null; public_id: string } | null;
+  if (!pr) return { id: sahipId, ad: "Kullanıcı" };
+  return { id: pr.id, ad: pr.kullanici_adi, foto: pr.profil_resmi || undefined, publicId: pr.public_id };
 }

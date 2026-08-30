@@ -1,51 +1,95 @@
-import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { useEffect } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
 import { TIER_RING } from "@/data/gifts";
+import { Icon } from "@/icons/Icon";
 import { type BroadcastData } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 import { Portrait } from "./Portrait";
 import { Txt } from "./Txt";
 
+/** Şeridin ekranda kalma süresi. */
+const KALMA_MS = 4200;
+
+/**
+ * Büyük hediye yayını — tüm uygulamada görünen duyuru.
+ *
+ * Eskiden ekranın en tepesinde (durum çubuğunun dibinde), koyu yeşilimsi bir
+ * kapsül içinde 16 saniye boyunca sağdan sola KAYIYORDU. Okumak için şeridi
+ * takip etmek gerekiyordu, cümle altı ayrı parçaya bölünmüştü ("X kullanıcısı
+ * Y kişisine 🎁 Z ×3 gönderdi!") ve hediye ham emoji olarak çiziliyordu.
+ *
+ * Artık: sağdan yayla girer, YERİNDE DURUR, okunur, sonra sağa süzülüp
+ * kaybolur. İki satır: kimden→kime, altında hediye ve adet. Renkler hediyenin
+ * kademesinden gelir (efsane altın, epik mor, nadir mavi).
+ */
 export function GlobalBroadcast({ data, onGo, top = 52 }: { data: BroadcastData; onGo: () => void; top?: number }) {
   const ring = TIER_RING[data.gift.tier] || C.gold;
-  const { width } = useWindowDimensions();
-  const [w, setW] = useState(0);
-  const x = useSharedValue(width);
+  const efsane = data.gift.tier === "legendary";
+
+  const x = useSharedValue(420);
+  const o = useSharedValue(0);
 
   useEffect(() => {
-    if (!w) return;
-    x.value = width;
-    x.value = withTiming(-w - 20, { duration: 16000, easing: Easing.linear });
-  }, [w, width, x]);
+    o.value = withTiming(1, { duration: 220 });
+    x.value = withSpring(0, { damping: 16, stiffness: 130, mass: 0.9 });
 
-  const style = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+    const cik = setTimeout(() => {
+      x.value = withTiming(420, { duration: 420, easing: Easing.in(Easing.cubic) });
+      o.value = withDelay(160, withTiming(0, { duration: 260 }));
+    }, KALMA_MS);
+    return () => clearTimeout(cik);
+  }, [x, o]);
+
+  const stil = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }], opacity: o.value }));
 
   return (
-    <View style={[styles.lane, { top }]} pointerEvents="box-none">
-      <Animated.View style={style}>
-        <Pressable
-          onPress={onGo}
-          onLayout={(e) => setW(e.nativeEvent.layout.width)}
-          style={[styles.pill, { borderColor: ring + "66" }]}
-        >
-          <Portrait name={data.sender} size={26} ring={ring} glow />
-          <View style={styles.row}>
-            <Txt weight="extrabold" size={11} color={ring}>{data.sender}</Txt>
-            <Txt size={11} color="rgba(255,255,255,.68)">kullanıcısı</Txt>
-            <Txt weight="extrabold" size={11} color="#FCA5A5">{data.recipient || "Herkese"}</Txt>
-            {data.recipient && data.recipient !== "Herkese" && (
-              <Txt size={11} color="rgba(255,255,255,.68)">kişisine</Txt>
-            )}
-            <Txt size={14}>{data.gift.emoji}</Txt>
-            <Txt weight="extrabold" size={11} color={ring}>{data.gift.name}</Txt>
-            <Txt size={11} color="rgba(255,255,255,.68)">×{data.qty} gönderdi!</Txt>
+    <View style={[styles.serit, { top }]} pointerEvents="box-none">
+      <Animated.View style={stil}>
+        <Pressable onPress={onGo} style={[styles.hap, { borderColor: ring + (efsane ? "80" : "55") }]}>
+          {/* Zemin: hediyenin kendi renkleri, çok düşük yoğunlukta */}
+          <Gradient colors={[ring + "2E", "rgba(12,11,16,.94)"]} deg={110} style={StyleSheet.absoluteFill} />
+
+          <View style={{ width: 34, height: 34 }}>
+            <Portrait name={data.sender} size={34} ring={ring} glow />
           </View>
-          <Gradient colors={["#F5CE6E", "#C8922B"]} deg={135} style={styles.go}>
-            <Txt weight="extrabold" size={11} color="#3A2A05">Git ›</Txt>
-          </Gradient>
+
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+              <Txt weight="extrabold" size={11.5} color={ring} numberOfLines={1} style={{ flexShrink: 1 }}>
+                {data.sender}
+              </Txt>
+              <Icon name="chev" size={11} sw={2.4} color={C.dim2} />
+              <Txt weight="extrabold" size={11.5} color={C.gold2} numberOfLines={1} style={{ flexShrink: 1 }}>
+                {data.recipient || "Herkese"}
+              </Txt>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+              <View style={[styles.hediyeIkon, { borderColor: ring + "4D", backgroundColor: ring + "1A" }]}>
+                <Txt size={11}>{data.gift.emoji}</Txt>
+              </View>
+              <Txt weight="bold" size={10.5} color="rgba(255,255,255,.82)" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {data.gift.name}
+              </Txt>
+              <View style={[styles.adet, { borderColor: ring + "55", backgroundColor: ring + "1F" }]}>
+                <Txt weight="extrabold" size={9.5} color={ring}>×{data.qty}</Txt>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.git}>
+            <Txt weight="extrabold" size={10.5} color="#241A05">Git</Txt>
+            <Icon name="chev" size={11} sw={2.6} color="#241A05" />
+          </View>
         </Pressable>
       </Animated.View>
     </View>
@@ -53,20 +97,24 @@ export function GlobalBroadcast({ data, onGo, top = 52 }: { data: BroadcastData;
 }
 
 const styles = StyleSheet.create({
-  lane: { position: "absolute", left: 0, right: 0, overflow: "hidden", zIndex: 55 },
-  pill: {
+  serit: { position: "absolute", left: 12, right: 12, zIndex: 55 },
+  hap: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
-    paddingVertical: 4,
-    paddingLeft: 4,
-    paddingRight: 6,
-    borderRadius: 999,
-    marginLeft: 8,
-    alignSelf: "flex-start",
+    gap: 10,
+    paddingVertical: 7,
+    paddingLeft: 7,
+    paddingRight: 7,
+    borderRadius: 18,
+    overflow: "hidden",
     borderWidth: 1,
-    backgroundColor: "rgba(18,30,38,0.75)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    elevation: 12,
   },
-  row: { flexDirection: "row", alignItems: "center", gap: 4 },
-  go: { paddingVertical: 4, paddingHorizontal: 12, borderRadius: 999 },
+  hediyeIkon: { width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  adet: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 7, borderWidth: 1 },
+  git: { flexDirection: "row", alignItems: "center", gap: 2, paddingVertical: 7, paddingHorizontal: 11, borderRadius: 999, backgroundColor: C.gold2 },
 });

@@ -10,6 +10,7 @@ import { MenuIcon } from "@/components/MenuIcon";
 import { OzelIdGosterim } from "@/components/OzelId";
 import { OzelIdInfoModal } from "@/components/OzelIdInfoModal";
 import { PngBadge } from "@/components/PngBadge";
+import { FramePreview } from "@/components/FramePreview";
 import { Portrait } from "@/components/Portrait";
 import { TileIcon, type TileType } from "@/components/TileIcon";
 import { Txt } from "@/components/Txt";
@@ -41,7 +42,7 @@ type MenuItem = { ic: IconName; g1: string; g2: string; t: string; s?: string; r
 export default function ProfileTab() {
   const router = useRouter();
   const [ozelIdInfo, setOzelIdInfo] = useState(false);
-  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, betaTester, ozelId, ozelIdTip, ozelIdTema, kusanilanRozet, role, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
+  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, betaTester, ozelId, ozelIdTip, ozelIdTema, kusanilanRozet, kusanili, role, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
 
   // Cache-first sayaçlar: son bilinen değeri ANINDA göster (persist), arkada tazele.
   const { data: followCounts } = useCachedResource<{ followers: number; following: number }>(
@@ -110,7 +111,11 @@ export default function ProfileTab() {
     ...(role !== "user" ? [{ ic: "gear" as IconName, g1: "#F5CE6E", g2: "#B45309", t: "Yönetim", s: "Raporlar ve kullanıcı işlemleri", onPress: () => { haptic.light(); router.navigate("/admin"); } }] : []),
     { ic: "mic", g1: "#C8A24A", g2: "#7A5A16", t: "Odam", s: "Kendi sesli sohbet odanı aç", onPress: goMyRoom },
     ...(FEATURES.vip ? [{ ic: "crown" as IconName, g1: "#F5CE6E", g2: "#B45309", t: "Aron VIP", s: "Özel ayrıcalıkların kilidini aç", onPress: () => { haptic.light(); router.navigate("/vip"); } }] : []),
-    ...(isStreamer && FEATURES.streamerPanel ? [{ ic: "mic" as IconName, g1: "#34D399", g2: "#059669", t: "Yayıncı Paneli", s: "Kazancını ve ajansını yönet", onPress: () => { haptic.light(); router.navigate("/agency-panel"); } }] : []),
+    // Yayıncı Paneli `isStreamer` ile kapalıydı; o bayrak DB'den HİÇ
+    // gelmiyor (kullanicilar tablosunda yayıncı kolonu yok), store'da sabit
+    // false duruyordu — yani giriş kimseye görünmüyordu. Bayrak gelene kadar
+    // girişi herkese açıyoruz.
+    ...(FEATURES.streamerPanel ? [{ ic: "mic" as IconName, g1: "#F5CE6E", g2: "#B45309", t: "Yayıncı Paneli", s: "Kazancını ve ajansını yönet", onPress: () => { haptic.light(); router.navigate("/agency-panel"); } }] : []),
     ...(FEATURES.giftHistory ? [{ ic: "gift" as IconName, g1: "#EC4899", g2: "#BE185D", t: "Hediye Geçmişi", s: "Gönderdiğin & aldığın hediyeler", onPress: () => { haptic.light(); router.navigate("/gift-history"); } }] : []),
     { ic: "userAdd", g1: "#34D399", g2: "#0F6B4B", t: "Arkadaşını Davet Et", s: "Davet et, beraber elmas kazanın", onPress: () => { haptic.light(); router.navigate("/referral"); } },
     { ic: "trophy", g1: "#F5CE6E", g2: "#8A5E12", t: "Rozetlerim", s: rozetOzet, onPress: () => { haptic.light(); router.navigate("/badges"); } },
@@ -158,7 +163,12 @@ export default function ProfileTab() {
         <View style={{ paddingHorizontal: 20 }}>
           <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 14, marginTop: -36 }}>
             <Pressable onPress={pickAvatar}>
-              <Portrait name="Sen" size={84} ring={C.gold} glow online frameBorder="#08080C" photo={userPhoto || undefined} />
+              {/* Kuşanılan çerçeve (056) burada gerçekten çiziliyor —
+                  mağazadan alıp kuşandığın şey profilinde görünür. */}
+              <View style={{ width: 84, height: 84 }}>
+                <Portrait name="Sen" size={84} ring={kusanili.cerceve ? "transparent" : C.gold} glow={!kusanili.cerceve} online frameBorder="#08080C" photo={userPhoto || undefined} />
+                {kusanili.cerceve && <FramePreview id={kusanili.cerceve} size={84} />}
+              </View>
               <View style={styles.camBadge}>
                 <Icon name="camera" size={14} sw={2} color="#241A05" />
               </View>

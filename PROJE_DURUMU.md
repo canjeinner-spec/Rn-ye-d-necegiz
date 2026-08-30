@@ -146,7 +146,7 @@ Tüm commit geçmişi `git log --oneline --reverse` ile eksiksiz görülebilir.
       input'ları için `automaticallyAdjustKeyboardInsets`.
     - Commit: `3f592d4` (push'landı).
 
-## 6) Veritabanı — Migration Listesi (db/migrations/, 001-054)
+## 6) Veritabanı — Migration Listesi (db/migrations/, 001-059)
 
 Hepsi **idempotent** (`CREATE OR REPLACE`, `IF NOT EXISTS`) — tekrar
 çalıştırmak zarar vermez. Sırayla çalıştırılmalı (numaraya göre).
@@ -493,9 +493,9 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
-> **Son güncelleme: 28 Ağustos 2026, 12:35** · Son commit `a411096`
-> · Dal `claude/metro-recovery-1xc2kq` · **origin'e PUSH EDİLMEDİ**
-> (yerel commit'ler; push için kimlik doğrulaması gerekiyor)
+> **Son güncelleme: 30 Ağustos 2026** · Son commit `9d8eabb`
+> · Dal `claude/metro-recovery-1xc2kq` · **origin’e PUSH EDİLMEDİ**
+> (yerel commit’ler; şema dökümü için `db/SEMA_DOKUMU.md`’ye bak)
 
 ### ⚠️ ÖNCE: Çalıştırılmayı bekleyen migration'lar
 
@@ -647,25 +647,202 @@ Sahte olduğu hâlde gerçekmiş gibi davranan üç akış düzeltildi:
 o yüzden bu bölüm oturumun kendisinde yazılamadı. `tsc` yeni oturumda
 çalıştırıldı (**exit 0**), dört dosya `a411096` ile commit'lendi.
 
+### 29-30 Ağustos oturumu — ekonomi gerçeğe bağlandı
+
+> **En önemli bulgu:** temel şemada (repoda dosyası olmayan, doğrudan
+> Supabase'de kurulu olan kısım) **zaten eksiksiz bir ekonomi varmış** ve biz
+> aylardır onun yanına ikinci bir tane kuruyorduk. Bkz. `db/SEMA_DOKUMU.md`.
+
+#### Giriş / kayıt / profil
+
+- **Doğrulama modülü** (`src/lib/authValidation.ts`) — üç kural seti tek yerde:
+  - `sifreGucu`: uzunluk (8/12/16) + karakter sınıfı puanı; ceza olarak
+    e-posta adını içerme, karakter tekrarı, ardışık dizi (abcd/1234/qwerty),
+    yaygın şifre listesi (doğrudan 0). Kayıt için skor ≥ 2 **ve** ≥ 8 karakter.
+  - `epostaKontrol`: rol/sistem adları (admin, test, root, destek, noreply,
+    aron…), admin/test ile başlayan-biten, rakamla başlayan, tamamı rakam,
+    5+ ardışık rakam, 4+ rakamla biten, rakam oranı %40 üstü, sesli harfsiz
+    7+ karakter, 4+ aynı karakter, 20 tek kullanımlık alan adı.
+  - `kullaniciAdiKontrol`: 3-20, harfle başlar, harf/rakam/nokta/alt çizgi,
+    ayraçlar üst üste gelemez, ayraçla bitemez, ayrılmış adlar.
+  - **Kural:** eleme YALNIZCA kayıtta çalışır. Girişte sadece biçim kontrolü —
+    kurallar sonradan geldiği için önce açılmış hesaplar kilitlenmesin diye.
+- Kayıt artık girişin kopyası değil: "ADIM 1/2" rozeti, şifre tekrarı, güç
+  göstergesi. Alanlar ortak `components/Alan.tsx`'te (etiket, odakta altın
+  çerçeve, göz ikonu, sol/sağ rozet) — profil düzenleme de bunu kullanıyor.
+- Profil oluşturma: avatar 116px altın halka + yazdıkça ad önizlemesi, hazır
+  avatarlar yatay şerit. **Kadın seçeneği erkek ikonuyla çiziliyordu** →
+  ikon setine `female` eklendi.
+- `EditProfileSheet`: tek kural "2-24 karakter"di (`admin`, `..` geçiyordu) →
+  kayıtla aynı kurallar. Ayrıca yerel ad DB'ye yazılmadan ÖNCE güncelleniyordu;
+  ad alınmışsa ekran yalan söylüyordu → önce DB, sonra ekran.
+- `AronMark` yeniden çizildi (mor dolgu + BlurView gitti, tek SVG).
+
+#### Odam ekranı (055)
+
+- Üç sekme de aynı sahte listenin dilimleriydi. Artık üç ayrı gerçek kaynak:
+  **Son günlerde** → `oda_ziyaretleri` (yeni), **Katıl** → `oda_uyeleri`,
+  **Takip et** → `oda_takip` (yeni).
+- RoomPanel'deki "Takip Et" yalnızca yerel state'ti; artık DB'ye yazıyor.
+- Ekran temaya çekildi (mor kart → siyah-altın), ortak `Tabs`, boş durumlar,
+  aşağı çekip yenileme, "3 sa önce" etiketi.
+
+#### Oda katılımcı sayacı (057)
+
+`odalar.aktif_katilimci_sayisi` her yerde OKUNUYOR ama hiçbir yerde
+YAZILMIYORDU. Oda listesi "boş odaları gösterme" kuralını buna göre
+uyguladığı için **yeni kurulan hiçbir oda hiçbir sekmede görünmüyordu**.
+Artık odadaki istemcilerden biri (en küçük uid) presence'taki gerçek sayıyı
+`oda_katilimci_yaz` ile yazıyor. Sunucu tarafı presence doğrulaması yok →
+sayı advisory.
+
+#### Giriş perdesi yeniden kurgulandı
+
+Perde oda ekranının İÇİNDEYDİ: önce odaya giriliyor, sonra kontrol ediliyordu
+— yasaklı olduğun odaya bile girip sonra atılıyordun. Artık perde
+`AppOverlays`'te, **odaya girmeden önce** bulunduğun ekranın üstünde açılıyor
+ve kontroller orada yapılıyor: oda yasağı, işlem görmüş oda (sahibine ayrı
+metin), bağlantı hatası + "Tekrar dene". Bütün giriş noktaları
+`odayaGirDene()` üzerinden geçiyor.
+
+#### Eşya sistemi (056) — çerçeve / giriş efekti / sohbet balonu
+
+- `esyalar` + `kullanici_esyalari` + `esya_satin_al` / `esya_kusan` /
+  `esya_cikar` + `kusanili_esyalar` görünümü. 42 eşya (20 çerçeve,
+  12 giriş efekti, 10 balon), asset yok — hepsi kodla çiziliyor
+  (`FramePreview` halka tarifleri + `data/esyaTemalari.ts`).
+- Kuşanılanlar presence yüküyle taşınıyor: odadaki herkes birbirinin
+  çerçevesini/balonunu/giriş efektini ek sorgu olmadan görüyor.
+- Çerçeve yalnızca **mikrofon koltuğunda ve kullanıcı kartında** görünür
+  (sohbette kalabalık yapıyordu). Balon her mesajda, giriş efekti
+  mikrofonların altındaki hapta.
+- ⚠️ Bu yapı temel şemadaki `magaza_esyalari` + `kullanici_envanteri` ile
+  ÇAKIŞIYOR — taşıma sırası: hediye (bitti) → mağaza/envanter → cüzdan.
+
+#### Hediye ekonomisi — 058 yazıldı, sonra 059 ile temel şemaya taşındı
+
+`058` kendi tablolarımızı kurmuştu. Ardından temel şemada `hediyeler` +
+`hediye_gecmisi` ve iki trigger olduğu ortaya çıktı:
+
+- **BEFORE `hediye_gonder_fn`**: `gifts_enabled` bayrağı, fiyat katalogdan,
+  komisyon `ayarlar.hediye_komisyon_orani`'ndan (varsayılan 0.40),
+  `idem_kaydet`, kullanıcı kilidi, `gift_ban`/`economy_frozen`/`banli`,
+  `limit_tuket('daily_gift')`, **`lot_harca('altin')`**, gönderene XP.
+- **AFTER `hediye_after_fn`**: `kazanc_hareket` ile alıcıya kazanç, XP+seviye,
+  `sistem_hesap_hareket('platform_havuz')`, oda XP'si + `room_stat_deltalari`,
+  `outbox_events`.
+
+Eksik olan tek şey **istemci erişimiydi**: RLS açık ama politika yok, sarmalayıcı
+yok. `059` o kapıyı açıyor: komisyon **%30**, `gifts_enabled` açık, kataloğa
+`kod/emoji/renk1/renk2/kademe` kolonları + 29 hediye, okuma politikaları,
+`hediye_gonder_v2`, `benim_bakiyem_v2`, `kazanc_*_v2`, `son_hediyelerim_v2`,
+`admin_altin_yukle`, `hediye_komisyon`.
+
+**Para birimi:** hediye **ALTIN** ile gönderilir (elmas satın alınıp altına
+çevrilir), kazanç `kullanicilar.kazanc_puani`nda birikir. `058`'in tabloları
+artık kullanılmıyor (silinmedi, istemci koptu).
+
+#### Yayıncı paneli + para çekme
+
+- Panel gizliydi: `isStreamer` DB'den hiç gelmiyor (kolon yok), sabit false.
+  Giriş herkese açıldı.
+- Ekran baştan sona yeşildi → siyah-altın. Kazanç kartı, **saatlik kazanç
+  grafiği** (Bugün/Dün, "en iyi saat"), son 7 gün, son gelen hediyeler —
+  hepsi `hediye_gecmisi`'nden gerçek veri.
+- Para çekme tek uzun formdu, %16 kesintiyi ancak kendi ID'ni yazınca
+  öğreniyordun → üç adım: **Tutar → Alıcı → Onay**, kesinti alıcı seçilirken
+  yazıyor, başarı ekranı tam ekran. (Rakamlar hâlâ örnek veri; gerçek çekim
+  `withdrawal_requests` + `cekim_talep_olustur`'a bağlanacak.)
+
+#### Hediye görselleri
+
+- Yayın şeridi 16 sn kayıyordu → sağdan girip **yerinde duran** kapsül,
+  üst barın altında.
+- `GiftFx`: dev emoji + emoji kopyaları → gradyan madalyon, halkalar, renkli
+  kıvılcımlar, kademe çipli bilgi kapsülü.
+- `BigGiftOverlay`: emblem madalyona alındı, alt açıklama yeniden düzenlendi.
+- Hediye artık **sohbete de düşüyor** (kim → kime, ne, kaç tane), kompakt
+  kapsül olarak.
+- Hediye kutusu: mor → siyah-altın, gerçek bakiye + "＋" ile cüzdan, açılır
+  adet seçici, toplam tutar, sahte "LV.1 · 5000 EXP" çubuğu silindi.
+
+#### Oda içi senkronizasyon (devam ediyor)
+
+- Koltuklar **tamamen yerel state'ti** — kimse kimsenin mikrofona çıktığını
+  görmüyordu. Koltuk + mikrofon durumu presence yüküne alındı (`koltuk`,
+  `mic`), gerçek odada ızgara presence'tan çiziliyor.
+- Sahip koltuğu mock `SEATS`ten geliyordu → her odada "Ardaowski" sahipti.
+  Artık sahip DB'den (`odaSahibi`): odadaysa canlı fotoğrafı, değilse soluk
+  + "Ayrıldı" çipi.
+- `Room.ownerId` eklendi; sahip eşleşmesi isimle değil uid ile yapılıyor.
+  `isMine` de ownerId'ye bakıyor (oda listesi profil yüklenmeden çekilirse
+  sahip kendi odasında ziyaretçi sanılıyordu).
+- **Çözülen son hata:** host koltuğundaki `Portrait`'e ziyaretçi için
+  `photo={undefined}` geçiliyordu — sahibin fotoğrafı hesaplanıyor ama
+  ekrana hiç verilmiyordu.
+- ⚠️ **AÇIK:** "koltuğa oturdum, karşı tarafta bir süre görünüp kayboluyor".
+  `room.tsx`'te geçici `console.log("[presence] …")` teşhis satırları var,
+  Metro loglarından izlenecek. **İş bitince o satırlar kaldırılacak.**
+
+#### Veritabanı dökümü — `db/SEMA_DOKUMU.md`
+
+Anon anahtarla şema okunamıyor (her tabloda `REVOKE ALL FROM anon` + RLS).
+Geçici `SECURITY DEFINER` döküm fonksiyonlarıyla çıkarıldı, sonra silindi:
+**104 tablo · 838 sütun · 131 fonksiyon**. Güvenlik durumu temiz: RLS
+103 tablonun hepsinde açık, ekonomi tablolarının hiç politikası yok
+(yani herkese kapalı), anon'a verilmiş yazma yetkileri politikasız olduğu
+için işlemiyor.
+
+**Temel şemada hazır ama BAĞLANMAMIŞ olanlar:** `cuzdanlar` + `wallet_ledger`
+(partisyonlu) + `balance_lots`, `magaza_esyalari` + `kullanici_envanteri`,
+`ajanslar` + `ajans_uyeleri` + `yayinci_odemeleri`, `withdrawal_requests`,
+`kur_oranlari`, `elmas_paketleri`, `satin_almalar`, `kullanici_vip`,
+`leaderboards`, `room_statistics`, `kyc_requests`, `risk_events`,
+`user_limits`, `idempotency_keys`, `outbox_events`.
+
 ### Sıradakiler
 
-1. `051`, `053`, `054` Supabase'de çalıştırılacak.
-2. **Ajans + sıralama ekranlarına dönülecek** — kullanıcı "bu ajans ve
-   sıralama kısmına geri döneceğiz" dedi. UI düzeldi ama veriler hâlâ
-   `data/seed.ts` sabitleri.
-3. **Hediye ekonomisi yok** — bayraklar açıldığı için artık kullanıcıya
-   *görünüyor*: katalog + bakiyeden düşen atomik RPC + defter tablosu gerek.
-4. **Oda rozet sistemi yok** — `Room.badges` yalnız mock; DB'de tablo yok.
-   Kullanıcı rozet sistemi (`049`) örnek alınabilir.
-5. **Görev sistemi yok** — `data/tasks.ts` sabit demo.
-6. `RoomPanel`'deki "Takip Et" yerel state, hiçbir yere yazmıyor.
-7. BottomNav DM sayısı önbellekten — açılışta `listThreads` prefetch edilebilir.
-8. `expo-video` cihazda denenmedi (Expo Go'da olmayabilir → dev build).
-9. Splash Expo Go'da görünmüyor.
-10. Mevcut banner fotoğrafı eski oranda; yeniden yüklenmesi önerilir.
-11. Paket sürüm uyumsuzluğu (engelleyici değil): `expo@54.0.35` → beklenen
-    `~54.0.37`, `expo-constants@18.0.13` → `~18.0.14`, `@types/react@19.2.17`
-    → `~19.1.10`. `npx expo install --fix` Metro'yu yeniden başlatmayı ister.
+> **Karar (29 Ağustos):** ekonomi tarafında kendi paralel yapımızı değil
+> **temel şemayı** kullanacağız. Sıra: hediye (bitti) → mağaza/envanter →
+> cüzdan. Her adımda tek ekran taşınır ve çalıştığı doğrulanır.
+
+**Bekleyen migration'lar (Supabase'de çalıştırılacak)**
+
+| Dosya | Durum |
+|---|---|
+| `053_admin_oda_kapak.sql` | ❌ **eksik** — `admin_oda_kapak_ayarla` yok, kapak düğmeleri hata verir |
+| `059_hediye_temel_semaya_gecis.sql` | kullanıcıya verildi, çalıştırılması bekleniyor |
+| 051, 052, 054, 055, 056, 057, 058 | ✅ uygulandı |
+
+1. **Oda içi senkron hatası** — koltuk karşı tarafta bir süre sonra kayboluyor.
+   `room.tsx`'teki geçici `[presence]` teşhis logları Metro'dan okunacak,
+   sebep bulunup **loglar kaldırılacak**.
+2. **Mağaza/envanter taşıması** — `esyalar`/`kullanici_esyalari` (056) yerine
+   `magaza_esyalari` + `kullanici_envanteri`. `esya_tipi` enum'u zaten
+   `cerceve/balon/giris_efekti/arka_plan` içeriyor.
+3. **Cüzdan taşıması** — kendi `cuzdan` tablomuz yerine `cuzdanlar` +
+   `wallet_ledger` + `balance_lots`. `lot_yatir`/`lot_harca`/`kazanc_hareket`
+   hazır; `bakiye_ekle`/`benim_bakiyem` çağrıları oraya çevrilecek.
+4. **Ajans + yayıncı** — `ajanslar`, `ajans_uyeleri`, `yayinci_odemeleri`
+   bağlanacak; `kullanicilar` üzerinde yayıncı bayrağı yok, yönetimden
+   atanacak bir alan gerekiyor.
+5. **Para çekme gerçeğe** — `withdrawal_requests` + `cekim_talep_olustur`
+   (hesap bilgisi `pii_sifrele` ile şifreli), `kur_oranlari.kazanc_kuru`.
+6. **Elmas satın alma (IAP)** — `elmas_paketleri`, `satin_almalar`,
+   `satin_alma_dogrula_fn`. Elmas → altın dönüşümü `elmas_altin_donustur`.
+7. **Sıralama listeleri** — `leaderboards` + `leaderboard_entries` (şu an
+   `data/seed.ts` sabitleri).
+8. **DM'den hediye** — peer'ın dbId'si ekranda yok, gönderim yalnızca
+   animasyon oynatıyor. "Tümü"ne gönderim de tek RPC ile yapılamıyor.
+9. **Oda rozet sistemi yok** — `Room.badges` yalnız mock; DB'de tablo yok.
+10. **Görev sistemi yok** — `data/tasks.ts` sabit demo (`gorevler` tablosu
+    temel şemada var, bağlanmadı).
+11. **Hazır avatarlar `i.pravatar.cc`'den geliyor** — dış servis + gerçek
+    insan fotoğrafları; yayından önce kendi setimizle değiştirilmeli.
+12. `RoomPanel`'deki "Takip Et" bitti, ama "Katıl" dışındaki oda rozetleri
+    hâlâ mock.
+13. Splash Expo Go'da görünmüyor · `expo-video` cihazda denenmedi ·
+    paket sürüm uyumsuzluğu (`expo@54.0.35` → `~54.0.37`).
 
 ---
 
@@ -726,6 +903,10 @@ o yüzden bu bölüm oturumun kendisinde yazılamadı. `tsc` yeni oturumda
 ## 11) Yeni Sohbete Nasıl Devam Edilir
 
 1. Bu dosyayı (`PROJE_DURUMU.md`, repo kökünde) oku.
+1b. **Migration yazmadan önce `db/SEMA_DOKUMU.md`’ye bak.** Temel şemanın
+   repoda dosyası yok; orada zaten var olan bir tabloyu tekrar kurmaya
+   çalışmak 058’de olduğu gibi çakışmaya yol açıyor (`hediyeler`).
+   O döküm canlı veritabanından çıkarıldı: 104 tablo, 131 fonksiyon.
 2. `git log --oneline -20` ile en son commit'leri teyit et (bu dosya
    güncel olmayabilir, git her zaman gerçek kaynak).
 3. `db/migrations/` klasöründeki en yüksek numaralı dosyaya bak — DB şu an

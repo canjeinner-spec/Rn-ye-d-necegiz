@@ -50,7 +50,7 @@ export default function FeedScreen() {
   const userPhoto = useApp((s) => s.userPhoto);
   const userName = useApp((s) => s.userName);
   const privileged = useApp((s) => s.role !== "user");
-  const enterRoom = useApp((s) => s.enterRoom);
+  const odayaGirDene = useApp((s) => s.odayaGirDene);
 
   const [tab, setTab] = useState(0);
   const [composer, setComposer] = useState(false);
@@ -224,8 +224,7 @@ export default function FeedScreen() {
     const r = ROOMS.find((x) => x.id === id);
     if (!r) return;
     haptic.light();
-    enterRoom(r);
-    router.navigate("/room");
+    odayaGirDene(r);
   };
 
   const totalComments = (p: UserPost) => p.comments.reduce((s, c) => s + 1 + c.replies.length, 0);
