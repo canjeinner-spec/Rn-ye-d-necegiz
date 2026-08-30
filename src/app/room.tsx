@@ -38,6 +38,7 @@ import { type Gift, TIER_RING } from "@/data/gifts";
 import { hediyeGonder } from "@/data/remote/hediyeRepo";
 import { reportRoom } from "@/data/remote/reportRepo";
 import { addXp } from "@/data/remote/xpRepo";
+import { varlikBildir, varliktanCik } from "@/data/remote/odaVarlik";
 import { odaSahibi, type OdaSahibi, amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, logRoomMovement, odaKatilimciYaz, toScene, ziyaretKaydet, type MicBan } from "@/data/remote/roomsRepo";
 import { BALON_TEMALARI } from "@/data/esyaTemalari";
 import { FramePreview } from "@/components/FramePreview";
@@ -508,6 +509,16 @@ export default function RoomScreen() {
     return () => console.log("[oda] UNMOUNT");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * Odadaki varlığımı yayınla — oda listesi buradan sayıyor.
+   * Bağlantı koparsa sunucu kendiliğinden düşürür; "hayalet oda" olmuyor.
+   */
+  useEffect(() => {
+    if (!isDbRoom || !dbId || myDbId == null) return;
+    varlikBildir(myDbId, dbId);
+    return () => varliktanCik();
+  }, [isDbRoom, dbId, myDbId]);
 
   /** Bu ekranın odaya katılma anı — presence yükünde taşınır. */
   const katildiRef = useRef<number>(Date.now());

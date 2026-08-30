@@ -13,6 +13,7 @@ import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { PEOPLE } from "@/data/people";
+import { odaSayilariniDinle } from "@/data/remote/odaVarlik";
 import { getMyBannedRoomIds, listRooms, odaDegisiklikleriniDinle } from "@/data/remote/roomsRepo";
 import { useCachedResource } from "@/lib/cache";
 import { ROOMS, type Room } from "@/data/seed";
@@ -155,9 +156,24 @@ export default function Home() {
     return odaDegisiklikleriniDinle(odalariTazele);
   }, [odalariTazele]);
 
+  /**
+   * Odalardaki CANLI kişi sayısı — presence'tan (odaVarlik.ts).
+   *
+   * `aktif_katilimci_sayisi` istemcinin yazdığı bir sayıydı: yazılamazsa oda
+   * hiç görünmüyor, uygulama çökerse boş oda listede asılı kalıyordu. Presence
+   * bağlantı düştüğü an kişiyi düşürdüğü için ikisi de olmuyor. DB sayacı
+   * yalnızca soğuk açılışta (presence daha oturmadan) yedek olarak kalıyor.
+   */
+  const [canliSayilar, setCanliSayilar] = useState<Map<number, number>>(new Map());
+  useEffect(() => odaSayilariniDinle(setCanliSayilar), []);
+
   // DB odaları üstte; mock odalar (MVP'de ekranı canlı tutar) altta. Aynı ID tekrarını ele.
   const dbIds = new Set(dbRooms.map((r) => r.id));
-  const tumOdalar = [...dbRooms, ...ROOMS.filter((r) => !dbIds.has(r.id))];
+  const tumOdalar = [...dbRooms, ...ROOMS.filter((r) => !dbIds.has(r.id))].map((r) => {
+    if (r.dbId == null) return r;
+    const canli = canliSayilar.get(r.dbId);
+    return canli === undefined ? r : { ...r, online: canli, live: canli > 0 };
+  });
 
   // Yasaklandığım odalar — listede hiç görünmemeli.
   const { data: yasakliOdaIds } = useCachedResource<number[]>(
@@ -173,11 +189,11 @@ export default function Home() {
    *   • boş             — içinde kimse olmayan odaya sokmanın faydası yok
    * (Silinmiş odalar zaten sunucuda RLS ile eleniyor.)
    *
-   * KENDİ ODAM İSTİSNA (30 Ağustos'ta değişti). Önceden istisna yoktu ve
-   * sonuç şuydu: odandayken sayaç 1, listeye bakmak için çıkınca 0 — yani
-   * kendi odanı listede ASLA göremiyordun, çünkü görmek için çıkman gerekiyor.
-   * Kullanıcı bunu üç kez hata sandı, haklı olarak. Artık boş olsa bile
-   * sahibine görünüyor; başkalarına görünmüyor (onlar için hâlâ boş oda).
+   * Kendi odam için istisna YOK: boş oda kimseye görünmez, sahibine de.
+   * (Sahibi odasına profildeki "Odam" bölümünden giriyor.)
+   *
+   * "Kim odada" bilgisi artık DB sayacından değil, canlı presence'tan
+   * geliyor — bkz. odaVarlik.ts. Sayaç yalnızca soğuk açılışta yedek.
    */
   const gorunur = useMemo(() => {
     const yasak = new Set(yasakliOdaIds ?? []);
@@ -185,10 +201,9 @@ export default function Home() {
       if (r.locked) return false;
       if (r.islemGordu) return false;
       if (r.dbId != null && yasak.has(r.dbId)) return false;
-      if (r.owner) return true; // kendi odam — boşken de bana görünsün
       return r.online > 0;
     });
-  }, [dbRooms, yasakliOdaIds]);
+  }, [tumOdalar, yasakliOdaIds]);
 
   // Sekmeler daha önce hiçbir şey yapmıyordu: dördü de aynı listeyi
   // gösteriyordu (tab state'i yalnızca çubuğu boyuyordu).
