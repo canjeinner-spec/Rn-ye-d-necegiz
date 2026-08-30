@@ -493,21 +493,22 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
-> **Son güncelleme: 30 Ağustos 2026** · Son commit `61e0ce9`
+> **Son güncelleme: 30 Ağustos 2026 (ikinci yarı)** · Son commit `8c0f1a2`
 > · Dal `claude/metro-recovery-1xc2kq` · **origin’e PUSH EDİLMEDİ**
 > (yerel commit’ler; şema dökümü için `db/SEMA_DOKUMU.md`’ye bak)
 
 ### ⚠️ ÖNCE: Çalıştırılmayı bekleyen migration'lar
 
-Canlı veritabanı 29 Ağustos'ta yoklandı. Sırayla çalıştırılacaklar:
+Canlı veritabanı 30 Ağustos'ta yoklandı. Bekleyenler:
 
 | Dosya | Ne yapıyor | Durum |
 |---|---|---|
 | `053_admin_oda_kapak.sql` | `admin_oda_kapak_ayarla` — yönetici oda kapağını değiştirir/kaldırır | ❌ **eksik** → kapak düğmeleri hata verir |
-| `065_oda_listesi_canli.sql` | `odalar` tablosunu Realtime yayınına ekler — liste anında tazelensin | ⏳ bekliyor |
+| `066_oda_rozetleri.sql` | Oda rozetleri — kural motoru + elle verme | ⏳ **bekliyor** |
 
-051-052, 054-064 **uygulandı** (30 Ağustos). `fn_kaynak` düşürüldü.
-063 sonrası anon erişimi ölçüldü: hediye/sıralama/görev/cüzdan RPC'lerinin
+051-052, 054-065 **uygulandı** (30 Ağustos). `fn_kaynak` düşürüldü.
+065 Realtime aboneliğiyle doğrulandı ("Subscribed to PostgreSQL").
+063+064 sonrası anon erişimi ölçüldü: hediye/sıralama/görev/cüzdan RPC'lerinin
 hepsi ve `hediyeler`/`esyalar`/`gorevler` tabloları **kapalı** (42501).
 
 > **YETKİ KURALI — pahalıya patlayan ders:** PostgreSQL yeni fonksiyona
@@ -886,6 +887,129 @@ listesinden var olanı seçiyor, hiçbiri tutmazsa **veritabanındaki gerçek
 etiket listesini yazan** bir hata veriyor. Yani ilk denemede doğru etiket
 öğrenilip tek satırda sabitlenebilir.
 
+### 30 Ağustos — ikinci yarı: oda deneyimi ve rozetler
+
+#### Enum etiketleri artık tahmin değil (063-064)
+
+059-062 çalıştırıldıktan sonra `_enum_liste` ile gerçek etiketler okundu ve
+`db/SEMA_DOKUMU.md`'ye **"Enum tipleri"** bölümü eklendi (23 tip). İki hata
+çıktı:
+
+- `_altin_harca` **kırıktı**: aday listesinde `magaza`/`satin_alma`/`harcama`
+  vardı, gerçeği **`magaza_satin_alma`**. Hiçbir aday tutmadığı için her
+  mağaza satın alması hata veriyordu.
+- `_odul_ver` çalışıyordu ama yanlış kovaya yazıyordu (`bonus`+`admin_ekleme`
+  seçiliyordu); doğrusu **`campaign`+`kampanya_odulu`**. `campaign` promo
+  tarafına düşer: ödül altını hediyeye harcanır ama çekilemez.
+
+> **YETKİ KURALI — pahalıya patlayan ders:** PostgreSQL yeni fonksiyona
+> **PUBLIC**'e EXECUTE verir ve `anon` PUBLIC'in içindedir. `REVOKE … FROM anon`
+> tek başına KAPATMAZ. Her yeni fonksiyonda önce `REVOKE ALL … FROM PUBLIC`,
+> sonra hedef role `GRANT`. 064 tam bu yüzden gerekti.
+
+Ölçüldü: 063+064 sonrası hediye/sıralama/görev/cüzdan RPC'lerinin hepsi ve
+`hediyeler`/`esyalar`/`gorevler` tabloları giriş yapmamış birine **kapalı**
+(42501).
+
+#### Oda listesi canlı (065)
+
+Yeni açılan oda listede 15-20 sn sonra beliriyordu. Sebep Supabase değil,
+tasarımdı: liste yalnızca ekran ODAKLANDIĞINDA çekiliyordu, listeye bakarken
+duruyorsan hiçbir sorgu atılmıyordu. "Oda boşalınca hemen gidiyor" da aynı
+şeyin ters yüzüydü — odadan çıkıp listeye dönmek zaten bir odaklanma.
+
+`odalar` tablosu Realtime yayınına alındı; her değişiklik (yeni oda,
+katılımcı sayısı, ad, kapak, silme) anında düşüyor. 400 ms bekleme var, çünkü
+oda açılırken INSERT'i hemen bir sayaç UPDATE'i izliyor.
+
+#### Koltuk senkronu — asıl sebep bulundu
+
+Metro logu koltuğun sıfırlanmadığını, **ekranın yeniden kurulduğunu** gösterdi:
+oturunca `koltuk=0` iki kez yazılıyor, hemen ardından `koltuk=null` iki kez —
+mount imzası.
+
+- **Sebep:** `room.tsx` seçicisiz `useApp()` çağırıyordu → TÜM store'a abone.
+  5 saniyede bir dönen hesap yasağı yoklamasının `set({banChecked:true})`'i
+  bile ekranı baştan render ediyordu. Alan alan aboneye çevrildi.
+- `mySeat`/`micOn` artık **store'da** (`appStore.koltugum`, oda kimliğiyle).
+  Ekran yeniden kurulsa bile koltuk düşmüyor.
+- `ch.subscribe` geri çağrısı kurulduğu andaki `presenceYaz`ı kapatıyordu
+  (içinde `mySeat` hep null). Soket yeniden bağlanınca presence `koltuk: null`
+  yazılıyordu → `presenceYazRef` ile hep tazesi çağrılıyor.
+- Uygulama öne dönünce (`AppState`) presence tazeleniyor.
+
+Doğrulandı: `[oda] UNMOUNT` artık yalnızca odadan çıkarken bir kez.
+
+#### Giriş efekti kararsızlığı
+
+Kural "önceki sync'te yoktu" idi. Hızlı çık-gir yapınca karşı taraf seni arada
+hiç "yok" görmüyor (iki değişim tek diff'te birleşiyor) ve giriş kaçıyordu.
+Artık presence yükündeki `katildi` damgasına bakıyor: damga ilerlemişse
+yeniden girmiştir.
+
+#### Kendi mesajım görünmüyordu
+
+Metro logu: `Realtime send() is automatically falling back to REST API`.
+Broadcast websocket yerine REST'e düşünce **gönderene echo edilmiyor**, yani
+`self: true` çalışmıyor. Kendi odanda tek başınayken yazdığın mesaj hiç
+görünmüyordu. Artık kendi mesajım yerel ekleniyor, echo gelirse eleniyor.
+
+#### Oda alt barı yeniden kuruldu
+
+Odaya girer girmez göze çarpan ilk şey ekranın altını kaplayan boş bir yazı
+kutusuydu. Referans (WePlay/Yalla) düzenine geçildi:
+
+- Koltukta **değilken**: `[hoparlör] [ Yaz … ] [☰] [el] [hediye]`
+- Koltukta**yken**: `[hoparlör] [mikrofon] [emoji] [sohbet] [☰] [el] [hediye]`
+  — hoparlör yerinde kalır, mikrofon ve emoji sağına eklenir, "Yaz …" hapı
+  yuvarlak sohbet düğmesine küçülür.
+
+"Yaz …" hapına dokununca satır yazma moduna geçiyor (@ düğmesi, "Lütfen
+nazikçe konuşun" kutusu, gönder). ☰ → oda araçları ızgarası: Oda Profili,
+Odadakiler, Mikrofon Sırası (rozetli), Katkı Sıralaması, Oda İstatistiği,
+Oda Ayarları (yalnız sahip), Sesi Aç/Kapat, Şikayet Et. **Müzik ve Foto
+konmadı** — arkalarında hiçbir şey yok, ölü düğme koymadık.
+
+Sohbetin üzerinde yüzen el kaldırma düğmesi kalktı, alt bardaki yerine geçti.
+
+#### Emoji tepkisi
+
+Alt bardaki yüz düğmesinden seçilen emoji sohbete düşmüyor, gönderenin
+**avatarını kaplayıp** kayboluyor (1,6 sn, yaylı giriş). Odadaki herkes
+broadcast ile aynı anda görüyor. `Seat` tipine `uid` eklendi ki tepki doğru
+koltuğa düşsün.
+
+#### Yönetim menüsü + mikrofon daveti
+
+Kullanıcı kartındaki dişli çıplak bir listeydi, üç satır aynı renkte. Artık
+altın çizgili başlık (kimin üzerinde işlem yapıldığı yazıyor), renkli ikon
+karesi ve **her satırın altında ne yaptığını söyleyen açıklama** —
+"Mikrofondan İndir" ile "Odadan Çıkar" farkı eskiden yalnızca ikondan
+anlaşılıyordu.
+
+**Mikrofona davet:** oda sahibi ve yardımcı, koltukta olmayan birini
+çağırabiliyor. Doğrudan oturtmuyor — hedefte onay kutusu açılıyor.
+
+#### Oda rozetleri (066)
+
+Rozetler `data/seed.ts` içindeki sahte odalara elle yazılmış sabitlerdi;
+gerçek odalarda hiç görünmüyordu. Görseller (49 rozet) zaten hazırdı, eksik
+olan veriydi. İki kaynak, tek görünüm:
+
+- **kural** → okuma anında hesaplanır, tabloda durmaz. "Haftalık şampiyon"
+  dün doğruysa bugün başkasının olabilir; anlık görüntü tutmak yanlış olurdu
+  ve dolduracak zamanlayıcı da yok (060'la aynı gerekçe).
+  Kaynaklar: `hediye_gecmisi`, `oda_ziyaretleri`, `oda_mesajlari`,
+  `oda_seviyeleri`.
+  11 rozet: haftalık şampiyon/2./3., hediye yağmuru, ateş serisi, popüler,
+  sohbet ustası, gece kuşu, erkenci, yükselen yıldız, seviye ustası + `lv`.
+- **elle** → `oda_rozetleri` tablosunda durur. Efsanevi, Etkinlik Ustası,
+  VIP Oda, sezonluklar… 15 rozet. Yönetim ekranından (`admin-room-edit`)
+  verilip geri alınabiliyor.
+
+**Kural rozeti elle verilemez** — verilebilseydi liste yalan söylerdi;
+`admin_oda_rozet_ver` bunu reddediyor.
+
 ### Sıradakiler
 
 > **Karar (29-30 Ağustos):** ekonomide kendi paralel yapımızı değil **temel
@@ -928,7 +1052,9 @@ etiket listesini yazan** bir hata veriyor. Yani ilk denemede doğru etiket
    listede boşken duruyor. Sunucu tarafı presence yok; çözüm ya bir TTL
    (sayaç N dakikadır dokunulmadıysa 0 say) ya da `oda_uyeleri` üzerinden
    kalp atışı. 065 canlı yayını açtı ama bu ayrı bir sorun.
-10. **Oda rozet sistemi yok** — `Room.badges` yalnız mock; DB'de tablo yok.
+10. ~~Oda rozet sistemi~~ — **066 ile yapıldı** (kural motoru + elle verme).
+    Kalan: kullanıcı rozetleri hâlâ ayrı bir konu; oda rozetleri yalnızca
+    oda listesinde çiziliyor, oda profilinde de gösterilmeli.
 11. ~~Görev sistemi~~ — **061 ile yapıldı.** Kalan: haftalık görevler
     (`gorev_tipi` enum etiketleri bilinmiyor, önce öğrenilecek) ve başarımlar.
 12. **Hazır avatarlar `i.pravatar.cc`'den geliyor** — dış servis + gerçek

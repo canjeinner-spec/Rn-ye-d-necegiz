@@ -12,7 +12,9 @@ import {
   changeRoomPublicId, getActionHistory, getRoomForEdit, setRoomCover, setRoomFlagged, updateRoom,
   type AdminAction, type AdminRoomEdit,
 } from "@/data/remote/adminRepo";
+import { odaRozetAl, odaRozetVer, odaVerilenRozetler, rozetKatalogu, type RozetKatalogu } from "@/data/remote/roomsRepo";
 import { uploadAvatar } from "@/data/remote/storageRepo";
+import { RoomBadge, type RoomBadgeType } from "@/components/RoomBadges";
 import { type Room } from "@/data/seed";
 import { setCached } from "@/lib/cache";
 import { Icon } from "@/icons/Icon";
@@ -43,6 +45,17 @@ export default function AdminRoomEdit() {
   const patchRoomByDbId = useApp((s) => s.patchRoomByDbId);
 
   const [r, setR] = useState<AdminRoomEdit | null>(null);
+  // Rozetler (066): yalnızca "elle" kaynaklı olanlar verilebilir; kuralla
+  // kazanılanlar odanın kendi verisinden hesaplanır, buradan verilemez.
+  const [katalog, setKatalog] = useState<RozetKatalogu[]>([]);
+  const [verilen, setVerilen] = useState<{ kod: string; ad: string; sebep: string | null; bitis: number | null }[]>([]);
+  const rozetleriYukle = useCallback(async () => {
+    if (Number.isNaN(odaId)) return;
+    const [k, v] = await Promise.all([rozetKatalogu(), odaVerilenRozetler(odaId)]);
+    setKatalog(k.filter((x) => x.kaynak === "elle"));
+    setVerilen(v);
+  }, [odaId]);
+  useEffect(() => { rozetleriYukle(); }, [rozetleriYukle]);
   const [history, setHistory] = useState<AdminAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -198,6 +211,58 @@ export default function AdminRoomEdit() {
               </View>
             </View></View>
 
+            {/*
+              Rozetler (066).
+              Yalnızca "elle" kaynaklı rozetler burada; haftalık şampiyon gibi
+              kuralla kazanılanlar odanın kendi verisinden hesaplandığı için
+              elle verilemez — verilebilseydi liste yalan söylerdi.
+            */}
+            <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>ODA ROZETLERİ</Txt>
+            <View style={[styles.group, { padding: 12 }]}>
+              {verilen.length > 0 ? (
+                <View style={{ gap: 8, marginBottom: 12 }}>
+                  {verilen.map((v) => (
+                    <View key={v.kod} style={styles.rozetSatiri}>
+                      <RoomBadge type={v.kod as RoomBadgeType} size={22} />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Txt weight="extrabold" size={12} color={C.text}>{v.ad}</Txt>
+                        <Txt size={9.5} color={C.dim} style={{ marginTop: 1 }}>
+                          {v.bitis ? `${zaman(v.bitis)} tarihinde biter` : "Süresiz"}
+                          {v.sebep ? ` · ${v.sebep}` : ""}
+                        </Txt>
+                      </View>
+                      <Pressable
+                        disabled={busy}
+                        onPress={() => run(() => odaRozetAl(odaId, v.kod), "Rozet geri alındı").then(rozetleriYukle)}
+                        hitSlop={8}
+                      >
+                        <Icon name="trash" size={14} color="#FB7185" />
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Txt size={11} color={C.dim2} style={{ marginBottom: 12 }}>Bu odaya elle verilmiş rozet yok.</Txt>
+              )}
+
+              <Txt weight="bold" size={9.5} color={C.dim} style={{ letterSpacing: 0.5, marginBottom: 8 }}>ROZET VER</Txt>
+              <View style={styles.rozetIzgara}>
+                {katalog
+                  .filter((k) => !verilen.some((v) => v.kod === k.kod))
+                  .map((k) => (
+                    <Pressable
+                      key={k.kod}
+                      disabled={busy}
+                      onPress={() => { haptic.light(); run(() => odaRozetVer(odaId, k.kod), `${k.ad} verildi`).then(rozetleriYukle); }}
+                      style={styles.rozetAday}
+                    >
+                      <RoomBadge type={k.kod as RoomBadgeType} size={26} />
+                      <Txt weight="semibold" size={9} color={C.dim} align="center" numberOfLines={2} style={{ marginTop: 4 }}>{k.ad}</Txt>
+                    </Pressable>
+                  ))}
+              </View>
+            </View>
+
             <Pressable onPress={() => { haptic.light(); router.navigate(`/admin-mesaj?tip=oda&odaId=${odaId}`); }} style={[styles.group, { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 14, marginTop: 12 }]}>
               <Icon name="mega" size={15} color={C.gold2} /><Txt weight="bold" size={12.5} color={C.text} style={{ flex: 1 }}>Mesaj / Uyarı Gönder</Txt><Icon name="chev" size={13} color={C.dim2} />
             </Pressable>
@@ -277,6 +342,16 @@ const styles = StyleSheet.create({
   actBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 11, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` },
   lockedInfo: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: C.line, marginTop: 8 },
   rowIkon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  rozetSatiri: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)",
+  },
+  rozetIzgara: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  rozetAday: {
+    width: "22%", alignItems: "center", paddingVertical: 10, borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)",
+  },
   kapakOnizleme: { width: 62, height: 62, borderRadius: 16, overflow: "hidden", backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
   kapakBos: { flex: 1, alignItems: "center", justifyContent: "center" },
   kapakBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5 },

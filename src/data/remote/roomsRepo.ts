@@ -1,4 +1,5 @@
 import { type SceneKind } from "@/components/Scene";
+import { type RoomBadgeItem } from "@/components/RoomBadges";
 import { type Room } from "@/data/seed";
 import { requireSupabase, supabase } from "@/lib/supabase";
 import { getMyProfile } from "@/data/remote/profileRepo";
@@ -133,8 +134,16 @@ export async function listRooms(limit = 50): Promise<Room[]> {
     getMyProfile().catch(() => null),
   ]);
   const rows = data ?? [];
-  const hosts = await fetchHostNames(rows.map((r) => r.olusturan_id).filter((x): x is number => x != null));
-  return rows.map((r) => mapRoom(r, hosts.get(r.olusturan_id ?? -1) || "Kullanıcı", me?.id ?? null));
+  const [hosts, rozetler] = await Promise.all([
+    fetchHostNames(rows.map((r) => r.olusturan_id).filter((x): x is number => x != null)),
+    // Rozetler (066): listede görünen odalar için tek çağrıda.
+    odaRozetleri(rows.map((r) => r.id)).catch(() => new Map<number, RoomBadgeItem[]>()),
+  ]);
+  return rows.map((r) => {
+    const oda = mapRoom(r, hosts.get(r.olusturan_id ?? -1) || "Kullanıcı", me?.id ?? null);
+    const rz = rozetler.get(r.id);
+    return rz && rz.length > 0 ? { ...oda, badges: rz } : oda;
+  });
 }
 
 /**
@@ -796,4 +805,67 @@ export function odaDegisiklikleriniDinle(geriCagir: () => void): () => void {
     if (zamanlayici) clearTimeout(zamanlayici);
     sb.removeChannel(ch);
   };
+}
+
+/**
+ * Oda rozetleri (066) — kuralla kazanılanlar + elle verilenler tek listede.
+ *
+ * Kuralla kazanılanlar tabloda durmuyor, okuma anında hesaplanıyor: "haftalık
+ * şampiyon" dün doğruysa bugün başka odanın olabilir, anlık görüntü tutmak
+ * yanlış olurdu (060'taki sıralamayla aynı gerekçe).
+ */
+export async function odaRozetleri(odaIds: number[]): Promise<Map<number, RoomBadgeItem[]>> {
+  const harita = new Map<number, RoomBadgeItem[]>();
+  if (odaIds.length === 0) return harita;
+  const sb = supabase;
+  if (!sb) return harita;
+
+  const { data, error } = await sb.rpc("oda_rozetleri_getir", { p_oda_ids: odaIds });
+  if (error) return harita; // 066 uygulanmadıysa rozetsiz devam
+  for (const r of (data as { oda_id: number; kod: string; deger: number | null }[]) ?? []) {
+    const liste = harita.get(r.oda_id) ?? [];
+    liste.push({ type: r.kod as RoomBadgeItem["type"], n: r.deger ?? undefined });
+    harita.set(r.oda_id, liste);
+  }
+  return harita;
+}
+
+/** Rozet kataloğu — yönetim ekranında "hangi rozeti verebilirim" listesi. */
+export type RozetKatalogu = { kod: string; ad: string; aciklama: string; kaynak: "kural" | "elle" };
+export async function rozetKatalogu(): Promise<RozetKatalogu[]> {
+  const sb = supabase;
+  if (!sb) return [];
+  const { data, error } = await sb
+    .from("oda_rozet_katalogu")
+    .select("kod, ad, aciklama, kaynak, sira")
+    .eq("aktif", true)
+    .order("sira", { ascending: true });
+  if (error) return [];
+  return ((data as RozetKatalogu[]) ?? []);
+}
+
+/** Odaya elle rozet ver (yalnız platform yöneticisi). `gun` yoksa süresiz. */
+export async function odaRozetVer(odaId: number, kod: string, gun?: number, sebep?: string): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("admin_oda_rozet_ver", {
+    p_oda_id: odaId, p_kod: kod, p_gun: gun ?? null, p_sebep: sebep ?? null,
+  });
+  if (error) throw error;
+}
+
+export async function odaRozetAl(odaId: number, kod: string): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("admin_oda_rozet_al", { p_oda_id: odaId, p_kod: kod });
+  if (error) throw error;
+}
+
+/** Bir odanın elle verilmiş rozetleri (yönetim ekranı). */
+export async function odaVerilenRozetler(odaId: number): Promise<{ kod: string; ad: string; sebep: string | null; bitis: number | null }[]> {
+  const sb = supabase;
+  if (!sb) return [];
+  const { data, error } = await sb.rpc("admin_oda_rozet_listesi", { p_oda_id: odaId });
+  if (error) return [];
+  return ((data as { kod: string; ad: string; sebep: string | null; bitis: string | null }[]) ?? []).map((r) => ({
+    kod: r.kod, ad: r.ad, sebep: r.sebep, bitis: r.bitis ? Date.parse(r.bitis) : null,
+  }));
 }
