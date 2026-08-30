@@ -493,7 +493,7 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
-> **Son güncelleme: 30 Ağustos 2026 (oturum sonu)** · Son commit `6d3a91b`
+> **Son güncelleme: 30 Ağustos 2026 (oturum sonu)** · Son commit `f45bb65`
 > · Dal `claude/metro-recovery-1xc2kq` · **origin’e PUSH EDİLMEDİ**
 > (yerel commit’ler; şema dökümü için `db/SEMA_DOKUMU.md`’ye bak)
 
