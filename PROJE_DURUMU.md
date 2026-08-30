@@ -493,21 +493,22 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
-> **Son güncelleme: 30 Ağustos 2026** · Son commit `9d8eabb`
+> **Son güncelleme: 30 Ağustos 2026** · Son commit `4b2f961`
 > · Dal `claude/metro-recovery-1xc2kq` · **origin’e PUSH EDİLMEDİ**
 > (yerel commit’ler; şema dökümü için `db/SEMA_DOKUMU.md`’ye bak)
 
 ### ⚠️ ÖNCE: Çalıştırılmayı bekleyen migration'lar
 
-Yazıldı, commit'lendi, **Supabase'de çalıştırılmadı**:
+Canlı veritabanı 29 Ağustos'ta yoklandı; **iki tanesi hâlâ çalıştırılmadı**:
 
-| Dosya | Ne yapıyor | Çalışmazsa |
+| Dosya | Ne yapıyor | Durum |
 |---|---|---|
-| `051_rozet_kusanma_kurallari.sql` | Seviye rozetlerinin kuşanılmasını sunucuda reddeder | Kural yalnız istemcide |
-| `053_admin_oda_kapak.sql` | `admin_oda_kapak_ayarla` — yönetici oda kapağını değiştirir/kaldırır | Kapak düğmeleri hata verir |
-| `054_oda_islem_isareti.sql` | `odalar.islem_gordu/islem_sebep/islem_tarihi` + `admin_oda_islem_isaretle` + `odalar_update` politikası | İşlem işareti tamamen ölü (uyarı, kilit, liste filtresi) |
+| `053_admin_oda_kapak.sql` | `admin_oda_kapak_ayarla` — yönetici oda kapağını değiştirir/kaldırır | ❌ **eksik** → kapak düğmeleri hata verir |
+| `059_hediye_temel_semaya_gecis.sql` | Hediye ekonomisini temel şemaya bağlar (komisyon %30, katalog, RLS politikaları, `hediye_gonder_v2` ve kazanç RPC'leri) | ⏳ kullanıcıya verildi, bekliyor |
 
-`052_oda_vitrin.sql` **çalıştırıldı** (kullanıcı onayladı).
+051, 052, 054, 055, 056, 057, 058 **uygulandı**. `059`'dan sonra ayrıca
+`DROP FUNCTION IF EXISTS public.fn_kaynak();` çalıştırılacak (şema dökümü
+için açılan geçici fonksiyon).
 
 > **Kritik kural:** Client kodunu uygulanmamış migration'a bağlama. Daha önce
 > `kusanilan_rozet` DB'de yokken SELECT'e eklendi ve **tüm profil okumaları**
