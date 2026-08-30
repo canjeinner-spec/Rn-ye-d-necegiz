@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Portrait } from "@/components/Portrait";
 import { RolePill } from "@/components/RolePill";
+import { RoomBadges } from "@/components/RoomBadges";
 import { Scene } from "@/components/Scene";
 import { Txt } from "@/components/Txt";
 import { getRoomMembers, joinRoomMembership, leaveRoomMembership, odaTakipEt, odaTakiptenCik, odaTakiptenMi, removeRoomMember, setRoomMemberRole, type RoomMember, type RoomRole } from "@/data/remote/roomsRepo";
@@ -239,11 +240,20 @@ export function RoomPanel(props: Props) {
                       <Txt weight="displayBold" size={18} color="#fff" numberOfLines={1} style={{ flexShrink: 1 }}>{roomName}</Txt>
                       {locked && <Icon name="lock" size={14} color={C.gold} />}
                     </View>
-                    <Pressable onPress={idKopyala} hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
-                      <Txt weight="semibold" size={11} color="rgba(255,255,255,.62)">ID: {room.id}</Txt>
-                      <Icon name={kopyalandi ? "check" : "copy"} size={11} sw={kopyalandi ? 3 : undefined} color={kopyalandi ? C.green : "rgba(255,255,255,.45)"} />
-                      {kopyalandi && <Txt weight="bold" size={9.5} color={C.green}>Kopyalandı</Txt>}
-                    </Pressable>
+                    {/* ID solda, rozetler aynı satırın sağ ucunda — oda kimliği
+                        ile kazanımları tek bakışta yan yana. */}
+                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 8 }}>
+                      <Pressable onPress={idKopyala} hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                        <Txt weight="semibold" size={11} color="rgba(255,255,255,.62)">ID: {room.id}</Txt>
+                        <Icon name={kopyalandi ? "check" : "copy"} size={11} sw={kopyalandi ? 3 : undefined} color={kopyalandi ? C.green : "rgba(255,255,255,.45)"} />
+                        {kopyalandi && <Txt weight="bold" size={9.5} color={C.green}>Kopyalandı</Txt>}
+                      </Pressable>
+                      {!!room.badges?.length && (
+                        <View style={{ flex: 1, alignItems: "flex-end" }}>
+                          <RoomBadges badges={room.badges} size={18} />
+                        </View>
+                      )}
+                    </View>
                   </View>
                 </View>
               </View>
