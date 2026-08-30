@@ -30,6 +30,12 @@ export type ProfileCardUser = Seat & {
   onMute?: () => void;
   onKickMic?: () => void;
   onKickRoom?: () => void;
+  /**
+   * Mikrofona davet — YALNIZCA koltukta olmayan biri için verilir.
+   * Yardımcı ve oda sahibi kullanabilir; hedefe onay soran bir davet gider,
+   * doğrudan koltuğa oturtmaz.
+   */
+  onInviteMic?: () => void;
   /** kendi kartım mı — yönetim aksiyonları gizlenir, kendi profilim açılır */
   self?: boolean;
   /** developer / süper admin → "Yetkili" rozeti gösterilir */
@@ -185,10 +191,47 @@ export function ProfileCard({
     setTimeout(onClose, 600);
   };
 
-  const GEAR = [
-    { icon: "micoff" as IconName, label: user.muted ? "Mikrofonu Aç" : "Mikrofonu Sustur", color: C.gold, fn: () => doAction(user.muted ? `${user.name} mikrofonu açıldı.` : `${user.name} susturuldu.`, user.onMute) },
-    { icon: "mickick" as IconName, label: "Mikrofondan At", color: C.red, fn: () => doAction(`${user.name} mikrofondan atıldı.`, user.onKickMic, C.red) },
-    { icon: "door" as IconName, label: isOwner ? "Oda Sahibini At" : "Odadan Çıkar", color: C.red, fn: () => doAction(isOwner ? `${user.name} (oda sahibi) atıldı.` : `${user.name} odadan çıkarıldı.`, user.onKickRoom, C.red) },
+  // Her satırın altında ne yapacağını yazıyoruz: "Mikrofondan At" ile
+  // "Odadan Çıkar" arasındaki fark eskiden yalnızca ikondan anlaşılıyordu.
+  const GEAR: { icon: IconName; label: string; alt: string; color: string; tehlike?: boolean; fn: () => void }[] = [
+    ...(user.onInviteMic
+      ? [{
+          icon: "hand" as IconName,
+          label: "Mikrofona Davet Et",
+          alt: "Boş bir koltuğa çağır — kabul etmesi gerekir",
+          color: C.green,
+          fn: () => doAction(`${user.name} mikrofona davet edildi.`, user.onInviteMic),
+        }]
+      : []),
+    ...(user.onMute
+      ? [{
+          icon: "micoff" as IconName,
+          label: user.muted ? "Mikrofonu Aç" : "Mikrofonu Sustur",
+          alt: user.muted ? "Tekrar konuşabilsin" : "Koltukta kalır, sesi kapanır",
+          color: C.gold,
+          fn: () => doAction(user.muted ? `${user.name} mikrofonu açıldı.` : `${user.name} susturuldu.`, user.onMute),
+        }]
+      : []),
+    ...(user.onKickMic
+      ? [{
+          icon: "mickick" as IconName,
+          label: "Mikrofondan İndir",
+          alt: "Koltuktan kalkar ama odada kalır",
+          color: C.red,
+          tehlike: true,
+          fn: () => doAction(`${user.name} mikrofondan indirildi.`, user.onKickMic, C.red),
+        }]
+      : []),
+    ...(user.onKickRoom
+      ? [{
+          icon: "door" as IconName,
+          label: isOwner ? "Oda Sahibini At" : "Odadan Çıkar",
+          alt: "Odaya bir daha giremez",
+          color: C.red,
+          tehlike: true,
+          fn: () => doAction(isOwner ? `${user.name} (oda sahibi) atıldı.` : `${user.name} odadan çıkarıldı.`, user.onKickRoom, C.red),
+        }]
+      : []),
   ];
 
   return (
@@ -284,16 +327,31 @@ export function ProfileCard({
                     )}
                   </View>
 
-                  {gearOpen && canManageTarget && (
-                    <View style={styles.gearMenu}>
-                      <Txt weight="bold" size={9} color={C.dim} style={{ padding: 12, paddingBottom: 6, letterSpacing: 0.5 }}>YÖNETİCİ İŞLEMLERİ</Txt>
-                      {GEAR.map((a) => (
-                        <Pressable key={a.label} onPress={a.fn} style={styles.gearItem}>
-                          <Icon name={a.icon} size={16} color={a.color} />
-                          <Txt weight="bold" size={12.5} color={a.color}>{a.label}</Txt>
-                        </Pressable>
-                      ))}
-                    </View>
+                  {gearOpen && canManageTarget && GEAR.length > 0 && (
+                    <>
+                      {/* Dışına dokununca kapansın — eskiden yalnızca dişliyle kapanıyordu */}
+                      <Pressable style={StyleSheet.absoluteFill} onPress={() => setGearOpen(false)} />
+                      <View style={styles.gearMenu}>
+                        <View style={styles.gearBaslik}>
+                          <Icon name="shield" size={12} color={C.gold2} />
+                          <Txt weight="extrabold" size={9.5} color={C.gold2} style={{ letterSpacing: 0.7 }}>YÖNETİM</Txt>
+                          <Txt weight="semibold" size={9.5} color={C.dim} numberOfLines={1} style={{ flex: 1, textAlign: "right" }}>
+                            {user.name}
+                          </Txt>
+                        </View>
+                        {GEAR.map((a, i) => (
+                          <Pressable key={a.label} onPress={a.fn} style={[styles.gearItem, i > 0 && styles.gearAyrac]}>
+                            <View style={[styles.gearIkon, { backgroundColor: a.color + "1A", borderColor: a.color + "3D" }]}>
+                              <Icon name={a.icon} size={15} color={a.color} />
+                            </View>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <Txt weight="extrabold" size={12} color={a.tehlike ? C.red : C.text}>{a.label}</Txt>
+                              <Txt size={9.5} color={C.dim} lh={1.35} style={{ marginTop: 1.5 }}>{a.alt}</Txt>
+                            </View>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </>
                   )}
 
                   {toast && (
@@ -426,8 +484,19 @@ const styles = StyleSheet.create({
   aura: { position: "absolute", top: 0, left: 0, right: 0, height: 190 },
   glint: { position: "absolute", top: 0, left: 34, right: 34, height: 1.5 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  gearMenu: { position: "absolute", right: 20, top: 56, width: 210, borderRadius: 16, overflow: "hidden", backgroundColor: "rgba(28,24,40,0.98)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)", zIndex: 10 },
-  gearItem: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderTopWidth: 1, borderTopColor: C.line },
+  gearMenu: {
+    position: "absolute", right: 20, top: 56, width: 258, borderRadius: 18, overflow: "hidden",
+    backgroundColor: "rgba(16,14,22,0.985)", borderWidth: 1, borderColor: C.gold + "33", zIndex: 10,
+    shadowColor: "#000", shadowOpacity: 0.5, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 14,
+  },
+  gearBaslik: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 13, paddingTop: 11, paddingBottom: 9,
+    backgroundColor: C.gold + "0F", borderBottomWidth: 1, borderBottomColor: C.gold + "22",
+  },
+  gearItem: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 11, paddingHorizontal: 13 },
+  gearAyrac: { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,.07)" },
+  gearIkon: { width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   avatarHalo: { position: "absolute", top: -13, left: -13, right: -13, bottom: -13, borderRadius: 60, shadowOpacity: 0.85, shadowRadius: 24, shadowOffset: { width: 0, height: 0 }, elevation: 10 },
   rozetSatiri: { flexDirection: "row", gap: 7, marginTop: 9, alignItems: "center", flexWrap: "wrap", justifyContent: "center" },
   idPill: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 4.5, paddingHorizontal: 11, borderRadius: 999, borderWidth: 1 },

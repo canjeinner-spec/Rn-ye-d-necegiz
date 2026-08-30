@@ -90,6 +90,29 @@ function SpeakingRing() {
   return <Animated.View pointerEvents="none" style={[styles.speakRing, s]} />;
 }
 
+/**
+ * Emoji tepkisi — avatarın üstünde belirip yukarı süzülerek kaybolur.
+ *
+ * Sohbete düşürmüyoruz: tepki anlıktır, sohbet geçmişini kirletmesin.
+ * Odadaki herkes broadcast ile aynı anda görür.
+ */
+function TepkiBalonu({ emoji }: { emoji: string }) {
+  const t = useSharedValue(0);
+  useEffect(() => {
+    t.value = 0;
+    t.value = withTiming(1, { duration: 1600 });
+  }, [emoji, t]);
+  const st = useAnimatedStyle(() => ({
+    opacity: t.value < 0.15 ? t.value / 0.15 : t.value > 0.75 ? (1 - t.value) / 0.25 : 1,
+    transform: [{ translateY: -28 * t.value }, { scale: 0.7 + 0.5 * Math.min(1, t.value * 4) }],
+  }));
+  return (
+    <Animated.View pointerEvents="none" style={[styles.tepkiBalonu, st]}>
+      <Txt size={22}>{emoji}</Txt>
+    </Animated.View>
+  );
+}
+
 function SeatItem({
   seat,
   idx,
@@ -98,6 +121,7 @@ function SeatItem({
   userName,
   privileged,
   cerceveTema,
+  tepki,
   onPress,
 }: {
   seat: Seat | null;
@@ -108,6 +132,8 @@ function SeatItem({
   privileged: boolean;
   /** Koltuktaki kişinin kuşandığı çerçeve teması (056) */
   cerceveTema?: string | null;
+  /** O an bu koltukta gösterilecek emoji tepkisi (varsa) */
+  tepki?: string | null;
   onPress: () => void;
 }) {
   if (!seat) {
@@ -139,6 +165,7 @@ function SeatItem({
           />
           {/* Kuşanılan çerçeve koltukta da çiziliyor (056) */}
           {cerceveTema && <FramePreview id={cerceveTema} size={KOLTUK} />}
+          {tepki && <TepkiBalonu emoji={tepki} />}
         </View>
         {locked && (
           <View style={styles.seatLock}>
@@ -490,6 +517,8 @@ export default function RoomScreen() {
    * çağrılıyor.
    */
   const presenceYazRef = useRef<(u?: { koltuk?: number | null; mic?: boolean }) => Promise<void>>(async () => {});
+  /** Kanal efekti bir kez kuruluyor; tepkiyi hep taze fonksiyonla gösterelim. */
+  const tepkiGosterRef = useRef<(uid: number, emoji: string) => void>(() => {});
   const chatRef = useRef<ScrollView>(null);
   const [input, setInput] = useState("");
   const [speakerOn, setSpeakerOn] = useState(true);
@@ -521,6 +550,14 @@ export default function RoomScreen() {
   const [araclarOpen, setAraclarOpen] = useState(false);
   /** Koltuktayken alt bardaki yüz düğmesi — tek dokunuşla sohbete emoji. */
   const [emojiAcik, setEmojiAcik] = useState(false);
+  /** uid -> o an avatarında süzülen emoji. */
+  const [tepkiler, setTepkiler] = useState<Record<number, string>>({});
+  /** Bana gelen mikrofon daveti — kimin gönderdiği. */
+  const [micDavet, setMicDavet] = useState<string | null>(null);
+  const tepkiGoster = useCallback((uid: number, emoji: string) => {
+    setTepkiler((t) => ({ ...t, [uid]: emoji }));
+    setTimeout(() => setTepkiler((t) => { const y = { ...t }; delete y[uid]; return y; }), 1700);
+  }, []);
   // Giriş perdesi ARTIK BU EKRANDA DEĞİL: odaya girmeden önce, çıkılan
   // ekranın üstünde gösteriliyor (components/RoomEntryGate + AppOverlays).
   // Buraya gelindiğinde kontroller çoktan geçmiş demektir; oda doğrudan
@@ -581,6 +618,7 @@ export default function RoomScreen() {
       if (k == null || k < 0 || k > 7) continue;
       const benMi = m.uid === myDbId;
       arr[k] = {
+        uid: m.uid,
         name: benMi ? "Sen" : m.name,
         muted: m.mic === false,
         lv: 0,
@@ -595,6 +633,7 @@ export default function RoomScreen() {
     // görünmüyordu. Karşı taraf yine presence'tan görüyor.
     if (!isMine && mySeat != null && mySeat >= 0 && mySeat < 8) {
       arr[mySeat] = {
+        uid: myDbId ?? undefined,
         name: "Sen",
         muted: !micOn,
         lv: userLevel,
@@ -615,7 +654,7 @@ export default function RoomScreen() {
   const gosterilenHost = useMemo<Seat | null>(() => {
     if (!gercekOda) return host;
     if (isMine) {
-      return { name: "Sen", muted: !micOn, lv: userLevel, host: true, photo: userPhoto || undefined, publicId: myPublicId || undefined };
+      return { uid: myDbId ?? undefined, name: "Sen", muted: !micOn, lv: userLevel, host: true, photo: userPhoto || undefined, publicId: myPublicId || undefined };
     }
     // Sahip kimliği DB'den kesin; presence yalnızca "şu an odada mı" der.
     const sahipUid = sahipProfil?.id ?? room?.ownerId ?? null;
@@ -626,6 +665,7 @@ export default function RoomScreen() {
     const ad = canli?.name ?? sahipProfil?.ad ?? room?.host;
     if (!ad) return null;
     return {
+      uid: sahipUid ?? undefined,
       name: ad,
       // Odadaysa canlı fotoğrafı (anlık değişirse presence taşır), değilse
       // profilden çekilen son hâli.
@@ -635,7 +675,7 @@ export default function RoomScreen() {
       lv: 0,
       host: true,
     };
-  }, [gercekOda, host, isMine, micOn, userLevel, userPhoto, myPublicId, liveMembers, room?.host, room?.ownerId, sahipProfil]);
+  }, [gercekOda, host, isMine, micOn, userLevel, userPhoto, myPublicId, myDbId, liveMembers, room?.host, room?.ownerId, sahipProfil]);
 
   /** Sahip şu an odada mı — koltuğu soluk gösterip "Ayrıldı" yazmak için. */
   const sahipOdada = useMemo(() => {
@@ -794,8 +834,8 @@ export default function RoomScreen() {
     ch.on("broadcast", { event: "chat" }, ({ payload }) => {
       const p = payload as { uid?: number; name?: string; photo?: string; publicId?: string; text: string; time: string; hediye?: HediyeSatiri };
       const mine = p.uid != null && p.uid === myDbId;
-      // Kendi hediyemi zaten yerel olarak ekledim; broadcast kopyasını atla.
-      if (mine && p.hediye) return;
+      // Kendi mesajımı/hediyemi zaten yerel ekledim; echo kopyasını atla.
+      if (mine) return;
       if (alive) setMsgs((prev) => [...prev, {
         name: mine ? userName : p.name || "Kullanıcı",
         time: p.time,
@@ -806,6 +846,20 @@ export default function RoomScreen() {
         publicId: mine ? myPublicId || undefined : p.publicId,
         hediye: p.hediye,
       }]);
+    });
+
+    // Mikrofon daveti — hedef onaylamadan koltuğa oturtmuyoruz.
+    ch.on("broadcast", { event: "mic_davet" }, ({ payload }) => {
+      const p = payload as { uid?: number; ad?: string };
+      if (!alive || p.uid == null || p.uid !== myDbId) return;
+      setMicDavet(p.ad || "Yönetici");
+    });
+
+    // Emoji tepkisi — koltuktaki avatarın üstünde süzülür, sohbete düşmez.
+    ch.on("broadcast", { event: "tepki" }, ({ payload }) => {
+      const p = payload as { uid?: number; emoji?: string };
+      if (!alive || p.uid == null || !p.emoji || p.uid === myDbId) return;
+      tepkiGosterRef.current(p.uid, p.emoji);
     });
 
     // Yönetici sistem mesajı / uyarısı — o an içeridekilere canlı baloncuk.
@@ -869,6 +923,14 @@ export default function RoomScreen() {
       // Anlık yayın (DB'ye yazmaz). self:true sayesinde kendi mesajımız da
       // broadcast dinleyicisine düşer → çift eklemeyiz.
       const time = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+      // Kendi mesajımı YEREL ekliyoruz.
+      //
+      // Önceden `self: true` echo'suna güveniyorduk. Ama supabase-js
+      // `send()`i websocket yerine REST'e düşürebiliyor ("Realtime send() is
+      // automatically falling back to REST API") ve REST ile giden yayın
+      // gönderene geri gelmiyor — kendi odanda tek başınayken yazdığın mesaj
+      // hiç görünmüyordu. Artık yerel ekliyoruz, echo gelirse de eleniyor.
+      setMsgs((m) => [...m, { name: userName, time, text: t, myOwn: true, photo: userPhoto || undefined, uid: myDbId ?? undefined, publicId: myPublicId || undefined }]);
       chanRef.current.send({ type: "broadcast", event: "chat", payload: { uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined, text: t, time } });
       addXp("oda_mesaj"); // +2/mesaj, günlük tavan sunucuda
       return;
@@ -954,6 +1016,7 @@ export default function RoomScreen() {
   // Koltuk / mikrofon değişince presence tazelensin.
   useEffect(() => { presenceYaz(); }, [presenceYaz]);
   useEffect(() => { presenceYazRef.current = presenceYaz; }, [presenceYaz]);
+  useEffect(() => { tepkiGosterRef.current = tepkiGoster; }, [tepkiGoster]);
 
   /**
    * Uygulama öne dönünce presence'ı tazele.
@@ -989,6 +1052,20 @@ export default function RoomScreen() {
     queueSend({ kind: "approve", uid });
   };
   const myRaised = myDbId != null && micQueue.some((e) => e.uid === myDbId);
+  /** Mikrofona davet et — hedefin ekranında onay soran bir kutu açılır. */
+  const micDavetYolla = (uid: number) => {
+    chanRef.current?.send({ type: "broadcast", event: "mic_davet", payload: { uid, ad: userName } });
+  };
+
+  /**
+   * Emoji tepkisi gönder — kendi avatarımda hemen, odadakilerde broadcast ile.
+   * Sohbete düşmüyor: tepki anlık, geçmişi kirletmesin.
+   */
+  const tepkiYolla = (emoji: string) => {
+    if (myDbId != null) tepkiGoster(myDbId, emoji);
+    chanRef.current?.send({ type: "broadcast", event: "tepki", payload: { uid: myDbId, emoji } });
+  };
+
   /** Koltukta mıyım — alt bardaki ilk yuvanın ne olacağını belirler. */
   const oturuyorum = isMine || mySeat !== null;
   const toggleMyMic = () => {
@@ -1092,6 +1169,10 @@ export default function RoomScreen() {
       // Kart açılınca karşı tarafın kuşandığı çerçeve de görünsün (056)
       cerceve: m.uid != null ? liveMembers.find((x) => x.uid === m.uid)?.cerceve : undefined,
       viewerRole: MY_ROLE,
+      // Koltukta olmayan biri — yalnızca burada mikrofona davet edilebilir.
+      onInviteMic: isDbRoom && uid != null && (MY_ROLE === "host" || MY_ROLE === "mod")
+        ? () => micDavetYolla(uid)
+        : undefined,
       onKickRoom: isDbRoom && dbId && uid != null
         ? () => banRoomUser(dbId, uid).catch((e) => toast((e as Error)?.message || "Yasaklanamadı"))
         : undefined,
@@ -1202,6 +1283,9 @@ export default function RoomScreen() {
               <Pressable onPress={() => { if (isMine) openMyCard(); else if (gosterilenHost) tapOccupant(gosterilenHost); }} style={styles.hostSeat}>
                 <View>
                   {gosterilenHost?.speaking && <SpeakingRing />}
+                  {gosterilenHost?.uid != null && tepkiler[gosterilenHost.uid] && (
+                    <TepkiBalonu emoji={tepkiler[gosterilenHost.uid]} />
+                  )}
                   {/* Sahip odada değilse koltuğu soluk — döndüğünde canlanır. */}
                   <View style={{ width: SAHIP_KOLTUK, height: SAHIP_KOLTUK, opacity: sahipOdada ? 1 : 0.42 }}>
                     <Portrait
@@ -1242,6 +1326,7 @@ export default function RoomScreen() {
                   userName={userName}
                   privileged={privileged}
                   cerceveTema={s?.name === "Sen" ? kusanili.cerceve : undefined}
+                  tepki={s?.uid != null ? tepkiler[s.uid] : undefined}
                   onPress={() => (s ? tapOccupant(s) : tapSeat(idx))}
                 />
               ))}
@@ -1297,7 +1382,7 @@ export default function RoomScreen() {
               {["👋", "👍", "😂", "❤️", "🔥", "👏", "😮", "😍"].map((e) => (
                 <Pressable
                   key={e}
-                  onPress={() => { haptic.light(); send(e); setEmojiAcik(false); }}
+                  onPress={() => { haptic.light(); tepkiYolla(e); setEmojiAcik(false); }}
                   style={styles.emojiHucre}
                 >
                   <Txt size={22}>{e}</Txt>
@@ -1619,6 +1704,33 @@ export default function RoomScreen() {
 
       {statsOpen && <RoomStats room={room} roomName={roomName} roomPhoto={roomPhoto} onClose={() => setStatsOpen(false)} />}
 
+      {/* Mikrofon daveti — davet eden koltuğa oturtmuyor, sen karar veriyorsun. */}
+      <CenterModal visible={!!micDavet} onClose={() => setMicDavet(null)} dim={0.8}>
+        <View style={styles.davetKart}>
+          <Gradient colors={[C.gold + "2E", "transparent"]} deg={160} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <View style={styles.davetIkon}>
+            <Icon name="hand" size={26} color={C.gold2} />
+          </View>
+          <Txt weight="displayBold" size={16} color="#fff" align="center" style={{ marginTop: 14 }}>Mikrofona davet</Txt>
+          <Txt size={12.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 8 }}>
+            <Txt weight="extrabold" size={12.5} color={C.gold2}>{micDavet}</Txt> seni mikrofona çağırdı.
+          </Txt>
+          <View style={{ flexDirection: "row", gap: 10, alignSelf: "stretch", marginTop: 20 }}>
+            <Pressable onPress={() => setMicDavet(null)} style={styles.davetVazgec}>
+              <Txt weight="extrabold" size={13} color={C.dim}>Şimdi değil</Txt>
+            </Pressable>
+            <Pressable
+              onPress={() => { setMicDavet(null); haptic.success(); sitFirstEmptyRef.current(); }}
+              style={{ flex: 1, borderRadius: 14, overflow: "hidden" }}
+            >
+              <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 13, alignItems: "center" }}>
+                <Txt weight="extrabold" size={13} color="#241A05">Mikrofona çık</Txt>
+              </Gradient>
+            </Pressable>
+          </View>
+        </View>
+      </CenterModal>
+
       <CenterModal visible={reportOpen} onClose={() => { setReportOpen(false); setReportReason(null); setReportDetail(""); setReportDone(false); }}>
         <View style={styles.reportCard}>
           {reportDone ? (
@@ -1775,6 +1887,19 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,.10)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
   },
   gonderBtn: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
+  davetKart: {
+    width: 300, borderRadius: 24, padding: 22, alignItems: "center", overflow: "hidden",
+    backgroundColor: "rgba(18,15,24,.97)", borderWidth: 1, borderColor: C.gold + "40",
+  },
+  davetIkon: {
+    width: 60, height: 60, borderRadius: 30, alignItems: "center", justifyContent: "center",
+    backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "44",
+  },
+  davetVazgec: {
+    flex: 1, paddingVertical: 13, borderRadius: 14, alignItems: "center",
+    backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)",
+  },
+  tepkiBalonu: { position: "absolute", top: -6, alignSelf: "center", left: 0, right: 0, alignItems: "center" },
   emojiSatiri: {
     flexDirection: "row", justifyContent: "space-between", marginHorizontal: 10, marginBottom: 2,
     paddingVertical: 6, paddingHorizontal: 6, borderRadius: 22,

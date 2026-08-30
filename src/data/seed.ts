@@ -31,6 +31,8 @@ export type Room = {
 };
 
 export type Seat = {
+  /** kullanicilar.id — emoji tepkisini doğru koltuğa düşürmek için */
+  uid?: number;
   name: string;
   muted: boolean;
   lv: number;
