@@ -493,7 +493,7 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
-> **Son güncelleme: 30 Ağustos 2026** · Son commit `6d2b265`
+> **Son güncelleme: 30 Ağustos 2026** · Son commit `61e0ce9`
 > · Dal `claude/metro-recovery-1xc2kq` · **origin’e PUSH EDİLMEDİ**
 > (yerel commit’ler; şema dökümü için `db/SEMA_DOKUMU.md`’ye bak)
 
@@ -504,20 +504,16 @@ Canlı veritabanı 29 Ağustos'ta yoklandı. Sırayla çalıştırılacaklar:
 | Dosya | Ne yapıyor | Durum |
 |---|---|---|
 | `053_admin_oda_kapak.sql` | `admin_oda_kapak_ayarla` — yönetici oda kapağını değiştirir/kaldırır | ❌ **eksik** → kapak düğmeleri hata verir |
-| `059_hediye_temel_semaya_gecis.sql` | Hediye ekonomisini temel şemaya bağlar (komisyon %30, katalog, RLS politikaları, `hediye_gonder_v2` ve kazanç RPC'leri) | ⏳ bekliyor |
-| `060_siralama.sql` | Zenginlik / Cazibe / Odalar sıralaması — `hediye_gecmisi`ten okuma anında | ⏳ bekliyor |
-| `061_gorevler.sql` | Günlük görevler + 7 günlük giriş serisi; ilerleme sunucuda türetiliyor | ⏳ bekliyor (060'tan sonra) |
-| `062_tek_altin_bakiyesi.sql` | Mağaza ve cüzdanı da temel deftere çeker — iki ayrı altın bakiyesi kalmasın | ⏳ bekliyor (061'den sonra) |
+| `063_enum_etiketleri_sabitlendi.sql` | Enum etiketlerini gerçek değerlere sabitler (**mağaza satın alması bunsuz çalışmaz**) + anon EXECUTE'u geri alır | ⏳ **bekliyor** |
 
-051, 052, 054, 055, 056, 057, 058 **uygulandı**.
+051-052, 054-062 **uygulandı** (059-062 birleşik dosyayla, 30 Ağustos).
+`fn_kaynak` düşürüldü.
 
-> **Kolay yol:** 059-062'nin dördü birden `db/CALISTIR_059_062.sql` dosyasında
-> sırayla birleştirildi — SQL editörüne tek seferde yapıştırılıp çalıştırılır.
-> Sıra önemli: 061 ile 062, 059'daki `_enum_etiket`i ve 060'taki
-> `_siralama_baslangic`i kullanıyor. Hepsi tekrar çalıştırılabilir.
-> Sonrasında ayrıca: `DROP FUNCTION IF EXISTS public.fn_kaynak();` `059`'dan sonra ayrıca
-`DROP FUNCTION IF EXISTS public.fn_kaynak();` çalıştırılacak (şema dökümü
-için açılan geçici fonksiyon).
+> **063 neden şart:** 062'de `islem_tipi` etiketini bilmiyorduk, aday listesine
+> `magaza`/`satin_alma`/`harcama` yazmıştık. Gerçeği **`magaza_satin_alma`**;
+> hiçbir aday tutmadığı için şu an her mağaza satın alması hata veriyor.
+> 063 bunu ve görev ödülünün yanlış kovaya (`bonus`+`admin_ekleme` yerine
+> `campaign`+`kampanya_odulu`) yazılmasını düzeltiyor.
 
 > **Kritik kural:** Client kodunu uygulanmamış migration'a bağlama. Daha önce
 > `kusanilan_rozet` DB'de yokken SELECT'e eklendi ve **tüm profil okumaları**

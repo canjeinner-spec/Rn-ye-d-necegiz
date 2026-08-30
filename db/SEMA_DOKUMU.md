@@ -1,7 +1,8 @@
 # Veritabanı Şeması — CANLI DÖKÜM
 
 > Supabase üzerinden `information_schema` okunarak üretildi (29 Ağustos 2026).
-> **104 tablo · 838 sütun · 131 fonksiyon**
+> **104 tablo · 838 sütun · 131 fonksiyon · 23 enum tipi**
+> (enum etiketleri 30 Ağustos'ta eklendi — aşağıdaki "Enum tipleri" bölümü)
 
 Bu dosya neden var: temel şemanın (kullanicilar, odalar, hediyeler, cuzdanlar…)
 repoda dosyası yok, doğrudan Supabase'te kurulmuş. Neyin zaten var olduğunu
@@ -1367,6 +1368,43 @@ bilmeden migration yazınca çakışıyoruz — nitekim 058'de `hediyeler` tablo
 | islem | text | hayır |  |
 | detay | text | evet |  |
 | tarih | timestamp with time zone | hayır | now() |
+
+## Enum tipleri
+
+> 30 Ağustos 2026'da canlı veritabanından okundu. Dökümdeki sütunlarda
+> "USER-DEFINED" yazan her tip burada. **Etiket tahmin etme** — 062'de
+> `magaza_satin_alma` yerine `satin_alma` yazdığımız için mağaza kırılmıştı.
+
+| tip | etiketler |
+|---|---|
+| `varlik_tipi` | elmas, altin, kazanc, fiat |
+| `bakiye_kaynagi` | earned, purchased, campaign, admin_grant, bonus, gift, refund |
+| `hareket_yonu` | giris, cikis |
+| `islem_tipi` | hediye_gonderim, hediye_kazanc, elmas_satin_alma, elmas_transfer_gonderim, elmas_transfer_alim, elmas_altin_donusum, cuzdan_elmas_donusum, kota_donusum, kota_odeme, ajans_komisyonu, platform_geliri, magaza_satin_alma, vip_satin_alma, cekim, cekim_iade, admin_ekleme, kampanya_odulu, referans_odulu, iade, duzeltme |
+| `gorev_tipi` | gunluk, haftalik, basarim |
+| `esya_tipi` | cerceve, balon, giris_efekti, sohbet_baloncugu, arka_plan |
+| `ekonomi_rolu` | standart, yayinci, bayi, user, developer, super_admin |
+| `kullanici_durumu` | cevrimici, cevrimdisi, gizli, rahatsiz_etme |
+| `kyc_durumu` | yok, beklemede, dogrulandi, reddedildi |
+| `cekim_durumu` | beklemede, onaylandi, reddedildi, odendi |
+| `odeme_durumu` | beklemede, onaylandi, odendi, iptal |
+| `satin_alma_durumu` | beklemede, dogrulandi, reddedildi, iade |
+| `transfer_durumu` | tamamlandi, iptal |
+| `oda_rolu` | sahip, yonetici, moderator, uye |
+| `ajans_rolu` | yonetici, yayinci |
+| `bildirim_tipi` | takip, dm, hediye, oda_davet, odeme, sistem, begeni, yorum, etkinlik, arkadaslik, gorev |
+| `arkadaslik_durumu` | beklemede, kabul, reddedildi |
+| `gonderi_kapsami` | herkes, arkadaslar, takipciler |
+| `rapor_durumu` | acik, inceleniyor, islem_yapildi, kapatildi |
+| `etkinlik_durumu` | taslak, yakinda, yayinda, bitti, iptal |
+| `ozel_id_durumu` | musait, rezerve, satildi |
+| `ozel_id_tier` | normal, super, altin, elmas, kral |
+| `outbox_durumu` | beklemede, gonderildi, basarisiz |
+
+**Ekonomi okuması:** satın alınan altın `purchased`, hediyeden gelen kazanç
+`earned`, görev/kampanya ödülü `campaign` kovasına yazılır. `campaign`
+promo tarafına düşer: hediyeye harcanır ama çekilemez.
+
 
 ## Fonksiyonlar (RPC)
 
