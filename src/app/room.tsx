@@ -835,7 +835,8 @@ export default function RoomScreen() {
         const yazan = Math.min(...members.map((m) => m.uid));
         if (yazan === myDbId && sayacRef.current !== members.length) {
           sayacRef.current = members.length;
-          odaKatilimciYaz(dbId, members.length).catch(() => {});
+          odaKatilimciYaz(dbId, members.length).catch((e) =>
+            console.warn("[sayac] yazilamadi", (e as Error)?.message || e));
         }
       }
 
@@ -913,7 +914,8 @@ export default function RoomScreen() {
       // Son çıkan sayacı sıfırlar; başkaları kaldıysa kalan en küçük uid bir
       // sonraki sync'te doğru sayıyı zaten yazacak.
       const kalan = Math.max(0, (girenlerRef.current?.size ?? 1) - 1);
-      odaKatilimciYaz(dbId, kalan).catch(() => {});
+      odaKatilimciYaz(dbId, kalan).catch((e) =>
+        console.warn("[sayac] cikista yazilamadi", (e as Error)?.message || e));
     };
     // userName/userPhoto oturum boyunca sabit; bağımlılığa eklemiyoruz (yeniden abone olmasın)
     // eslint-disable-next-line react-hooks/exhaustive-deps

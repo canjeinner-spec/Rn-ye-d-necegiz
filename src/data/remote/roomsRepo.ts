@@ -134,6 +134,7 @@ export async function listRooms(limit = 50): Promise<Room[]> {
     getMyProfile().catch(() => null),
   ]);
   const rows = data ?? [];
+  console.log(`[liste] db=${rows.length} oda; online: ${rows.map((r) => `${r.id}:${r.aktif_katilimci_sayisi ?? 0}`).join(" ")}`);
   const hosts = await fetchHostNames(rows.map((r) => r.olusturan_id).filter((x): x is number => x != null));
   // Rozetler (066): listede görünen odalar için tek çağrıda.
   return rozetleriBagla(rows.map((r) => mapRoom(r, hosts.get(r.olusturan_id ?? -1) || "Kullanıcı", me?.id ?? null)));

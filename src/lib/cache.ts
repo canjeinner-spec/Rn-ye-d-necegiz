@@ -62,8 +62,10 @@ export function useCachedResource<T>(
       const fresh = await fetcherRef.current();
       setCached(key, fresh, persist);
       setData(fresh);
-    } catch {
-      // sessiz — eski veriyi koru
+    } catch (e) {
+      // Eski veriyi koruyoruz (ekran boşalmasın) ama ARTIK SESSİZ DEĞİL:
+      // liste güncellenmiyor gibi görünen her durumun altında bu vardı.
+      console.warn("[cache]", key, (e as Error)?.message || e);
     } finally {
       setLoading(false);
     }
