@@ -1,6 +1,6 @@
 import { type SceneKind } from "@/components/Scene";
 import { type Room } from "@/data/seed";
-import { requireSupabase } from "@/lib/supabase";
+import { requireSupabase, supabase } from "@/lib/supabase";
 import { getMyProfile } from "@/data/remote/profileRepo";
 
 const TEMEL_COLS =
@@ -760,4 +760,40 @@ export async function odaSahibi(odaId: number): Promise<OdaSahibi | null> {
   const pr = p as { id: number; kullanici_adi: string; profil_resmi: string | null; public_id: string } | null;
   if (!pr) return { id: sahipId, ad: "Kullanıcı" };
   return { id: pr.id, ad: pr.kullanici_adi, foto: pr.profil_resmi || undefined, publicId: pr.public_id };
+}
+
+/**
+ * Oda listesini CANLI dinle (065).
+ *
+ * Liste eskiden yalnızca ekran odaklandığında yeniden çekiliyordu; yeni açılan
+ * oda 15-20 saniye sonra, sekme değiştirip dönünce "birden" beliriyordu.
+ * Artık `odalar` tablosundaki her değişiklik (yeni oda, katılımcı sayısı, ad,
+ * kapak, işlem işareti, silme) anında düşüyor.
+ *
+ * Olaylar salkım hâlinde gelir — oda açılırken INSERT'i hemen bir sayaç
+ * UPDATE'i izler. Her biri için ayrı sorgu atmayalım diye 400 ms'lik bir
+ * bekleme var: son olaydan 400 ms sonra tek sorgu.
+ *
+ * Realtime postgres_changes RLS'i uygular; kullanıcı yalnızca zaten
+ * görebildiği odaların değişimini alır.
+ */
+export function odaDegisiklikleriniDinle(geriCagir: () => void): () => void {
+  const sb = supabase;
+  if (!sb) return () => {};
+
+  let zamanlayici: ReturnType<typeof setTimeout> | null = null;
+  const tetikle = () => {
+    if (zamanlayici) clearTimeout(zamanlayici);
+    zamanlayici = setTimeout(geriCagir, 400);
+  };
+
+  const ch = sb
+    .channel("odalar-degisim")
+    .on("postgres_changes", { event: "*", schema: "public", table: "odalar" }, tetikle)
+    .subscribe();
+
+  return () => {
+    if (zamanlayici) clearTimeout(zamanlayici);
+    sb.removeChannel(ch);
+  };
 }

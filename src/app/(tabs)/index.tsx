@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -13,7 +13,7 @@ import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { PEOPLE } from "@/data/people";
-import { getMyBannedRoomIds, listRooms } from "@/data/remote/roomsRepo";
+import { getMyBannedRoomIds, listRooms, odaDegisiklikleriniDinle } from "@/data/remote/roomsRepo";
 import { useCachedResource } from "@/lib/cache";
 import { ROOMS, type Room } from "@/data/seed";
 import { RoomPasswordGate } from "@/sheets/RoomPasswordGate";
@@ -136,11 +136,24 @@ export default function Home() {
 
   // Cache-first: son oda listesini ANINDA göster (persist → soğuk açılışta bile),
   // arkada tazele. useFocusEffect revalidate cache hook'unun içinde.
-  const { data: dbRooms = [] } = useCachedResource<Room[]>(
+  const { data: dbRooms = [], refresh: odalariTazele } = useCachedResource<Room[]>(
     "rooms:list",
     () => listRooms(),
     { persist: true, enabled: isSupabaseConfigured },
   );
+
+  /**
+   * Liste CANLI (065).
+   *
+   * Eskiden yalnızca ekran odaklandığında tazeleniyordu: listeye bakarken
+   * duruyorsan hiçbir şey sorgu atmıyordu, yeni açılan oda ancak sekme
+   * değiştirip dönünce beliriyordu (15-20 sn "gecikme" bundandı). Artık
+   * `odalar` tablosundaki her değişiklik anında listeyi tazeliyor.
+   */
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    return odaDegisiklikleriniDinle(odalariTazele);
+  }, [odalariTazele]);
 
   // DB odaları üstte; mock odalar (MVP'de ekranı canlı tutar) altta. Aynı ID tekrarını ele.
   const dbIds = new Set(dbRooms.map((r) => r.id));

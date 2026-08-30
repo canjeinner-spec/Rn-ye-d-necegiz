@@ -504,9 +504,9 @@ Canlı veritabanı 29 Ağustos'ta yoklandı. Sırayla çalıştırılacaklar:
 | Dosya | Ne yapıyor | Durum |
 |---|---|---|
 | `053_admin_oda_kapak.sql` | `admin_oda_kapak_ayarla` — yönetici oda kapağını değiştirir/kaldırır | ❌ **eksik** → kapak düğmeleri hata verir |
-| `064_yardimci_fonksiyon_yetkileri.sql` | Dört yardımcı fonksiyonda kalan anon erişimini kapatır | ⏳ bekliyor |
+| `065_oda_listesi_canli.sql` | `odalar` tablosunu Realtime yayınına ekler — liste anında tazelensin | ⏳ bekliyor |
 
-051-052, 054-063 **uygulandı** (30 Ağustos). `fn_kaynak` düşürüldü.
+051-052, 054-064 **uygulandı** (30 Ağustos). `fn_kaynak` düşürüldü.
 063 sonrası anon erişimi ölçüldü: hediye/sıralama/görev/cüzdan RPC'lerinin
 hepsi ve `hediyeler`/`esyalar`/`gorevler` tabloları **kapalı** (42501).
 
@@ -923,14 +923,19 @@ etiket listesini yazan** bir hata veriyor. Yani ilk denemede doğru etiket
    dönem seçici). Kalan: ajans ve yayıncı sekmeleri, o kayıtlar oluşunca.
 8. **DM'den hediye** — peer'ın dbId'si ekranda yok, gönderim yalnızca
    animasyon oynatıyor. "Tümü"ne gönderim de tek RPC ile yapılamıyor.
-9. **Oda rozet sistemi yok** — `Room.badges` yalnız mock; DB'de tablo yok.
-10. ~~Görev sistemi~~ — **061 ile yapıldı.** Kalan: haftalık görevler
+9. **Hayalet odalar** — `aktif_katilimci_sayisi` yalnızca istemci yazıyor
+   (odadaki en küçük uid). Uygulama zorla kapanırsa sayı >0 kalıyor ve oda
+   listede boşken duruyor. Sunucu tarafı presence yok; çözüm ya bir TTL
+   (sayaç N dakikadır dokunulmadıysa 0 say) ya da `oda_uyeleri` üzerinden
+   kalp atışı. 065 canlı yayını açtı ama bu ayrı bir sorun.
+10. **Oda rozet sistemi yok** — `Room.badges` yalnız mock; DB'de tablo yok.
+11. ~~Görev sistemi~~ — **061 ile yapıldı.** Kalan: haftalık görevler
     (`gorev_tipi` enum etiketleri bilinmiyor, önce öğrenilecek) ve başarımlar.
-11. **Hazır avatarlar `i.pravatar.cc`'den geliyor** — dış servis + gerçek
+12. **Hazır avatarlar `i.pravatar.cc`'den geliyor** — dış servis + gerçek
     insan fotoğrafları; yayından önce kendi setimizle değiştirilmeli.
-12. `RoomPanel`'deki "Takip Et" bitti, ama "Katıl" dışındaki oda rozetleri
+13. `RoomPanel`'deki "Takip Et" bitti, ama "Katıl" dışındaki oda rozetleri
     hâlâ mock.
-13. Splash Expo Go'da görünmüyor · `expo-video` cihazda denenmedi ·
+14. Splash Expo Go'da görünmüyor · `expo-video` cihazda denenmedi ·
     paket sürüm uyumsuzluğu (`expo@54.0.35` → `~54.0.37`).
 
 ---
