@@ -5,27 +5,28 @@
  * kullanıcı isteğiyle AÇILDI. Ekranlar/rotalar zaten yerindeydi, yalnızca
  * girişleri gizliydi.
  *
- * ⚠️ ÖNEMLİ — AÇIK ama HENÜZ SAHTE olanlar:
- * Aşağıdaki bölümlerin ekranları tasarım olarak hazır ama **hiçbir DB
- * bağlantısı yok** (`src/data/remote/*Repo.ts` kullanmıyorlar) ve arkalarında
- * tablo da yok. Yani görünürler, gezilebilirler, ama gerçek bir iş yapmazlar:
+ * DURUM — neyin arkasında gerçek veri var (30 Ağustos 2026):
  *
- *   store / vip / inventory      → sabit ürün listeleri; satın alma yok
- *   agency-panel (yayıncı)       → sabit kazanç/ajans sayıları
- *   gift-history                 → sabit geçmiş
- *   friends / events             → data/friends.ts, data/events.ts (sabit)
- *   rank sekmesi                 → data/seed.ts'teki RANKS/AGENCY_RANKS/
- *                                  STREAMER_RANKS (sabit)
- *   hediye gönderme (roomGift /
- *   dmGift / profileGift)        → animasyon oynar ama BAKİYE DÜŞMEZ,
- *                                  alıcıya bir şey geçmez, kayıt tutulmaz
- *   giftCoupon                   → kupon doğrulaması yok
+ *   GERÇEK
+ *     store / inventory          → esyaRepo (056): satın alma altını düşürür,
+ *                                  kuşanılan çerçeve/balon/giriş odada çalışır
+ *     hediye gönderme (roomGift) → hediyeRepo (059): temel şemadaki
+ *                                  hediye_gonder tetikleyicisi; komisyon %30
+ *     agency-panel (yayıncı)     → hediye_gecmisi'nden saatlik/günlük kazanç
+ *     rank sekmesi               → siralamaRepo (060): zenginlik/cazibe/odalar
+ *     görevler + günlük giriş    → gorevRepo (061): ilerleme sunucuda türetilir
+ *     visitors, notifications, odam sekmeleri, oda listesi
  *
- * GERÇEK olan: `visitors` (visitRepo) ve `notifications` (Faz 3).
- *
- * Bunları gerçeğe bağlamak için sırasıyla gerekenler: hediye kataloğu +
- * gönderim RPC'si (bakiyeden düşen, atomik), envanter tablosu, ajans/yayıncı
- * tabloları, sıralama görünümleri (materialized view + zamanlanmış yenileme).
+ *   HÂLÂ SAHTE / BAĞLANMAMIŞ
+ *     vip                        → sabit paket listesi
+ *     gift-history               → sabit geçmiş
+ *     friends / events           → data/friends.ts, data/events.ts (sabit)
+ *     dmGift / profileGift       → animasyon oynar ama RPC'ye bağlı değil
+ *                                  (alıcının dbId'si o ekranlarda yok)
+ *     giftCoupon                 → kupon doğrulaması yok
+ *     withdraw                   → akış gerçek, rakamlar örnek; çekim talebi
+ *                                  withdrawal_requests'e yazılmıyor
+ *     ajans / yayıncı sıralaması → tablolar duruyor, tek kayıt yok
  */
 export const FEATURES = {
   /** Oda alt barındaki hediye ikonu (hediye gönderme) */

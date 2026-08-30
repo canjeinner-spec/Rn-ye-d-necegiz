@@ -24,11 +24,30 @@ export async function getMyBalance(): Promise<Balance> {
   }
 }
 
-/** Kendi işlem geçmişim (yeniden eskiye). */
+/**
+ * Kendi işlem geçmişim (yeniden eskiye).
+ *
+ * 062'den sonra hareketler temel şemanın `wallet_ledger`ına yazılıyor; eski
+ * `cuzdan_hareketleri` tablosu susuyor. RPC yoksa (062 çalıştırılmadıysa)
+ * eski tabloya düşülüyor, böylece ekran her iki durumda da dolu.
+ */
 export async function listMyLedger(limit = 40): Promise<LedgerRow[]> {
   if (!isSupabaseConfigured) return [];
+  const sb = requireSupabase();
   try {
-    const sb = requireSupabase();
+    const { data, error } = await sb.rpc("hareketlerim_v2", { p_limit: limit });
+    if (!error) {
+      return ((data as { id: number; varlik: string; miktar: number; aciklama: string | null; tarih: string }[]) ?? [])
+        .map((r) => ({
+          id: Number(r.id),
+          varlik: r.varlik === "elmas" ? "elmas" : "altin",
+          miktar: Number(r.miktar),
+          sebep: r.aciklama,
+          at: new Date(r.tarih).getTime(),
+        }));
+    }
+  } catch { /* eski tabloya düş */ }
+  try {
     const { data } = await sb
       .from("cuzdan_hareketleri")
       .select("id, varlik, miktar, sebep, tarih")

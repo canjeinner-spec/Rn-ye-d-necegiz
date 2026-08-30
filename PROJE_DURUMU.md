@@ -493,20 +493,24 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
-> **Son güncelleme: 30 Ağustos 2026** · Son commit `4b2f961`
+> **Son güncelleme: 30 Ağustos 2026** · Son commit `6d2b265`
 > · Dal `claude/metro-recovery-1xc2kq` · **origin’e PUSH EDİLMEDİ**
 > (yerel commit’ler; şema dökümü için `db/SEMA_DOKUMU.md`’ye bak)
 
 ### ⚠️ ÖNCE: Çalıştırılmayı bekleyen migration'lar
 
-Canlı veritabanı 29 Ağustos'ta yoklandı; **iki tanesi hâlâ çalıştırılmadı**:
+Canlı veritabanı 29 Ağustos'ta yoklandı. Sırayla çalıştırılacaklar:
 
 | Dosya | Ne yapıyor | Durum |
 |---|---|---|
 | `053_admin_oda_kapak.sql` | `admin_oda_kapak_ayarla` — yönetici oda kapağını değiştirir/kaldırır | ❌ **eksik** → kapak düğmeleri hata verir |
-| `059_hediye_temel_semaya_gecis.sql` | Hediye ekonomisini temel şemaya bağlar (komisyon %30, katalog, RLS politikaları, `hediye_gonder_v2` ve kazanç RPC'leri) | ⏳ kullanıcıya verildi, bekliyor |
+| `059_hediye_temel_semaya_gecis.sql` | Hediye ekonomisini temel şemaya bağlar (komisyon %30, katalog, RLS politikaları, `hediye_gonder_v2` ve kazanç RPC'leri) | ⏳ bekliyor |
+| `060_siralama.sql` | Zenginlik / Cazibe / Odalar sıralaması — `hediye_gecmisi`ten okuma anında | ⏳ bekliyor |
+| `061_gorevler.sql` | Günlük görevler + 7 günlük giriş serisi; ilerleme sunucuda türetiliyor | ⏳ bekliyor (060'tan sonra) |
+| `062_tek_altin_bakiyesi.sql` | Mağaza ve cüzdanı da temel deftere çeker — iki ayrı altın bakiyesi kalmasın | ⏳ bekliyor (061'den sonra) |
 
-051, 052, 054, 055, 056, 057, 058 **uygulandı**. `059`'dan sonra ayrıca
+051, 052, 054, 055, 056, 057, 058 **uygulandı**. 059-062 SIRAYLA çalıştırılmalı
+(061 `_siralama_baslangic`i, 062 `_enum_etiket`i kullanıyor). `059`'dan sonra ayrıca
 `DROP FUNCTION IF EXISTS public.fn_kaynak();` çalıştırılacak (şema dökümü
 için açılan geçici fonksiyon).
 
@@ -801,29 +805,103 @@ için işlemiyor.
 `leaderboards`, `room_statistics`, `kyc_requests`, `risk_events`,
 `user_limits`, `idempotency_keys`, `outbox_events`.
 
+### 30 Ağustos — sıralama, görevler ve tek altın bakiyesi
+
+#### Sıralama gerçeğe bağlandı (060)
+
+Beş sekmenin beşi de `data/seed.ts` sabitleriydi (uydurma isimler, uydurma
+puanlar). Artık:
+
+- **Zenginlik** = dönem içinde en çok hediye GÖNDEREN (`toplam_deger`).
+- **Cazibe** = en çok hediye ALAN (`kazanc_miktari` — yayıncı panelindeki
+  kazançla aynı sayı olsun diye komisyon düşülmüş hâli).
+- **Odalar** = odada dönen hediye değeri; henüz hiç hediye dönmediyse eskisi
+  gibi en kalabalık odalar, üstünde bunu söyleyen bir etiketle.
+- **Ajanslar / Yayıncılar** = dürüst boş durum. Uydurma şampiyon listesi
+  (`AGENCY_RANKS`, `STREAMER_RANKS`) silindi; o tablolar temel şemada duruyor
+  ama tek bir ajans/yayıncı kaydı bile yok.
+- **Dönem seçici** eklendi (Bugün / Hafta / Ay / Tüm zaman). Başlıktaki
+  "Haftalık · 2g 14s kaldı" sabit yazıydı; sayaç artık sunucudan geliyor.
+
+`leaderboards` + `leaderboard_entries` anlık görüntü tabloları KULLANILMADI:
+onları dolduracak bir zamanlayıcı yok (pg_cron kurulu değil). Sıralama okuma
+anında hesaplanıyor — bu veri hacminde daha basit ve her zaman güncel.
+Yavaşlarsa fonksiyon imzaları aynı kalarak o tablolara geçilebilir.
+
+#### Görevler gerçeğe bağlandı (061)
+
+`data/tasks.ts` sabit demo listesiydi (5 görev, 7 gün ödülü, hepsi yalan).
+Artık `gorevler` + `kullanici_gorev_ilerlemesi` + `gunluk_giris_odulleri` +
+`kullanici_gunluk_giris` tablolarından.
+
+**İlerleme İSTEMCİDEN GELMİYOR.** "Görevi ilerlet" diye bir RPC yok; olsaydı
+herkes kendi sayacını yazıp ödülü bedava alırdı. İlerleme her okumada kaynak
+tablolardan sayılıyor: `oda_ziyaretleri`, `oda_mesajlari`, `hediye_gecmisi`
+(gönderen ve alıcı), `kullanicilar_takip`. İlerleme tablosuna yalnızca
+"ödül alındı" işareti düşüyor — o da (kullanıcı, görev, gün) üzerinde tekil
+indeksle korunuyor.
+
+- 5 günlük görev: odaya katıl, 10 mesaj, hediye gönder, hediye al, takip et.
+- 7 günlük giriş serisi; bir gün atlanınca seri sunucuda sıfırlanıyor.
+- Ödüller **altın** (elmas değil): elmas satın alınan varlık, onu bedava
+  dağıtmak monetizasyonu deler. Ödül promo kaynaklı lot olarak yatıyor —
+  hediyeye harcanabilir, çekilemez.
+- Görev satırlarına ilerleme çubuğu eklendi ("4/10" tek başına ne kadar
+  kaldığını göstermiyordu).
+
+#### İki ayrı altın bakiyesi sorunu (062)
+
+Mağaza/envanteri olduğu gibi bırakma kararı verildi (çalışıyor), ama altında
+gerçek bir çatlak vardı: **059'dan sonra kullanıcının iki ayrı altını olacaktı.**
+
+| | altını nereden düşürüyor | bakiyeyi nereden okuyor |
+|---|---|---|
+| Hediye (059) | `lot_harca` → `balance_lots` | `cached_altin_balance` |
+| Mağaza (056) | `_bakiye_uygula` → `cuzdan` | `cuzdan` |
+
+Altın yüklemesi (`admin_altin_yukle`) yalnız temel deftere yazdığı için mağaza
+sürekli "Yetersiz altın" derdi; profil/cüzdan bir rakam, hediye kutusu başka
+bir rakam gösterirdi.
+
+`062` tabloları taşımıyor — `esyalar` / `kullanici_esyalari` yerinde. Yalnızca
+altının **nereden düştüğü** ve **nereden okunduğu** tek yere çekiliyor:
+`esya_satin_al` artık `lot_harca` kullanıyor, `benim_bakiyem()` temel şemanın
+cache sütunlarını okuyor. İmza değişmediği için profil, cüzdan ve mağaza
+ekranlarında tek satır değişmedi. Cüzdan hareketleri de `cuzdan_hareketleri`
+yerine `wallet_ledger`dan geliyor (RPC yoksa eski tabloya düşüyor).
+
+Eski `cuzdan` tablosu silinmedi; artık kimse okumuyor.
+
+#### Enum etiketleri artık tahmin edilmiyor
+
+`bakiye_kaynagi` ve `islem_tipi` temel şemanın enum'ları ve repoda tanımları
+yok — dökümde yalnızca "USER-DEFINED" yazıyor. Etiketi tahmin edip yanlış
+yazarsak hata ancak kullanıcı ödülü almaya çalışınca çıkardı. Bu yüzden
+`_enum_etiket(tip, adaylar[])` yardımcısı eklendi: çalışma anında aday
+listesinden var olanı seçiyor, hiçbiri tutmazsa **veritabanındaki gerçek
+etiket listesini yazan** bir hata veriyor. Yani ilk denemede doğru etiket
+öğrenilip tek satırda sabitlenebilir.
+
 ### Sıradakiler
 
-> **Karar (29 Ağustos):** ekonomi tarafında kendi paralel yapımızı değil
-> **temel şemayı** kullanacağız. Sıra: hediye (bitti) → mağaza/envanter →
-> cüzdan. Her adımda tek ekran taşınır ve çalıştığı doğrulanır.
-
-**Bekleyen migration'lar (Supabase'de çalıştırılacak)**
-
-| Dosya | Durum |
-|---|---|
-| `053_admin_oda_kapak.sql` | ❌ **eksik** — `admin_oda_kapak_ayarla` yok, kapak düğmeleri hata verir |
-| `059_hediye_temel_semaya_gecis.sql` | kullanıcıya verildi, çalıştırılması bekleniyor |
-| 051, 052, 054, 055, 056, 057, 058 | ✅ uygulandı |
+> **Karar (29-30 Ağustos):** ekonomide kendi paralel yapımızı değil **temel
+> şemayı** kullanacağız — ama tablo tablo taşımak yerine yalnızca ÇAKIŞAN
+> noktayı taşıyoruz. Hediye 059'la, altın bakiyesi 062'yle geçti; eşya
+> tabloları (056) çalıştığı için yerinde bırakıldı.
+>
+> Çalıştırılmayı bekleyen migration listesi §10'un başında.
 
 1. **Oda içi senkron hatası** — koltuk karşı tarafta bir süre sonra kayboluyor.
    `room.tsx`'teki geçici `[presence]` teşhis logları Metro'dan okunacak,
    sebep bulunup **loglar kaldırılacak**.
-2. **Mağaza/envanter taşıması** — `esyalar`/`kullanici_esyalari` (056) yerine
-   `magaza_esyalari` + `kullanici_envanteri`. `esya_tipi` enum'u zaten
-   `cerceve/balon/giris_efekti/arka_plan` içeriyor.
-3. **Cüzdan taşıması** — kendi `cuzdan` tablomuz yerine `cuzdanlar` +
-   `wallet_ledger` + `balance_lots`. `lot_yatir`/`lot_harca`/`kazanc_hareket`
-   hazır; `bakiye_ekle`/`benim_bakiyem` çağrıları oraya çevrilecek.
+2. ~~Mağaza/envanter taşıması~~ — **yapılmayacak, karar 30 Ağustos.** 056'nın
+   tabloları (`esyalar`/`kullanici_esyalari`) çalışıyor ve yerinde kalıyor;
+   `magaza_esyalari`/`kullanici_envanteri` boş duruyor. Taşınan tek şey ALTIN
+   oldu (062) — çakışan asıl nokta oydu.
+3. ~~Cüzdan taşıması~~ — **062 ile yapıldı.** `benim_bakiyem()` ve
+   `esya_satin_al` temel deftere (`balance_lots` + `cached_altin_balance`)
+   bağlandı, hareketler `wallet_ledger`dan okunuyor. Kalan: elmas tarafı
+   (satın alma / `elmas_altin_donustur`) hâlâ bağlı değil.
 4. **Ajans + yayıncı** — `ajanslar`, `ajans_uyeleri`, `yayinci_odemeleri`
    bağlanacak; `kullanicilar` üzerinde yayıncı bayrağı yok, yönetimden
    atanacak bir alan gerekiyor.
@@ -831,13 +909,13 @@ için işlemiyor.
    (hesap bilgisi `pii_sifrele` ile şifreli), `kur_oranlari.kazanc_kuru`.
 6. **Elmas satın alma (IAP)** — `elmas_paketleri`, `satin_almalar`,
    `satin_alma_dogrula_fn`. Elmas → altın dönüşümü `elmas_altin_donustur`.
-7. **Sıralama listeleri** — `leaderboards` + `leaderboard_entries` (şu an
-   `data/seed.ts` sabitleri).
+7. ~~Sıralama listeleri~~ — **060 ile yapıldı** (zenginlik/cazibe/odalar,
+   dönem seçici). Kalan: ajans ve yayıncı sekmeleri, o kayıtlar oluşunca.
 8. **DM'den hediye** — peer'ın dbId'si ekranda yok, gönderim yalnızca
    animasyon oynatıyor. "Tümü"ne gönderim de tek RPC ile yapılamıyor.
 9. **Oda rozet sistemi yok** — `Room.badges` yalnız mock; DB'de tablo yok.
-10. **Görev sistemi yok** — `data/tasks.ts` sabit demo (`gorevler` tablosu
-    temel şemada var, bağlanmadı).
+10. ~~Görev sistemi~~ — **061 ile yapıldı.** Kalan: haftalık görevler
+    (`gorev_tipi` enum etiketleri bilinmiyor, önce öğrenilecek) ve başarımlar.
 11. **Hazır avatarlar `i.pravatar.cc`'den geliyor** — dış servis + gerçek
     insan fotoğrafları; yayından önce kendi setimizle değiştirilmeli.
 12. `RoomPanel`'deki "Takip Et" bitti, ama "Katıl" dışındaki oda rozetleri
