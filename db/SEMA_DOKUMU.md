@@ -9,6 +9,53 @@ repoda dosyası yok, doğrudan Supabase'te kurulmuş. Neyin zaten var olduğunu
 bilmeden migration yazınca çakışıyoruz — nitekim 058'de `hediyeler` tablosu
 çakıştı. Yeni migration yazmadan önce BURAYA bak.
 
+## ⚠️ Bu dökümden SONRA eklenenler (30 Ağustos, 059-066)
+
+> Aşağıdaki tablo ve fonksiyonlar **yukarıdaki listelerde YOK** — döküm
+> 29 Ağustos'ta alındı, bunlar sonra eklendi. Migration yazmadan önce buraya
+> da bak, yoksa var olanı tekrar kurmaya çalışırsın.
+
+**Yeni tablolar**
+
+| tablo | migration | ne tutuyor |
+|---|---|---|
+| `oda_rozet_katalogu` | 066 | kod, ad, aciklama, kaynak('kural'/'elle'), sira, aktif |
+| `oda_rozetleri` | 066 | oda_id, kod, veren_id, sebep, verilme, bitis (yalnız ELLE verilenler) |
+
+**Yeni sütunlar**
+
+| tablo | sütunlar | migration |
+|---|---|---|
+| `hediyeler` | kod, emoji, renk1, renk2, kademe | 059 |
+
+**Yeni fonksiyonlar**
+
+| fonksiyon | migration | not |
+|---|---|---|
+| `hediye_gonder_v2(hediye_id, miktar, alici_id, oda_id, idem, mesaj)` | 059 | temel trigger'a giden sarmalayıcı |
+| `benim_bakiyem_v2()`, `hediye_komisyon()` | 059 | |
+| `kazanc_ozeti_v2()`, `kazanc_saatlik_v2(gun_once)`, `kazanc_gunluk_v2(gun)`, `son_hediyelerim_v2(limit)` | 059 | yayıncı paneli |
+| `admin_altin_yukle(kullanici, miktar)` | 059/063 | `admin_grant` + `admin_ekleme` |
+| `_enum_etiket(tip, adaylar[])`, `_enum_liste(tip)` | 059/061 | istemciye KAPALI |
+| `_siralama_baslangic(periyot)`, `siralama_donem_bitis(periyot)` | 060 | dönem sınırı, Europe/Istanbul |
+| `siralama_zenginlik / siralama_cazibe / siralama_odalar(periyot, limit)` | 060 | okuma anında hesaplanır |
+| `_bugun_tr()`, `gorevlerim()`, `gorev_odul_al(kod)` | 061 | ilerleme TÜRETİLİR, yazılmaz |
+| `gunluk_giris_durum()`, `gunluk_giris_al()` | 061 | 7 günlük seri |
+| `_odul_ver(kullanici, miktar, ref)` | 061/063 | `campaign` + `kampanya_odulu` |
+| `_altin_harca(kullanici, miktar, ref)` | 062/063 | `magaza_satin_alma` |
+| `esya_satin_al(esya_id)` | 062 | ARTIK `lot_harca` kullanıyor, eski `cuzdan` değil |
+| `benim_bakiyem()` | 062 | ARTIK `cached_*` sütunlarını okuyor |
+| `hareketlerim_v2(limit)` | 062 | `wallet_ledger`dan |
+| `oda_rozetleri_getir(oda_ids[])` | 066 | kural + elle, tek listede |
+| `admin_oda_rozet_ver / _al / _listesi` | 066 | kural rozeti elle verilemez |
+
+**Realtime yayını:** `odalar` tablosu `supabase_realtime` yayınına eklendi (065).
+
+**Yetki kuralı:** PostgreSQL yeni fonksiyona PUBLIC'e EXECUTE verir ve `anon`
+PUBLIC'in içindedir. `REVOKE ... FROM anon` tek başına KAPATMAZ — önce
+`REVOKE ALL ... FROM PUBLIC`, sonra hedef role `GRANT`.
+
+
 ## Tablolar
 
 ### admin_logs
