@@ -1,7 +1,7 @@
 -- ============================================================================
 -- 062 — Tek altın bakiyesi (mağaza + cüzdan, temel şemaya)
 --
--- Önce 060 ve 061 çalıştırılmalı (`_enum_etiket` 061'de tanımlı).
+-- Önce 059 ve 061 çalıştırılmalı (`_enum_etiket` orada tanımlanıyor).
 --
 -- SORUN:
 -- 059 ile hediye gönderimi TEMEL şemanın defterine geçti: altın

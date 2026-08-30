@@ -12,14 +12,13 @@
 -- Yan fayda: görev olayları için ayrı bir tetikleyici ağı kurmaya gerek yok.
 --
 -- ENUM ETİKETLERİ:
--- `bakiye_kaynagi` ve `islem_tipi` temel şemanın enum'ları; repoda tanımları
--- yok. Etiketi tahmin etmek yerine çalışma anında aranıyor (_enum_etiket).
--- Hiçbir aday tutmazsa fonksiyon, veritabanındaki GERÇEK etiket listesini
--- yazan bir hata veriyor — o satırı görünce doğru etiket tek seferde konur.
+-- `bakiye_kaynagi` ve `islem_tipi` etiketleri çalışma anında aranıyor
+-- (_enum_etiket / _enum_liste — 059'da tanımlanıyor, burada güvenlik için
+-- tekrar yazılıyor ki 061 tek başına da çalışsın).
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- 0) Enum yardımcıları
+-- 0) Enum yardımcıları (059 ile aynı tanım)
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public._enum_etiket(p_tip TEXT, p_adaylar TEXT[])
 RETURNS TEXT

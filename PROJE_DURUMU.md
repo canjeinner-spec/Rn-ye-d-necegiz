@@ -509,8 +509,13 @@ Canlı veritabanı 29 Ağustos'ta yoklandı. Sırayla çalıştırılacaklar:
 | `061_gorevler.sql` | Günlük görevler + 7 günlük giriş serisi; ilerleme sunucuda türetiliyor | ⏳ bekliyor (060'tan sonra) |
 | `062_tek_altin_bakiyesi.sql` | Mağaza ve cüzdanı da temel deftere çeker — iki ayrı altın bakiyesi kalmasın | ⏳ bekliyor (061'den sonra) |
 
-051, 052, 054, 055, 056, 057, 058 **uygulandı**. 059-062 SIRAYLA çalıştırılmalı
-(061 `_siralama_baslangic`i, 062 `_enum_etiket`i kullanıyor). `059`'dan sonra ayrıca
+051, 052, 054, 055, 056, 057, 058 **uygulandı**.
+
+> **Kolay yol:** 059-062'nin dördü birden `db/CALISTIR_059_062.sql` dosyasında
+> sırayla birleştirildi — SQL editörüne tek seferde yapıştırılıp çalıştırılır.
+> Sıra önemli: 061 ile 062, 059'daki `_enum_etiket`i ve 060'taki
+> `_siralama_baslangic`i kullanıyor. Hepsi tekrar çalıştırılabilir.
+> Sonrasında ayrıca: `DROP FUNCTION IF EXISTS public.fn_kaynak();` `059`'dan sonra ayrıca
 `DROP FUNCTION IF EXISTS public.fn_kaynak();` çalıştırılacak (şema dökümü
 için açılan geçici fonksiyon).
 

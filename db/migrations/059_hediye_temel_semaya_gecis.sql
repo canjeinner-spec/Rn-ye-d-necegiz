@@ -22,6 +22,36 @@
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
+-- 0) Enum yardımcıları
+--
+-- `bakiye_kaynagi` ve `islem_tipi` temel şemanın enum'ları; repoda tanımları
+-- yok, dökümde yalnızca "USER-DEFINED" yazıyor. Etiketi tahmin edip yanlış
+-- yazarsak hata ancak kullanıcı işlemi denerken çıkar. Bu yüzden etiket
+-- çalışma anında aranıyor; hiçbir aday tutmazsa fonksiyon veritabanındaki
+-- GERÇEK etiket listesini yazan bir hata veriyor.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public._enum_etiket(p_tip TEXT, p_adaylar TEXT[])
+RETURNS TEXT
+LANGUAGE sql STABLE SET search_path = public, pg_temp AS $ee$
+    SELECT e.enumlabel::TEXT
+      FROM pg_enum e
+      JOIN pg_type t ON t.oid = e.enumtypid
+     WHERE t.typname = p_tip
+       AND e.enumlabel::TEXT = ANY (p_adaylar)
+     ORDER BY array_position(p_adaylar, e.enumlabel::TEXT)
+     LIMIT 1;
+$ee$;
+
+CREATE OR REPLACE FUNCTION public._enum_liste(p_tip TEXT)
+RETURNS TEXT
+LANGUAGE sql STABLE SET search_path = public, pg_temp AS $el$
+    SELECT string_agg(e.enumlabel::TEXT, ', ' ORDER BY e.enumsortorder)
+      FROM pg_enum e
+      JOIN pg_type t ON t.oid = e.enumtypid
+     WHERE t.typname = p_tip;
+$el$;
+
+-- ---------------------------------------------------------------------------
 -- 1) Ayarlar — komisyon %30 (trigger varsayılanı 0.40'tı) ve hediye açık
 -- ---------------------------------------------------------------------------
 INSERT INTO public.ayarlar (anahtar, deger)
@@ -261,14 +291,34 @@ GRANT EXECUTE ON FUNCTION public.son_hediyelerim_v2(INTEGER) TO authenticated;
 CREATE OR REPLACE FUNCTION public.admin_altin_yukle(p_kullanici BIGINT, p_miktar BIGINT)
 RETURNS BIGINT
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
-DECLARE v_bakiye BIGINT;
+DECLARE
+    v_bakiye BIGINT;
+    v_kaynak TEXT;
+    v_islem  TEXT;
 BEGIN
     IF NOT public.ben_platform_yoneticisi() THEN
         RAISE EXCEPTION 'Bu işlem için yönetici olmalısın.';
     END IF;
     IF p_miktar <= 0 THEN RAISE EXCEPTION 'Miktar pozitif olmalı.'; END IF;
 
-    PERFORM public.lot_yatir(p_kullanici, 'altin', 'admin_grant', p_miktar, 'admin_ekleme');
+    v_kaynak := public._enum_etiket('bakiye_kaynagi',
+        ARRAY['admin_grant', 'admin', 'sistem', 'promo', 'promosyon', 'bonus', 'odul']);
+    v_islem := public._enum_etiket('islem_tipi',
+        ARRAY['admin_ekleme', 'admin', 'sistem_ekleme', 'promosyon', 'promo', 'bonus', 'odul']);
+    IF v_kaynak IS NULL THEN
+        RAISE EXCEPTION 'bakiye_kaynagi icinde uygun etiket yok. Mevcut: %',
+            public._enum_liste('bakiye_kaynagi');
+    END IF;
+    IF v_islem IS NULL THEN
+        RAISE EXCEPTION 'islem_tipi icinde uygun etiket yok. Mevcut: %',
+            public._enum_liste('islem_tipi');
+    END IF;
+
+    EXECUTE format(
+        'SELECT public.lot_yatir($1, %L::varlik_tipi, %L::bakiye_kaynagi, $2, %L::islem_tipi)',
+        'altin', v_kaynak, v_islem)
+    USING p_kullanici, p_miktar;
+
     SELECT cached_altin_balance INTO v_bakiye FROM public.kullanicilar WHERE id = p_kullanici;
     RETURN COALESCE(v_bakiye, 0);
 END; $$;
