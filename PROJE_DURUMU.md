@@ -493,7 +493,8 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
-> **Son güncelleme: 30 Ağustos 2026 (oturum sonu)** · Son commit `f45bb65`
+> **Son güncelleme: 30 Ağustos 2026 (oturum sonu)** · Dal `claude/metro-recovery-1xc2kq`
+> · **origin'e PUSH EDİLMEDİ** · güncel commit için `git log --oneline -5`
 > · Dal `claude/metro-recovery-1xc2kq` · **origin’e PUSH EDİLMEDİ**
 > (yerel commit’ler; şema dökümü için `db/SEMA_DOKUMU.md`’ye bak)
 
@@ -1109,21 +1110,33 @@ olan veriydi. İki kaynak, tek görünüm:
    dönem seçici). Kalan: ajans ve yayıncı sekmeleri, o kayıtlar oluşunca.
 8. **DM'den hediye** — peer'ın dbId'si ekranda yok, gönderim yalnızca
    animasyon oynatıyor. "Tümü"ne gönderim de tek RPC ile yapılamıyor.
-9. **Hayalet odalar** — `aktif_katilimci_sayisi` yalnızca istemci yazıyor
+9. **Oda sohbeti veritabanına HİÇ yazılmıyor.** Sohbet yalnızca broadcast;
+   `sendRoomMessage` repoda duruyor ama hiçbir yerden çağrılmıyor, yani
+   `oda_mesajlari` hep boş. İki sonucu var: (a) sonradan giren sohbet
+   geçmişini göremiyor, (b) **Sohbet Ustası / Gece Kuşu / Erkenci rozetleri
+   asla tetiklenmiyor** (066 kurallarını o tabloya dayadı). Karar gerekiyor:
+   sohbeti DB'ye de yazmak mı, o üç rozetin kuralını değiştirmek mi.
+10. **Anon'a açık RPC denetimi yapılmadı.** 063/064 yalnızca 059-062'nin
+    fonksiyonlarını kapattı. Ölçüldü: `benim_hesap_yasagim` ve
+    `oda_katilimci_yaz` hâlâ anon anahtarla çağrılabiliyor. İkincisi
+    içeride `benim_kullanici_id() IS NULL` kontrolüyle korunuyor (yazma
+    olmuyor) ama **eski migration'ların tamamı taranmalı** — aynı desende
+    korumasız olan varsa açık demektir.
+11. **Hayalet odalar** — `aktif_katilimci_sayisi` yalnızca istemci yazıyor
    (odadaki en küçük uid). Uygulama zorla kapanırsa sayı >0 kalıyor ve oda
    listede boşken duruyor. Sunucu tarafı presence yok; çözüm ya bir TTL
    (sayaç N dakikadır dokunulmadıysa 0 say) ya da `oda_uyeleri` üzerinden
    kalp atışı. 065 canlı yayını açtı ama bu ayrı bir sorun.
-10. ~~Oda rozet sistemi~~ — **066 ile yapıldı** (kural motoru + elle verme).
+12. ~~Oda rozet sistemi~~ — **066 ile yapıldı** (kural motoru + elle verme).
     Kalan: kullanıcı rozetleri hâlâ ayrı bir konu; oda rozetleri yalnızca
     oda listesinde çiziliyor, oda profilinde de gösterilmeli.
-11. ~~Görev sistemi~~ — **061 ile yapıldı.** Kalan: haftalık görevler
+13. ~~Görev sistemi~~ — **061 ile yapıldı.** Kalan: haftalık görevler
     (`gorev_tipi` enum etiketleri bilinmiyor, önce öğrenilecek) ve başarımlar.
-12. **Hazır avatarlar `i.pravatar.cc`'den geliyor** — dış servis + gerçek
+14. **Hazır avatarlar `i.pravatar.cc`'den geliyor** — dış servis + gerçek
     insan fotoğrafları; yayından önce kendi setimizle değiştirilmeli.
-13. `RoomPanel`'deki "Takip Et" bitti, ama "Katıl" dışındaki oda rozetleri
+15. `RoomPanel`'deki "Takip Et" bitti, ama "Katıl" dışındaki oda rozetleri
     hâlâ mock.
-14. Splash Expo Go'da görünmüyor · `expo-video` cihazda denenmedi ·
+16. Splash Expo Go'da görünmüyor · `expo-video` cihazda denenmedi ·
     paket sürüm uyumsuzluğu (`expo@54.0.35` → `~54.0.37`).
 
 ---
