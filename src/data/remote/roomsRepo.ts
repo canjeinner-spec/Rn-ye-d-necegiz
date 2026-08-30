@@ -159,7 +159,12 @@ export async function getMyRoom(): Promise<Room | null> {
       .limit(1)
       .maybeSingle(),
   );
-  return data ? mapRoom(data, me.kullanici_adi, me.id) : null;
+  if (!data) return null;
+  // Rozetler burada da bağlanmalı: profildeki "Odam" bu fonksiyondan besleniyor
+  // ve rozetsiz geldiği için kendi odana oradan girince rozetler yoktu,
+  // "Son günlerde"den girince vardı (o yol odalariIdIleGetir'den geçiyor).
+  const [oda] = await rozetleriBagla([mapRoom(data, me.kullanici_adi, me.id)]);
+  return oda ?? null;
 }
 
 /** 6 haneli benzersiz oda ID'si (çakışmada birkaç kez dener). */
