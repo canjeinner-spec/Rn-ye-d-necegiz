@@ -493,20 +493,79 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
-> **Son güncelleme: 30 Ağustos 2026 (ikinci yarı)** · Son commit `1f287a7`
+> **Son güncelleme: 30 Ağustos 2026 (oturum sonu)** · Son commit `6d3a91b`
 > · Dal `claude/metro-recovery-1xc2kq` · **origin’e PUSH EDİLMEDİ**
 > (yerel commit’ler; şema dökümü için `db/SEMA_DOKUMU.md`’ye bak)
 
-### ⚠️ ÖNCE: Çalıştırılmayı bekleyen migration'lar
+### 🔴 AÇIK HATA — oda listede görünmüyor (30 Ağustos, ÇÖZÜLMEDİ)
+
+**Belirti (kullanıcının gördüğü):**
+- Kendi odasında dururken oda listede yok.
+- Arkadaşı odasındayken o da listede görünmüyor.
+- Bazen tersi: kimse yokken oda listede asılı kalıyor.
+- "Odam" bölümünde, odanın içindeyken bile "boş" yazıyor.
+
+**Kanıt (Metro logundan, teşhis satırları hâlâ kodda):**
+```
+[liste] db=7 oda; online: 5:1 9:0 8:0 7:0 6:0 3:0 2:0   ← uid 9 odasındayken
+[liste] db=7 oda; online: 9:0 8:0 7:0 6:0 5:0 3:0 2:0   ← çıkınca
+```
+Yani DB sayacı uid 9 için DOĞRU yazılıyor. Ama sonraki turlarda yedi odanın
+hepsi 0 göründü — arkadaşın (uid 11) odasındayken bile. `[sayac]` hata satırı
+hiç çıkmadı, yani yazma çağrısı patlamıyor.
+
+**Kök sebep hipotezi (doğrulanmadı):**
+Liste "içinde kimse olmayan odayı gösterme" kuralını uyguluyor
+(`(tabs)/index.tsx` → `gorunur`, `r.online > 0`). Kendi odanı görmek için
+odadan çıkman gerekiyor, çıkış anında oda gerçekten boşalıyor → hiç
+göremiyorsun. Bu kısım tasarım sonucu, hata değil. Ama **arkadaşın odasının
+görünmemesi** bununla açıklanmıyor; orası hâlâ açık.
+
+**Denenen ve YETMEYEN çözümler (sırayla):**
+1. `065` — `odalar` Realtime yayınına alındı, liste anlık tazeleniyor.
+   Doğrulandı (`Subscribed to PostgreSQL`) ama sorunu çözmedi.
+2. Sahibe istisna: "kendi odan boşken de sana görünsün". Kullanıcı istemedi
+   (boş oda listede durmasın dedi), **geri alındı**.
+3. `src/data/remote/odaVarlik.ts` — kişi sayısını DB sayacı yerine tek bir
+   Realtime presence kanalından saymak. **Bu da çözmedi**; kullanıcı "bu sefer
+   listede hiç görünmüyor" dedi.
+
+**ŞU ANKİ TEHLİKELİ DURUM — ilk iş bu:**
+Sistem **yarı taşınmış**. Kişi sayısı iki ayrı kaynaktan geliyor:
+- `odalar.aktif_katilimci_sayisi` — `room.tsx` içindeki presence sync hâlâ
+  `odaKatilimciYaz` ile yazıyor (giriş/çıkışta).
+- `odaVarlik.ts` presence kanalı — `(tabs)/index.tsx` bunu okuyup `online`
+  alanının üzerine yazıyor.
+
+İkisi çelişince hangisinin kazandığı belirsiz. **Önce birine karar verilmeli**,
+sonra diğeri tamamen sökülmeli. Aksi halde her düzeltme kararsız davranır.
+
+**Sonraki oturum için öneri:**
+1. `odaVarlik.ts`ın gerçekten çalışıp çalışmadığını ölç: presence kanalına
+   `console.log` koy, iki cihazda `presenceState()` ne dönüyor bak. Kanal
+   hiç `SUBSCRIBED` oluyor mu? `track` gidiyor mu?
+2. Çalışıyorsa DB sayacını (`odaKatilimciYaz` çağrılarını + 057) tamamen sök.
+   Çalışmıyorsa `odaVarlik.ts`ı sil, sayaca dön ve arkadaşın odasının neden
+   görünmediğini ayrıca kovala.
+3. Ürün kararı: "boş odayı gösterme" kuralı iki kez sorun çıkardı. Boş odalar
+   ayrı bir sekmede ("Tümü") gösterilsin mi, tartışılmalı.
+
+**"Odam boş yazıyor" ayrı bir uç:** `getMyRoom` DB sayacını okuyor
+(`aktif_katilimci_sayisi`), presence'ı bilmiyor. Hangi kaynağa karar verilirse
+orası da ona bağlanmalı.
+
+---
+
+### ⚠️ Çalıştırılmayı bekleyen migration'lar
 
 Canlı veritabanı 30 Ağustos'ta yoklandı. Bekleyenler:
 
 | Dosya | Ne yapıyor | Durum |
 |---|---|---|
 | `053_admin_oda_kapak.sql` | `admin_oda_kapak_ayarla` — yönetici oda kapağını değiştirir/kaldırır | ❌ **eksik** → kapak düğmeleri hata verir |
-| `066_oda_rozetleri.sql` | Oda rozetleri — kural motoru + elle verme | ⏳ **bekliyor** |
+| — | 066 dahil hepsi uygulandı | ✅ |
 
-051-052, 054-065 **uygulandı** (30 Ağustos). `fn_kaynak` düşürüldü.
+051-052, 054-066 **uygulandı** (30 Ağustos). Yalnızca **053 eksik**. `fn_kaynak` düşürüldü.
 065 Realtime aboneliğiyle doğrulandı ("Subscribed to PostgreSQL").
 063+064 sonrası anon erişimi ölçüldü: hediye/sıralama/görev/cüzdan RPC'lerinin
 hepsi ve `hediyeler`/`esyalar`/`gorevler` tabloları **kapalı** (42501).
@@ -1019,7 +1078,10 @@ olan veriydi. İki kaynak, tek görünüm:
 >
 > Çalıştırılmayı bekleyen migration listesi §10'un başında.
 
-1. **Oda içi senkron hatası — sebep bulundu (30 Ağustos), doğrulanacak.**
+1. 🔴 **ODA LİSTESİ GÖRÜNÜRLÜĞÜ — açık hata, ilk iş.** Ayrıntı §10'un
+   başında. Kişi sayısı şu an İKİ kaynaktan geliyor (DB sayacı + presence);
+   önce birine karar verilip diğeri sökülmeli.
+2. **Oda içi senkron hatası — sebep bulundu (30 Ağustos), doğrulanacak.**
    `ch.subscribe` geri çağrısı kurulduğu andaki `presenceYaz`ı kapatıyordu;
    içindeki `mySeat` hep `null`dı. Soket düşüp yeniden bağlanınca (iOS
    uygulama arkaplana alınınca soketi kapatır) Supabase aynı geri çağrıyı
