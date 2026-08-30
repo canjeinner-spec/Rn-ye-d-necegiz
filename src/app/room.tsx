@@ -91,24 +91,36 @@ function SpeakingRing() {
 }
 
 /**
- * Emoji tepkisi — avatarın üstünde belirip yukarı süzülerek kaybolur.
+ * Emoji tepkisi — avatarı KAPLAYIP kaybolur.
  *
  * Sohbete düşürmüyoruz: tepki anlıktır, sohbet geçmişini kirletmesin.
  * Odadaki herkes broadcast ile aynı anda görür.
+ *
+ * Akış aynı (1,6 sn): hızlı belirir, hafifçe büyüyüp yerine oturur, sonda
+ * sönüp büyüyerek kaybolur. Altında ince bir karartma var ki fotorafın
+ * açık olduğu avatarlarda da emoji okunsun.
  */
-function TepkiBalonu({ emoji }: { emoji: string }) {
+function TepkiBalonu({ emoji, boyut }: { emoji: string; boyut: number }) {
   const t = useSharedValue(0);
   useEffect(() => {
     t.value = 0;
     t.value = withTiming(1, { duration: 1600 });
   }, [emoji, t]);
-  const st = useAnimatedStyle(() => ({
-    opacity: t.value < 0.15 ? t.value / 0.15 : t.value > 0.75 ? (1 - t.value) / 0.25 : 1,
-    transform: [{ translateY: -28 * t.value }, { scale: 0.7 + 0.5 * Math.min(1, t.value * 4) }],
-  }));
+  const st = useAnimatedStyle(() => {
+    const giris = Math.min(1, t.value / 0.12);           // 0 → 1 (ilk %12)
+    const cikis = t.value > 0.72 ? (t.value - 0.72) / 0.28 : 0;
+    return {
+      opacity: giris * (1 - cikis),
+      // Yaylı gibi girsin: 0.35 → 1.12 → 1.0, sonda hafifçe büyüyerek sönsun
+      transform: [{ scale: 0.35 + 0.77 * giris - 0.12 * Math.min(1, Math.max(0, (t.value - 0.12) / 0.14)) + 0.35 * cikis }],
+    };
+  });
   return (
-    <Animated.View pointerEvents="none" style={[styles.tepkiBalonu, st]}>
-      <Txt size={22}>{emoji}</Txt>
+    <Animated.View
+      pointerEvents="none"
+      style={[styles.tepkiOrtu, { width: boyut, height: boyut, borderRadius: boyut / 2 }, st]}
+    >
+      <Txt size={Math.round(boyut * 0.58)}>{emoji}</Txt>
     </Animated.View>
   );
 }
@@ -165,7 +177,7 @@ function SeatItem({
           />
           {/* Kuşanılan çerçeve koltukta da çiziliyor (056) */}
           {cerceveTema && <FramePreview id={cerceveTema} size={KOLTUK} />}
-          {tepki && <TepkiBalonu emoji={tepki} />}
+          {tepki && <TepkiBalonu emoji={tepki} boyut={KOLTUK} />}
         </View>
         {locked && (
           <View style={styles.seatLock}>
@@ -1283,9 +1295,7 @@ export default function RoomScreen() {
               <Pressable onPress={() => { if (isMine) openMyCard(); else if (gosterilenHost) tapOccupant(gosterilenHost); }} style={styles.hostSeat}>
                 <View>
                   {gosterilenHost?.speaking && <SpeakingRing />}
-                  {gosterilenHost?.uid != null && tepkiler[gosterilenHost.uid] && (
-                    <TepkiBalonu emoji={tepkiler[gosterilenHost.uid]} />
-                  )}
+
                   {/* Sahip odada değilse koltuğu soluk — döndüğünde canlanır. */}
                   <View style={{ width: SAHIP_KOLTUK, height: SAHIP_KOLTUK, opacity: sahipOdada ? 1 : 0.42 }}>
                     <Portrait
@@ -1300,6 +1310,9 @@ export default function RoomScreen() {
                       photo={isMine ? userPhoto || undefined : gosterilenHost?.photo}
                     />
                     {isMine && kusanili.cerceve && <FramePreview id={kusanili.cerceve} size={SAHIP_KOLTUK} />}
+                    {gosterilenHost?.uid != null && tepkiler[gosterilenHost.uid] && (
+                      <TepkiBalonu emoji={tepkiler[gosterilenHost.uid]} boyut={SAHIP_KOLTUK} />
+                    )}
                   </View>
                 </View>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8, flexWrap: "wrap", justifyContent: "center", maxWidth: 150 }}>
@@ -1899,7 +1912,11 @@ const styles = StyleSheet.create({
     flex: 1, paddingVertical: 13, borderRadius: 14, alignItems: "center",
     backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)",
   },
-  tepkiBalonu: { position: "absolute", top: -6, alignSelf: "center", left: 0, right: 0, alignItems: "center" },
+  tepkiOrtu: {
+    position: "absolute", top: 0, left: 0,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(8,7,12,.55)",
+  },
   emojiSatiri: {
     flexDirection: "row", justifyContent: "space-between", marginHorizontal: 10, marginBottom: 2,
     paddingVertical: 6, paddingHorizontal: 6, borderRadius: 22,
