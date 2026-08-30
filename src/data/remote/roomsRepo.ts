@@ -134,16 +134,9 @@ export async function listRooms(limit = 50): Promise<Room[]> {
     getMyProfile().catch(() => null),
   ]);
   const rows = data ?? [];
-  const [hosts, rozetler] = await Promise.all([
-    fetchHostNames(rows.map((r) => r.olusturan_id).filter((x): x is number => x != null)),
-    // Rozetler (066): listede görünen odalar için tek çağrıda.
-    odaRozetleri(rows.map((r) => r.id)).catch(() => new Map<number, RoomBadgeItem[]>()),
-  ]);
-  return rows.map((r) => {
-    const oda = mapRoom(r, hosts.get(r.olusturan_id ?? -1) || "Kullanıcı", me?.id ?? null);
-    const rz = rozetler.get(r.id);
-    return rz && rz.length > 0 ? { ...oda, badges: rz } : oda;
-  });
+  const hosts = await fetchHostNames(rows.map((r) => r.olusturan_id).filter((x): x is number => x != null));
+  // Rozetler (066): listede görünen odalar için tek çağrıda.
+  return rozetleriBagla(rows.map((r) => mapRoom(r, hosts.get(r.olusturan_id ?? -1) || "Kullanıcı", me?.id ?? null)));
 }
 
 /**
@@ -621,7 +614,9 @@ async function odalariIdIleGetir(ids: number[]): Promise<Room[]> {
     bul.set(r.id, mapRoom(r, hosts.get(r.olusturan_id ?? -1) || "Kullanıcı", me?.id ?? null));
   }
   // Silinmiş/gizlenmiş odalar RLS yüzünden gelmez; sessizce listeden düşerler.
-  return ids.map((id) => bul.get(id)).filter((r): r is Room => !!r);
+  // Rozetler burada da bağlanıyor: Odam sekmeleri bu yoldan geçiyor ve
+  // rozetsiz geldikleri için oda kartında/çipinde hiç görünmüyorlardı.
+  return rozetleriBagla(ids.map((id) => bul.get(id)).filter((r): r is Room => !!r));
 }
 
 /**
@@ -814,6 +809,17 @@ export function odaDegisiklikleriniDinle(geriCagir: () => void): () => void {
  * şampiyon" dün doğruysa bugün başka odanın olabilir, anlık görüntü tutmak
  * yanlış olurdu (060'taki sıralamayla aynı gerekçe).
  */
+/** Rozetleri odalara bağla — hem liste hem Odam aynı yoldan geçsin. */
+async function rozetleriBagla(odalar: Room[]): Promise<Room[]> {
+  const ids = odalar.map((o) => o.dbId).filter((x): x is number => x != null);
+  if (ids.length === 0) return odalar;
+  const harita = await odaRozetleri(ids).catch(() => new Map<number, RoomBadgeItem[]>());
+  return odalar.map((o) => {
+    const rz = o.dbId != null ? harita.get(o.dbId) : undefined;
+    return rz && rz.length > 0 ? { ...o, badges: rz } : o;
+  });
+}
+
 export async function odaRozetleri(odaIds: number[]): Promise<Map<number, RoomBadgeItem[]>> {
   const harita = new Map<number, RoomBadgeItem[]>();
   if (odaIds.length === 0) return harita;
@@ -821,7 +827,11 @@ export async function odaRozetleri(odaIds: number[]): Promise<Map<number, RoomBa
   if (!sb) return harita;
 
   const { data, error } = await sb.rpc("oda_rozetleri_getir", { p_oda_ids: odaIds });
-  if (error) return harita; // 066 uygulanmadıysa rozetsiz devam
+  if (error) {
+    // Sessizce boş dönmek "rozet yok" ile "sorgu patladı"yı aynı gösteriyordu.
+    console.warn("[rozet]", error.code, error.message);
+    return harita;
+  }
   for (const r of (data as { oda_id: number; kod: string; deger: number | null }[]) ?? []) {
     const liste = harita.get(r.oda_id) ?? [];
     liste.push({ type: r.kod as RoomBadgeItem["type"], n: r.deger ?? undefined });

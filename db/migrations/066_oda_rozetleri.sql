@@ -98,26 +98,27 @@ CREATE POLICY oda_rozet_katalog_oku ON public.oda_rozet_katalogu
 CREATE OR REPLACE FUNCTION public.oda_rozetleri_getir(p_oda_ids BIGINT[])
 RETURNS TABLE (oda_id BIGINT, kod TEXT, deger INTEGER, sira INTEGER)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+    -- DİKKAT: iç CTE sütunlarının hiçbiri RETURNS TABLE adlarıyla (oda_id,
+    -- kod, deger, sira) ÇAKIŞMAMALI. SQL fonksiyonunda çıkış parametreleri de
+    -- ad çözümlemesine giriyor; `deger` diye niteliksiz bir sütun kullanınca
+    -- "column reference is ambiguous" hatası veriyor ve istemci bunu sessizce
+    -- "rozet yok" diye yorumluyordu. Bu yüzden içeride hacim/basamak/oid.
     WITH hedef AS (
-        SELECT o.id, o.toplam_deneyim, o.olusturulma_tarihi
+        SELECT o.id AS oid, o.toplam_deneyim AS xp, o.olusturulma_tarihi AS acilis
           FROM public.odalar o
          WHERE o.id = ANY (p_oda_ids) AND NOT o.silinmis
     ),
     hafta AS (SELECT public._siralama_baslangic('hafta') AS an),
     gun7  AS (SELECT now() - INTERVAL '7 days' AS an),
-
-    -- Haftalık hediye hacmi + sıra
     hediye AS (
-        SELECT h.oda_id AS oid, SUM(h.toplam_deger)::BIGINT AS deger
+        SELECT h.oda_id AS oid, SUM(h.toplam_deger)::BIGINT AS hacim
           FROM public.hediye_gecmisi h, hafta w
          WHERE h.oda_id IS NOT NULL AND h.gonderilme_tarihi >= w.an
          GROUP BY h.oda_id
     ),
     hediye_sirali AS (
-        SELECT oid, deger, ROW_NUMBER() OVER (ORDER BY deger DESC, oid) AS sira FROM hediye
+        SELECT x.oid, x.hacim, ROW_NUMBER() OVER (ORDER BY x.hacim DESC, x.oid) AS basamak FROM hediye x
     ),
-
-    -- Son 7 günün ziyaretçi sayısı + popülerlik sırası
     ziyaret AS (
         SELECT z.oda_id AS oid, COUNT(DISTINCT z.kullanici_id) AS kisi
           FROM public.oda_ziyaretleri z, gun7 g
@@ -125,10 +126,8 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
          GROUP BY z.oda_id
     ),
     ziyaret_sirali AS (
-        SELECT oid, kisi, ROW_NUMBER() OVER (ORDER BY kisi DESC, oid) AS sira FROM ziyaret
+        SELECT y.oid, y.kisi, ROW_NUMBER() OVER (ORDER BY y.kisi DESC, y.oid) AS basamak FROM ziyaret y
     ),
-
-    -- Son 7 günün mesaj dağılımı (saatler Europe/Istanbul)
     mesaj AS (
         SELECT m.oda_id AS oid,
                COUNT(*) AS toplam,
@@ -142,8 +141,6 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
          WHERE m.gonderilme_tarihi >= g.an
          GROUP BY m.oda_id
     ),
-
-    -- Son üç günün her birinde hediye dönmüş mü
     seri AS (
         SELECT h.oda_id AS oid
           FROM public.hediye_gecmisi h
@@ -152,36 +149,35 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
          GROUP BY h.oda_id
         HAVING COUNT(DISTINCT (h.gonderilme_tarihi AT TIME ZONE 'Europe/Istanbul')::DATE) >= 3
     ),
-
     kural AS (
-        SELECT t.id, 'weekly_champion'::TEXT, NULL::INTEGER FROM hedef t JOIN hediye_sirali s ON s.oid = t.id WHERE s.sira = 1
-        UNION ALL SELECT t.id, 'weekly_top2', NULL FROM hedef t JOIN hediye_sirali s ON s.oid = t.id WHERE s.sira = 2
-        UNION ALL SELECT t.id, 'weekly_top3', NULL FROM hedef t JOIN hediye_sirali s ON s.oid = t.id WHERE s.sira = 3
-        UNION ALL SELECT t.id, 'top_gifter',  NULL FROM hedef t JOIN hediye_sirali s ON s.oid = t.id WHERE s.deger >= 50000
-        UNION ALL SELECT t.id, 'hot_streak',  NULL FROM hedef t JOIN seri s ON s.oid = t.id
-        UNION ALL SELECT t.id, 'popular',     NULL FROM hedef t JOIN ziyaret_sirali z ON z.oid = t.id WHERE z.sira <= 5 AND z.kisi >= 5
-        UNION ALL SELECT t.id, 'chat_master', NULL FROM hedef t JOIN mesaj m ON m.oid = t.id WHERE m.toplam >= 300
-        UNION ALL SELECT t.id, 'night_owl',   NULL FROM hedef t JOIN mesaj m ON m.oid = t.id WHERE m.toplam >= 30 AND m.gece * 2 >= m.toplam
-        UNION ALL SELECT t.id, 'early_bird',  NULL FROM hedef t JOIN mesaj m ON m.oid = t.id WHERE m.toplam >= 30 AND m.sabah * 5 >= m.toplam * 2
-        UNION ALL SELECT t.id, 'rising_star', NULL FROM hedef t JOIN ziyaret z ON z.oid = t.id
-                   WHERE t.olusturulma_tarihi >= now() - INTERVAL '7 days' AND z.kisi >= 15
-        UNION ALL SELECT t.id, 'level_master', NULL FROM hedef t
-                   WHERE (SELECT COUNT(*) FROM public.oda_seviyeleri sv WHERE sv.minimum_deneyim_puani <= t.toplam_deneyim) >= 10
-        -- Seviye rozeti sayılıdır: gösterilecek değer odanın seviyesi.
-        UNION ALL SELECT t.id, 'lv',
-                   GREATEST(1, (SELECT COUNT(*)::INTEGER FROM public.oda_seviyeleri sv WHERE sv.minimum_deneyim_puani <= t.toplam_deneyim))
+        SELECT t.oid, 'weekly_champion'::TEXT AS rozet, NULL::INTEGER AS sayi FROM hedef t JOIN hediye_sirali s ON s.oid = t.oid WHERE s.basamak = 1
+        UNION ALL SELECT t.oid, 'weekly_top2', NULL FROM hedef t JOIN hediye_sirali s ON s.oid = t.oid WHERE s.basamak = 2
+        UNION ALL SELECT t.oid, 'weekly_top3', NULL FROM hedef t JOIN hediye_sirali s ON s.oid = t.oid WHERE s.basamak = 3
+        UNION ALL SELECT t.oid, 'top_gifter',  NULL FROM hedef t JOIN hediye_sirali s ON s.oid = t.oid WHERE s.hacim >= 50000
+        UNION ALL SELECT t.oid, 'hot_streak',  NULL FROM hedef t JOIN seri s ON s.oid = t.oid
+        UNION ALL SELECT t.oid, 'popular',     NULL FROM hedef t JOIN ziyaret_sirali z ON z.oid = t.oid WHERE z.basamak <= 5 AND z.kisi >= 5
+        UNION ALL SELECT t.oid, 'chat_master', NULL FROM hedef t JOIN mesaj m ON m.oid = t.oid WHERE m.toplam >= 300
+        UNION ALL SELECT t.oid, 'night_owl',   NULL FROM hedef t JOIN mesaj m ON m.oid = t.oid WHERE m.toplam >= 30 AND m.gece * 2 >= m.toplam
+        UNION ALL SELECT t.oid, 'early_bird',  NULL FROM hedef t JOIN mesaj m ON m.oid = t.oid WHERE m.toplam >= 30 AND m.sabah * 5 >= m.toplam * 2
+        UNION ALL SELECT t.oid, 'rising_star', NULL FROM hedef t JOIN ziyaret z ON z.oid = t.oid
+                   WHERE t.acilis >= now() - INTERVAL '7 days' AND z.kisi >= 15
+        UNION ALL SELECT t.oid, 'level_master', NULL FROM hedef t
+                   WHERE (SELECT COUNT(*) FROM public.oda_seviyeleri sv WHERE sv.minimum_deneyim_puani <= t.xp) >= 10
+        UNION ALL SELECT t.oid, 'lv',
+                   GREATEST(1, (SELECT COUNT(*)::INTEGER FROM public.oda_seviyeleri sv WHERE sv.minimum_deneyim_puani <= t.xp))
               FROM hedef t
     ),
     elle AS (
-        SELECT r.oda_id, r.kod, NULL::INTEGER
+        SELECT r.oda_id AS oid, r.kod AS rozet, NULL::INTEGER AS sayi
           FROM public.oda_rozetleri r
-          JOIN hedef t ON t.id = r.oda_id
+          JOIN hedef t ON t.oid = r.oda_id
          WHERE r.bitis IS NULL OR r.bitis > now()
-    )
-    SELECT b.id, b.kod, b.deger, COALESCE(k.sira, 99)
-      FROM (SELECT * FROM kural UNION ALL SELECT * FROM elle) AS b(id, kod, deger)
-      LEFT JOIN public.oda_rozet_katalogu k ON k.kod = b.kod
-     WHERE b.kod = 'lv' OR COALESCE(k.aktif, FALSE)
+    ),
+    tumu AS (SELECT * FROM kural UNION ALL SELECT * FROM elle)
+    SELECT b.oid, b.rozet, b.sayi, COALESCE(k.sira, 99)::INTEGER
+      FROM tumu b
+      LEFT JOIN public.oda_rozet_katalogu k ON k.kod = b.rozet
+     WHERE b.rozet = 'lv' OR COALESCE(k.aktif, FALSE)
      ORDER BY 1, 4, 2;
 $$;
 REVOKE ALL ON FUNCTION public.oda_rozetleri_getir(BIGINT[]) FROM PUBLIC, anon;
