@@ -173,8 +173,11 @@ export default function Home() {
    *   • boş             — içinde kimse olmayan odaya sokmanın faydası yok
    * (Silinmiş odalar zaten sunucuda RLS ile eleniyor.)
    *
-   * Kendi odam için istisna YOK: sahip odasına profildeki "Odam"
-   * bölümünden giriyor, listeye boş oda düşürmeye gerek kalmıyor.
+   * KENDİ ODAM İSTİSNA (30 Ağustos'ta değişti). Önceden istisna yoktu ve
+   * sonuç şuydu: odandayken sayaç 1, listeye bakmak için çıkınca 0 — yani
+   * kendi odanı listede ASLA göremiyordun, çünkü görmek için çıkman gerekiyor.
+   * Kullanıcı bunu üç kez hata sandı, haklı olarak. Artık boş olsa bile
+   * sahibine görünüyor; başkalarına görünmüyor (onlar için hâlâ boş oda).
    */
   const gorunur = useMemo(() => {
     const yasak = new Set(yasakliOdaIds ?? []);
@@ -182,6 +185,7 @@ export default function Home() {
       if (r.locked) return false;
       if (r.islemGordu) return false;
       if (r.dbId != null && yasak.has(r.dbId)) return false;
+      if (r.owner) return true; // kendi odam — boşken de bana görünsün
       return r.online > 0;
     });
   }, [dbRooms, yasakliOdaIds]);
