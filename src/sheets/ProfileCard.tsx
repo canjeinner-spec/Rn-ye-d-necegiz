@@ -1,4 +1,3 @@
-import { BlurView } from "expo-blur";
 import { type ReactNode, useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import Animated, { SlideInDown } from "react-native-reanimated";
@@ -12,6 +11,7 @@ import { PngBadge } from "@/components/PngBadge";
 import { FramePreview } from "@/components/FramePreview";
 import { Portrait } from "@/components/Portrait";
 import { RolePill } from "@/components/RolePill";
+import { CamZemin } from "@/components/CamZemin";
 import { Txt } from "@/components/Txt";
 import { levelTierBadge } from "@/data/badges";
 import { getFollowCounts } from "@/data/remote/followRepo";
@@ -242,8 +242,9 @@ export function ProfileCard({
           <Pressable>
             {/* Rozet açıklama kartıyla aynı cam doku: yoğun bulanıklık, çok düşük
                 dolgu opaklığı. Arkadaki oda hafifçe görünsün diye kalın gradyan yok. */}
-            <BlurView intensity={22} tint="dark" style={StyleSheet.absoluteFill} />
-            <Gradient colors={["rgba(30,26,42,0.30)", "rgba(12,11,18,0.42)"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
+            {/* Gradyan bilerek çok saydam (0.30 → 0.42): iOS'te blur onu
+                tamamlıyor. Android'de blur çalışmadığı için perde telafi ediyor. */}
+            <CamZemin intensity={22} colors={["rgba(30,26,42,0.30)", "rgba(12,11,18,0.42)"]} deg={170} perde={0.40} />
 
             {/* Role göre renklenen tepe ışığı + üst kenardaki ince parıltı */}
             {!reportView && (

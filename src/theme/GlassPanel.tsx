@@ -1,8 +1,7 @@
-import { BlurView } from "expo-blur";
 import { type ReactNode } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
-import { Gradient } from "./Gradient";
+import { CamZemin } from "@/components/CamZemin";
 
 /**
  * Web mockup'taki `.gpanel` (LIQUID GLASS PANEL) standardının RN karşılığı.
@@ -33,13 +32,13 @@ export function GlassPanel({
 
   return (
     <View style={[styles.wrap, borderRadius, style]}>
-      <BlurView intensity={intensity} tint="dark" style={StyleSheet.absoluteFill} />
-      <Gradient
+      {/* Zaten koyu bir gradyan var; Android perdesi hafif tutuluyor. */}
+      <CamZemin
+        intensity={intensity}
         colors={["rgba(40,36,55,0.78)", "rgba(15,13,21,0.9)"]}
         deg={168}
         locations={[0, 0.6]}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
+        perde={0.14}
       />
       {glint && <View style={styles.glint} pointerEvents="none" />}
       {children}

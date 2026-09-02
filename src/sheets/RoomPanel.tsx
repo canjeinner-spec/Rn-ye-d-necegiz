@@ -1,4 +1,3 @@
-import { BlurView } from "expo-blur";
 import * as Clipboard from "expo-clipboard";
 import { Image } from "expo-image";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -10,6 +9,7 @@ import { Portrait } from "@/components/Portrait";
 import { RolePill } from "@/components/RolePill";
 import { RoomBadges } from "@/components/RoomBadges";
 import { Scene } from "@/components/Scene";
+import { CamZemin } from "@/components/CamZemin";
 import { Txt } from "@/components/Txt";
 import { getRoomMembers, joinRoomMembership, leaveRoomMembership, odaTakipEt, odaTakiptenCik, odaTakiptenMi, removeRoomMember, setRoomMemberRole, type RoomMember, type RoomRole } from "@/data/remote/roomsRepo";
 import { type Room } from "@/data/seed";
@@ -186,8 +186,7 @@ export function RoomPanel(props: Props) {
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Animated.View entering={SlideInDown.duration(300)} style={styles.sheet}>
           <Pressable style={{ flex: 1 }}>
-            <BlurView intensity={26} tint="dark" style={StyleSheet.absoluteFill} />
-            <Gradient colors={["rgba(24,21,34,0.62)", "rgba(11,10,16,0.80)"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
+            <CamZemin intensity={26} colors={["rgba(24,21,34,0.62)", "rgba(11,10,16,0.80)"]} deg={170} perde={0.24} />
 
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
               {/* ---- Kapak ----
