@@ -870,8 +870,11 @@ export default function RoomScreen() {
   /** Davet kabul edilince: seçilen koltuk hâlâ uygunsa oraya, değilse ilk boşa. */
   const daveteKatilRef = useRef<(koltuk: number) => void>(() => {});
 
-  /** Davet edilecek kişi seçildi, şimdi koltuk seçiliyor. */
-  const [davetSec, setDavetSec] = useState<{ uid: number; ad: string } | null>(null);
+  /**
+   * Koltuk seçimi bekleyen işlem — hem davet hem sıra onayı buradan geçiyor.
+   * Koltuğu her iki akışta da YETKİLİ seçiyor; karşı tarafa sorulmuyor.
+   */
+  const [davetSec, setDavetSec] = useState<{ uid: number; ad: string; nicin: "davet" | "onay" } | null>(null);
   const tepkiGoster = useCallback((uid: number, emoji: string) => {
     setTepkiler((t) => ({ ...t, [uid]: emoji }));
     setTimeout(() => setTepkiler((t) => { const y = { ...t }; delete y[uid]; return y; }), 1700);
@@ -1622,16 +1625,31 @@ export default function RoomScreen() {
         toast("Sıradan çıkarılamadı");
       });
   };
-  const approveHand = (uid: number) => {
+  /** Sıradakini al — önce hangi koltuğa oturacağını seç. */
+  const approveHand = (uid: number, ad: string) => {
+    if (dbId == null) return;
+    const bosVar = gosterilenKoltuklar.some((s2, i) => !s2 && !seatLocks[i]);
+    if (!bosVar) { toast("Boş koltuk yok — önce yer açman gerekiyor"); return; }
+    haptic.light();
+    // Sıra sayfası kapanıyor, yerine koltuk seçimi geliyor.
+    setQueueOpen(false);
+    setDavetSec({ uid, ad, nicin: "onay" });
+  };
+
+  /** Koltuk seçildikten sonra sunucuya git. */
+  const onayiTamamla = (uid: number, koltuk: number) => {
     if (dbId == null) return;
     haptic.success();
-    // Onaydan sonra sıra sayfası açık kalmasın — iş bitti, sahneye dön.
-    setQueueOpen(false);
-    // Onay sunucuda oturtuyor — karşı tarafın istemcisine güvenmiyoruz.
-    micSirasiOnayla(dbId, uid).catch((e) => {
+    micSirasiOnayla(dbId, uid, koltuk).catch((e) => {
       const mesaj = (e as Error)?.message || String(e);
       console.warn("[mic-sirasi] onaylanamadi:", mesaj);
-      toast(mesaj.includes("Boş koltuk") ? "Boş koltuk yok" : mesaj.includes("yasağı") ? "Kullanıcının mikrofon yasağı var" : "Onaylanamadı");
+      toast(
+        mesaj.includes("dolu") ? "O koltuk bu arada doldu"
+          : mesaj.includes("kilitli") ? "O koltuk kilitli"
+            : mesaj.includes("Boş koltuk") ? "Boş koltuk yok"
+              : mesaj.includes("yasağı") ? "Kullanıcının mikrofon yasağı var"
+                : "Onaylanamadı",
+      );
     });
   };
   const myRaised = myDbId != null && micQueue.some((e) => e.uid === myDbId);
@@ -1668,7 +1686,7 @@ export default function RoomScreen() {
   const davetBaslat = (uid: number, ad: string) => {
     const bosVar = gosterilenKoltuklar.some((s2, i) => !s2 && !seatLocks[i]);
     if (!bosVar) { toast("Boş koltuk yok — önce yer açman gerekiyor"); return; }
-    setDavetSec({ uid, ad });
+    setDavetSec({ uid, ad, nicin: "davet" });
   };
 
   /**
@@ -2346,7 +2364,10 @@ export default function RoomScreen() {
           // sahip sıraya giremez → "El Kaldır" butonu hiç çıkmasın
           onRaise={isMine ? undefined : raiseHand}
           onLower={lowerHand}
-          onApprove={approveHand}
+          onApprove={(uid) => {
+            const kisi = micQueue.find((q) => q.uid === uid);
+            approveHand(uid, kisi?.name || "Kullanıcı");
+          }}
           onClose={() => setQueueOpen(false)}
         />
       )}
@@ -2377,7 +2398,8 @@ export default function RoomScreen() {
           </View>
           <Txt weight="displayBold" size={16} color="#fff" align="center" style={{ marginTop: 14 }}>Hangi koltuğa?</Txt>
           <Txt size={12.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 8 }}>
-            <Txt weight="extrabold" size={12.5} color={C.gold2}>{davetSec?.ad}</Txt> için boş bir koltuk seç.
+            <Txt weight="extrabold" size={12.5} color={C.gold2}>{davetSec?.ad}</Txt>
+            {davetSec?.nicin === "onay" ? " sıradan alınıyor — koltuğu sen seç." : " için boş bir koltuk seç."}
           </Txt>
 
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center", marginTop: 18 }}>
@@ -2388,7 +2410,10 @@ export default function RoomScreen() {
                   onPress={() => {
                     const hedef = davetSec;
                     setDavetSec(null);
-                    if (hedef) { haptic.light(); micDavetYolla(hedef.uid, i); }
+                    if (!hedef) return;
+                    haptic.light();
+                    if (hedef.nicin === "onay") onayiTamamla(hedef.uid, i);
+                    else micDavetYolla(hedef.uid, i);
                   }}
                   style={styles.davetKoltuk}
                 >

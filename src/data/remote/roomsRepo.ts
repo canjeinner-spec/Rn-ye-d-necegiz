@@ -1090,10 +1090,20 @@ export async function micSirasindanCik(odaId: number, hedefId?: number): Promise
   if (error) throw error;
 }
 
-/** Yönetici onayı — sunucu hedefi ilk boş ve kilitsiz koltuğa oturtur. */
-export async function micSirasiOnayla(odaId: number, hedefId: number): Promise<void> {
+/**
+ * Yönetici onayı (071).
+ *
+ * `koltuk` verilirse hedef O koltuğa oturuyor; verilmezse sunucu ilk boş ve
+ * kilitsiz koltuğu seçiyor. Koltuğu ONAYLAYAN seçiyor — sıraya giren kişiye
+ * sorulmuyor, o yalnızca el kaldırmış oluyor.
+ */
+export async function micSirasiOnayla(odaId: number, hedefId: number, koltuk?: number): Promise<void> {
   const sb = requireSupabase();
-  const { error } = await sb.rpc("mic_sirasi_onayla", { p_oda: odaId, p_hedef: hedefId });
+  const { error } = await sb.rpc("mic_sirasi_onayla", {
+    p_oda: odaId,
+    p_hedef: hedefId,
+    p_koltuk: koltuk == null ? null : istemcidenDbye(koltuk),
+  });
   if (error) throw error;
 }
 
