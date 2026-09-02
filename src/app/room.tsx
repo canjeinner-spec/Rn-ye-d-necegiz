@@ -523,18 +523,6 @@ export default function RoomScreen() {
   /** Kendi kuşandıklarım (056) — kendi mesajım ve giriş efektim için. */
   const kusanili = useApp((s) => s.kusanili);
 
-  // Kendi giriş efektim: odaya her girişte bir kez oynar.
-  //
-  // Önceden presence SUBSCRIBED dalında tetikleniyordu; presence yalnızca
-  // GERÇEK (DB) odalarda kuruluyor, demo odalarda hiç çalışmıyordu — bu
-  // yüzden efekt "bazen" oynuyor gibi görünüyordu. Artık odanın türünden
-  // bağımsız: ekran açılır açılmaz kuşandığın efekt oynar.
-  useEffect(() => {
-    const g = useApp.getState().kusanili.giris;
-    if (!g) return;
-    setGirisKuyrugu((q) => [...q, { anahtar: `ben-${Date.now()}`, uid: useApp.getState().dbId ?? undefined, ad: useApp.getState().userName, tema: g }]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   /** Sırayla oynayacak giriş bildirimleri (aynı anda tek hap). tema null → sade. */
   const [girisKuyrugu, setGirisKuyrugu] = useState<{ anahtar: string; uid?: number; ad: string; tema: string | null }[]>([]);
   /** Bir önceki sync'te odada olanlar — kimin YENİ girdiğini bundan çıkarıyoruz. */
