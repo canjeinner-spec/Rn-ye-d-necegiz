@@ -1284,9 +1284,37 @@ export default function RoomScreen() {
     // Giriş efekti — olay olarak. Kendi efektimi mount'ta zaten oynatıyorum,
     // bu yüzden kendi yayınımı eliyorum.
     ch.on("broadcast", { event: "giris" }, ({ payload }) => {
-      const p = payload as { cihaz?: string; uid?: number; ad?: string; tema?: string | null };
+      const p = payload as {
+        cihaz?: string; uid?: number; ad?: string; tema?: string | null;
+        foto?: string | null; publicId?: string | null; yetkili?: boolean;
+      };
       if (!alive || p.cihaz === CIHAZ) return;
       setGirisKuyrugu((q) => [...q, { anahtar: `g${p.uid ?? "x"}-${q.length}`, uid: p.uid, ad: p.ad || "Kullanıcı", tema: p.tema ?? null }]);
+
+      // Sayaç ve kişi listesi de ANINDA. Tablo olayı (WAL → Realtime) biraz
+      // sonra gelip aynı sonucu onaylıyor; kaçarsa tazeleme düzeltiyor.
+      if (p.uid == null) return;
+      const uid = p.uid;
+      setOdadakiler((onceki) =>
+        onceki.some((m) => m.uid === uid)
+          ? onceki
+          : [...onceki, {
+              uid,
+              name: p.ad || "Kullanıcı",
+              photo: p.foto || undefined,
+              publicId: p.publicId || undefined,
+              yetkili: !!p.yetkili,
+              at: Date.now(),
+            }],
+      );
+    });
+
+    // Odadan çıkış — sayaç anında düşsün.
+    ch.on("broadcast", { event: "cikis" }, ({ payload }) => {
+      const p = payload as { cihaz?: string; uid?: number };
+      if (!alive || p.cihaz === CIHAZ || p.uid == null) return;
+      const uid = p.uid;
+      setOdadakiler((onceki) => onceki.filter((m) => m.uid !== uid));
     });
 
     // Koltuk ve kilit olayları KALDIRILDI: broadcast hızlıydı ama kararsızdı
@@ -1392,7 +1420,17 @@ export default function RoomScreen() {
       ch.send({
         type: "broadcast",
         event: "giris",
-        payload: { cihaz: CIHAZ, uid: myDbId, ad: userName, tema: useApp.getState().kusanili.giris || null },
+        payload: {
+          cihaz: CIHAZ,
+          uid: myDbId,
+          ad: userName,
+          tema: useApp.getState().kusanili.giris || null,
+          // Katılımcı sayacı da bu olaydan anında besleniyor; avatarın
+          // hemen çıkması için foto/publicId de taşınıyor.
+          foto: userPhoto || null,
+          publicId: myPublicId || null,
+          yetkili: privileged,
+        },
       })
         .then((r) => { if (r !== "ok") console.warn("[giris] yayinlanamadi:", r); })
         .catch((e) => console.warn("[giris] yayin hatasi:", (e as Error)?.message || e));
@@ -1419,6 +1457,18 @@ export default function RoomScreen() {
        * bu tabloyu üretiyor.
        */
       if (chanRef.current === ch) chanRef.current = null;
+
+      /**
+       * Gerçekten çıkıyorsak sayaç karşı tarafta ANINDA düşsün.
+       *
+       * Kanal birazdan kapanacağı için beklemeden atıyoruz ve `untrack` /
+       * `removeChannel` çağrılarından ÖNCE koyuyoruz — sonrasına koyunca
+       * kapanmayla yarışıyor. Tablodan silme (`odadan_ayril`) arkadan
+       * geliyor ve asıl doğruyu o söylüyor.
+       */
+      if (!useApp.getState().inRoom) {
+        ch.send({ type: "broadcast", event: "cikis", payload: { cihaz: CIHAZ, uid: myDbId } }).catch(() => {});
+      }
       // ÖNCE "ben çıktım" gitsin, SONRA kanal kapansın — ÇIKIŞ GECİKMESİNİN
       // SEBEBİ BUYDU. `untrack()` asenkron; beklemeden `removeChannel`
       // çağrılınca mesaj gitmeden soket kapanıyor ve karşı taraf seni ancak
@@ -1445,6 +1495,8 @@ export default function RoomScreen() {
       if (!useApp.getState().inRoom) {
         logRoomMovement(dbId, "cikis"); // best-effort
         koltuktanKalk(dbId).catch(() => {});
+        // Sayaç karşı tarafta anında düşsün; tablo silme işlemi arkadan
+        // geliyor. Kanal birazdan kapanacak, bu yüzden beklemeden atıyoruz.
       }
       // Son çıkan sayacı sıfırlar; başkaları kaldıysa kalan en küçük uid bir
       // sonraki sync'te doğru sayıyı zaten yazacak.
