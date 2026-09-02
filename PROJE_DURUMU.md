@@ -191,6 +191,8 @@ Hepsi **idempotent** (`CREATE OR REPLACE`, `IF NOT EXISTS`) — tekrar
 | 068 | oda_koltuklari | Koltuk/mikrofon/kilit **var olan** `oda_koltuklari` tablosuna; RPC + realtime + RLS ✅ |
 | 069 | mic_akislari | `koltuktan_indir`, `oda_mic_sirasi` tablosu, sıraya gir/çık/onayla, mic yasağı sunucuda ✅ |
 | 070 | oda_katilimcilari | `oda_katilimcilar` + kalp atışı devreye alındı; `oda_kisi_sayilari` ✅ |
+| 071 | mic_sirasi_koltuk_secimi | `mic_sirasi_onayla(oda, hedef, koltuk DEFAULT NULL)` — onaylayan koltuğu seçebiliyor (eski 2-arg sürüm DROP) ✅ |
+| 072 | oda_moderatoru_sozluk | `_oda_moderatoru` YANLIŞ sözlüğe bakıyordu (`yonetici/moderator` ölü enum değerleri) → `('sahip','yardimci')`; yardımcının mic yetkileri sunucuda ilk kez çalışıyor ⏳ |
 | 048 | hesap_yasak_dm | `hesap_yasak_ver/kaldir` OR REPLACE → yasak verilince/kalkınca hedefe kalıcı **Sistem DM'i** (sebep+süre; yasaklı ancak yasağı kalkınca görür) + bildirim |
 
 **Birleşik dosyalar:**
@@ -716,6 +718,13 @@ anlamsız bir bildirim. Kabul edilince zaten `koltuga_otur` çağrılıyor.
 
 > **KALAN:** "sustur" (başkasını susturma) hâlâ yerel — sunucu tarafı RPC yok.
 > Ayrı iş.
+
+> **072'de yakalanan 069 mantık hatası:** `_oda_moderatoru` sözlüğü
+> `('sahip','yonetici','moderator')` idi ama `oda_uyeleri.rol` CHECK kısıtı
+> yalnız `'sahip','yardimci','uye'` kabul ediyor — yardımcı için sorgu HER
+> ZAMAN false dönüyordu; butonlar görünüyor, sunucu reddediyordu. KURAL:
+> **`oda_yetkileri` tablosu ve `oda_rolu` enum'u ÖLÜDÜR, canlandırılmayacak.**
+> Oda içi rol sözlüğünün tek kaynağı `oda_uyeleri.rol` CHECK kısıtıdır.
 
 ### ⌨️ ANDROID KLAVYE: sahne gizleniyor (31 Ağustos)
 
