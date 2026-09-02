@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -8,8 +8,11 @@ import { Portrait } from "@/components/Portrait";
 import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
+
 import {
   katildigimOdalar,
+  odaKisiSayilari,
+  odaKisiSayilariniDinle,
   sonZiyaretEdilenOdalar,
   takipEttigimOdalar,
   type OdamOdasi,
@@ -91,14 +94,53 @@ function RoomCard({ room, altYazi, onPress }: { room: OdamOdasi; altYazi?: strin
 
 export default function MyRoomHub() {
   const router = useRouter();
-  const { myRoom, userName, userPhoto, createMyRoom, odayaGirDene } = useApp();
+  const { myRoom, userName, userPhoto, createMyRoom, odayaGirDene, session } = useApp();
   const [tab, setTab] = useState(0);
   const [creating, setCreating] = useState(false);
+
+  /**
+   * "Odam" satırındaki kişi sayısı da presence'tan geliyor (karar 30 Ağustos).
+   * Eskiden `myRoom.live` DB sayacını (`aktif_katilimci_sayisi`) okuyordu:
+   * odanın İÇİNDEYKEN bile "Şu an boş" yazıyordu, çünkü sayacı ancak odadaki
+   * en küçük uid'ye sahip istemci yazıyor. Oda listesiyle aynı kaynağı
+   * kullanmak ikisinin çelişmesini de bitiriyor — bkz. 070 katılımcı tablosu.
+   */
+  const [canli, setCanli] = useState<{ sayilar: Map<number, number>; hazir: boolean }>({
+    sayilar: new Map(),
+    hazir: false,
+  });
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let acik = true;
+    const yukle = () =>
+      odaKisiSayilari()
+        .then((m) => { if (acik) setCanli({ sayilar: m, hazir: true }); })
+        .catch((e) => console.warn("[oda-sayi] okunamadi:", (e as Error)?.message || e));
+    yukle();
+    const bitir = odaKisiSayilariniDinle(yukle);
+    return () => { acik = false; bitir(); };
+  }, []);
+  // Oda listesiyle AYNI kural: iki kaynağın büyüğü. Presence bir odayı
+  // ıskalarsa DB sayacı devreye giriyor, tersi de geçerli — tek kaynağa
+  // indirgeme denemesi dolu odaları boş gösteriyordu.
+  const odamPresence =
+    myRoom?.dbId != null && canli.hazir ? canli.sayilar.get(myRoom.dbId) ?? 0 : 0;
+  const odamSayi = Math.max(odamPresence, myRoom?.online ?? 0);
 
   /** Sekme başına liste; null = henüz yüklenmedi. */
   const [listeler, setListeler] = useState<(OdamOdasi[] | null)[]>([null, null, null]);
   const [yenileniyor, setYenileniyor] = useState(false);
   const [hata, setHata] = useState<string | null>(null);
+  /** Oda kurulamadıysa kullanıcıya SÖYLENİR — eskiden sessizce yutuluyordu. */
+  const [odaHatasi, setOdaHatasi] = useState<string | null>(null);
+
+  /**
+   * `dbId`si olmayan oda veritabanında YOKTUR. Oturum varken böyle bir oda
+   * elimizde kaldıysa, bu eski sessiz-hata düşüşünden kalma bir hayalet
+   * demektir (bkz. appStore.createMyRoom): içine girilir ama kimse göremez.
+   * Onu "odam" saymıyoruz; gerçeğini kurmayı/çekmeyi deniyoruz.
+   */
+  const odamGercek = !!myRoom && (myRoom.dbId != null || !isSupabaseConfigured || !session);
   const list = listeler[tab];
 
   const yukle = useCallback(async (i: number) => {
@@ -129,7 +171,7 @@ export default function MyRoomHub() {
 
   const enterMine = async () => {
     haptic.light();
-    if (myRoom) {
+    if (odamGercek && myRoom) {
       // Kendi odan da perdeden geçiyor: odaya işlem uygulandıysa (054) sahibi
       // de uyarıyı görmeli — düzenleme kapalı ve oda listelerde görünmüyor.
       odayaGirDene(myRoom);
@@ -137,9 +179,16 @@ export default function MyRoomHub() {
     }
     if (creating) return;
     setCreating(true);
+    setOdaHatasi(null);
     try {
       await createMyRoom();
       router.navigate("/room");
+    } catch (e) {
+      // Hata artık YUTULMUYOR. Sessiz düşüş, kullanıcıya gerçek gibi görünen
+      // ama hiçbir listeye düşmeyen sahte oda üretiyordu.
+      const mesaj = (e as Error)?.message || String(e);
+      console.warn("[odam] oda kurulamadi:", mesaj);
+      setOdaHatasi(`Oda kurulamadı: ${mesaj}`);
     } finally {
       setCreating(false);
     }
@@ -174,15 +223,15 @@ export default function MyRoomHub() {
               {(myRoom?.photo || userPhoto) ? <Image source={{ uri: myRoom?.photo || userPhoto || "" }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind="club" />}
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Txt weight="extrabold" size={15} color="#fff" numberOfLines={1}>{myRoom ? myRoom.name : `${userName} Odası`}</Txt>
-              {myRoom ? (
+              <Txt weight="extrabold" size={15} color="#fff" numberOfLines={1}>{odamGercek && myRoom ? myRoom.name : `${userName} Odası`}</Txt>
+              {odamGercek && myRoom ? (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 6 }}>
                   <View style={styles.idHap}>
                     <Txt weight="bold" size={9.5} color={C.gold2}>ID {myRoom.id}</Txt>
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                    <View style={[styles.nokta, { backgroundColor: myRoom.live ? C.green : C.dim2 }]} />
-                    <Txt weight="semibold" size={10.5} color={C.dim}>{myRoom.live ? `${myRoom.online} kişi içeride` : "Şu an boş"}</Txt>
+                    <View style={[styles.nokta, { backgroundColor: odamSayi > 0 ? C.green : C.dim2 }]} />
+                    <Txt weight="semibold" size={10.5} color={C.dim}>{odamSayi > 0 ? `${odamSayi} kişi içeride` : "Şu an boş"}</Txt>
                   </View>
                 </View>
               ) : (
@@ -190,10 +239,22 @@ export default function MyRoomHub() {
               )}
             </View>
             <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.mineBtn}>
-              <Txt weight="extrabold" size={12.5} color="#241A05">{myRoom ? "Gir" : "Oluştur"}</Txt>
+              <Txt weight="extrabold" size={12.5} color="#241A05">{odamGercek ? "Gir" : "Oluştur"}</Txt>
               <Icon name="chev" size={13} sw={2.2} color="#241A05" />
             </Gradient>
           </Pressable>
+
+          {/* Oda kurulamadıysa SÖYLE. Eskiden hata yutulup dbId'siz sahte bir
+              oda veriliyordu; kullanıcı odası varmış sanıyor, oda hiçbir
+              listeye düşmüyordu. */}
+          {odaHatasi && (
+            <View style={styles.odaHata}>
+              <Icon name="warn" size={13} color="#F59E0B" />
+              <Txt size={11} weight="semibold" color="#F59E0B" style={{ flex: 1 }} lh={1.4}>
+                {odaHatasi}
+              </Txt>
+            </View>
+          )}
 
           {/* Elle çizilmiş yeşil çizgili sekmeler yerine ortak Tabs
               (kayan altın çizgi) — uygulamanın her yerindeki sekmelerle aynı. */}
@@ -231,6 +292,7 @@ export default function MyRoomHub() {
 }
 
 const styles = StyleSheet.create({
+  odaHata: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 10, paddingVertical: 9, paddingHorizontal: 11, borderRadius: 10, backgroundColor: "rgba(245,158,11,.10)", borderWidth: 1, borderColor: "rgba(245,158,11,.32)" },
   root: { flex: 1, backgroundColor: C.bg },
   aura: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },

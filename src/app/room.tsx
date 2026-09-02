@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AppState,
   Dimensions,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -38,8 +39,7 @@ import { type Gift, TIER_RING } from "@/data/gifts";
 import { hediyeGonder } from "@/data/remote/hediyeRepo";
 import { reportRoom } from "@/data/remote/reportRepo";
 import { addXp } from "@/data/remote/xpRepo";
-import { varlikBildir, varliktanCik } from "@/data/remote/odaVarlik";
-import { odaSahibi, type OdaSahibi, amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, logRoomMovement, odaKatilimciYaz, toScene, ziyaretKaydet, type MicBan } from "@/data/remote/roomsRepo";
+import { odaSahibi, type OdaSahibi, amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, koltugaOtur, koltukKilitle, koltukMicAyarla, koltuklariDinle, koltuklariGetir, koltuktanIndir, koltuktanKalk, type KoltukSatiri, micSirasiGetir, micSirasindanCik, micSirasinaGir, micSirasiniDinle, micSirasiOnayla, odadanAyril, odaKalpAtisi, odaKatilimcilariGetir, odaKatilimcilariniDinle, odayaKatil, type OdaKatilimcisi, logRoomMovement, odaKatilimciYaz, toScene, ziyaretKaydet, type MicBan } from "@/data/remote/roomsRepo";
 import { BALON_TEMALARI } from "@/data/esyaTemalari";
 import { FramePreview } from "@/components/FramePreview";
 import { GirisEfekti } from "@/components/GirisEfekti";
@@ -70,6 +70,31 @@ import { Gradient } from "@/theme/Gradient";
  * WePlay'in aksine sahibin altında isim ve yetki etiketi de var, 1.65
  * fazla baskın duruyordu.
  */
+/**
+ * BU CİHAZIN oturum kimliği — uygulama açık kaldığı sürece sabit.
+ *
+ * NEDEN: presence anahtarı ve "bu mesaj benim mi" kontrolü yalnız `uid`e
+ * bakıyordu. Aynı hesapla İKİ CİHAZDAN girildiğinde (test ederken tam olarak
+ * bu yapılıyor) ikisi de aynı uid'i taşıdığı için:
+ *   • presence anahtarı ÇAKIŞIYOR → iki cihaz tek presence slotunu eziyor,
+ *     karşı taraf mikrofona çıkışı/koltuğu göremiyor,
+ *   • gelen mesaj "kendi echo'm" sanılıp `return` ediliyor → diğer cihazdan
+ *     yazılan sohbet hiç görünmüyor.
+ * Cihaz kimliği ikisini de ayırır; farklı hesaplarda da zararsız.
+ */
+const CIHAZ = `c${Math.random().toString(36).slice(2, 10)}`;
+
+/**
+ * Arkaplanda bu kadar kalinca odadan otomatik dusuluyor.
+ *
+ * NEDEN: uygulama arkaplana alininca soket kapaniyor ama presence kaydi bir
+ * sure sunucuda asili kaliyor. Sen odadan cikmis oluyorsun, karsi taraf seni
+ * hala mikrofonda goruyor — kullanicinin "mikrofona cik dedigim icin oyle
+ * odada kaliyor" dedigi hayalet durumu bu. Kisa uygulama gecislerini
+ * cezalandirmamak icin hemen degil, bu sure sonunda dusuruyoruz.
+ */
+const ARKAPLAN_MS = 20000;
+
 const { width: EKRAN } = Dimensions.get("window");
 const KOLTUK = Math.round((EKRAN / 4) * 0.512);
 const SAHIP_KOLTUK = Math.round(KOLTUK * 1.5);
@@ -172,7 +197,13 @@ function SeatItem({
             name={seat.name}
             size={KOLTUK}
             muted={seat.muted}
-            photo={isMe ? userPhoto || undefined : undefined}
+            // BUG (31 Ağustos): ikinci dal HER ZAMAN `undefined` idi. Koltuktaki
+            // kişinin fotoğrafı presence'tan geliyor ve `seat.photo` içinde
+            // duruyor ama Portrait'e hiç verilmiyordu — bu yüzden mikrofona
+            // oturan herkes boş silüet, altında sadece adı görünüyordu.
+            // (Aynı hata host koltuğunda daha önce bulunup düzeltilmiş, sıradan
+            // koltuklarda gözden kaçmış.) Ağ sorunu değil, çizim hatası.
+            photo={isMe ? userPhoto || undefined : seat.photo}
             ring={cerceveTema ? "transparent" : ring}
             glow={!cerceveTema && (seat.speaking || seat.host || seat.mod)}
           />
@@ -189,7 +220,7 @@ function SeatItem({
       <Txt weight="medium" size={9.5} color={isMe ? C.gold : C.text} numberOfLines={1} style={{ maxWidth: 68 }}>
         {isMe ? userName : seat.name}
       </Txt>
-      {isMe && privileged && <AuthorityTag size={8} />}
+      {seat.yetki && <AuthorityTag size={8} />}
     </Pressable>
   );
 }
@@ -209,6 +240,8 @@ type LiveMember = {
   mic?: boolean;
   /** Odaya katılma anı (epoch ms) — giriş efektini bir kez oynatmak için */
   katildi?: number;
+  /** Platform yöneticisi mi — koltukta yetki rozeti için (presence taşır). */
+  yetki?: boolean;
 };
 
 function ChatRow({
@@ -234,8 +267,12 @@ function ChatRow({
   const isMe = !!m.myOwn || m.name === "Sen";
   const displayName = isMe ? userName : m.name;
   const tap = () => (isMe ? onSelfPress() : onTapUser?.(m));
-  // sohbet baloncuğu — kuşanılan balon varsa onun teması, yoksa rol rengi
-  const bubble = m.myOwn ? "gold" : m.host ? "host" : m.mod ? "mod" : "plain";
+  // Sohbet baloncuğu — kuşanılan balon varsa onun teması, yoksa rol rengi.
+  // Kendi mesajın ARTIK altın gradyan DEĞİL (karar 30 Ağustos): düz balon
+  // varsayılan. Altın balon kendi yazdığını okunmaz derecede öne çıkarıyordu
+  // ve iki platformda farklı bir his veriyordu. Altın rengi yalnız isimde
+  // kalıyor; balonunu değiştirmek isteyen kuşanılabilir balon alıyor.
+  const bubble = m.host ? "host" : m.mod ? "mod" : "plain";
   const balonT = balonTema ? BALON_TEMALARI[balonTema] : null;
   return (
     <View style={{ flexDirection: "row", gap: 9, alignItems: "flex-start" }}>
@@ -252,7 +289,9 @@ function ChatRow({
             </Txt>
           </Pressable>
           {role && <RolePill type={role} />}
-          {isMe && privileged && <AuthorityTag size={8} />}
+          {/* Rozet YAZANIN yetkisini gosterir. Eskiden `isMe && privileged`
+              idi, yani herkes yalnizca KENDI rozetini goruyordu. */}
+          {(m.yetki ?? (isMe && privileged)) && <AuthorityTag size={8} />}
         </View>
         {/* Hediye satırı: normal baloncuk yerine hediyenin kendi kapsülü.
             Animasyon birkaç saniyede geçiyordu, sohbette iz kalmıyordu. */}
@@ -276,10 +315,6 @@ function ChatRow({
           <View style={[styles.bubble, { backgroundColor: balonT.bg, borderColor: balonT.kenar }]}>
             <Txt weight="semibold" size={12.5} color={balonT.yazi} lh={1.4}>{m.text}</Txt>
           </View>
-        ) : bubble === "gold" ? (
-          <Gradient colors={["#FBE08C", "#E0A93C"]} deg={130} style={[styles.bubble, { borderColor: "#FFF2C2" }]}>
-            <Txt weight="semibold" size={12.5} color="#2A1D04" lh={1.4}>{m.text}</Txt>
-          </Gradient>
         ) : (
           <View
             style={[
@@ -511,17 +546,44 @@ export default function RoomScreen() {
   }, []);
 
   /**
-   * Odadaki varlığımı yayınla — oda listesi buradan sayıyor.
-   * Bağlantı koparsa sunucu kendiliğinden düşürür; "hayalet oda" olmuyor.
+   * (KALDIRILDI) Genel presence kanalı — `odaVarlik.ts`.
+   *
+   * Oda listesindeki kişi sayısı bir dönem buradan besleniyordu. Artık
+   * `oda_katilimcilar` tablosundan geliyor (070): odaya girerken kayıt
+   * yazılıyor, kalp atışıyla tazeleniyor, kalbi durunca eleniyor. Kararsız
+   * bir taşıyıcıyı sağlam bir tablonun yanında tutmanın anlamı kalmadı;
+   * dosya da silindi.
    */
-  useEffect(() => {
-    if (!isDbRoom || !dbId || myDbId == null) return;
-    varlikBildir(myDbId, dbId);
-    return () => varliktanCik();
-  }, [isDbRoom, dbId, myDbId]);
 
   /** Bu ekranın odaya katılma anı — presence yükünde taşınır. */
   const katildiRef = useRef<number>(Date.now());
+
+  /**
+   * Presence yükü sürüm sayacı — her `track` çağrısında artar.
+   *
+   * NEDEN: bir presence anahtarı altında AYNI ANDA birden çok kayıt (meta)
+   * bulunabiliyor; `track` ile durumunu güncellediğinde eski kayıt bir süre
+   * yenisiyle birlikte duruyor. Hangisinin dizide önce geldiği garanti değil.
+   * Sürüm sayacı sayesinde "en güncel olan" tahmin değil, ölçüm.
+   */
+  const surumRef = useRef(0);
+
+  /** Girişimi bu mount'ta duyurdum mu — yeniden bağlanmada tekrarlanmasın. */
+  const girisDuyuruldurmuRef = useRef(false);
+
+  /**
+   * KENDİ GİRİŞ EFEKTİM — odaya her girişte bir kez.
+   *
+   * Presence döngüsü kendi uid'ini atlıyor ve yanında "kendi efektim mount'ta
+   * zaten oynuyor" diyen bir yorum vardı — ama onu oynatan kod HİÇ
+   * YAZILMAMIŞTI. Yani çık-gir yaptığında kendi giriş efektini hiçbir zaman
+   * görmüyordun (iki platformda da). Kuyruğa buradan giriyor.
+   */
+  useEffect(() => {
+    const tema = useApp.getState().kusanili.giris || null;
+    setGirisKuyrugu((q) => [...q, { anahtar: `ben-${katildiRef.current}`, uid: myDbId ?? undefined, ad: userName, tema }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   /** Oda sahibinin güncel profili (DB'den) — host koltuğunun kaynağı. */
   const [sahipProfil, setSahipProfil] = useState<OdaSahibi | null>(null);
   const [micQueue, setMicQueue] = useState<{ uid: number; name: string; photo?: string; publicId?: string; at: number }[]>([]);
@@ -549,8 +611,211 @@ export default function RoomScreen() {
   // düşmesin (bkz. appStore.koltugum).
   const koltukBaslangic = koltugum && koltugum.odaId === dbId ? koltugum : null;
   const [micOn, setMicOn] = useState(koltukBaslangic ? koltukBaslangic.mic : isMine);
-  const [seatLocks, setSeatLocks] = useState<boolean[]>(() => Array(8).fill(false));
+  /**
+   * KOLTUK TABLOSU — tek gerçek kaynak (068).
+   *
+   * Kim nerede oturuyor, mikrofonu açık mı, hangi koltuk kilitli: hepsi artık
+   * `oda_koltuklari` tablosundan geliyor ve `postgres_changes` ile canlı
+   * dinleniyor. Presence bu iş için üç oturum boyunca kararlı çalışmadı
+   * (aynı anahtarda birden çok kayıt, sırası garanti değil, arkaplanda kayıt
+   * asılı kalıyor). Kullanıcının ölçtüğü tek kararlı yol postgres_changes.
+   *
+   * Presence tamamen kalkmadı — "odada kim var" için hâlâ o kullanılıyor,
+   * zaten onun işi bu. Koltuk çizilirken ikisi kesiştiriliyor: DB'de yazılı
+   * AMA odada görünmeyen kişi (çökmüş istemci) koltukta gösterilmiyor.
+   */
+  const [dbKoltuklar, setDbKoltuklar] = useState<KoltukSatiri[]>([]);
+
+  /**
+   * ODADA KİM VAR — presence değil, tablo (070).
+   *
+   * Bu liste presence'ta kalan son şeydi ve ağ kopunca boşalıyordu:
+   * "odaya dönünce kimse görünmüyor, kişi sayısı 0". Artık
+   * `oda_katilimcilar` tablosundan geliyor; istemci girerken yazıyor,
+   * ~25 sn'de bir kalp atışı gönderiyor, çıkarken siliyor. Kopma olsa da
+   * geri dönünce tablo doğruyu söylüyor.
+   */
+  const [odadakiler, setOdadakiler] = useState<OdaKatilimcisi[]>([]);
+
+  /** Kilitler artık state değil, koltuk tablosundan türetiliyor. */
+  const seatLocks = useMemo(() => {
+    const arr: boolean[] = Array(8).fill(false);
+    for (const k of dbKoltuklar) if (k.koltukNo >= 0 && k.koltukNo < 8) arr[k.koltukNo] = k.kilitli;
+    return arr;
+  }, [dbKoltuklar]);
+
+  /**
+   * Klavye açık mı — açıkken sahne (host koltuğu + mikrofon ızgarası) gizleniyor.
+   *
+   * NEDEN: `KeyboardAware` tüm oda ekranını `behavior="padding"` ile sarıyor.
+   * Klavye açılınca kullanılabilir yükseklik ~%40 azalıyor, ama üst bar ve
+   * sahne SABİT yükseklikte (koltuk çapı ekran genişliğinden hesaplanıyor).
+   * Geriye kalan yer sohbete yetmiyor ve Android'de ekranın yarısı kesilmiş
+   * gibi görünüyor. Yazarken sahneye zaten bakmıyorsun; kapatınca sohbet ve
+   * yazı kutusu rahat rahat sığıyor. (Yalla ve WePlay de aynısını yapıyor.)
+   */
+  const [klavyeAcik, setKlavyeAcik] = useState(false);
+  useEffect(() => {
+    const ac = Keyboard.addListener("keyboardDidShow", () => setKlavyeAcik(true));
+    const kapa = Keyboard.addListener("keyboardDidHide", () => setKlavyeAcik(false));
+    return () => { ac.remove(); kapa.remove(); };
+  }, []);
+
+  /**
+   * Kendi oturma/kalkma isteğimin zamanı.
+   *
+   * `canliKoltuklar` kendi koltuğumu sunucu yankısını beklemeden iyimser
+   * çiziyor (dokununca koltuk anında dolsun diye). Ama bu iyimserliğin bir
+   * sonu olmalı: yönetici seni mikrofondan indirdiğinde sunucu koltuğu
+   * boşaltıyor, senin ekranın ise yerel `mySeat` yüzünden seni koltukta
+   * çizmeye devam ediyordu — "benim ekranımda düştü, kullanıcıda hâlâ
+   * mikrofonda" bunun sonucuydu. Sıradan onaylananlarda `mySeat` hiç set
+   * edilmediği için o yol çalışıyordu; fark buradan geliyordu.
+   */
+  const sonKoltukIstegiRef = useRef(0);
+
+  /**
+   * Koltuk ve sıra tablolarını yeniden okuma kancaları.
+   *
+   * Arkaplandan dönerken ya da soket yeniden bağlanırken abonelik boşlukta
+   * kalmış olabilir; o aralıkta kaçan değişiklikler bir daha gelmiyor.
+   * Tabloyu yeniden okumak kaçanı da toparlıyor — durumun tabloda olmasının
+   * asıl faydası bu.
+   */
+  const koltukTazeleRef = useRef<() => void>(() => {});
+  const siraTazeleRef = useRef<() => void>(() => {});
+  const katilimciTazeleRef = useRef<() => void>(() => {});
+
+  /** Oda sahibinin koltuğu (-1) — mikrofonu açık mı buradan okunuyor. */
+  const hostKoltuk = useMemo(() => dbKoltuklar.find((k) => k.koltukNo === -1) ?? null, [dbKoltuklar]);
+
+  /**
+   * Koltuk tablosunu yükle ve CANLI dinle (068).
+   *
+   * Oda listesinin anlık çalıştığı yol `postgres_changes`; koltuk da artık
+   * aynı yoldan geliyor. Değişimde tabloyu yeniden okuyoruz (isim/foto join'i
+   * için) — tek "otur" işlemi iki satır güncellediğinden olaylar repo
+   * katmanında 60 ms'de birleştiriliyor.
+   *
+   * Oda sahibi girer girmez -1 numaralı koltuğa yazılıyor: sahne başındaki
+   * koltuk da tabloda temsil edilsin ki mikrofon durumu herkese aynı yerden
+   * gitsin.
+   */
+  useEffect(() => {
+    if (!isDbRoom || !dbId) return;
+    let acik = true;
+    const yukle = () =>
+      koltuklariGetir(dbId)
+        .then((r) => { if (acik) setDbKoltuklar(r); })
+        .catch((e) => console.warn("[koltuk] okunamadi:", (e as Error)?.message || e));
+    koltukTazeleRef.current = yukle;
+    yukle();
+    if (isMine) koltugaOtur(dbId, -1).then(yukle).catch((e) => console.warn("[koltuk] host koltugu:", (e as Error)?.message || e));
+    const bitir = koltuklariDinle(dbId, {
+      // Olay yükü yeni satırı zaten taşıyor: sunucuya bir tur daha gitmeden
+      // uygula. Ad/foto sonraki tazelemede doluyor.
+      anlik: (satir, silindi) => {
+        if (!acik) return;
+        setDbKoltuklar((onceki) => {
+          const digerleri = onceki.filter((k) => k.koltukNo !== satir.koltukNo);
+          if (silindi) return digerleri;
+          const eskisi = onceki.find((k) => k.koltukNo === satir.koltukNo);
+          // Aynı kişi oturmaya devam ediyorsa adını/fotoğrafını koru.
+          const korunan = eskisi && eskisi.kullaniciId === satir.kullaniciId
+            ? { ad: eskisi.ad, foto: eskisi.foto, publicId: eskisi.publicId, yetkili: eskisi.yetkili }
+            : {};
+          return [...digerleri, { ...satir, ...korunan }].sort((a, b) => a.koltukNo - b.koltukNo);
+        });
+      },
+      tazele: yukle,
+    });
+    return () => { acik = false; bitir(); };
+  }, [isDbRoom, dbId, isMine]);
+
+  /**
+   * Odaya katıl + kalp atışı + canlı liste (070).
+   *
+   * Kalp atışı 25 sn: sunucudaki bayatlama eşiği 2 dakika, yani birkaç
+   * kaçan atış kimseyi düşürmüyor. Küçültürken (inRoom hâlâ true) odadan
+   * AYRILMIYORUZ — koltukta olduğu gibi.
+   */
+  useEffect(() => {
+    if (!isDbRoom || !dbId) return;
+    let acik = true;
+    const yukle = () =>
+      odaKatilimcilariGetir(dbId)
+        .then((r) => { if (acik) setOdadakiler(r); })
+        .catch((e) => console.warn("[katilimci] okunamadi:", (e as Error)?.message || e));
+    katilimciTazeleRef.current = yukle;
+    odayaKatil(dbId).then(yukle).catch((e) => console.warn("[katilimci] katilamadi:", (e as Error)?.message || e));
+    yukle();
+    const bitir = odaKatilimcilariniDinle(dbId, yukle);
+    const nabiz = setInterval(() => { odaKalpAtisi(dbId).catch(() => {}); }, 25000);
+    return () => {
+      acik = false;
+      clearInterval(nabiz);
+      bitir();
+      // Sadece GERÇEK çıkışta sil; küçültme odadan çıkmak değil.
+      if (!useApp.getState().inRoom) odadanAyril().catch(() => {});
+    };
+  }, [isDbRoom, dbId]);
+
+  /**
+   * Mikrofon sırası — artık tabloda (069), broadcast'te değil.
+   *
+   * Eskiden sıra yalnız broadcast'te yaşıyordu: sonradan giren yönetici
+   * bekleyenleri hiç görmüyor, bağlantı kopunca sıra siliniyor ve "onaylandın"
+   * mesajı kaçarsa kimse koltuğa oturmuyordu. Sıra bir DURUM, koltuklarla aynı
+   * yoldan geliyor.
+   */
+  useEffect(() => {
+    if (!isDbRoom || !dbId) return;
+    let acik = true;
+    const yukle = () =>
+      micSirasiGetir(dbId)
+        .then((r) => { if (acik) setMicQueue(r); })
+        .catch((e) => console.warn("[mic-sirasi] okunamadi:", (e as Error)?.message || e));
+    siraTazeleRef.current = yukle;
+    yukle();
+    const bitir = micSirasiniDinle(dbId, yukle);
+    return () => { acik = false; bitir(); };
+  }, [isDbRoom, dbId]);
   const [mySeat, setMySeat] = useState<number | null>(koltukBaslangic ? koltukBaslangic.koltuk : null);
+
+  /**
+   * Sunucu beni koltukta görmüyorsa yerel iyimser koltuğumu bırak.
+   *
+   * Kendi isteğimin yankısını beklerken (3 sn) dokunulmuyor, yoksa oturur
+   * oturmaz kendi kendimizi kaldırırdık.
+   */
+  useEffect(() => {
+    if (!isDbRoom || myDbId == null) return;
+    if (dbKoltuklar.length === 0) return;                    // tablo henüz okunmadı
+    const benim = dbKoltuklar.find((k) => k.kullaniciId === myDbId);
+
+    // (a) Sunucu beni OTURTTUYSA yereli de doldur.
+    //
+    // Sıradan onaylanınca ya da davet kabul edilince koltuğa SUNUCU
+    // oturtuyor; yerel `mySeat` hiç set edilmiyordu. Sonucu:
+    // "Mikrofondan in" çalışmıyor, sıra sayfasındaki buton hâlâ "El Kaldır"
+    // diyor ve basınca "zaten mikrofondasın" uyarısı çıkıyordu. Kendi
+    // oturduğunda `mySeat` set edildiği için o yol düzgün
+    // görünüyordu — aradaki fark buydu.
+    if (benim && benim.koltukNo >= 0 && benim.koltukNo < 8) {
+      if (mySeat !== benim.koltukNo) setMySeat(benim.koltukNo);
+      if (micOn !== benim.micAcik) setMicOn(benim.micAcik);
+      return;
+    }
+
+    // (b) Sunucu beni hiçbir koltukta görmüyorsa yerel iyimser koltuğu bırak.
+    if (mySeat === null) return;
+    if (Date.now() - sonKoltukIstegiRef.current < 3000) return;
+    setMySeat(null);
+    setMicOn(false);
+    toast("Mikrofondan indirildin");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbKoltuklar, isDbRoom, myDbId, mySeat, micOn]);
+
   const [seatSheet, setSeatSheet] = useState<number | null>(null);
   const [seatToast, setSeatToast] = useState("");
   const [exitModal, setExitModal] = useState(false);
@@ -636,24 +901,44 @@ export default function RoomScreen() {
    */
   const canliKoltuklar = useMemo<(Seat | null)[]>(() => {
     const arr: (Seat | null)[] = Array(8).fill(null);
-    for (const m of liveMembers) {
-      const k = m.koltuk;
-      if (k == null || k < 0 || k > 7) continue;
-      const benMi = m.uid === myDbId;
-      arr[k] = {
-        uid: m.uid,
-        name: benMi ? "Sen" : m.name,
-        muted: m.mic === false,
-        lv: 0,
-        photo: benMi ? userPhoto || undefined : m.photo,
-        publicId: benMi ? myPublicId || undefined : m.publicId,
+    const odadaSet = new Set(odadakiler.map((m) => m.uid));
+
+    /**
+     * HAYALET SÜZGECİ YALNIZCA PRESENCE SAĞLIKLIYKEN UYGULANIR.
+     *
+     * Süzgeç, çökmüş istemcinin tabloda kalan koltuğunu gizlemek içindi. Ama
+     * presence'ın kendisi bozulunca (arkaplandan dönüş, soket yeniden
+     * bağlanması) `liveMembers` boş geliyor ve süzgeç DB'deki GERÇEĞİ de
+     * siliyordu: odada kimse yok, mikrofona alınan kimse görünmüyor gibi
+     * oluyordu — iOS'te arkaplandan dönünce yaşanan tam olarak buydu.
+     *
+     * Presence çalışmıyorsa doğru davranış "hiçbir şey gösterme" değil,
+     * "tabloya güven". Bozuk taşıyıcı, sağlam kaynağı gölgelememeli.
+     */
+    // Süzgeç artık TABLOYA bakıyor (070): presence'a göre çok daha güvenilir.
+    const suzgecGuvenli = odadaSet.size > 0;
+
+    for (const k of dbKoltuklar) {
+      if (k.koltukNo < 0 || k.koltukNo > 7 || k.kullaniciId == null) continue;
+      const benMi = k.kullaniciId === myDbId;
+      if (!benMi && suzgecGuvenli && !odadaSet.has(k.kullaniciId)) continue;
+      // Kozmetikler (çerçeve/balon) presence'ta taşınıyor — koltuk için kritik
+      // değil, geç gelirse yalnız çerçeve geç çizilir.
+      const uye = liveMembers.find((m) => m.uid === k.kullaniciId);
+      arr[k.koltukNo] = {
+        uid: k.kullaniciId,
+        name: benMi ? "Sen" : k.ad || uye?.name || "Kullanıcı",
+        muted: !k.micAcik,
+        lv: benMi ? userLevel : 0,
+        photo: benMi ? userPhoto || undefined : uye?.photo || k.foto || undefined,
+        publicId: benMi ? myPublicId || undefined : k.publicId || uye?.publicId || undefined,
+        cerceve: benMi ? kusanili.cerceve : uye?.cerceve,
+        yetki: benMi ? privileged : k.yetkili || uye?.yetki,
       };
     }
 
-    // Kendi koltuğumu presence turunu beklemeden yerleştir. Oturunca "mikrofona
-    // geçtin" diyor ama koltuk boş kalıyordu: presence yükünün gidip geri
-    // gelmesini bekliyorduk, gecikirse ya da track sessizce düşerse hiç
-    // görünmüyordu. Karşı taraf yine presence'tan görüyor.
+    // Kendi koltuğumu sunucu yankısını beklemeden yerleştir: dokununca koltuk
+    // anında dolsun. Sunucu reddederse `sitHere` geri alıyor.
     if (!isMine && mySeat != null && mySeat >= 0 && mySeat < 8) {
       arr[mySeat] = {
         uid: myDbId ?? undefined,
@@ -662,10 +947,12 @@ export default function RoomScreen() {
         lv: userLevel,
         photo: userPhoto || undefined,
         publicId: myPublicId || undefined,
+        cerceve: kusanili.cerceve,
+        yetki: privileged,
       };
     }
     return arr;
-  }, [liveMembers, myDbId, userPhoto, myPublicId, isMine, mySeat, micOn, userLevel]);
+  }, [dbKoltuklar, odadakiler, liveMembers, myDbId, userPhoto, myPublicId, isMine, mySeat, micOn, userLevel, kusanili.cerceve, privileged]);
 
   const gosterilenKoltuklar = gercekOda ? canliKoltuklar : seats;
 
@@ -694,20 +981,56 @@ export default function RoomScreen() {
       // profilden çekilen son hâli.
       photo: canli?.photo ?? sahipProfil?.foto,
       publicId: canli?.publicId ?? sahipProfil?.publicId,
-      muted: canli ? canli.mic === false : true,
+      // Mikrofon durumu koltuk tablosundan (068); tablo yoksa presence yedek.
+      muted: hostKoltuk ? !hostKoltuk.micAcik : canli ? canli.mic === false : true,
       lv: 0,
       host: true,
+      cerceve: isMine ? kusanili.cerceve : canli?.cerceve,
+      yetki: isMine ? privileged : canli?.yetki,
     };
-  }, [gercekOda, host, isMine, micOn, userLevel, userPhoto, myPublicId, myDbId, liveMembers, room?.host, room?.ownerId, sahipProfil]);
+  }, [gercekOda, host, isMine, micOn, userLevel, userPhoto, myPublicId, myDbId, liveMembers, room?.host, room?.ownerId, sahipProfil, kusanili.cerceve, privileged, hostKoltuk]);
 
   /** Sahip şu an odada mı — koltuğu soluk gösterip "Ayrıldı" yazmak için. */
+  /**
+   * Sahip odada mı — ÜÇ BAĞIMSIZ KAYNAĞIN BİRLEŞİMİ.
+   *
+   * Bu etiket ("Ayrıldı") üç turdur yanlış çıkıyor. Sebebi her seferinde
+   * aynı: tek bir kaynağa bakıyorduk ve o kaynak geçici olarak boş
+   * dönüyordu (önce presence, sonra katılımcı tablosu). Boş veri
+   * "sahibi gitti" demek DEĞİL, "henüz bilmiyorum" demek.
+   *
+   * Artık üç kanıt var ve biri bile 'burada' diyorsa sahibi odadadır:
+   *   1. Sahne koltuğu (068) — sahip girer girmez 20 numaraya yazılıyor
+   *   2. Katılımcı tablosu (070) — kalp atışlı gerçek liste
+   *   3. Presence — kozmetikler için zaten dinleniyor
+   *
+   * "Ayrıldı" yalnızca ÜÇÜNDE DE veri varken ve hiçbirinde sahip yokken
+   * yazılıyor. Yanlış negatif (gitti sanmak) kullanıcıyı rahatsız eden
+   * hata; yanlış pozitif (biraz geç 'Ayrıldı' yazmak) zararsız.
+   */
   const sahipOdada = useMemo(() => {
     if (!gercekOda) return true;
     if (isMine) return true;
+
     const sahipUid = sahipProfil?.id ?? room?.ownerId ?? null;
-    if (sahipUid != null) return liveMembers.some((m) => m.uid === sahipUid);
-    return liveMembers.some((m) => m.name === (sahipProfil?.ad ?? room?.host));
-  }, [gercekOda, isMine, liveMembers, sahipProfil, room?.ownerId, room?.host]);
+
+    // 1) Sahne koltuğu dolu mu — presence'tan da tablodan da bağımsız.
+    if (hostKoltuk?.kullaniciId != null) return true;
+    if (sahipUid != null) {
+      // 2) Katılımcı tablosu
+      if (odadakiler.some((m) => m.uid === sahipUid)) return true;
+      // 3) Presence
+      if (liveMembers.some((m) => m.uid === sahipUid)) return true;
+    } else {
+      // Kimi arayacağımızı bilmiyorsak suçlamayalım.
+      return true;
+    }
+
+    // Hiçbir kaynak "burada" demiyor. Ama hiçbirinde VERİ de yoksa bu bir
+    // bilgi değil, bilgisizlik — "Ayrıldı" yazma.
+    const veriVar = dbKoltuklar.length > 0 || odadakiler.length > 0 || liveMembers.length > 0;
+    return !veriVar;
+  }, [gercekOda, isMine, hostKoltuk, odadakiler, liveMembers, dbKoltuklar, sahipProfil, room?.ownerId]);
 
   const occupants = useMemo(
     () => [gosterilenHost, ...gosterilenKoltuklar].filter(Boolean) as Seat[],
@@ -715,12 +1038,14 @@ export default function RoomScreen() {
   );
 
   // Header/sayaç için birleşik kalabalık: DB odasında presence, yoksa koltuklar (mock)
+  // Liste tablodan; çerçeve gibi kozmetikler hâlâ presence'ta taşınıyor,
+  // geç gelirse yalnız çerçeve geç çizilir — kimse kaybolmaz.
   const crowd: { key: string; name: string; photo?: string; cerceve?: string | null }[] = isDbRoom
-    ? liveMembers.map((m) => ({
+    ? odadakiler.map((m) => ({
         key: "u" + m.uid,
-        name: m.name,
+        name: m.uid === myDbId ? userName : m.name,
         photo: m.uid === myDbId ? userPhoto || undefined : m.photo,
-        cerceve: m.uid === myDbId ? kusanili.cerceve : m.cerceve,
+        cerceve: m.uid === myDbId ? kusanili.cerceve : liveMembers.find((x) => x.uid === m.uid)?.cerceve,
       }))
     : occupants.map((o, i) => ({
         key: (o.name || "u") + i,
@@ -728,7 +1053,17 @@ export default function RoomScreen() {
         photo: o.name === "Sen" ? userPhoto || undefined : undefined,
         cerceve: o.name === "Sen" ? kusanili.cerceve : undefined,
       }));
-  const crowdCount = isDbRoom ? liveMembers.length : occupants.length;
+  /**
+   * Kişi sayısı presence'tan geliyor; presence bozulunca 0 düşüyordu ve
+   * ekranda kimse yokmuş gibi görünüyordu. Koltuktakiler tablodan KESİN
+   * biliniyor — sayı en az o kadar olmalı. (Tam çözüm `oda_katilimcilar`
+   * kalp atışı; bu, o gelene kadarki alt sınır.)
+   */
+  const koltuktakiSayi = useMemo(
+    () => dbKoltuklar.filter((k) => k.kullaniciId != null).length,
+    [dbKoltuklar],
+  );
+  const crowdCount = isDbRoom ? Math.max(odadakiler.length, koltuktakiSayi) : occupants.length;
 
   // Oda ayarları CANLI (039): sahip tema/kapak/isim/duyuru değiştirince odadakiler
   // yeniden girmeden görsün. (Herkese açık oda; kilitli odada RLS gereği yalnız sahip.)
@@ -761,43 +1096,95 @@ export default function RoomScreen() {
   // geçmiş tutmaz; sonradan giren/çıkıp-giren temiz sohbetle başlar).
   useEffect(() => {
     const sb = supabase;
+    // `myDbId` GUARD'I ŞART — GİRİŞ GECİKMESİNİN SEBEBİ BUYDU.
+    // Eskiden kanal, kullanıcı id'si daha yüklenmeden açılıyordu. Kanal
+    // SUBSCRIBED oluyor, ama `presenceYaz` "uid yok" deyip erken dönüyordu:
+    // odaya girmiş ama presence'a YAZILMAMIŞ oluyordun. Karşı taraf seni
+    // ancak profil yüklenip effect yeniden koştuğunda görüyordu — aradaki
+    // saniyeler "giriş anlık değil"in ta kendisiydi. Üstelik `myDbId`
+    // değişince kanal komple yıkılıp yeniden kuruluyordu.
     if (!isDbRoom || !dbId || !sb) return;
+    if (myDbId == null) {
+      // Bu bekleme SESSİZ OLMASIN: kanal açılmadığı sürece ne sohbet gider
+      // ne presence yayılır. Uzun sürüyorsa sorun profil yüklemesindedir.
+      console.log("[oda] kanal bekliyor: kullanici id'si henuz yok");
+      return;
+    }
     let alive = true;
 
     // Kanal adı SABİT olmalı (room-<id>) — tüm cihazlar aynı kanala girer.
+    //
+    // GERİ ALINDI (30 Ağustos, aynı gün): bir ara aynı topic'teki eski
+    // kanalların kapanması `await` ediliyordu — "leave" ile "join" yarışmasın
+    // diye. Teoride doğruydu ama `removeChannel` yanıt gelmezse VARSAYILAN
+    // 10 SANİYE bekliyor: oda ekranı o süre boyunca kanalsız kalıyor, sohbet
+    // hiç gitmiyor ve presence hiç yayılmıyordu. Ölçülen zarar, önlenen
+    // teorik yarıştan büyüktü. Kapanışı beklemeden kuruyoruz; önceki kanal
+    // kendi temizliğinde zaten kapanıyor.
     const topic = `room-${dbId}`;
     sb.getChannels().forEach((c) => { if (c.topic === topic || c.topic === `realtime:${topic}`) sb.removeChannel(c); });
-    const ch = sb.channel(topic, { config: { presence: { key: String(myDbId ?? Math.random()) }, broadcast: { self: true } } });
+    // Presence anahtarı HER GİRİŞTE farklı (`katildiRef` mount damgası).
+    //
+    // Eskiden anahtar uygulama oturumu boyunca sabitti. Odadan çıkıp hemen
+    // geri girdiğinde önceki oturumun "ayrıldım" bildirimi sunucuya YENİ
+    // kayıt kurulduktan sonra ulaşabiliyor ve aynı anahtar olduğu için taze
+    // kaydı siliyordu: karşı tarafta odadan düşmüş görünüyordun. "Çık gir
+    // yapınca bozuluyor" belirtisinin kaynağı bu. Anahtar mount başına
+    // benzersiz olunca geç gelen "ayrıldım" yalnızca kendi eski kaydını
+    // siliyor. Kısa bir an iki kayıt görünse bile üye listesi uid'e göre
+    // tekilleştiriyor.
+    const ch = sb.channel(topic, { config: { presence: { key: `${myDbId}-${CIHAZ}-${katildiRef.current}` }, broadcast: { self: true } } });
     chanRef.current = ch;
 
     ch.on("presence", { event: "sync" }, () => {
-      type PresUser = { uid?: number; name?: string; photo?: string; publicId?: string; cerceve?: string; balon?: string; giris?: string; koltuk?: number | null; mic?: boolean; katildi?: number };
+        type PresUser = { uid?: number; cihaz?: string; surum?: number; name?: string; photo?: string; publicId?: string; cerceve?: string; balon?: string; giris?: string; koltuk?: number | null; mic?: boolean; katildi?: number; kilitler?: boolean[]; yetki?: boolean };
+
+        /**
+         * Bir anahtardaki EN GÜNCEL kaydı seç.
+         *
+         * BU SATIR OLMADAN: kod `members.some(...)` ile İLK kaydı alıp geri
+         * kalanını atıyordu. Eski kayıt dizide önce geldiğinde güncelleme
+         * tamamen yok sayılıyordu — koltuğa oturuyorsun ama eski kayıtta
+         * `koltuk: null` yazdığı için karşı taraf seni koltuksuz görüyordu.
+         * Kilitlerde de aynısı: kilit bazen geçiyor, kaldırma hiç geçmiyordu.
+         * Sürüme göre seçiyoruz, sürüm yoksa dizinin sonuncusuna düşüyoruz.
+         */
+        const guncelKayit = (arr: PresUser[]): PresUser | undefined => {
+          if (!arr || arr.length === 0) return undefined;
+          if (arr.length === 1) return arr[0];
+          return arr.reduce((en, p) => ((p.surum ?? -1) >= (en.surum ?? -1) ? p : en), arr[arr.length - 1]);
+        };
       const state = ch.presenceState() as Record<string, PresUser[]>;
       const map = new Map<number, { name: string; photo?: string; publicId?: string }>();
       const members: LiveMember[] = [];
       for (const arr of Object.values(state)) {
-        for (const p of arr) {
-          if (p.uid == null) continue;
-          map.set(p.uid, { name: p.name || "Kullanıcı", photo: p.photo, publicId: p.publicId });
-          if (!members.some((m) => m.uid === p.uid)) {
-            members.push({
-              uid: p.uid,
-              name: p.name || "Kullanıcı",
-              photo: p.photo,
-              publicId: p.publicId,
-              // 056: kuşanılan eşyalar presence yüküyle taşınıyor — herkesin
-              // çerçevesi/balonu için ayrı sorgu atmaya gerek kalmıyor.
-              cerceve: p.cerceve,
-              balon: p.balon,
-              giris: p.giris,
-              koltuk: p.koltuk ?? null,
-              mic: p.mic,
-              katildi: p.katildi,
-            });
-          }
+        const p = guncelKayit(arr);
+        if (!p || p.uid == null) continue;
+        map.set(p.uid, { name: p.name || "Kullanıcı", photo: p.photo, publicId: p.publicId });
+        // Aynı uid iki ayrı anahtarda olabilir (aynı hesap, iki cihaz) —
+        // o durumda tek üye sayıyoruz.
+        if (!members.some((m) => m.uid === p.uid)) {
+          members.push({
+            uid: p.uid,
+            name: p.name || "Kullanıcı",
+            photo: p.photo,
+            publicId: p.publicId,
+            // 056: kuşanılan eşyalar presence yüküyle taşınıyor — herkesin
+            // çerçevesi/balonu için ayrı sorgu atmaya gerek kalmıyor.
+            cerceve: p.cerceve,
+            balon: p.balon,
+            giris: p.giris,
+            koltuk: p.koltuk ?? null,
+            mic: p.mic,
+            katildi: p.katildi,
+            yetki: p.yetki,
+          });
         }
       }
       memberMapRef.current = map;
+
+      // Kilitler artık presence'ta taşınmıyor — `oda_koltuklari` tablosundan
+      // geliyor (068). Sahibin odada olmasına da bağlı değil.
 
       // TEŞHİS (geçici): presence'ta kim, hangi koltukta, fotoğrafı ne.
       console.log(
@@ -807,57 +1194,59 @@ export default function RoomScreen() {
             .join("  ||  "),
       );
 
-      // Yeni gireni yakala → giriş efektini/bildirimini oynat.
+      // GİRİŞ EFEKTİ ARTIK BURADAN DEĞİL — bkz. "giris" broadcast olayı.
       //
-      // Eskiden yalnızca "önceki sync'te yoktu" bakılıyordu ve İLK sync
-      // tamamen atlanıyordu. İkimiz aynı anda girince karşı taraf ilk
-      // snapshot'ta beliriyor, yani hiç duyurulmuyordu — "arkadaşımın giriş
-      // efekti bende görünmüyor"un sebebi buydu. Artık presence yükündeki
-      // `katildi` damgasına da bakıyoruz: son 15 saniyede girmiş biri, ilk
-      // sync'te görünse bile duyurulur. `duyurulanlarRef` tekrarı önler.
-      // Ölçüt "önceki sync'te yoktu" DEĞİL, presence yükündeki `katildi`
-      // damgası. Hızlı çık-gir yapınca karşı taraf seni arada hiç "yok"
-      // görmüyor (iki sync tek diff'te birleşiyor), o yüzden eski kural
-      // girişi kaçırıyordu — "bazen görünüyor bazen görünmüyor" buydu.
-      // Damga ilerlemişse yeniden girmiştir, yeniden duyurulur.
-      const simdi = Date.now();
-      for (const m of members) {
-        if (m.uid === myDbId) continue; // kendi efektim mount'ta zaten oynuyor
-        const damga = m.katildi ?? 0;
-        const duyurulan = duyurulanlarRef.current.get(m.uid);
-        if (duyurulan != null && damga <= duyurulan) continue; // değişmemiş
-        duyurulanlarRef.current.set(m.uid, damga);
-        // İlk kez görüyorsak ve girişi eskiyse (odada zaten oturuyordu),
-        // sessizce kaydet — odaya girene "15 kişi girdi" diye yağdırmayalım.
-        if (duyurulan == null && !(damga && simdi - damga < 15000)) continue;
-        setGirisKuyrugu((q) => [...q, { anahtar: `${m.uid}-${simdi}`, uid: m.uid, ad: m.name, tema: m.giris ?? null }]);
-      }
-      // Odadan çıkanı unut ki tekrar girince yine duyurulsun.
-      for (const uid of [...duyurulanlarRef.current.keys()]) {
-        if (!members.some((m) => m.uid === uid)) duyurulanlarRef.current.delete(uid);
-      }
+      // Eskiden giriş, presence anlık görüntüleri karşılaştırılarak ("bu kişi
+      // önceki sync'te yok muydu", "katildi damgası ilerledi mi") ÇIKARILMAYA
+      // çalışılıyordu. Presence bir DURUM taşıyıcısıdır, OLAY taşıyıcısı
+      // değil: iki sync tek diff'te birleşebiliyor, eski kayıt yenisiyle
+      // birlikte durabiliyor, sıra garanti değil. Sonuç önce "bazen görünüyor
+      // bazen görünmüyor", sonunda "karşı taraf hiç görmüyor" oldu.
+      //
+      // Giriş bir olaydır, o yüzden olay olarak yayınlanıyor: odaya giren bir
+      // kez "giris" broadcast'i atıyor, o an odada olan herkes anında
+      // oynatıyor. Çıkarım yok, karşılaştırma yok, gecikme yok.
       girenlerRef.current = new Set(members.map((m) => m.uid));
 
-      // Odadaki kişi sayısını DB'ye yaz (057). Bu kolon hiç yazılmıyordu:
-      // oda listesi "boş odaları gösterme" kuralını buna göre uyguladığı için
-      // yeni kurulan odalar hiçbir sekmede görünmüyordu. Yazma işini odadaki
-      // TEK bir istemci yapar (en küçük uid) — herkes yazsa gereksiz trafik olur.
-      if (dbId && myDbId != null && members.length > 0) {
-        const yazan = Math.min(...members.map((m) => m.uid));
-        if (yazan === myDbId && sayacRef.current !== members.length) {
-          sayacRef.current = members.length;
-          odaKatilimciYaz(dbId, members.length).catch((e) =>
-            console.warn("[sayac] yazilamadi", (e as Error)?.message || e));
-        }
+      // Odadaki kişi sayısını DB'ye yaz (057). Oda listesi bu sayıyı, genel
+      // presence kanalıyla birlikte iki kaynaktan birinin büyüğü olarak
+      // okuyor (bkz. (tabs)/index.tsx).
+      //
+      // Yazmayı artık odadaki HER istemci yapıyor. Eskiden yalnız en küçük
+      // uid yazardı; trafik azdı ama tek arıza noktası vardı: o istemcinin
+      // yazısı gitmezse (ağ, yarış, arka plana alınma) oda HERKES için boş
+      // görünüyordu — "içinde insan var ama listede yok"un sebeplerinden
+      // biri buydu. Değer herkeste aynı olduğu için tekrar yazmak zararsız,
+      // üstelik yazma yalnızca sayı DEĞİŞTİĞİNDE tetikleniyor.
+      if (dbId && myDbId != null && members.length > 0 && sayacRef.current !== members.length) {
+        sayacRef.current = members.length;
+        odaKatilimciYaz(dbId, members.length).catch((e) =>
+          console.warn("[sayac] yazilamadi", (e as Error)?.message || e));
       }
 
       if (alive) setLiveMembers(members);
     });
 
+    // Giriş efekti — olay olarak. Kendi efektimi mount'ta zaten oynatıyorum,
+    // bu yüzden kendi yayınımı eliyorum.
+    ch.on("broadcast", { event: "giris" }, ({ payload }) => {
+      const p = payload as { cihaz?: string; uid?: number; ad?: string; tema?: string | null };
+      if (!alive || p.cihaz === CIHAZ) return;
+      setGirisKuyrugu((q) => [...q, { anahtar: `g${p.uid ?? "x"}-${q.length}`, uid: p.uid, ad: p.ad || "Kullanıcı", tema: p.tema ?? null }]);
+    });
+
+    // Koltuk ve kilit olayları KALDIRILDI: broadcast hızlıydı ama kararsızdı
+    // ("1-2 defa anlık oluyor sonra yine buga giriyor"). İkisi de artık
+    // `oda_koltuklari` tablosundan, postgres_changes ile geliyor (068).
+
     // Anlık sohbet — broadcast (DB yok). self:true → kendi mesajım da gelir.
     ch.on("broadcast", { event: "chat" }, ({ payload }) => {
-      const p = payload as { uid?: number; name?: string; photo?: string; publicId?: string; text: string; time: string; hediye?: HediyeSatiri };
-      const mine = p.uid != null && p.uid === myDbId;
+      const p = payload as { uid?: number; cihaz?: string; yetki?: boolean; name?: string; photo?: string; publicId?: string; text: string; time: string; hediye?: HediyeSatiri };
+      // "Benim mesajım mı" artık CİHAZA göre. Eskiden `uid` karşılaştırılıyordu:
+      // aynı hesapla iki cihazdan girince öbür cihazın mesajı "kendi echo'm"
+      // sanılıp atılıyordu — "iPhone'dan yazdığım Android'de görünmüyor"un
+      // sebebi buydu. Eski istemcilerden `cihaz` gelmezse uid'e düşüyoruz.
+      const mine = p.cihaz ? p.cihaz === CIHAZ : p.uid != null && p.uid === myDbId;
       // Kendi mesajımı/hediyemi zaten yerel ekledim; echo kopyasını atla.
       if (mine) return;
       if (alive) setMsgs((prev) => [...prev, {
@@ -869,6 +1258,7 @@ export default function RoomScreen() {
         uid: p.uid,
         publicId: mine ? myPublicId || undefined : p.publicId,
         hediye: p.hediye,
+        yetki: p.yetki,
       }]);
     });
 
@@ -895,21 +1285,49 @@ export default function RoomScreen() {
       }]);
     });
 
-    // Mikrofon sırası — ephemeral (broadcast). El kaldır / vazgeç / onayla.
-    ch.on("broadcast", { event: "mic_queue" }, ({ payload }) => {
-      const p = payload as { kind: "raise" | "lower" | "approve"; uid: number; name?: string; photo?: string; publicId?: string; at?: number };
-      if (!alive || p.uid == null) return;
-      if (p.kind === "raise") {
-        setMicQueue((q) => (q.some((e) => e.uid === p.uid) ? q : [...q, { uid: p.uid, name: p.name || "Kullanıcı", photo: p.photo, publicId: p.publicId, at: p.at ?? Date.now() }]));
-      } else {
-        setMicQueue((q) => q.filter((e) => e.uid !== p.uid));
-        if (p.kind === "approve" && p.uid === myDbId) sitFirstEmptyRef.current();
-      }
-    });
+    // Mikrofon sırası broadcast'i KALDIRILDI (069): sıra artık
+    // `oda_mic_sirasi` tablosundan geliyor, onayı da sunucu uyguluyor.
 
     // Yeniden bağlanmada da tetiklenir; bu yüzden ref üzerinden (yukarı bak).
     ch.subscribe(async (status) => {
-      if (status === "SUBSCRIBED") await presenceYazRef.current();
+      if (status !== "SUBSCRIBED") {
+        // Baglanti koptu. Supabase kendi kendine yeniden baglanmayi deniyor;
+        // once ona sans veriyoruz. Toparlayamazsa odada hayalet kalmamak
+        // icin dusuyoruz ("ag sorunu yasaninca otomatik odadan dussun").
+        if (!alive) return;
+        /**
+         * KANAL HATASI ARTIK ODADAN DÜŞÜRMÜYOR — tamamen kaldırıldı.
+         *
+         * "Ağ sorunu olunca odadan düşsün" isteği doğruydu ama uygulaması
+         * zarar verdi: kullanıcı "ben küçültmedim, oda kendi küçüldü" diye
+         * bildirdi — küçülten bendim. Supabase zaten kendi kendine yeniden
+         * bağlanıyor ve artık bağlanınca tabloları tazeliyoruz, yani kaçan
+         * değişiklikler geri geliyor. Odayı kapatmak bu toparlanma şansını
+         * yok ediyordu.
+         *
+         * Hayalet koltuk riski arkaplan kuralıyla (ARKAPLAN_MS) zaten
+         * karşılanıyor: uygulama gerçekten arkada kalırsa odadan düşülüyor.
+         */
+        console.warn(`[oda] kanal ${status}`);
+        return;
+      }
+      await presenceYazRef.current();
+      // Yeniden bağlanmada da tabloları tazele: abonelik boşluktayken
+      // kaçan değişiklikler ancak böyle geri geliyor.
+      koltukTazeleRef.current();
+      siraTazeleRef.current();
+      katilimciTazeleRef.current();
+      // Girişimi bir kez duyur. Yeniden bağlanmada bu geri çağrı tekrar
+      // tetikleniyor, o yüzden mount başına tek sefer bayrağı var.
+      if (girisDuyuruldurmuRef.current) return;
+      girisDuyuruldurmuRef.current = true;
+      ch.send({
+        type: "broadcast",
+        event: "giris",
+        payload: { cihaz: CIHAZ, uid: myDbId, ad: userName, tema: useApp.getState().kusanili.giris || null },
+      })
+        .then((r) => { if (r !== "ok") console.warn("[giris] yayinlanamadi:", r); })
+        .catch((e) => console.warn("[giris] yayin hatasi:", (e as Error)?.message || e));
     });
 
     addXp("oda_katilim"); // günde 1 kez sayılır (sunucu tavanlar)
@@ -920,8 +1338,34 @@ export default function RoomScreen() {
     ziyaretKaydet(dbId).catch((e) => console.warn("[ziyaret]", e?.message || e));
 
     return () => {
-      alive = false; chanRef.current = null; ch.untrack(); sb.removeChannel(ch);
-      logRoomMovement(dbId, "cikis"); // best-effort: uygulama zorla kapanırsa düşmeyebilir
+      alive = false; chanRef.current = null;
+      // ÖNCE "ben çıktım" gitsin, SONRA kanal kapansın — ÇIKIŞ GECİKMESİNİN
+      // SEBEBİ BUYDU. `untrack()` asenkron; beklemeden `removeChannel`
+      // çağrılınca mesaj gitmeden soket kapanıyor ve karşı taraf seni ancak
+      // sunucu presence zaman aşımına uğrayınca (onlarca saniye) düşürüyordu.
+      void ch
+        .untrack()
+        .catch((e) => console.warn("[presence] untrack hatasi:", (e as Error)?.message || e))
+        .finally(() => sb.removeChannel(ch));
+      /**
+       * KÜÇÜLTME İLE ÇIKIŞ AYRIMI — buradaki en pahalı hata buydu.
+       *
+       * Bu temizlik ekran HER unmount olduğunda çalışıyor; "küçült" de
+       * `router.back()` olduğu için burayı tetikliyor. Eskiden koşulsuz
+       * `koltuktan_kalk` çağrılıyordu: küçültünce koltuğun sunucuda
+       * boşalıyor, ama yerel `koltugum` hatırası (appStore) duruyordu.
+       * Geri büyütünce ekran seni koltukta çiziyor, sunucu ise görmüyor —
+       * "mikrofonda görünüyor ama buglu, yandaki koltuğa geçince düzeliyor"
+       * bunun sonucuydu (başka koltuğa geçmek `koltuga_otur` çağırıp
+       * sunucuyu yeniden hizaya sokuyordu).
+       *
+       * `inRoom` hâlâ true ise odadan ÇIKMADIK, yalnızca küçülttük:
+       * koltuk sunucuda kalmalı.
+       */
+      if (!useApp.getState().inRoom) {
+        logRoomMovement(dbId, "cikis"); // best-effort
+        koltuktanKalk(dbId).catch(() => {});
+      }
       // Son çıkan sayacı sıfırlar; başkaları kaldıysa kalan en küçük uid bir
       // sonraki sync'te doğru sayıyı zaten yazacak.
       const kalan = Math.max(0, (girenlerRef.current?.size ?? 1) - 1);
@@ -955,8 +1399,13 @@ export default function RoomScreen() {
       // automatically falling back to REST API") ve REST ile giden yayın
       // gönderene geri gelmiyor — kendi odanda tek başınayken yazdığın mesaj
       // hiç görünmüyordu. Artık yerel ekliyoruz, echo gelirse de eleniyor.
-      setMsgs((m) => [...m, { name: userName, time, text: t, myOwn: true, photo: userPhoto || undefined, uid: myDbId ?? undefined, publicId: myPublicId || undefined }]);
-      chanRef.current.send({ type: "broadcast", event: "chat", payload: { uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined, text: t, time } });
+      setMsgs((m) => [...m, { name: userName, time, text: t, myOwn: true, photo: userPhoto || undefined, uid: myDbId ?? undefined, publicId: myPublicId || undefined, yetki: privileged }]);
+      // Gönderim sonucu artık YUTULMUYOR: `send` websocket yerine REST'e
+      // düşebiliyor ve sessizce başarısız olabiliyor. Ulaşmadıysa logda görün.
+      chanRef.current
+        .send({ type: "broadcast", event: "chat", payload: { uid: myDbId, cihaz: CIHAZ, yetki: privileged, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined, text: t, time } })
+        .then((r) => { if (r !== "ok") console.warn("[chat] gonderilemedi:", r); })
+        .catch((e) => console.warn("[chat] gonderim hatasi:", (e as Error)?.message || e));
       addXp("oda_mesaj"); // +2/mesaj, günlük tavan sunucuda
       return;
     }
@@ -975,22 +1424,33 @@ export default function RoomScreen() {
       return arr;
     });
     const wasNull = mySeat === null;
+    sonKoltukIstegiRef.current = Date.now();
     setMySeat(idx);
     setMicOn(true);
     if (dbId != null) koltukYaz(dbId, idx, true);
-    // Presence'i effect'in bir sonraki turunu beklemeden yaz — arada karşı
-    // taraf koltuğu boş görüyordu.
     presenceYaz({ koltuk: idx, mic: true });
+    // Gerçek kayıt sunucuda (068). Reddedilirse yerel iyimser oturuşu geri al.
+    if (dbId != null) {
+      koltugaOtur(dbId, idx).catch((e) => {
+        const mesaj = (e as Error)?.message || String(e);
+        console.warn("[koltuk] oturulamadi:", mesaj);
+        setMySeat(null);
+        setMicOn(false);
+        toast(mesaj.includes("kilitli") ? "Bu koltuk kilitli" : mesaj.includes("dolu") ? "Koltuk dolu" : "Koltuğa oturulamadı");
+      });
+    }
     setSeatSheet(null);
     toast(wasNull ? "Mikrofona geçtin" : "Koltuk değiştirildi");
   };
   const leaveSeat = () => {
     if (mySeat === null) return;
     setSeats((p) => p.map((t, i) => (i === mySeat ? null : t)));
+    sonKoltukIstegiRef.current = Date.now();
     setMySeat(null);
     setMicOn(false);
     if (dbId != null) koltukYaz(dbId, null, false);
     presenceYaz({ koltuk: null, mic: false });
+    if (dbId != null) koltuktanKalk(dbId).catch((e) => console.warn("[koltuk] kalkilamadi:", (e as Error)?.message || e));
     setSeatSheet(null);
     toast("Mikrofondan indin");
   };
@@ -1033,8 +1493,15 @@ export default function RoomScreen() {
         koltuk: ustuneYaz?.koltuk !== undefined ? ustuneYaz.koltuk : isMine ? -1 : mySeat,
         mic: ustuneYaz?.mic ?? micOn,
         katildi: katildiRef.current,
+        cihaz: CIHAZ,
+        surum: ++surumRef.current,
+        // Yetki rozeti karşı tarafta da çıksın diye taşınıyor. Eskiden rozet
+        // yalnız `isMe && privileged` ile çiziliyordu, yani herkes sadece
+        // KENDİ rozetini görüyordu.
+        yetki: privileged,
       })
-      .catch(() => {});
+      .then((r) => { if (r !== "ok") console.warn("[presence] track reddedildi:", r); })
+      .catch((e) => console.warn("[presence] track hatasi:", (e as Error)?.message || e));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myDbId, userName, userPhoto, myPublicId, mySeat, micOn, isMine]);
 
@@ -1044,6 +1511,27 @@ export default function RoomScreen() {
   useEffect(() => { tepkiGosterRef.current = tepkiGoster; }, [tepkiGoster]);
 
   /**
+   * Odadan otomatik dus — arkaplan ya da toparlanamayan baglanti.
+   *
+   * Ref uzerinden tutuluyor cunku zamanlayici geri cagrilarindan cagriliyor;
+   * kurulduklari andaki eski state'i kapatmasinlar.
+   */
+  const odadanDusRef = useRef<(sebep: string) => void>(() => {});
+  useEffect(() => {
+    odadanDusRef.current = (sebep: string) => {
+      console.log(`[oda] otomatik cikis: ${sebep}`);
+      // Koltugu birak ki karsi tarafta mikrofonda asili kalmayalim.
+      if (dbId != null) koltuktanKalk(dbId).catch(() => {});
+      chanRef.current?.untrack().catch(() => {});
+      // GERÇEK çıkış: `inRoom` de kapansın. Yoksa küçültülmüş oda şeridi
+      // ekranda kalıyor ama koltuğun sunucuda bırakılmış oluyor — tam da
+      // düzeltmeye çalıştığımız tutarsızlık.
+      useApp.getState().leaveRoom();
+      router.back();
+    };
+  });
+
+  /**
    * Uygulama öne dönünce presence'ı tazele.
    *
    * Arkaplanda soket kapanıyor; geri gelince kanal yeniden abone oluyor ama
@@ -1051,30 +1539,58 @@ export default function RoomScreen() {
    */
   useEffect(() => {
     if (!isDbRoom) return;
+    let zaman: ReturnType<typeof setTimeout> | null = null;
     const s = AppState.addEventListener("change", (durum) => {
-      if (durum === "active") presenceYazRef.current();
+      if (durum === "active") {
+        if (zaman) { clearTimeout(zaman); zaman = null; }
+        presenceYazRef.current();
+        // Arkaplandayken kaçan değişiklikleri topla.
+        koltukTazeleRef.current();
+        siraTazeleRef.current();
+        katilimciTazeleRef.current();
+        return;
+      }
+      // Arkaplana alindi: geri donerse iptal, donmezse odadan dusuyoruz.
+      if (zaman) clearTimeout(zaman);
+      zaman = setTimeout(() => { zaman = null; odadanDusRef.current("arkaplan"); }, ARKAPLAN_MS);
     });
-    return () => s.remove();
+    return () => { if (zaman) clearTimeout(zaman); s.remove(); };
   }, [isDbRoom]);
 
   // Mikrofon sırası aksiyonları (broadcast; self:true → kendi eventimiz de düşer)
-  const queueSend = (payload: object) => chanRef.current?.send({ type: "broadcast", event: "mic_queue", payload });
+  // Sıra işlemleri sunucuda; sonuç tabloya yazılıyor ve herkese canlı gidiyor.
   const raiseHand = () => {
-    if (myDbId == null) return;
+    if (myDbId == null || dbId == null) return;
     if (isMine) { toast("Zaten kendi koltuğundasın"); return; } // sahip sıraya giremez
     if (micBan) { setMicBanModal(true); return; } // mic yasaklı → el kaldıramaz
     haptic.light();
-    queueSend({ kind: "raise", uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined, at: Date.now() });
+    micSirasinaGir(dbId).catch((e) => {
+      const mesaj = (e as Error)?.message || String(e);
+      console.warn("[mic-sirasi] girilemedi:", mesaj);
+      toast(mesaj.includes("yasağın") ? "Mikrofon yasağın var" : mesaj.includes("Zaten") ? "Zaten mikrofondasın" : "Sıraya girilemedi");
+    });
   };
   const lowerHand = (uid?: number) => {
-    const u = uid ?? myDbId;
-    if (u == null) return;
+    if (dbId == null) return;
     haptic.light();
-    queueSend({ kind: "lower", uid: u });
+    // uid verilmezse kendi elimi indiriyorum; başkasınınki yönetici işi.
+    micSirasindanCik(dbId, uid != null && uid !== myDbId ? uid : undefined)
+      .catch((e) => {
+        console.warn("[mic-sirasi] cikilamadi:", (e as Error)?.message || e);
+        toast("Sıradan çıkarılamadı");
+      });
   };
   const approveHand = (uid: number) => {
+    if (dbId == null) return;
     haptic.success();
-    queueSend({ kind: "approve", uid });
+    // Onaydan sonra sıra sayfası açık kalmasın — iş bitti, sahneye dön.
+    setQueueOpen(false);
+    // Onay sunucuda oturtuyor — karşı tarafın istemcisine güvenmiyoruz.
+    micSirasiOnayla(dbId, uid).catch((e) => {
+      const mesaj = (e as Error)?.message || String(e);
+      console.warn("[mic-sirasi] onaylanamadi:", mesaj);
+      toast(mesaj.includes("Boş koltuk") ? "Boş koltuk yok" : mesaj.includes("yasağı") ? "Kullanıcının mikrofon yasağı var" : "Onaylanamadı");
+    });
   };
   const myRaised = myDbId != null && micQueue.some((e) => e.uid === myDbId);
   /** Mikrofona davet et — hedefin ekranında onay soran bir kutu açılır. */
@@ -1092,21 +1608,37 @@ export default function RoomScreen() {
   };
 
   /** Koltukta mıyım — alt bardaki ilk yuvanın ne olacağını belirler. */
-  const oturuyorum = isMine || mySeat !== null;
+  /**
+   * Koltukta mıyım — TABLO da sayılıyor.
+   *
+   * Yalnız yerel `mySeat`e bakmak yetmiyordu: sunucu beni
+   * oturttuğunda (sıra onayı / davet) yerel state boş kalıyor ve
+   * "zaten mikrofondasın" durumu hiç görünmüyordu.
+   */
+  const oturuyorum =
+    isMine || mySeat !== null || (myDbId != null && dbKoltuklar.some((k) => k.kullaniciId === myDbId));
   const toggleMyMic = () => {
     const next = !micOn;
     haptic.light();
     setMicOn(next);
     if (dbId != null) koltukYaz(dbId, isMine ? -1 : mySeat, next);
     presenceYaz({ mic: next });
+    if (dbId != null) koltukMicAyarla(dbId, next).catch((e) => console.warn("[koltuk] mic yazilamadi:", (e as Error)?.message || e));
     if (isMine) setHost((h) => (h ? { ...h, muted: !next } : h));
     else if (mySeat !== null) setSeats((p) => p.map((t, i) => (i === mySeat && t ? { ...t, muted: !next } : t)));
     toast(next ? "Mikrofonun açık" : "Mikrofonun kapalı");
   };
   const toggleLock = (idx: number) => {
-    setSeatLocks((p) => p.map((v, i) => (i === idx ? !v : v)));
+    if (dbId == null) return;
+    const acilacak = seatLocks[idx];
     setSeatSheet(null);
-    toast(seatLocks[idx] ? "Koltuk kilidi açıldı" : "Koltuk kilitlendi");
+    // Kilit sunucuda tutuluyor (068); tabloyu dinleyen herkes anında görüyor.
+    koltukKilitle(dbId, idx, !acilacak)
+      .then(() => toast(acilacak ? "Koltuk kilidi açıldı" : "Koltuk kilitlendi"))
+      .catch((e) => {
+        console.warn("[kilit] yazilamadi:", (e as Error)?.message || e);
+        toast("Kilit değiştirilemedi");
+      });
   };
   const tapSeat = (idx: number) => {
     if (seatLocks[idx]) {
@@ -1128,8 +1660,19 @@ export default function RoomScreen() {
     }
   };
   const seatActions = (s: Seat) => ({
+    // NOT: "sustur" hâlâ yerel — başkasını susturmak için sunucu tarafı bir
+    // RPC gerekiyor, 069'a girmedi. Ayrı iş olarak duruyor.
     onMute: () => setSeats((p) => p.map((t) => (t && t.name === s.name ? { ...t, muted: !t.muted } : t))),
-    onKickMic: () => setSeats((p) => p.map((t) => (t && t.name === s.name ? null : t))),
+    // Mikrofondan indirme ARTIK SUNUCUDA. Eskiden `setSeats` ile yalnız
+    // yöneticinin ekranında kalkıyordu, karşı tarafta hiçbir şey olmuyordu.
+    onKickMic: () => {
+      if (dbId == null || s.uid == null) return;
+      koltuktanIndir(dbId, s.uid).catch((e) => {
+        const mesaj = (e as Error)?.message || String(e);
+        console.warn("[koltuk] indirilemedi:", mesaj);
+        toast(mesaj.includes("yetkilisi") ? "Bunun için oda yetkilisi olmalısın" : "Mikrofondan indirilemedi");
+      });
+    },
     onKickRoom: () => {
       setSeats((p) => p.map((t) => (t && t.name === s.name ? null : t)));
       banOrKick(s);
@@ -1137,7 +1680,8 @@ export default function RoomScreen() {
   });
   const hostActions = () => ({
     onMute: () => setHost((h) => (h ? { ...h, muted: !h.muted } : h)),
-    onKickMic: () => setHost(null),
+    // Oda sahibi kendi koltuğundan indirilemez (sunucu da reddediyor).
+    onKickMic: () => toast("Oda sahibi kendi koltuğundan indirilemez"),
     onKickRoom: () => {
       if (host) banOrKick(host);
       setHost(null);
@@ -1303,6 +1847,7 @@ export default function RoomScreen() {
             </View>
           </View>
 
+          {!klavyeAcik && (
           <View style={styles.stage}>
             {(gosterilenHost || isMine) && (
               <Pressable onPress={() => { if (isMine) openMyCard(); else if (gosterilenHost) tapOccupant(gosterilenHost); }} style={styles.hostSeat}>
@@ -1315,14 +1860,14 @@ export default function RoomScreen() {
                       name={isMine ? "Sen" : gosterilenHost?.name ?? "Sahip"}
                       size={SAHIP_KOLTUK}
                       muted={gosterilenHost?.muted}
-                      ring={isMine && kusanili.cerceve ? "transparent" : C.gold}
-                      glow={!(isMine && kusanili.cerceve)}
+                      ring={gosterilenHost?.cerceve ? "transparent" : C.gold}
+                      glow={!gosterilenHost?.cerceve}
                       // BUG: ziyaretçiye HER ZAMAN undefined geçiliyordu —
                       // sahibin fotoğrafı hesaplanıyor ama Portrait'e hiç
                       // verilmiyordu, o yüzden host koltuğu daima silüetti.
                       photo={isMine ? userPhoto || undefined : gosterilenHost?.photo}
                     />
-                    {isMine && kusanili.cerceve && <FramePreview id={kusanili.cerceve} size={SAHIP_KOLTUK} />}
+                    {gosterilenHost?.cerceve && <FramePreview id={gosterilenHost.cerceve} size={SAHIP_KOLTUK} />}
                     {gosterilenHost?.uid != null && tepkiler[gosterilenHost.uid] && (
                       <TepkiBalonu emoji={tepkiler[gosterilenHost.uid]} boyut={SAHIP_KOLTUK} />
                     )}
@@ -1332,7 +1877,7 @@ export default function RoomScreen() {
                   <Txt weight="semibold" size={11} color={sahipOdada ? "#fff" : C.dim}>
                     {isMine ? userName : gosterilenHost?.name ?? "Sahip"}
                   </Txt>
-                  {isMine && privileged && <AuthorityTag size={8} />}
+                  {gosterilenHost?.yetki && <AuthorityTag size={8} />}
                   {!sahipOdada && (
                     <View style={styles.ayrildiCip}>
                       <Txt weight="bold" size={9} color={C.dim}>Ayrıldı</Txt>
@@ -1351,13 +1896,14 @@ export default function RoomScreen() {
                   userPhoto={userPhoto}
                   userName={userName}
                   privileged={privileged}
-                  cerceveTema={s?.name === "Sen" ? kusanili.cerceve : undefined}
+                  cerceveTema={s?.cerceve}
                   tepki={s?.uid != null ? tepkiler[s.uid] : undefined}
                   onPress={() => (s ? tapOccupant(s) : tapSeat(idx))}
                 />
               ))}
             </View>
           </View>
+          )}
 
           <View style={{ flex: 1 }}>
             {/* Giriş efekti (056): mikrofonların hemen altında, sohbetin
@@ -1502,9 +2048,13 @@ export default function RoomScreen() {
           )}
         </KeyboardAware>
 
+        {/* Oda içi bilgilendirme — ekranın ORTASINDA. Eskiden alttan 90px
+            yukarıdaydı, alt bara yapışık gibi duruyor ve gözden kaçıyordu. */}
         {seatToast !== "" && (
-          <View style={styles.toast}>
-            <Txt weight="bold" size={12} color="#fff">{seatToast}</Txt>
+          <View pointerEvents="none" style={styles.toastKatman}>
+            <View style={styles.toast}>
+              <Txt weight="bold" size={14} color="#fff" align="center" lh={1.4}>{seatToast}</Txt>
+            </View>
           </View>
         )}
       </SafeAreaView>
@@ -1706,6 +2256,8 @@ export default function RoomScreen() {
           queue={isDbRoom ? micQueue : undefined}
           myUid={myDbId}
           myRaised={myRaised}
+          alreadyOnMic={oturuyorum}
+          onAlreadyOnMic={() => { setQueueOpen(false); toast("Zaten mikrofondasın"); }}
           canModerate={MY_ROLE !== "user"}
           // sahip sıraya giremez → "El Kaldır" butonu hiç çıkmasın
           onRaise={isMine ? undefined : raiseHand}
@@ -1990,7 +2542,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,.13)",
   },
   input: { color: C.text, fontSize: 13, fontFamily: "PlusJakartaSans_500Medium", minWidth: 0, paddingVertical: 10 },
-  toast: { position: "absolute", alignSelf: "center", bottom: 90, backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: C.gold + "55", paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999 },
+  toastKatman: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
+  toast: { backgroundColor: "rgba(15,13,21,.96)", borderWidth: 1, borderColor: C.gold + "66", paddingVertical: 15, paddingHorizontal: 24, borderRadius: 20, maxWidth: "80%" },
   actionBtn: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", borderRadius: 14, padding: 14, marginTop: 8 },
   userRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 10, borderRadius: 14, backgroundColor: "rgba(255,255,255,.03)" },
   bigCircle: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.08)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },

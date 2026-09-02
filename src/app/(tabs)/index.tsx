@@ -13,8 +13,7 @@ import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { PEOPLE } from "@/data/people";
-import { odaSayilariniDinle } from "@/data/remote/odaVarlik";
-import { getMyBannedRoomIds, listRooms, odaDegisiklikleriniDinle } from "@/data/remote/roomsRepo";
+import { getMyBannedRoomIds, listRooms, odaDegisiklikleriniDinle, odaKisiSayilari, odaKisiSayilariniDinle } from "@/data/remote/roomsRepo";
 import { useCachedResource } from "@/lib/cache";
 import { ROOMS, type Room } from "@/data/seed";
 import { RoomPasswordGate } from "@/sheets/RoomPasswordGate";
@@ -126,6 +125,12 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
   );
 }
 
+/**
+ * Odalardaki kişi sayıları — gerçek katılımcı tablosundan (070).
+ * `hazir`: tablo en az bir kez okundu mu.
+ */
+type CanliVarlik = { sayilar: Map<number, number>; hazir: boolean };
+
 export default function Home() {
   const router = useRouter();
   const odayaGirDene = useApp((s) => s.odayaGirDene);
@@ -157,22 +162,61 @@ export default function Home() {
   }, [odalariTazele]);
 
   /**
-   * Odalardaki CANLI kişi sayısı — presence'tan (odaVarlik.ts).
+   * Odalardaki CANLI kişi sayısı — `oda_katilimcilar` tablosundan (070).
    *
    * `aktif_katilimci_sayisi` istemcinin yazdığı bir sayıydı: yazılamazsa oda
    * hiç görünmüyor, uygulama çökerse boş oda listede asılı kalıyordu. Presence
    * bağlantı düştüğü an kişiyi düşürdüğü için ikisi de olmuyor. DB sayacı
    * yalnızca soğuk açılışta (presence daha oturmadan) yedek olarak kalıyor.
    */
-  const [canliSayilar, setCanliSayilar] = useState<Map<number, number>>(new Map());
-  useEffect(() => odaSayilariniDinle(setCanliSayilar), []);
+  const [canli, setCanli] = useState<CanliVarlik>({ sayilar: new Map(), hazir: false });
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let acik = true;
+    const yukle = () =>
+      odaKisiSayilari()
+        .then((m) => { if (acik) setCanli({ sayilar: m, hazir: true }); })
+        .catch((e) => console.warn("[oda-sayi] okunamadi:", (e as Error)?.message || e));
+    yukle();
+    const bitir = odaKisiSayilariniDinle(yukle);
+    return () => { acik = false; bitir(); };
+  }, []);
 
   // DB odaları üstte; mock odalar (MVP'de ekranı canlı tutar) altta. Aynı ID tekrarını ele.
   const dbIds = new Set(dbRooms.map((r) => r.id));
   const tumOdalar = [...dbRooms, ...ROOMS.filter((r) => !dbIds.has(r.id))].map((r) => {
     if (r.dbId == null) return r;
-    const canli = canliSayilar.get(r.dbId);
-    return canli === undefined ? r : { ...r, online: canli, live: canli > 0 };
+    /**
+     * TEK KAYNAK: katılımcı tablosu (070).
+     *
+     * Buraya kadar iki zayıf kaynağın büyüğü alınıyordu (istemcinin yazdığı
+     * `aktif_katilimci_sayisi` + presence). İkisi de kararsızdı, o yüzden
+     * "biri bile dolu diyorsa dolu" kuralı gerekiyordu — ama bu, hayalet
+     * odayı da listede tutuyordu: uygulama zorla kapanınca sayaç >0 kalıyor
+     * ve boş oda listede asılı duruyordu.
+     *
+     * Artık kalp atışlı gerçek tablo var: kalbi durmuş kayıt zaten elenmiş
+     * oluyor. Güvenilir kaynağı zayıf olanla harmanlamanın anlamı yok.
+     * Tablo okunana kadar eski sayaç yalnızca ilk karede yedek.
+     *
+     * ESKİ NOT (kayıt için):
+     *
+     * Presence'ı tek söz sahibi yapmak (30 Ağustos, ilk deneme) daha kötüydü:
+     * presence bir odayı ıskaladığında (`track` gitmemiş, o istemci genel
+     * kanala hiç katılmamış, ağ yavaş) o odanın DB sayacı da SIFIRA EZİLİYOR
+     * ve içinde insan olan oda boş görünüyordu. Tersi de doğru: yalnız DB
+     * sayacına güvenmek, sayacı yazacak istemci yazamayınca aynı sonucu
+     * veriyordu.
+     *
+     * Bu yüzden artık ikisinin BÜYÜĞÜ alınıyor: iki bağımsız kaynaktan biri
+     * "burada insan var" diyorsa oda doludur. Yanlış tarafa düşme riski
+     * "hayalet oda" (uygulama zorla kapanınca sayaç >0 kalır) — bu, dolu
+     * odanın görünmemesinden çok daha zararsız ve zaten bilinen ayrı bir iş
+     * (bkz. PROJE_DURUMU.md, Sıradakiler 11).
+     */
+    if (!canli.hazir) return r; // tablo henüz okunmadı — eski sayaç yedek
+    const sayi = canli.sayilar.get(r.dbId) ?? 0;
+    return sayi === r.online ? r : { ...r, online: sayi, live: sayi > 0 };
   });
 
   // Yasaklandığım odalar — listede hiç görünmemeli.
@@ -186,46 +230,77 @@ export default function Home() {
    *   • gizli/kilitli   — zaten "listede görünmez" sözüyle kilitleniyor
    *   • yasaklandığım   — giremeyeceğim odayı listelemenin anlamı yok
    *   • işlem görmüş    — yönetim işlemi olan oda tanıtılmaz (054)
-   *   • boş             — içinde kimse olmayan odaya sokmanın faydası yok
    * (Silinmiş odalar zaten sunucuda RLS ile eleniyor.)
    *
-   * Kendi odam için istisna YOK: boş oda kimseye görünmez, sahibine de.
-   * (Sahibi odasına profildeki "Odam" bölümünden giriyor.)
+   * BOŞ ODA ARTIK TAMAMEN YOK SAYILMIYOR (karar 30 Ağustos). "İçinde kimse
+   * yoksa hiç gösterme" kuralı iki kez soruna yol açtı: sahibi kendi odasını
+   * göremiyordu, presence bir an gecikince de liste komple boşalıyordu. Boş
+   * odalar dört ana sekmede yine gizli — ama artık ayrı bir "Boş" sekmesinde
+   * listeleniyorlar, yani hiçbir oda erişilemez hale gelmiyor.
    *
-   * "Kim odada" bilgisi artık DB sayacından değil, canlı presence'tan
-   * geliyor — bkz. odaVarlik.ts. Sayaç yalnızca soğuk açılışta yedek.
+   * "Kim odada" bilgisi artık YALNIZCA canlı presence'tan geliyor — bkz.
+   * 070. Eski `aktif_katilimci_sayisi` sayacı istatistik olarak kalıyor (sıralama/Odam/yönetim
+   * onu okuyor) ama görünürlüğe karar vermiyor.
    */
-  const gorunur = useMemo(() => {
+  const uygun = useMemo(() => {
     const yasak = new Set(yasakliOdaIds ?? []);
     return tumOdalar.filter((r) => {
       if (r.locked) return false;
       if (r.islemGordu) return false;
       if (r.dbId != null && yasak.has(r.dbId)) return false;
-      return r.online > 0;
+      return true;
     });
   }, [tumOdalar, yasakliOdaIds]);
 
-  // Sekmeler daha önce hiçbir şey yapmıyordu: dördü de aynı listeyi
-  // gösteriyordu (tab state'i yalnızca çubuğu boyuyordu).
+  /** İçinde en az bir kişi olan odalar — dört ana sekmenin kaynağı. */
+  const gorunur = useMemo(() => uygun.filter((r) => r.online > 0), [uygun]);
+
+  /** Boş odalar — yalnızca "Boş" sekmesinde. En son kurulan en üstte. */
+  const bosOdalar = useMemo(
+    () => sirala(uygun.filter((r) => r.online <= 0), (a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)),
+    [uygun],
+  );
+
+  /**
+   * SEKMELER — hangisi boş odayı da gösterir?
+   *
+   * REGRESYON KAYDI: bu listede eskiden HİÇ filtre yoktu (`36802bc`), her oda
+   * her zaman görünüyordu. `393d66d` sekmeleri gerçekten çalıştırırken
+   * "içinde kimse yoksa gösterme" kuralını getirdi, `99fd630` da bunu TÜM
+   * sekmelere yaydı. Sonuç: yeni kurulan oda hiçbir yerde görünmüyordu
+   * (057 migration'ının açılış notu tam olarak bunu anlatıyor) ve sahibi
+   * kendi odasını bulamıyordu. Kullanıcı 30 Ağustos'ta "eskiden bayağı
+   * görünüyordu, bir oturumda bozdunuz" diyerek bunu bildirdi — doğru.
+   *
+   * NİHAİ KURAL (30 Ağustos, kullanıcı): **boş oda yalnızca "Boş" sekmesinde.**
+   * Bir ara Keşfet'e de boş odalar konmuştu, kullanıcı bunu istemedi. Dört
+   * ana sekme doluluk arar, beşincisi boşları toplar — kural tek cümlede
+   * anlatılabiliyor, sürpriz yok.
+   *
+   * DİKKAT: bu kuralın işe yaraması "dolu oda gerçekten dolu görünüyor"a
+   * bağlı. Sayı iki kaynağın büyüğünden geliyor (yukarı bak); tek kaynağa
+   * indirgeme denemesi iki kez de dolu odaları listeden sildi.
+   */
   const rooms = useMemo(() => {
     switch (tab) {
-      case 1: // Popüler — en kalabalıktan seyreğe
+      case 1: // Popüler — yalnızca dolu odalar, kalabalıktan seyreğe
         return sirala(gorunur);
       case 2: {
-        // Yeni — yalnızca YENİ KURULMUŞ NORMAL odalar. Resmî ve Daily Top
-        // odalar buraya girmez (onların kendi yeri var); sıralama kuruluş
-        // tarihine göre değil, etkileşime (kalabalığa) göre.
+        // Yeni — son YENI_ODA_GUN günde kurulmuş normal odalar (resmî ve
+        // Daily Top hariç, onların kendi sekmesi var). En yeni üstte.
         const esik = Date.now() - YENI_ODA_GUN * 24 * 60 * 60 * 1000;
         return gorunur
           .filter((r) => !r.official && r.daily == null && (r.createdAt ?? 0) >= esik)
-          .sort((a, b) => b.online - a.online);
+          .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
       }
       case 3: // Resmî — yalnızca resmî odalar
         return sirala(gorunur.filter((r) => r.official));
-      default:
+      case 4: // Boş — içinde kimse olmayanlar, en yeni üstte
+        return bosOdalar;
+      default: // Keşfet — dolu odalar, kalabalıktan seyreğe
         return sirala(gorunur);
     }
-  }, [tab, gorunur]);
+  }, [tab, gorunur, bosOdalar]);
 
   const enterAndGo = (room: Room) => {
     haptic.light();
@@ -257,7 +332,7 @@ export default function Home() {
           <EventBanners />
           {/* Sekmeler banner'ın ÜSTÜNDEYDİ; artık banner ile oda listesinin
               arasında, yani filtrelediği listenin hemen başında duruyor. */}
-          <Tabs items={["Keşfet", "Popüler", "Yeni", "Resmî"]} active={tab} set={setTab} pad={14} />
+          <Tabs items={["Keşfet", "Popüler", "Yeni", "Resmî", "Boş"]} active={tab} set={setTab} pad={14} />
           <View style={{ paddingHorizontal: 12, paddingTop: 14, gap: 10 }}>
             {rooms.length > 0 ? (
               rooms.map((r) => <RoomRow key={r.id} room={r} onPress={() => onRoomPress(r)} />)
@@ -268,14 +343,22 @@ export default function Home() {
                   <Icon name="mic" size={20} color={C.gold} />
                 </View>
                 <Txt weight="displayBold" size={14} color="#fff" style={{ marginTop: 12 }}>
-                  {tab === 3 ? "Şu an açık resmî oda yok" : tab === 2 ? "Yeni açılan oda yok" : "Şu an açık oda yok"}
+                  {tab === 4
+                    ? "Boş oda yok"
+                    : tab === 3
+                      ? "Henüz resmî oda yok"
+                      : tab === 2
+                        ? "Yeni açılan oda yok"
+                        : "Şu an açık oda yok"}
                 </Txt>
                 <Txt size={11.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 6, maxWidth: 250 }}>
-                  {tab === 3
-                    ? "Resmî odalar açıldığında burada listelenir."
-                    : tab === 2
-                      ? `Son ${YENI_ODA_GUN} günde açılmış aktif bir oda yok.`
-                      : "Boş, kilitli, yasaklı ve işlem görmüş odalar listelenmez. Sen bir oda açarak başlayabilirsin."}
+                  {tab === 4
+                    ? "Kurulu her odanın içinde birileri var. Kimse kalmayan odalar buraya düşer."
+                    : tab === 3
+                      ? "Resmî odalar açıldığında burada listelenir."
+                      : tab === 2
+                        ? `Son ${YENI_ODA_GUN} günde açılmış bir oda yok.`
+                        : "İçinde kimse olmayan odalar \"Boş\" sekmesinde. Kilitli, yasaklı ve işlem görmüş odalar hiç listelenmez."}
                 </Txt>
               </View>
             )}

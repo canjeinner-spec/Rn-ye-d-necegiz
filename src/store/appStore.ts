@@ -563,20 +563,34 @@ export const useApp = create<AppState>((set, get) => ({
     return r;
   },
 
-  // Kalıcı oda oluşturur (Supabase). Hata/oturum yoksa yerel odaya düşer.
+  /**
+   * Kalıcı oda oluşturur (Supabase).
+   *
+   * OTURUM VARKEN ARTIK SESSİZCE YEREL ODAYA DÜŞMÜYOR — hata yukarı gider.
+   *
+   * Eskiden buradaki `catch {}` HER hatayı yutuyor ve `makeMyRoom()` ile
+   * `dbId`si olmayan SAHTE bir oda veriyordu. O oda ekranda tıpatıp gerçeği
+   * gibi görünüyor, içine girilebiliyor, adı/ID'si çıkıyor — ama veritabanında
+   * YOK. Sonucu: oda hiçbir listeye düşmüyor, kimse göremiyor, `isDbRoom`
+   * false olduğu için ne presence yayınlanıyor ne katılımcı sayacı yazılıyor.
+   * Üstelik kullanıcıya tek bir uyarı bile çıkmıyor.
+   *
+   * "Android'de kurduğum oda listede görünüyor, iOS'te kurduğum görünmüyor"
+   * (30 Ağustos) tam olarak buydu: iOS'teki çağrı bir kez hata aldı ve
+   * kullanıcı farkında olmadan sahte odayla kaldı. Cihaza değil, yutulan
+   * hataya bağlı — Android'de de olabilirdi.
+   *
+   * Yerel odaya düşmek YALNIZCA Supabase/oturum yokken doğru: o zaman zaten
+   * mock akıştayız ve kimse kalıcılık beklemiyor.
+   */
   createMyRoom: async () => {
     const { userName, userPhoto, enterRoom, makeMyRoom } = get();
     if (isSupabaseConfigured && get().session) {
-      try {
-        // Önce DB'de zaten var mı kontrol et (get-or-create) — aksi halde her
-        // "Oluştur" tıklaması yeni bir oda satırı ekler, öncekiler unutulurdu.
-        const r = (await getMyRoom()) ?? (await createRoom({ name: `${userName} Odası`, photo: userPhoto || null }));
-        set({ myRoom: r });
-        enterRoom(r);
-        return r;
-      } catch {
-        // sessizce yerel odaya düş
-      }
+      // get-or-create: her "Oluştur" tıklaması yeni satır eklemesin.
+      const r = (await getMyRoom()) ?? (await createRoom({ name: `${userName} Odası`, photo: userPhoto || null }));
+      set({ myRoom: r });
+      enterRoom(r);
+      return r;
     }
     const r = makeMyRoom();
     enterRoom({ ...r, photo: userPhoto || r.photo });
