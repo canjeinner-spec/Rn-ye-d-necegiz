@@ -95,6 +95,12 @@ const CIHAZ = `c${Math.random().toString(36).slice(2, 10)}`;
  */
 const ARKAPLAN_MS = 20000;
 
+/**
+ * Kendi oturma/kalkma isteğimin sunucu yankısını bu kadar bekliyoruz.
+ * Kısa tutuldu: uzun pencere, arada gelen yönetici müdahalesini yutuyor.
+ */
+const BEKLEME_MS = 1200;
+
 const { width: EKRAN } = Dimensions.get("window");
 const KOLTUK = Math.round((EKRAN / 4) * 0.512);
 const SAHIP_KOLTUK = Math.round(KOLTUK * 1.5);
@@ -674,6 +680,9 @@ export default function RoomScreen() {
    */
   const sonKoltukIstegiRef = useRef(0);
 
+  /** Uzlaştırmayı bekleme penceresi dolunca yeniden koşturmak için sayaç. */
+  const [uzlasTetik, setUzlasTetik] = useState(0);
+
   /**
    * Koltuk ve sıra tablolarını yeniden okuma kancaları.
    *
@@ -809,12 +818,28 @@ export default function RoomScreen() {
 
     // (b) Sunucu beni hiçbir koltukta görmüyorsa yerel iyimser koltuğu bırak.
     if (mySeat === null) return;
-    if (Date.now() - sonKoltukIstegiRef.current < 3000) return;
+
+    /**
+     * Kendi isteğimin yankısını beklerken kısa bir pencere var; ama o
+     * pencerede TAKILIP KALMAMALI.
+     *
+     * Eskiden burada sadece `return` vardı. Yönetici seni oturduktan hemen
+     * sonra indirirse, indirme olayı bu pencereye denk geliyor ve atlanıyordu;
+     * sonra başka bir olay gelmediği için yerel koltuk ekranda ASILI
+     * kalıyordu. "Bazen mikrofondan indir uygulanmıyor" bundandı. Artık
+     * pencere dolunca kendi kendine yeniden değerlendiriyor.
+     */
+    const gecen = Date.now() - sonKoltukIstegiRef.current;
+    if (gecen < BEKLEME_MS) {
+      const t = setTimeout(() => setUzlasTetik((x) => x + 1), BEKLEME_MS - gecen + 50);
+      return () => clearTimeout(t);
+    }
+
     setMySeat(null);
     setMicOn(false);
     toast("Mikrofondan indirildin");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dbKoltuklar, isDbRoom, myDbId, mySeat, micOn]);
+  }, [dbKoltuklar, isDbRoom, myDbId, mySeat, micOn, uzlasTetik]);
 
   const [seatSheet, setSeatSheet] = useState<number | null>(null);
   const [seatToast, setSeatToast] = useState("");
@@ -1623,7 +1648,10 @@ export default function RoomScreen() {
    * yöneticiye "davet edildi" yazıyordu.
    */
   const micDavetYolla = (uid: number, koltuk: number) => {
-    if (isDbRoom && !odadakiler.some((m) => m.uid === uid)) {
+    // Katılımcı listesi ELDE VARSA kontrol et. Liste boşsa (tablo henüz
+    // okunmadı ya da dinleyici kurulamadı) daveti ENGELLEME — bilgisizlik
+    // yüzünden isteği reddetmek, yanlış göndermekten daha kötü.
+    if (isDbRoom && odadakiler.length > 0 && !odadakiler.some((m) => m.uid === uid)) {
       toast("Kullanıcı odada görünmüyor, davet ulaşmaz");
       return;
     }
