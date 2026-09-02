@@ -15,6 +15,24 @@ Temel şemanın (kullanicilar, odalar, hediyeler, cuzdanlar…) repoda kaynak
 dosyası **yok**; doğrudan Supabase'te kurulu. Neyin zaten var olduğunu
 bilmeden migration yazmak çakışma üretiyor — nitekim üretti.
 
+## Mimari kural — taşıyıcı seçimi
+
+Oda içi her şey bir dönem Realtime **presence** ile taşınıyordu ve üç oturum
+boyunca kararsız çalıştı. Kural netleşti:
+
+| Ne | Nasıl taşınır |
+|---|---|
+| **Durum** — kim nerede oturuyor, mikrofonu açık mı, koltuk kilitli mi, odada kim var | **Tablo + `postgres_changes`** |
+| **Olay** — sohbet mesajı, giriş efekti, emoji tepkisi, mikrofon daveti | **broadcast** |
+| Kozmetik — kuşanılan çerçeve/balon | presence (geç gelirse zararsız) |
+
+Sebep: broadcast hızlı ama **kaçan olayın telafisi yok**; presence hem kaçırıyor
+hem aynı anahtarda birden çok kayıt tutabiliyor. Tabloda durum kalıcı — kaçan
+olay bir sonraki okumada zaten doğru geliyor. Yeni bir oda özelliği eklerken
+önce "bu olay mı, durum mu" sorusunu cevapla.
+
+Not: `src/data/remote/odaVarlik.ts` (genel presence kanalı) bu yüzden silindi.
+
 ## Çalıştırma
 
 ⚠️ **Bu makine bir bulut sunucusu (AWS).** Telefon yerel ağa ulaşamaz, QR kod

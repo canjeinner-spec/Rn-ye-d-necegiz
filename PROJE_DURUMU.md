@@ -146,7 +146,7 @@ Tüm commit geçmişi `git log --oneline --reverse` ile eksiksiz görülebilir.
       input'ları için `automaticallyAdjustKeyboardInsets`.
     - Commit: `3f592d4` (push'landı).
 
-## 6) Veritabanı — Migration Listesi (db/migrations/, 001-059)
+## 6) Veritabanı — Migration Listesi (db/migrations/, 001-070)
 
 Hepsi **idempotent** (`CREATE OR REPLACE`, `IF NOT EXISTS`) — tekrar
 çalıştırmak zarar vermez. Sırayla çalıştırılmalı (numaraya göre).
@@ -184,8 +184,13 @@ Hepsi **idempotent** (`CREATE OR REPLACE`, `IF NOT EXISTS`) — tekrar
 | 050 | rozet_kusanma | `kullanicilar.kusanilan_rozet` + `profiller` view + oda/başarı kategori ayrımı + `rozet_kusan/kaldir` ✅ |
 | 051 | rozet_kusanma_kurallari | Seviye rozetlerini sunucuda reddeder ⏳ **BEKLİYOR** |
 | 052 | oda_vitrin | `odalar.resmi` + `gunluk_sira` (Daily Top) + `oda_vitrin_ayarla` (yalnız yönetici) ✅ |
-| 053 | admin_oda_kapak | `admin_oda_kapak_ayarla` — yönetici oda kapağını değiştirir/kaldırır ⏳ **BEKLİYOR** |
-| 054 | oda_islem_isareti | `odalar.islem_gordu/islem_sebep/islem_tarihi` + `admin_oda_islem_isaretle`; **`odalar_update` RLS'i işaretli odada sahibi engeller**; `admin_oda_getir` DROP+yeniden ⏳ **BEKLİYOR** |
+| 053 | admin_oda_kapak | `admin_oda_kapak_ayarla` — yönetici oda kapağını değiştirir/kaldırır ⏳ **TEK BEKLEYEN** |
+| 054 | oda_islem_isareti | `odalar.islem_gordu/islem_sebep/islem_tarihi` + `admin_oda_islem_isaretle`; **`odalar_update` RLS'i işaretli odada sahibi engeller**; `admin_oda_getir` DROP+yeniden ✅ |
+| 055-066 | (bkz. dosya adları) | oda listeleri, eşya/mağaza, hediye defteri, sıralama, görevler, tek altın bakiyesi, enum/yetki düzeltmeleri, oda listesi canlı yayın, oda rozetleri ✅ |
+| 067 | admin_bakiye_temel_deftere | Yönetici bakiyesi + panel okuması temel deftere (`lot_yatir`/`lot_harca`, `cached_*`) ✅ |
+| 068 | oda_koltuklari | Koltuk/mikrofon/kilit **var olan** `oda_koltuklari` tablosuna; RPC + realtime + RLS ✅ |
+| 069 | mic_akislari | `koltuktan_indir`, `oda_mic_sirasi` tablosu, sıraya gir/çık/onayla, mic yasağı sunucuda ✅ |
+| 070 | oda_katilimcilari | `oda_katilimcilar` + kalp atışı devreye alındı; `oda_kisi_sayilari` ✅ |
 | 048 | hesap_yasak_dm | `hesap_yasak_ver/kaldir` OR REPLACE → yasak verilince/kalkınca hedefe kalıcı **Sistem DM'i** (sebep+süre; yasaklı ancak yasağı kalkınca görür) + bildirim |
 
 **Birleşik dosyalar:**
@@ -493,80 +498,603 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
-> **Son güncelleme: 30 Ağustos 2026 (oturum sonu)** · Dal `claude/metro-recovery-1xc2kq`
+> **Son güncelleme: 2 Eylül 2026** · Dal `claude/metro-recovery-1xc2kq`
 > · **origin'e PUSH EDİLMEDİ** · güncel commit için `git log --oneline -5`
 > · Dal `claude/metro-recovery-1xc2kq` · **origin’e PUSH EDİLMEDİ**
 > (yerel commit’ler; şema dökümü için `db/SEMA_DOKUMU.md`’ye bak)
 
-### 🔴 AÇIK HATA — oda listede görünmüyor (30 Ağustos, ÇÖZÜLMEDİ)
+### 🟡 ODA LİSTESİ GÖRÜNÜRLÜĞÜ — karar verildi + düzeltildi, CİHAZDA DOĞRULANMADI
 
-**Belirti (kullanıcının gördüğü):**
-- Kendi odasında dururken oda listede yok.
-- Arkadaşı odasındayken o da listede görünmüyor.
-- Bazen tersi: kimse yokken oda listede asılı kalıyor.
-- "Odam" bölümünde, odanın içindeyken bile "boş" yazıyor.
+> **DÜZELTME (30 Ağustos, aynı gün, üçüncü tur):** "tek kaynak seç" kararı
+> UYGULANMADI — çünkü hem presence'ı hem sayacı tek başına seçmek aynı hataya
+> yol açtı: **içinde insan olan oda listede boş göründü.** Presence tek söz
+> sahibi yapılınca, presence bir odayı ıskaladığı anda (track gitmemiş, o
+> istemci genel kanala katılmamış, ağ yavaş) o odanın DB sayacı da sıfıra
+> EZİLİYORDU. Nihai kural: **iki kaynağın BÜYÜĞÜ** — iki bağımsız kaynaktan
+> biri "burada insan var" diyorsa oda doludur. Yanlış tarafa düşme riski
+> "hayalet oda"ya kayar, o da dolu odanın kaybolmasından çok daha zararsız.
+> Ayrıca sayacı artık odadaki HER istemci yazıyor (eskiden yalnız en küçük
+> uid — tek arıza noktasıydı).
+>
+> Boş odalar **yalnızca "Boş" sekmesinde**; bir ara Keşfet'e de konmuştu,
+> kullanıcı istemedi ("her şey birbirine karışmış").
 
-**Kanıt (Metro logundan, teşhis satırları hâlâ kodda):**
+**İLK KARAR (aşıldı, kayıt için):** kişi sayısının **tek kaynağı presence**.
+`odalar.aktif_katilimci_sayisi` SİLİNMEDİ — sıralama (060), "Odam"
+(`getMyRoom`) ve yönetim ekranları (036/054) onu okuduğu için **istatistik**
+olarak kalıyor ve `room.tsx` yazmayı sürdürüyor; ama artık **görünürlüğe
+karar vermiyor**. İkinci karar: "boş odayı hiç gösterme" kuralı kaldırıldı —
+boş odalar ayrı bir **"Boş" sekmesinde** listeleniyor.
+
+> Not: sayacı tamamen sökmek mümkün değildi; üç yer daha ona bağlı
+> (`060_siralama.sql:124`, `roomsRepo.getMyRoom`, `036`/`054`
+> `admin_oda_getir`). "Birine karar ver, diğerini sök" bu yüzden
+> "presence karar verir, sayaç istatistik kalır" şeklinde uygulandı.
+
+**KÖK SEBEP (kod okumasıyla bulundu — üç turdur neden teşhis edilemediği):**
+`odaVarlik.ts` her hatayı **sessizce yutuyordu**:
+- `subscribe` geri çağrısı yalnız `"SUBSCRIBED"`e bakıyordu; `CHANNEL_ERROR` /
+  `TIMED_OUT` **hiç görülmüyordu** ve **yeniden deneme yoktu** → kanal bir kez
+  join edemezse `canliSayilar` sonsuza kadar boş kalıyordu.
+- Üç ayrı `.catch(() => {})` (`track`/`untrack`) → track reddedilse iz kalmıyordu.
+- Kanal, oturum daha kurulmadan `(tabs)/index.tsx` mount'unda açılıyordu.
+- Presence anahtarı `String(uid ?? Math.random())` idi: kanal liste ekranından
+  (uid bilinmeden) açıldığı için anahtar rastgele kalıyor, sonra düzelmiyordu.
+
+Buna `index.tsx`'teki `canli === undefined ? r : …` eklenince (presence kaydı
+yoksa sessizce DB sayacına düşüyordu) iki kaynak **tam o noktada** çelişiyordu.
+
+**AYRICA — kanıt yorumu düzeltmesi:** `oda_katilimci_yaz` (057:34)
+`benim_kullanici_id()` NULL ise **hatasız `RETURN`** ediyor. Yani eski nottaki
+"`[sayac]` hata satırı hiç çıkmadı, demek ki yazma patlamıyor" çıkarımı
+yazmanın çalıştığını **kanıtlamıyor** — sessiz no-op da aynı görünüyor.
+
+**YAPILANLAR (bu oturum — `tsc --noEmit` temiz, commit'lenmedi):**
+- **`src/data/remote/odaVarlik.ts` yeniden yazıldı:** her `subscribe` durumu
+  loglanıyor (`[varlik]`), `CHANNEL_ERROR`/`TIMED_OUT`/`CLOSED` sonrası artan
+  gecikmeyle (1s→20s) yeniden bağlanma, `track`/`untrack` sonucu loglanıyor,
+  presence anahtarı süreç boyunca sabit, dinleyiciye ikinci argüman **`hazir`**
+  veriliyor (presence oturmadıysa çağıran DB sayacına düşer — soğuk açılış).
+- **`src/app/(tabs)/index.tsx`:** `hazir` ise sayı YALNIZCA presence'tan gelir
+  (kayıt yoksa oda gerçekten boştur, 0). Görünürlük filtresinden `r.online > 0`
+  çıkarıldı; `uygun` (izin) / `gorunur` (dolu) / `bosOdalar` diye ayrıldı.
+  **5. sekme "Boş"** eklendi (en son kurulan en üstte), boş-durum metinleri
+  güncellendi.
+- **`src/app/my-room.tsx`:** "Odam" satırındaki `myRoom.live` de presence'a
+  bağlandı — "odanın içindeyken bile 'Şu an boş' yazıyor" ucu buydu.
+- **`roomsRepo.ts`:** `[liste] … online:` teşhis logu `sayac:` olarak
+  netleştirildi (o satır DB sayacıdır, presence değil — karıştırılmıştı).
+
+**REGRESYON — asıl mesele buymuş (30 Ağustos, kullanıcı bildirdi):**
+Kullanıcı "eskiden bayağı görünüyordu, sonradan bir oturumda bozdunuz" dedi;
+git geçmişi bunu doğruluyor. `36802bc`'de liste HİÇ filtrelenmiyordu — her oda
+her zaman görünüyordu. `393d66d` sekmeleri gerçekten çalıştırırken "içinde
+kimse yoksa gösterme" kuralını getirdi, `99fd630` da bunu TÜM sekmelere yaydı.
+Yeni kurulan oda böylece hiçbir yerde görünmez oldu (057'nin açılış notu tam
+olarak bunu anlatıyor) ve sahibi kendi odasını bulamadı.
+
+**Geri alındı.** Boş oda artık ana sekmeleri terk etmiyor:
+Keşfet = her şey (dolu üstte) · Popüler = yalnız dolu · Yeni = yeni kurulanlar
+(doluluk aranmaz, yeni oda tanımı gereği boştur) · Resmî = tüm resmî odalar ·
+Boş = yalnız boşlar. Presence hâlâ "kim odada" sayısının tek kaynağı; artık
+yalnızca SIRALAMAYI ve "Popüler"i etkiliyor, odayı listeden SİLMİYOR.
+
+**Teşhis rozeti — KALDIRILDI (kullanıcı isteği).** Odalar ekranında presence durumu
++ "en son hangi odada kaç kişi görüldü" satırı. Tek cihazla presence'ı
+doğrulamanın tek yolu bu — kendi odana girip listeye dönmek doğrulama DEĞİL,
+çünkü listeye bakmak için odadan çıkman gerekiyor ve çıkınca presence'tan
+düşüyorsun ("Küçült" de `router.back()`, `room.tsx:1212`).
+
+**Kalan doğrulama — iki cihaz.** Metro logunda:
+- `[varlik] kanal SUBSCRIBED` görünüyorsa → arkadaş odaya girince odası listede
+  belirmeli, çıkınca "Boş" sekmesine düşmeli. Doğrulanınca `[varlik]`,
+  `[liste]`, `[presence]` teşhis logları kaldırılabilir.
+- `[varlik] kanal CHANNEL_ERROR …` görünüyorsa → **artık sebebi yazıyor.**
+  Presence'ın hiç çalışmamasının kökü orasıdır; ilk bakılacak yer Realtime'ın
+  rol yetkisi ve kanalın oturumdan önce açılması.
+
+### 🏁 PRESENCE TAMAMEN KALKTI — oda listesi de tabloda (2 Eylül)
+
+Üç oturumluk yolculuğun sonu. Oda listesindeki kişi sayısı, presence'a kalan
+son tüketiciydi; artık `oda_kisi_sayilari()` (070) ile gerçek katılımcı
+tablosundan geliyor ve `oda_katilimcilar` üzerindeki `postgres_changes` ile
+canlı tazeleniyor.
+
+**`src/data/remote/odaVarlik.ts` SİLİNDİ** — genel presence kanalı artık
+tüketicisiz. `room.tsx`teki `varlikBildir`/`varliktanCik` çağrıları da kalktı.
+
+**Birleştirme kuralı da değişti.** Eskiden `max(presence, aktif_katilimci_sayisi)`
+alınıyordu, çünkü iki kaynak da zayıftı ve "biri bile dolu diyorsa dolu" demek
+gerekiyordu. Ama bu kural **hayalet odayı da listede tutuyordu**: uygulama zorla
+kapanınca sayaç >0 kalıyordu. Artık kalp atışlı tek kaynak var; güvenilir
+kaynağı zayıf olanla harmanlamanın anlamı yok. Eski sayaç yalnızca tablo
+okunana kadarki ilk karede yedek.
+
+> `odalar.aktif_katilimci_sayisi` kolonu DURUYOR ve `room.tsx` yazmaya devam
+> ediyor — sıralama (060), "Odam" ve yönetim ekranları onu okuyor. Ama artık
+> oda listesinin görünürlüğüne karar vermiyor.
+
+### 👥 "ODADA KİM VAR" ARTIK SUNUCUDA — 070 (31 Ağustos) · ÇALIŞTIRILMASI GEREKİYOR
+
+Presence'a kalan SON bağımlılık da kalktı. Koltuklar 068 ile tabloya taşındıktan
+sonra geriye yalnız kişi listesi kalmıştı; ağ kopunca boşalıyor, sayı 0 düşüyordu.
+
+**Tablo temel şemada zaten vardı:** `oda_katilimcilar(kullanici_id PK, oda_id,
+session_id, giris_tarihi, last_heartbeat)` + `oda_stale_katilimcilari_temizle`.
+Ama tablo BOŞTU, kimse yazmıyordu, `pg_cron` da kurulu değil — yani temizleyiciyi
+çağıran yoktu. 070 bunu devreye alıyor:
+`odaya_katil`, `oda_kalp_atisi`, `odadan_ayril`, `oda_katilimcilari_getir`,
+`oda_kisi_sayilari`. Kalp atışı 25 sn, bayatlama eşiği 2 dk; temizleyici
+katılım anında tetikleniyor (cron yok), okurken de bayat satırlar eleniyor.
+
+İstemci: liste ve kişi sayısı bu tablodan; hayalet koltuk süzgeci de artık
+presence yerine bu tabloya bakıyor. Küçültmede odadan AYRILMIYOR (koltukta
+olduğu gibi). Presence yalnız kozmetiklerde (çerçeve/balon) kaldı.
+
+### 🪑 DAVET/ONAYLA OTURTULUNCA "ZATEN MİKROFONDASIN" ÇIKMIYORDU (31 Ağustos)
+
+Sıradan onaylanınca ya da davet kabul edilince koltuğa SUNUCU oturtuyor; yerel
+`mySeat` hiç set edilmiyordu. Sonucu: sıra sayfasındaki buton hâlâ "El Kaldır"
+diyor, basınca uyarı çıkıyor ama sayfa kapanmıyor; "Mikrofondan in" de
+çalışmıyor. Kendi oturduğunda `mySeat` set edildiği için o yol düzgün
+görünüyordu — kullanıcının fark ettiği ayrım buydu.
+
+Koltuk uzlaştırması artık **çift yönlü**: sunucu beni oturttuysa yereli
+dolduruyor, oturtmadıysa yereli bırakıyor. `oturuyorum` da tabloya bakıyor.
+
+### 🪟 ANDROID'DE CAM YÜZEYLER AŞIRI SAYDAMDI (31 Ağustos)
+
+`expo-blur`ın `BlurView`ı iOS'te gerçek bulanıklık uyguluyor, Android'de
+pratikte hiçbir şey yapmıyor. Tasarım blur'un getirdiği koyuluğa güvendiği için
+gradyanlar bilerek çok saydam (ProfileCard 0.30 → 0.42): iOS'te tam istenen his,
+Android'de kart içi görünüyordu.
+
+Yeni `src/components/CamZemin.tsx`: blur + gradyan + **Android'de telafi
+perdesi** (`perde` prop'u, yüzey ne kadar saydamsa o kadar yüksek).
+Uygulandığı yerler: `GlassPanel` (paylaşılan), `ProfileCard`, `RoomPanel`,
+`MicQueueSheet`. Diğer blur kullanan dosyalar (GiftSheet, RoomStats,
+BottomNav, RoomEntryGate, BadgeInfoModal…) henüz geçmedi.
+
+> `experimentalBlurMethod="dimezisBlurView"` gerçek blur veriyor ama deneysel ve
+> animasyonlu ekranlarda düşük seviye Android'de kare düşürüyor; kesin ve ucuz
+> olan perde tercih edildi.
+
+### 🩹 ÜÇ KARARSIZLIK DÜZELTMESİ (31 Ağustos)
+
+**1. "Odayı ben kapatmadım, kendi kapandı."** Sebep bendim: eklediğim otomatik
+düşme, kanal `CLOSED` olunca 15 sn sonra `router.back()` çağırıyordu. Ama
+`CLOSED` normal bir geçiş — kendi temizliğimizde, yeniden bağlanmada, öne/arkaya
+alınırken de oluyor (özellikle Android'de). Artık `CLOSED` odadan
+DÜŞÜRMÜYOR; yalnız `CHANNEL_ERROR`/`TIMED_OUT` sayılıyor ve süre 45 sn.
+
+**2. "Attım, benim ekranımda düştü ama kullanıcıda hâlâ mikrofonda."**
+`canliKoltuklar` kendi koltuğumu sunucu yankısını beklemeden iyimser çiziyor
+(dokununca anında dolsun diye) — ama bu iyimserliğin sonu yoktu. Yönetici
+indirince sunucu koltuğu boşaltıyor, indirilen kişinin ekranı yerel `mySeat`
+yüzünden kendini koltukta çizmeye devam ediyordu. **Sıradan onaylananlarda
+`mySeat` hiç set edilmediği için o yol çalışıyordu** — kullanıcının fark
+ettiği ayrım tam buydu. Artık: sunucu beni hiçbir koltukta görmüyorsa (ve
+kendi isteğimin 3 sn'lik yankı penceresi geçtiyse) yerel koltuk bırakılıyor.
+
+**3. "Odaya dönünce 'host ayrıldı' yazıyor, 3-5 sn sonra düzeliyor."**
+Presence ilk turunu yapmadan `sahipOdada` false görünüyordu. Artık `Ayrıldı`
+etiketi presence en az bir kez sync olana kadar hiç basılmıyor.
+
+### 🎙️ MİKROFON AKIŞLARI — 069 (31 Ağustos) · ÇALIŞTIRILMASI GEREKİYOR
+
+Üç akış: mikrofondan indirme, mikrofona davet, mikrofon sırası.
+
+**Neyin bozuk olduğu:**
+- **Mikrofondan indir** tamamen YERELDİ (`setSeats(...)`) — yöneticinin
+  ekranında kişi kalkıyor, karşı tarafta hiçbir şey olmuyordu.
+- **Mikrofon sırası** broadcast'teydi — sonradan giren yönetici bekleyenleri
+  hiç görmüyor, bağlantı kopunca sıra siliniyor, "onaylandın" mesajı kaçarsa
+  kimse oturmuyordu.
+- **Mikrofon yasağı** (028) yalnız istemcide kontrol ediliyordu.
+
+**069 ne getiriyor:**
+- `oda_mic_sirasi` tablosu (realtime + RLS, yazma yalnız RPC ile)
+- `_oda_moderatoru(oda)` — sahip / platform yöneticisi / `oda_uyeleri.rol`
+  içinde sahip|yonetici|moderator
+- `koltuktan_indir(oda, hedef)` — sahibin sahne koltuğu (20) korunuyor
+- `mic_sirasina_gir`, `mic_sirasindan_cik(oda, hedef DEFAULT NULL)`,
+  `mic_sirasi_onayla(oda, hedef)`, `mic_sirasi_getir(oda)`
+- `koltuga_otur` yeniden tanımlandı: mikrofon yasağı artık SUNUCUDA da
+  kontrol ediliyor, oturunca kişi sıradan düşüyor
+
+**Onay artık sunucuda oturtuyor** — karşı tarafın istemcisine güvenilmiyor.
+`mic_sirasi_onayla` ilk boş ve kilitsiz koltuğu bulup hedefi oraya yazıyor.
+
+**Davet (`mic_davet`) bilerek broadcast kaldı:** kişiye özel, anlık, kalıcılığı
+anlamsız bir bildirim. Kabul edilince zaten `koltuga_otur` çağrılıyor.
+
+> **069'da yakalanan tuzak:** `koltuga_otur` içine `EXCEPTION WHEN
+> undefined_table` koymuştum (sıra tablosu henüz yoksa diye). PL/pgSQL'de
+> yakalanan hata **bloğun tamamını geri alır** — yani sıra silme patlarsa
+> koltuğa oturma da iptal olurdu. Tablo fonksiyondan önce kurulacak şekilde
+> sıra değiştirildi, yakalayıcı kaldırıldı.
+
+> **KALAN:** "sustur" (başkasını susturma) hâlâ yerel — sunucu tarafı RPC yok.
+> Ayrı iş.
+
+### ⌨️ ANDROID KLAVYE: sahne gizleniyor (31 Ağustos)
+
+Belirti: "Android'de sohbete tıklayınca ekranın yarısı görünmüyor."
+
+Sebep: `KeyboardAware` TÜM oda ekranını `behavior="padding"` ile sarıyor.
+Klavye açılınca kullanılabilir yükseklik ~%40 azalıyor, ama üst bar ve sahne
+(host koltuğu + mikrofon ızgarası) SABİT yükseklikte — koltuk çapı ekran
+genişliğinden hesaplanıyor. Geriye kalan yer sohbete yetmiyor.
+
+Çözüm: klavye açıkken sahne tamamen gizleniyor (`klavyeAcik` state,
+`Keyboard` dinleyicileri). Yazarken sahneye zaten bakılmıyor; kapanınca
+geri geliyor. Yalla ve WePlay de aynısını yapıyor.
+
+### ⏱️ KOLTUK GECİKMESİ: fazladan tur kaldırıldı (31 Ağustos)
+
+`postgres_changes` olayı `REPLICA IDENTITY FULL` sayesinde yeni satırı zaten
+taşıyor. Eskiden olay gelince tabloyu yeniden OKUYORDUK, yani her değişimde
+bir tur daha sunucuya gidiliyordu. Artık olay ANINDA uygulanıyor; tazeleme
+(ad/foto join'i için) 120 ms sonra arkadan geliyor.
+
+> **Bölge notu:** Supabase bölgesi (Frankfurt) proje kurulurken seçiliyor ve
+> proje URL'sine gömülü — istemcide ayarlanacak bir şey YOK. Kalan gecikme
+> ağ gidiş-dönüşü. `realtime.params.eventsPerSecond` ayarlanmıyor (varsayılan
+> 10/sn); kullanımımız bunun çok altında, artırmak bir şey değiştirmez.
+
+### 🧱 KOLTUK / MİKROFON / KİLİT ARTIK VERİTABANINDA — 068 (31 Ağustos, NİHAİ)
+
+Üç oturumluk kovalamacanın sonu. Sıra şöyleydi: presence → (meta seçimi
+düzeltildi) → broadcast → **veritabanı**. Kullanıcının son ölçümü:
+*"aşırı kararsız, 1-2 defa yapınca anlık oluyor ama sonra yine buga giriyor,
+bunları db'ye yazmak gerekiyor, presence'ı aradan çıkar."* Doğru karar.
+
+**`068_oda_koltuklari.sql` — ÇALIŞTIRILMASI GEREKİYOR.**
+
+> **ÖNCE ŞUNU OKU:** `oda_koltuklari` **temel şemada ZATEN VARDI.** İlk
+> taslakta tabloyu yeniden kurmaya çalıştım; `CREATE TABLE IF NOT EXISTS`
+> sessizce atlanacak ve RPC'ler olmayan sütuna yazıp `42703` ile
+> patlayacaktı — 058'deki `hediyeler` hatasının birebir tekrarı. Kullanıcı
+> "şemalarımızdan haberin var mı" diye sormasa canlıya gidiyordu.
+> **§11'deki "migration yazmadan önce `db/SEMA_DOKUMU.md`'ye bak" kuralı
+> tavsiye değil, şart.** Döküm sütun adlarını veriyor ama kısıtları vermiyor;
+> kısıt/trigger için canlıdan `pg_constraint` + `pg_get_functiondef`
+> sorgulanmalı.
+
+**Canlı yapı (31 Ağustos'ta yoklandı):**
+`oda_koltuklari(oda_id, koltuk_no, kullanici_id, kilitli, susturulmus,
+guncellenme_tarihi)` · PK `(oda_id, koltuk_no)` · UNIQUE
+`(oda_id, kullanici_id)` · CHECK `koltuk_no BETWEEN 1 AND 20`.
+Trigger `trig_oda_koltuk_olustur` oda kurulunca `1..koltuk_sayisi` satırını
+kendisi açıyor.
+
+**İki tuzak:**
+- **Koltuklar 1'den başlıyor, 0 ve negatif YASAK** — uygulama 0..7 ve sahip
+  için -1 kullanıyor. Dönüşüm `roomsRepo`'da tek yerde:
+  istemci `0..7 ↔ 1..8`, istemci `-1 ↔ 20` (`SAHIP_KOLTUK_NO`).
+- **Sütun `susturulmus`, yani mantık TERS** (`mic_acik` değil).
+
+068 tabloyu KURMUYOR; üstüne RPC (`koltuga_otur`, `koltuktan_kalk`,
+`koltuk_mic`, `koltuk_kilit`, `oda_koltuklari_getir`), realtime yayını,
+`REPLICA IDENTITY FULL` ve SELECT politikası ekliyor. Yazma yalnız RPC ile —
+INSERT/UPDATE politikası bilerek tanımlanmadı.
+
+> **KULLANILMAYAN ALTYAPI (sıradaki iş):** `oda_katilimcilar`
+> (`kullanici_id` PK, `oda_id`, `session_id`, `last_heartbeat`) ve
+> `oda_stale_katilimcilari_temizle(p_esik_dakika DEFAULT 5)` temel şemada
+> **var ama tablo BOŞ**, kimse yazmıyor ve `pg_cron` **kurulu değil**, yani
+> temizleyiciyi çağıran da yok. "Odada kim var" sorusunun doğru cevabı burası:
+> istemci kalp atışı yazar, temizleyici düşenleri siler, oda listesi sayacı
+> oradan okur. Bugünkü istemci-yazan `aktif_katilimci_sayisi` sayacını da
+> presence'ı da tamamen aradan çıkarır.
+
+**Neden bu yol:** kullanıcının ölçtüğü tek KARARLI taşıyıcı
+`postgres_changes` — oda listesi 065'ten beri onunla anlık çalışıyor.
+Presence hızlıydı ama kararsızdı; broadcast anlıktı ama yine kararsızdı
+(iki uçtan biri kaçırınca telafisi yok, geriye dönük okuma yok). Tabloda ise
+durum kalıcı: kaçırılan olay bir sonraki okumada zaten doğru geliyor.
+
+**Presence tamamen kalkmadı** — "odada kim var" için kalıyor, zaten onun işi.
+Koltuk çizilirken ikisi **kesiştiriliyor**: DB'de yazılı ama presence'ta
+görünmeyen kişi (çökmüş istemci) koltukta gösterilmiyor. Hayalet koltuk
+sorununu sunucuya kalp atışı eklemeden çözen kısım bu.
+
+**Kozmetikler** (çerçeve, balon) presence'ta kaldı — geç gelirse yalnız
+çerçeve geç çizilir, koltuk yanlış olmaz.
+
+> **DERS — taşıyıcı seçimi:** olay mı, durum mu? Sohbet ve giriş efekti
+> OLAYDIR → broadcast. Kim nerede oturuyor DURUMDUR → tablo + postgres_changes.
+> Presence ikisi arasında kalıyor ve yalnızca "kim bağlı" sorusunda güvenilir.
+> Bu ayrımı baştan yapmamak bu projede üç oturum yedi.
+
+### ⚡ (ARA ADIM, AŞILDI) KOLTUK/MİKROFON/KİLİT BROADCAST'TE (31 Ağustos)
+
+**Kullanıcının ölçümü yön verdi:** "sohbet anlık gidiyor, uygulamanın geri
+kalanı da o hızda olmalı". Aynı soket üzerinde iki yol var ve hızları farklı:
+
+| Yol | Hız | Ne için tasarlandı |
+|---|---|---|
+| `broadcast` (sohbet) | **anlık** | olaylar |
+| `presence` (koltuk, mic, kilit) | saniyeler | durum anlık görüntüsü |
+
+Presence'ı hızlandırmaya çalışmak yerine **değişimleri sohbetin gittiği yoldan**
+gönderiyoruz. Presence kaldırılmadı — sonradan girenin "kim nerede oturuyor"
+bilgisini oradan alması gerekiyor. Yani:
+
+- **Değişim** (oturdum / kalktım / mikrofonu açtım / kilitledim) → `broadcast`,
+  anında uygulanıyor (`koltuk` ve `kilit` olayları).
+- **Anlık görüntü** (odaya yeni girenin gördüğü tablo) → presence, eskisi gibi.
+- Çakışmasınlar diye: son 8 saniyedeki broadcast bilgisi presence'ı **ezer**.
+  Yoksa presence turu eski değerle gelip koltuğu geri zıplatıyordu.
+
+**Sohbetteki yetki rozeti** de düzeltildi: `isMe && privileged` idi, yani
+herkes yalnız kendi rozetini görüyordu. Rozet BAKANIN değil YAZANIN yetkisini
+gösterdiği için `yetki` artık mesaj yüküyle taşınıyor.
+
+### 🔌 ARKAPLAN / KOPUK BAĞLANTIDA OTOMATİK DÜŞME (31 Ağustos)
+
+Kullanıcı: *"expo'yu arkaya alıp ağ sorunu yaşanınca otomatik odadan düşsün,
+yoksa buga giriyor. Odadan çıkıyorum ama mikrofona çık dediğim için öyle odada
+kalıyor gibi."* — Doğru teşhis: arkaplanda soket kapanıyor ama presence kaydı
+sunucuda bir süre asılı kalıyor, karşı taraf seni mikrofonda görmeye devam
+ediyor.
+
+- **Arkaplan:** `ARKAPLAN_MS` (20 sn) boyunca geri dönülmezse odadan düşülüyor.
+  Hemen değil — kısa uygulama geçişleri cezalandırılmasın.
+- **Kopuk kanal:** `CHANNEL_ERROR`/`TIMED_OUT`/`CLOSED` sonrası `KOPUK_MS`
+  (15 sn) içinde toparlanamazsa yine düşülüyor.
+- Düşerken önce koltuk bırakılıp yayınlanıyor, sonra `untrack` — hayalet
+  koltuk kalmıyor.
+
+### 🟢 "AĞ SORUNU" SANILAN ÜÇ ŞEY AĞ SORUNU DEĞİLMİŞ (31 Ağustos)
+
+Kullanıcı "ciddi ağ sorunları var" diye bildirdi; üçünün sebebi koddaydı.
+
+**1. Koltuk avatarı hiç gelmiyordu.** `SeatItem` içinde:
+```tsx
+photo={isMe ? userPhoto || undefined : undefined}   // başkası için HER ZAMAN undefined
 ```
-[liste] db=7 oda; online: 5:1 9:0 8:0 7:0 6:0 3:0 2:0   ← uid 9 odasındayken
-[liste] db=7 oda; online: 9:0 8:0 7:0 6:0 5:0 3:0 2:0   ← çıkınca
+Kişinin fotoğrafı presence'tan geliyor ve `seat.photo`da duruyor ama Portrait'e
+hiç verilmiyordu. Kartı açınca görünmesinin sebebi de buydu: veri var, koltuk
+çizmiyor. **Aynı hata host koltuğunda daha önce bulunup düzeltilmiş, sıradan
+koltuklarda gözden kaçmış** — düzeltirken "aynı desen başka nerede var" diye
+bakılmamış.
+
+**2. Çerçeve ve yetki rozeti "platforma göre" görünüyordu.** Gerçekte:
+```tsx
+cerceveTema={s?.name === "Sen" ? kusanili.cerceve : undefined}
+{isMe && privileged && <AuthorityTag />}
 ```
-Yani DB sayacı uid 9 için DOĞRU yazılıyor. Ama sonraki turlarda yedi odanın
-hepsi 0 göründü — arkadaşın (uid 11) odasındayken bile. `[sayac]` hata satırı
-hiç çıkmadı, yani yazma çağrısı patlamıyor.
+İkisi de **yalnızca kendine** çiziliyordu. iPhone'da "sorunsuz görünen" şey
+kullanıcının KENDİ çerçevesi ve KENDİ rozetiydi; Android hesabında kuşanılmış
+çerçeve olmadığı için hiçbir şey çıkmıyordu. Platform farkı değil, hesap farkı.
+Veri presence'ta zaten taşınıyordu, hiç kullanılmıyordu. Artık `Seat` tipinde
+`cerceve` ve `yetki` var, presence yükü `yetki` de taşıyor, host koltuğu
+dahil herkes için çiziliyor.
 
-**Kök sebep hipotezi (doğrulanmadı):**
-Liste "içinde kimse olmayan odayı gösterme" kuralını uyguluyor
-(`(tabs)/index.tsx` → `gorunur`, `r.online > 0`). Kendi odanı görmek için
-odadan çıkman gerekiyor, çıkış anında oda gerçekten boşalıyor → hiç
-göremiyorsun. Bu kısım tasarım sonucu, hata değil. Ama **arkadaşın odasının
-görünmemesi** bununla açıklanmıyor; orası hâlâ açık.
+**3. Giriş efektini karşı taraf görmüyordu.** Giriş, presence anlık
+görüntüleri karşılaştırılarak ÇIKARILMAYA çalışılıyordu ("önceki sync'te yok
+muydu", "katildi damgası ilerledi mi"). Presence bir DURUM taşıyıcısıdır, OLAY
+taşıyıcısı değil: iki sync tek diff'te birleşebiliyor, sıra garanti değil.
+Artık giriş bir `giris` broadcast olayı — giren bir kez yayınlıyor, odadakiler
+anında oynatıyor. Çıkarım yok, karşılaştırma yok.
 
-**Denenen ve YETMEYEN çözümler (sırayla):**
-1. `065` — `odalar` Realtime yayınına alındı, liste anlık tazeleniyor.
-   Doğrulandı (`Subscribed to PostgreSQL`) ama sorunu çözmedi.
-2. Sahibe istisna: "kendi odan boşken de sana görünsün". Kullanıcı istemedi
-   (boş oda listede durmasın dedi), **geri alındı**.
-3. `src/data/remote/odaVarlik.ts` — kişi sayısını DB sayacı yerine tek bir
-   Realtime presence kanalından saymak. **Bu da çözmedi**; kullanıcı "bu sefer
-   listede hiç görünmüyor" dedi.
+> **DERS:** "iOS'te çalışıyor Android'de çalışmıyor" raporlarının ikisi de bu
+> oturumda platform hatası çıkmadı (biri sessiz yutulan hata, biri kendine
+> çizme). Platform farkı sanılan şeyden önce **hesap farkı ve render yolu**
+> kontrol edilmeli.
 
-**ŞU ANKİ TEHLİKELİ DURUM — ilk iş bu:**
-Sistem **yarı taşınmış**. Kişi sayısı iki ayrı kaynaktan geliyor:
-- `odalar.aktif_katilimci_sayisi` — `room.tsx` içindeki presence sync hâlâ
-  `odaKatilimciYaz` ile yazıyor (giriş/çıkışta).
-- `odaVarlik.ts` presence kanalı — `(tabs)/index.tsx` bunu okuyup `online`
-  alanının üzerine yazıyor.
+**KALAN (hâlâ presence'ta, taşınacak):** mikrofona çıkışın karşıda birkaç
+saniye gecikmesi, mikrofondan inişin hiç yayılmaması, koltuk kilitlerinin
+geçmemesi. Bunlar kalıcı oda durumu; doğru yer `postgres_changes` (kullanıcının
+ölçümüne göre ANLIK çalışan tek yol). Planlanan: `oda_koltuklari` tablosu +
+RPC'ler, presence yalnız "odada kim var" sayısına düşer, koltuk yalnız hem
+DB'de yazılı hem presence'ta görünen kişi için çizilir (hayalet koltuk olmaz).
 
-İkisi çelişince hangisinin kazandığı belirsiz. **Önce birine karar verilmeli**,
-sonra diğeri tamamen sökülmeli. Aksi halde her düzeltme kararsız davranır.
+### 🔑 PRESENCE'IN EN SİNSİ HATASI — "meta" seçimi (31 Ağustos)
 
-**Sonraki oturum için öneri:**
-1. `odaVarlik.ts`ın gerçekten çalışıp çalışmadığını ölç: presence kanalına
-   `console.log` koy, iki cihazda `presenceState()` ne dönüyor bak. Kanal
-   hiç `SUBSCRIBED` oluyor mu? `track` gidiyor mu?
-2. Çalışıyorsa DB sayacını (`odaKatilimciYaz` çağrılarını + 057) tamamen sök.
-   Çalışmıyorsa `odaVarlik.ts`ı sil, sayaca dön ve arkadaşın odasının neden
-   görünmediğini ayrıca kovala.
-3. Ürün kararı: "boş odayı gösterme" kuralı iki kez sorun çıkardı. Boş odalar
-   ayrı bir sekmede ("Tümü") gösterilsin mi, tartışılmalı.
+Oda içi senkron sorunlarının çoğunun ALTINDAKİ tek sebep buydu; ayrı ayrı
+kovaladığımız belirtilerin hepsi buraya çıkıyor.
 
-**"Odam boş yazıyor" ayrı bir uç:** `getMyRoom` DB sayacını okuyor
-(`aktif_katilimci_sayisi`), presence'ı bilmiyor. Hangi kaynağa karar verilirse
-orası da ona bağlanmalı.
+**Presence'ta bir anahtar altında BİRDEN ÇOK kayıt (meta) bulunabilir.**
+`track()` ile durumunu güncellediğinde eski kayıt bir süre yenisiyle birlikte
+duruyor ve dizideki sıraları garanti değil. Kod ise şunu yapıyordu:
 
----
+```ts
+for (const p of arr) {
+  if (!members.some((m) => m.uid === p.uid)) members.push({ ...p });  // İLK kayıt
+}
+```
+
+Yani **eski kayıt önce geldiğinde güncelleme tamamen yok sayılıyordu.** Belirtiler:
+- Koltuğa oturuyorsun, eski kayıtta `koltuk: null` olduğu için karşı taraf seni
+  koltuksuz görüyor → "mikrofona çıkınca karşıda görünmüyor".
+- Kilit bazen geçiyor, kaldırma hiç geçmiyor, çık-gir yapınca düzeliyor
+  (yeniden girişte state sıfırdan kurulduğu için).
+
+Kilit okuyucusunda tam tersi hata vardı: **bütün kayıtları sırayla uyguluyordu**,
+yani sonuç dizinin sırasına kalıyordu. "Gecikme + kararsızlık" buydu.
+
+**Çözüm:** presence yüküne artan bir `surum` sayacı kondu; okurken anahtar
+başına **en yüksek sürümlü tek kayıt** seçiliyor (`guncelKayit`). "En güncel
+hangisi" artık tahmin değil, ölçüm.
+
+**İkinci düzeltme — presence anahtarı artık mount başına benzersiz**
+(`uid-CIHAZ-katildi`). Eskiden uygulama oturumu boyunca sabitti: odadan çıkıp
+hemen geri girdiğinde önceki oturumun "ayrıldım" bildirimi, yeni kayıt
+kurulduktan SONRA ulaşıp taze kaydı siliyordu — karşı tarafta odadan düşmüş
+görünüyordun. "Çık gir yapınca bozuluyor" belirtisinin kaynağı bu.
+
+> **DERS:** presence, oda geneline ait durumu (koltuk kilitleri gibi) taşımak
+> için ideal taşıyıcı değil; kişi başına efemer durum için tasarlanmış. Kilitler
+> ısrarla sorun çıkarırsa doğru yer `odalar` tablosu + `postgres_changes`
+> (kullanıcının ölçtüğü kadarıyla o yol ANLIK çalışıyor, oda listesi oradan
+> besleniyor) — üstelik sahibi odadan çıkınca kilitler kaybolmaz.
+
+### 🟢 ODA İÇİ: dört şikâyet, dört sebep (30 Ağustos, düzeltildi)
+
+Kullanıcının sıraladığı dört madde ve kök sebepleri:
+
+**1. Giriş efektleri hiç görünmüyordu (iki platformda da).**
+Presence döngüsü kendi uid'ini atlıyor ve yanında *"kendi efektim mount'ta
+zaten oynuyor"* diyen bir yorum vardı — ama **onu oynatan kod hiç
+yazılmamıştı**. Yorum bir varsayımı anlatıyordu, gerçeği değil. Artık odaya
+her girişte kendi efektin bir kez kuyruğa giriyor (`room.tsx`, mount effect).
+
+**2. Sohbet balonu altın gradyandı.** `m.myOwn ? "gold" : …` kaldırıldı; düz
+balon varsayılan oldu. Altın yalnız isimde kalıyor, kuşanılabilir balon
+alanlar kendi temasını görmeye devam ediyor.
+
+**3+4. Mikrofon/koltuk yayılmıyor, gecikme var, ve sohbet TEK YÖNLÜ
+çalışıyordu** ("iPhone'dan yazdığım Android'de görünmüyor"). İki ayrı sebep:
+
+- **Cihaz kimliği yoktu.** Presence anahtarı `String(myDbId)` idi ve "bu mesaj
+  benim mi" kontrolü de `p.uid === myDbId` bakıyordu. **Aynı hesapla iki
+  cihazdan girildiğinde** (test ederken tam olarak bu yapılıyor) ikisi de aynı
+  uid'i taşıyor: presence anahtarı çakışıp iki cihaz tek slotu eziyor
+  (mikrofon/koltuk görünmüyor), gelen mesaj da "kendi echo'm" sanılıp
+  `return` ediliyor (sohbet tek yönlü görünüyor). Artık modül düzeyinde bir
+  `CIHAZ` kimliği var; anahtar `uid-CIHAZ`, karşılaştırma `p.cihaz === CIHAZ`.
+- **~~Kanal kurulumu yarışıyordu~~ — DENENDİ, GERİ ALINDI.** `removeChannel`
+  asenkron olduğu için aynı topic'e "leave" ve "join"in yarıştığını düşünüp
+  silmeyi `await` etmiştim. Ölçüldü: **daha kötü.** `removeChannel` yanıt
+  gelmezse **varsayılan 10 saniye** bekliyor; o süre boyunca `chanRef.current`
+  null kalıyor, `send()` mock dalına düşüyor ve **sohbet hiç gitmiyor**,
+  presence de hiç yayılmıyordu. Kullanıcı bunu "her iki tarafta da yazdıklarım
+  düşmüyor" diye bildirdi. Kapanış artık beklenmiyor (eski davranış).
+
+Ayrıca `send()` ve `track()` sonuçları artık **loglanıyor** — ikisi de
+sessizce başarısız olabiliyordu (`send` websocket yerine REST'e düşebiliyor).
+
+**GECİKMENİN GERÇEK SEBEBİ (ikinci tur) — iki ayrı yer, ikisi de bulundu:**
+
+- **Girişte:** oda kanalı, `myDbId` daha yüklenmeden açılıyordu. Kanal
+  SUBSCRIBED oluyor ama `presenceYaz` "uid yok" deyip erken dönüyordu — yani
+  odaya girmiş ama presence'a **yazılmamış** oluyordun. Karşı taraf seni ancak
+  profil yüklenip effect yeniden koştuğunda görüyordu. Üstelik `myDbId`
+  değişince kanal komple yıkılıp yeniden kuruluyordu. Artık effect
+  `myDbId == null` iken hiç başlamıyor.
+- **Çıkışta:** `ch.untrack()` **beklenmeden** `sb.removeChannel(ch)`
+  çağrılıyordu. `untrack` asenkron: "ben çıktım" mesajı gitmeden soket
+  kapanıyor ve karşı taraf seni ancak sunucu presence zaman aşımına uğrayınca
+  (onlarca saniye) düşürüyordu. Artık `untrack` beklenip sonra kapatılıyor
+  (`room.tsx` ve `odaVarlik.varliktanCik` — ikisinde de aynı hata vardı).
+
+> Kullanıcının verdiği referans doğruydu: oda listesi anlık çünkü o
+> `postgres_changes` üzerinden geliyor (065), presence yolundaki bu iki
+> kusurdan etkilenmiyordu.
+
+**KOLTUK KİLİDİ yayılmıyordu.** `seatLocks` tamamen **yerel** state'ti,
+hiçbir yere gönderilmiyordu: "kilitle" dediğin cihazda kilitli görünüyor,
+diğerinde görünmüyordu. Artık oda sahibinin presence yükünde (`kilitler`)
+taşınıyor; presence sonradan girene de aktarıldığından geç katılan da doğru
+görüyor.
+
+> **İLK DENEMEDE YANLIŞ YETKİLİ SEÇİLDİ (düzeltildi).** Şartı
+> `MY_ROLE === "host"` yapmıştım — ama `MY_ROLE = privileged ? "host" : …`,
+> yani developer/super_admin hesapların HEPSİ "host" sayılıyor. İki yönetici
+> aynı odadayken ikisi de kilit yayınlıyor, biri diğerinin eski (kilitsiz)
+> yükünü okuyup kendi kilidini geri alıyordu: "kilitledim, sonra baktım
+> açılmış". Yayıncı artık **yalnız oda sahibi** (`isMine`) — tek yetkili.
+> Bilinen sınır: sahip odada değilken yöneticinin koyduğu kilit yerel kalır.
+
+> Hâlâ gecikme kalırsa bakılacak son yer `createClient`in
+> `realtime.params.eventsPerSecond` varsayılanı — şu an hiç ayarlanmıyor.
+
+### 🟢 HAYALET ODA — "iOS'te kurduğum oda listede yok" (BULUNDU, DÜZELTİLDİ)
+
+**Belirti (kullanıcı, 30 Ağustos):** "Android'den oluşturduğum oda listeye
+düşüyor, hem kendisinde hem iOS'te görünüyor. iOS'te listeye düşmüyor."
+
+**Kök sebep — yutulan hata + sahte oda.** `appStore.createMyRoom` şöyleydi:
+
+```ts
+try { ...getMyRoom() ?? createRoom(...) }
+catch { /* sessizce yerel odaya düş */ }
+const r = makeMyRoom();   // <-- dbId YOK
+```
+
+Herhangi bir hata (oturum token'ı henüz hazır değil, ağ, RLS) yutuluyor ve
+`makeMyRoom()` ile **`dbId`si olmayan sahte bir oda** veriliyordu. O oda
+ekranda tıpatıp gerçeği gibi görünüyor, adı/ID'si çıkıyor, İÇİNE GİRİLEBİLİYOR
+— ama veritabanında YOK. Sonucu: hiçbir listeye düşmüyor, kimse göremiyor,
+`isDbRoom` false olduğu için ne presence yayınlanıyor ne katılımcı sayacı
+yazılıyor. Kullanıcıya tek uyarı bile çıkmıyordu.
+
+**Cihaza bağlı değil** — Android'de de olabilirdi; iOS'teki çağrı bir kez hata
+aldı ve kullanıcı farkında olmadan sahte odayla kaldı. Tesadüfen iOS'e denk
+geldiği için "iOS hatası" gibi göründü.
+
+**Düzeltme:**
+- `createMyRoom` oturum varken **artık sessizce yerel odaya düşmüyor**, hata
+  yukarı gidiyor. Yerel odaya düşmek yalnız Supabase/oturum yokken (mock akış).
+- `my-room.tsx` hatayı yakalayıp **ekranda gösteriyor** ("Oda kurulamadı: …").
+- `odamGercek` kontrolü: `dbId`si olmayan oda "odam" sayılmıyor. Elinde eski
+  bir hayalet oda kalmış kullanıcı butonu "Gir" değil **"Oluştur"** görüyor ve
+  gerçeği kuruluyor.
+
+> **DERS (bu oturumda üçüncü kez):** bu projedeki en pahalı hatalar sessizce
+> yutulan hatalar. Presence (`.catch(() => {})`), oda sayacı (057'nin sessiz
+> `RETURN`u) ve şimdi de sahte oda — üçü de "hata yok, ama iş de olmuyor"
+> davranışıyla saatler yedi. Yeni kod yazarken: **yutulan hata = teşhis
+> edilemeyen hata.**
+
+### 🔴 YÖNETİCİ BAKİYESİ CÜZDANA GELMİYOR — sebebi bulundu, 067 yazıldı
+
+**Belirti (kullanıcı, 30 Ağustos):** yönetim panelinden bakiye veriliyor,
+**panelde sayı artıyor**, kullanıcının cüzdanında hiçbir şey değişmiyor.
+
+**Kök sebep — 062 yarım kaldı.** 062 altını temel deftere taşırken OKUMA ve
+HARCAMA yollarını taşıdı, **yönetici YAZMA** ve **panelin OKUMA** yollarını
+taşımadı. Üç yol üç ayrı yere bakıyordu:
+
+| Yol | Nereye bakıyor |
+|---|---|
+| `bakiye_ekle` → `_bakiye_uygula` | `public.cuzdan` — **ölü tablo** (027) |
+| `admin_kullanici_getir` | `LEFT JOIN public.cuzdan` — **ölü tablo** (038) |
+| `benim_bakiyem()` (kullanıcının cüzdanı) | `kullanicilar.cached_*` — gerçek (062) |
+
+Yönetici yazıyor ve panel **aynı ölü tablodan** okuduğu için işlem başarılı
+görünüyor; kullanıcının cüzdanı ise temel defteri okuduğundan haberi olmuyor.
+Yani hata "bakiye kaydolmuyor" değil, **"iki ekran iki ayrı tabloya bakıyor"**.
+
+**Çözüm — `067_admin_bakiye_temel_deftere.sql` (YAZILDI, ÇALIŞTIRILMADI):**
+`bakiye_ekle` artık `lot_yatir`/`lot_harca` ile temel deftere yazıyor
+(063'ün `admin_altin_yukle` deseni), `admin_kullanici_getir` de
+`cached_total_balance`/`cached_altin_balance` okuyor. İmzalar aynı — istemcide
+tek satır değişmiyor. Dondurma bayrakları bakiye değil, `cuzdan`da kalıyor.
+Dosyanın sonunda **isteğe bağlı** ve kendini bir kez çalıştıran (iki kez
+çalıştırınca şişirmeyen) eski bakiye devir bloğu var — yorumlu, karar senin.
+
+> **Aynı kırık yolda kalan:** `bakiye_transfer` (027) hâlâ `cuzdan`da dönüyor.
+> Şu an hiçbir ekran çağırmıyor (`walletRepo.transfer` dışa açık ama
+> kullanılmıyor), bu yüzden bilinçli olarak 067'ye alınmadı.
+
+> **Açık soru:** varlık dondurma (034) bayrakları `cuzdan`da; temel defterin
+> `lot_harca`'sı bu bayraklara bakıyor mu bilinmiyor. Dondurma artık
+> harcamayı engellemiyor olabilir — ayrıca doğrulanmalı.
 
 ### ⚠️ Çalıştırılmayı bekleyen migration'lar
 
-Canlı veritabanı 30 Ağustos'ta yoklandı. Bekleyenler:
+Canlı veritabanı **2 Eylül'de** yoklandı (`pg_proc` sorgusuyla).
 
-| Dosya | Ne yapıyor | Durum |
-|---|---|---|
-| `053_admin_oda_kapak.sql` | `admin_oda_kapak_ayarla` — yönetici oda kapağını değiştirir/kaldırır | ❌ **eksik** → kapak düğmeleri hata verir |
-| — | 066 dahil hepsi uygulandı | ✅ |
+| Dosya | Durum |
+|---|---|
+| `053_admin_oda_kapak.sql` | ❌ **TEK EKSİK** → yönetim panelindeki kapak düğmeleri hata verir |
+| `067` · `068` · `069` · `070` | ✅ uygulandı, fonksiyonlar canlıda doğrulandı |
+| 001-066 | ✅ uygulandı |
 
-051-052, 054-066 **uygulandı** (30 Ağustos). Yalnızca **053 eksik**. `fn_kaynak` düşürüldü.
+Doğrulama sorgusu (tekrar gerekirse):
+
+```sql
+SELECT jsonb_pretty(jsonb_object_agg(p.proname, TRUE))
+  FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
+ WHERE ns.nspname = 'public'
+   AND p.proname IN ('koltuga_otur','koltuktan_indir','mic_sirasina_gir',
+                     'mic_sirasi_onayla','odaya_katil','oda_kalp_atisi',
+                     'oda_katilimcilari_getir','oda_kisi_sayilari',
+                     'admin_oda_kapak_ayarla');
+```
 065 Realtime aboneliğiyle doğrulandı ("Subscribed to PostgreSQL").
 063+064 sonrası anon erişimi ölçüldü: hediye/sıralama/görev/cüzdan RPC'lerinin
 hepsi ve `hediyeler`/`esyalar`/`gorevler` tabloları **kapalı** (42501).
@@ -578,6 +1106,13 @@ hepsi ve `hediyeler`/`esyalar`/`gorevler` tabloları **kapalı** (42501).
 > `REVOKE ALL ... FROM PUBLIC`, sonra hedef role `GRANT`.
 > 064 tam olarak bu yüzden gerekti (`_enum_etiket`, `_enum_liste`,
 > `_siralama_baslangic`, `_bugun_tr` açık kalmıştı).
+>
+> **AYNI KURALIN TERSİ (068'de yakalandı):** `REVOKE ... FROM PUBLIC` de
+> role'e **doğrudan** verilmiş yetkiyi kaldırmaz. `oda_koltuklari`'nda
+> `authenticated` INSERT/UPDATE/DELETE'i doğrudan almıştı; PUBLIC'ten
+> revoke etmek işe yaramadı, ayrıca `REVOKE ... FROM authenticated` gerekti.
+> Yani her iki yönü de kontrol et: PUBLIC'ten geleni VE rolün kendi grant'ını.
+> Doğrulama sorgusu: `information_schema.role_table_grants`.
 
 > **Kritik kural:** Client kodunu uygulanmamış migration'a bağlama. Daha önce
 > `kusanilan_rozet` DB'de yokken SELECT'e eklendi ve **tüm profil okumaları**
@@ -1077,11 +1612,26 @@ olan veriydi. İki kaynak, tek görünüm:
 > noktayı taşıyoruz. Hediye 059'la, altın bakiyesi 062'yle geçti; eşya
 > tabloları (056) çalıştığı için yerinde bırakıldı.
 >
-> Çalıştırılmayı bekleyen migration listesi §10'un başında.
+> Çalıştırılmayı bekleyen migration listesi §10'un başında (2 Eylül: yalnız 053).
 
-1. 🔴 **ODA LİSTESİ GÖRÜNÜRLÜĞÜ — açık hata, ilk iş.** Ayrıntı §10'un
-   başında. Kişi sayısı şu an İKİ kaynaktan geliyor (DB sayacı + presence);
-   önce birine karar verilip diğeri sökülmeli.
+> **AÇIK İŞLER (2 Eylül, güncel):**
+> - `053` çalıştırılacak — yönetim panelinde oda kapağı düğmeleri onsuz çalışmıyor
+> - **İki cihazda temiz doğrulama turu yapılmadı.** 068-070 canlıda ama
+>   koltuk/mikrofon/sıra/katılımcı akışları uçtan uca test edilmedi.
+> - **"Sustur"** (başkasını susturma) hâlâ YEREL — sunucu RPC'si yok.
+> - `CamZemin` yalnız 4 yüzeye uygulandı; GiftSheet, RoomStats, BottomNav,
+>   RoomEntryGate, BadgeInfoModal hâlâ eski blur deseninde (Android'de saydam).
+> - Oda sohbeti hâlâ DB'ye yazılmıyor (aşağıda 9. madde) — rozet kuralları
+>   bu yüzden tetiklenmiyor.
+
+1. ✅ **ODA LİSTESİ GÖRÜNÜRLÜĞÜ — BİTTİ (2 Eylül).** Kişi sayısı artık
+   `oda_kisi_sayilari()` ile kalp atışlı `oda_katilimcilar` tablosundan
+   geliyor; presence katmanı (`odaVarlik.ts`) tamamen silindi. Hayalet oda
+   sorunu da kapandı (kalbi durmuş kayıt eleniyor). Boş odalar yalnız
+   "Boş" sekmesinde.
+   **Ders:** "iki zayıf kaynağın birleşimi" ara çözümdü ve hayalet odayı
+   listede tutuyordu; doğru cevap kaynağı GÜÇLENDİRMEKTİ (durumu tabloya
+   almak), zayıf kaynakları harmanlamak değil.
 2. **Oda içi senkron hatası — sebep bulundu (30 Ağustos), doğrulanacak.**
    `ch.subscribe` geri çağrısı kurulduğu andaki `presenceYaz`ı kapatıyordu;
    içindeki `mySeat` hep `null`dı. Soket düşüp yeniden bağlanınca (iOS
@@ -1123,10 +1673,12 @@ olan veriydi. İki kaynak, tek görünüm:
     olmuyor) ama **eski migration'ların tamamı taranmalı** — aynı desende
     korumasız olan varsa açık demektir.
 11. **Hayalet odalar** — `aktif_katilimci_sayisi` yalnızca istemci yazıyor
-   (odadaki en küçük uid). Uygulama zorla kapanırsa sayı >0 kalıyor ve oda
-   listede boşken duruyor. Sunucu tarafı presence yok; çözüm ya bir TTL
-   (sayaç N dakikadır dokunulmadıysa 0 say) ya da `oda_uyeleri` üzerinden
-   kalp atışı. 065 canlı yayını açtı ama bu ayrı bir sorun.
+   (odadaki en küçük uid). Uygulama zorla kapanırsa sayı >0 kalıyor.
+   **Listede artık zarar vermiyor** (30 Ağustos: görünürlük presence'tan
+   geliyor, sayaç yalnızca soğuk açılış yedeği) ama sayaç hâlâ bayat
+   kalabiliyor ve onu **sıralama (060) ile yönetim ekranları okuyor**.
+   Kalıcı çözüm sunucu tarafı presence ya da TTL (sayaç N dakikadır
+   dokunulmadıysa 0 say).
 12. ~~Oda rozet sistemi~~ — **066 ile yapıldı** (kural motoru + elle verme).
     Kalan: kullanıcı rozetleri hâlâ ayrı bir konu; oda rozetleri yalnızca
     oda listesinde çiziliyor, oda profilinde de gösterilmeli.
