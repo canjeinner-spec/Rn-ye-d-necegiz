@@ -60,6 +60,9 @@ function mapRoom(r: OdaRow, hostName: string, myId: number | null): Room {
     dbId: r.id,
     name: r.ad,
     host: hostName,
+    // 079: kolon emekli, hep 0 gelir. Gerçek sayı `oda_kisi_sayilari` (070)
+    // okununca (tabs)/index.tsx'te üzerine yazılıyor; buradaki değer yalnız
+    // tablo okunana kadarki İLK KARE yedeği.
     online: r.aktif_katilimci_sayisi,
     mic: 0, // canlı koltuk verisi Faz 4 (presence) ile gelecek
     extra: r.aktif_katilimci_sayisi,
@@ -127,18 +130,17 @@ export async function listRooms(limit = 50): Promise<Room[]> {
         .from("odalar")
         .select(cols)
         .eq("herkese_acik", true)
-        .order("aktif_katilimci_sayisi", { ascending: false })
+        // 079: `aktif_katilimci_sayisi` emekli (hep 0) — sıralamada anlamı
+        // kalmadı. Görünen sırayı zaten istemci `sirala()` canlı sayıdan
+        // kuruyor ((tabs)/index.tsx); buradaki sıra yalnız ilk karede
+        // "en yeni üstte" olarak görünür.
         .order("olusturulma_tarihi", { ascending: false })
         .limit(limit),
     ),
     getMyProfile().catch(() => null),
   ]);
   const rows = data ?? [];
-  // TEŞHİS: burada basılan sayı DB SAYACIDIR (istatistik), listenin görünürlük
-  // ölçütü DEĞİL — o `oda_katilimcilar` tablosundan geliyor (070).
-  // Etiketi karışmasın diye açıkça "sayac" yazıyor: eski oturumlarda bu satır
-  // presence sanılıp yanlış iz sürüldü.
-  console.log(`[liste] db=${rows.length} oda; sayac: ${rows.map((r) => `${r.id}:${r.aktif_katilimci_sayisi ?? 0}`).join(" ")}`);
+  console.log(`[liste] db=${rows.length} oda`);
   const hosts = await fetchHostNames(rows.map((r) => r.olusturan_id).filter((x): x is number => x != null));
   // Rozetler (066): listede görünen odalar için tek çağrıda.
   return rozetleriBagla(rows.map((r) => mapRoom(r, hosts.get(r.olusturan_id ?? -1) || "Kullanıcı", me?.id ?? null)));
@@ -488,10 +490,13 @@ export type RoomReportDetail = {
 /** Yönetici: oda bilgisi + giriş/çıkış geçmişi (SELECT yalnızca platform yöneticisi — RLS). */
 export async function getRoomReportDetail(odaId: number, limit = 200): Promise<RoomReportDetail> {
   const sb = requireSupabase();
-  const [odaRes, hareketRes, uyeRes] = await Promise.all([
+  const [odaRes, hareketRes, uyeRes, canliRes] = await Promise.all([
     sb.from("odalar").select(SELECT_COLS).eq("id", odaId).maybeSingle(),
     sb.from("oda_hareket_log").select("id, kullanici_id, tip, tarih").eq("oda_id", odaId).order("id", { ascending: false }).limit(limit),
     sb.from("oda_uyeleri").select("kullanici_id", { count: "exact", head: true }).eq("oda_id", odaId),
+    // 079: "şu an" sayısı emekli sayaçtan değil canlı tablodan (070, 2 dk eşiği).
+    sb.from("oda_katilimcilar").select("kullanici_id", { count: "exact", head: true }).eq("oda_id", odaId)
+      .gt("last_heartbeat", new Date(Date.now() - 2 * 60 * 1000).toISOString()),
   ]);
 
   const oRow = odaRes.data as OdaRow | null;
@@ -533,7 +538,7 @@ export async function getRoomReportDetail(odaId: number, limit = 200): Promise<R
           photo: oRow.kapak_url || undefined,
           hostName: (oRow.olusturan_id != null ? profs.get(oRow.olusturan_id)?.kullanici_adi : undefined) || "Kullanıcı",
           uyeSayisi,
-          aktifKatilimci: oRow.aktif_katilimci_sayisi,
+          aktifKatilimci: canliRes.count ?? 0,
         }
       : null,
     hareketler,
@@ -739,20 +744,6 @@ export async function odaTakiptenCik(odaId: number): Promise<void> {
   if (!me) return;
   const { error } = await sb.from("oda_takip").delete().eq("kullanici_id", me.id).eq("oda_id", odaId);
   if (error) throw error;
-}
-
-/**
- * Odadaki kişi sayısını yaz (057).
- *
- * `aktif_katilimci_sayisi` hiç yazılmıyordu: kolon 0 kalıyor, oda listesi de
- * "boş odaları gösterme" kuralını buna bakarak uyguladığı için yeni kurulan
- * odalar hiçbir sekmede görünmüyordu. Odadaki istemcilerden biri (en küçük
- * uid) presence'taki gerçek sayıyı buraya yazar.
- */
-export async function odaKatilimciYaz(odaId: number, sayi: number): Promise<void> {
-  const sb = requireSupabase();
-  const { error } = await sb.rpc("oda_katilimci_yaz", { p_oda_id: odaId, p_sayi: sayi });
-  if (error && !tabloYok(error)) throw error;
 }
 
 /** Oda sahibinin güncel profili — host koltuğu presence'a bağlı kalmasın. */

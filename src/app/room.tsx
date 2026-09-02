@@ -39,7 +39,7 @@ import { type Gift, TIER_RING } from "@/data/gifts";
 import { hediyeGonder } from "@/data/remote/hediyeRepo";
 import { reportRoom } from "@/data/remote/reportRepo";
 import { addXp } from "@/data/remote/xpRepo";
-import { odaSahibi, type OdaSahibi, amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, getRoomMessages, koltugaOtur, koltukKilitle, koltukMicAyarla, koltuklariDinle, koltuklariGetir, koltuktanIndir, koltuktanKalk, type KoltukSatiri, micSirasiGetir, micSirasindanCik, micSirasinaGir, micSirasiniDinle, micSirasiOnayla, odadanAyril, odaKalpAtisi, odaKatilimcilariGetir, odaKatilimcilariniDinle, odayaKatil, type OdaKatilimcisi, logRoomMovement, odaKatilimciYaz, sendRoomMessage, toScene, ziyaretKaydet, type MicBan } from "@/data/remote/roomsRepo";
+import { odaSahibi, type OdaSahibi, amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, getRoomMessages, koltugaOtur, koltukKilitle, koltukMicAyarla, koltuklariDinle, koltuklariGetir, koltuktanIndir, koltuktanKalk, type KoltukSatiri, micSirasiGetir, micSirasindanCik, micSirasinaGir, micSirasiniDinle, micSirasiOnayla, odadanAyril, odaKalpAtisi, odaKatilimcilariGetir, odaKatilimcilariniDinle, odayaKatil, type OdaKatilimcisi, logRoomMovement, sendRoomMessage, toScene, ziyaretKaydet, type MicBan } from "@/data/remote/roomsRepo";
 import { BALON_TEMALARI } from "@/data/esyaTemalari";
 import { FramePreview } from "@/components/FramePreview";
 import { GirisEfekti } from "@/components/GirisEfekti";
@@ -553,8 +553,6 @@ export default function RoomScreen() {
   const [girisKuyrugu, setGirisKuyrugu] = useState<{ anahtar: string; uid?: number; ad: string; tema: string | null }[]>([]);
   /** Bir önceki sync'te odada olanlar — kimin YENİ girdiğini bundan çıkarıyoruz. */
   const girenlerRef = useRef<Set<number> | null>(null);
-  /** DB'ye en son yazdığımız kişi sayısı — aynı sayıyı tekrar yazmayalım. */
-  const sayacRef = useRef<number | null>(null);
   /** Girişi duyurulmuş uid'ler — aynı kişi iki kez duyurulmasın. */
   /** uid -> duyurduğumuz `katildi` damgası. Damga ilerlerse yeniden duyurulur. */
   const duyurulanlarRef = useRef<Map<number, number>>(new Map());
@@ -1290,21 +1288,9 @@ export default function RoomScreen() {
       // oynatıyor. Çıkarım yok, karşılaştırma yok, gecikme yok.
       girenlerRef.current = new Set(members.map((m) => m.uid));
 
-      // Odadaki kişi sayısını DB'ye yaz (057). Oda listesi bu sayıyı, genel
-      // presence kanalıyla birlikte iki kaynaktan birinin büyüğü olarak
-      // okuyor (bkz. (tabs)/index.tsx).
-      //
-      // Yazmayı artık odadaki HER istemci yapıyor. Eskiden yalnız en küçük
-      // uid yazardı; trafik azdı ama tek arıza noktası vardı: o istemcinin
-      // yazısı gitmezse (ağ, yarış, arka plana alınma) oda HERKES için boş
-      // görünüyordu — "içinde insan var ama listede yok"un sebeplerinden
-      // biri buydu. Değer herkeste aynı olduğu için tekrar yazmak zararsız,
-      // üstelik yazma yalnızca sayı DEĞİŞTİĞİNDE tetikleniyor.
-      if (dbId && myDbId != null && members.length > 0 && sayacRef.current !== members.length) {
-        sayacRef.current = members.length;
-        odaKatilimciYaz(dbId, members.length).catch((e) =>
-          console.warn("[sayac] yazilamadi", (e as Error)?.message || e));
-      }
+      // (079) İstemcinin sayaç yazması emekli: kişi sayısının tek kaynağı
+      // `oda_katilimcilar` (070) — odaya_katil/kalp_atisi/odadan_ayril
+      // zaten sunucuda yazıyor, listeye de oradan gidiyor.
 
       if (alive) setLiveMembers(members);
     });
@@ -1540,14 +1526,9 @@ export default function RoomScreen() {
       if (!useApp.getState().inRoom) {
         logRoomMovement(dbId, "cikis"); // best-effort
         koltuktanKalk(dbId).catch(() => {});
-        // Sayaç karşı tarafta anında düşsün; tablo silme işlemi arkadan
-        // geliyor. Kanal birazdan kapanacak, bu yüzden beklemeden atıyoruz.
       }
-      // Son çıkan sayacı sıfırlar; başkaları kaldıysa kalan en küçük uid bir
-      // sonraki sync'te doğru sayıyı zaten yazacak.
-      const kalan = Math.max(0, (girenlerRef.current?.size ?? 1) - 1);
-      odaKatilimciYaz(dbId, kalan).catch((e) =>
-        console.warn("[sayac] cikista yazilamadi", (e as Error)?.message || e));
+      // (079) Çıkışta sayaç yazma da emekli: `odadan_ayril` satırı zaten
+      // siliyor, kalp atışı kesilince 2 dk eşiği kalanı temizliyor.
     };
     // userName/userPhoto oturum boyunca sabit; bağımlılığa eklemiyoruz (yeniden abone olmasın)
     // eslint-disable-next-line react-hooks/exhaustive-deps
