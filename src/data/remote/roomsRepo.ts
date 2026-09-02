@@ -134,7 +134,11 @@ export async function listRooms(limit = 50): Promise<Room[]> {
     getMyProfile().catch(() => null),
   ]);
   const rows = data ?? [];
-  console.log(`[liste] db=${rows.length} oda; online: ${rows.map((r) => `${r.id}:${r.aktif_katilimci_sayisi ?? 0}`).join(" ")}`);
+  // TEŞHİS: burada basılan sayı DB SAYACIDIR (istatistik), listenin görünürlük
+  // ölçütü DEĞİL — o `oda_katilimcilar` tablosundan geliyor (070).
+  // Etiketi karışmasın diye açıkça "sayac" yazıyor: eski oturumlarda bu satır
+  // presence sanılıp yanlış iz sürüldü.
+  console.log(`[liste] db=${rows.length} oda; sayac: ${rows.map((r) => `${r.id}:${r.aktif_katilimci_sayisi ?? 0}`).join(" ")}`);
   const hosts = await fetchHostNames(rows.map((r) => r.olusturan_id).filter((x): x is number => x != null));
   // Rozetler (066): listede görünen odalar için tek çağrıda.
   return rozetleriBagla(rows.map((r) => mapRoom(r, hosts.get(r.olusturan_id ?? -1) || "Kullanıcı", me?.id ?? null)));
@@ -884,4 +888,363 @@ export async function odaVerilenRozetler(odaId: number): Promise<{ kod: string; 
   return ((data as { kod: string; ad: string; sebep: string | null; bitis: string | null }[]) ?? []).map((r) => ({
     kod: r.kod, ad: r.ad, sebep: r.sebep, bitis: r.bitis ? Date.parse(r.bitis) : null,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// KOLTUKLAR (068) — kim nerede oturuyor, mikrofonu açık mı, hangi koltuk kilitli
+//
+// Bu bilgi eskiden Realtime PRESENCE ile taşınıyordu ve üç oturum boyunca
+// kararlı çalışmadı: bir presence anahtarında birden çok kayıt olabiliyor,
+// sırası garanti değil, arkaplanda kayıt asılı kalıyordu. Kullanıcının ölçtüğü
+// tek kararlı yol `postgres_changes` (oda listesi onunla anlık çalışıyor),
+// bu yüzden koltuk durumu artık gerçek bir tabloda.
+// ---------------------------------------------------------------------------
+
+/**
+ * KOLTUK NUMARASI EŞLEMESİ — uygulama ile veritabanı aynı sayıları kullanmıyor.
+ *
+ * `oda_koltuklari` TEMEL ŞEMADAN geliyor ve orada:
+ *   • koltuklar 1'DEN başlıyor (CHECK: koltuk_no BETWEEN 1 AND 20)
+ *   • 0 ve negatif değer YASAK, yani oda sahibi için -1 kullanılamıyor
+ * Uygulama tarafı ise 0..7 indeksli ve sahibin koltuğu -1. Dönüşüm burada,
+ * tek yerde yapılıyor; ekran kodu kendi sayılarıyla çalışmaya devam ediyor.
+ *
+ * Sahne başı için 20 seçildi: CHECK'in üst sınırı ve trigger'ın açtığı
+ * 1..koltuk_sayisi aralığına (pratikte 1..8) hiç girmiyor.
+ */
+const SAHIP_KOLTUK_NO = 20;
+const istemcidenDbye = (i: number) => (i < 0 ? SAHIP_KOLTUK_NO : i + 1);
+const dbdenIstemciye = (no: number) => (no === SAHIP_KOLTUK_NO ? -1 : no - 1);
+
+export type KoltukSatiri = {
+  /** -1 = oda sahibinin koltuğu, 0..7 = normal koltuklar (İSTEMCİ numarası) */
+  koltukNo: number;
+  kullaniciId: number | null;
+  micAcik: boolean;
+  kilitli: boolean;
+  ad: string | null;
+  foto: string | null;
+  publicId: string | null;
+  yetkili: boolean;
+};
+
+type KoltukRow = {
+  koltuk_no: number;
+  kullanici_id: number | null;
+  /** DB'de mantık TERS tutuluyor: susturulmus = mikrofon kapalı. */
+  susturulmus: boolean;
+  kilitli: boolean;
+  kullanici_adi: string | null;
+  profil_resmi: string | null;
+  public_id: string | null;
+  yetkili: boolean;
+};
+
+/** Odanın koltuk tablosu — isim/foto ile birlikte tek çağrıda. */
+export async function koltuklariGetir(odaId: number): Promise<KoltukSatiri[]> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("oda_koltuklari_getir", { p_oda: odaId });
+  if (error) {
+    // 068 henüz çalıştırılmadıysa ekran çalışmaya devam etsin (boş koltuklar).
+    if (tabloYok(error)) return [];
+    throw error;
+  }
+  return ((data as KoltukRow[]) ?? []).map((r) => ({
+    koltukNo: dbdenIstemciye(Number(r.koltuk_no)),
+    kullaniciId: r.kullanici_id == null ? null : Number(r.kullanici_id),
+    micAcik: !r.susturulmus,
+    kilitli: !!r.kilitli,
+    ad: r.kullanici_adi,
+    foto: r.profil_resmi,
+    publicId: r.public_id,
+    yetkili: !!r.yetkili,
+  }));
+}
+
+export async function koltugaOtur(odaId: number, koltuk: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("koltuga_otur", { p_oda: odaId, p_koltuk: istemcidenDbye(koltuk) });
+  if (error) throw error;
+}
+
+export async function koltuktanKalk(odaId: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("koltuktan_kalk", { p_oda: odaId });
+  if (error && !tabloYok(error)) throw error;
+}
+
+export async function koltukMicAyarla(odaId: number, acik: boolean): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("koltuk_mic", { p_oda: odaId, p_acik: acik });
+  if (error) throw error;
+}
+
+export async function koltukKilitle(odaId: number, koltuk: number, kilit: boolean): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("koltuk_kilit", { p_oda: odaId, p_koltuk: istemcidenDbye(koltuk), p_kilit: kilit });
+  if (error) throw error;
+}
+
+/**
+ * Koltuk değişimlerini canlı dinle.
+ *
+ * İKİ KANALLI: gelen olayın kendisi zaten yeni satırı taşıyor (`REPLICA
+ * IDENTITY FULL`), o yüzden `anlik` ile HEMEN uygulanıyor — ekranın sunucuya
+ * bir tur daha gidip gelmesini beklemesine gerek yok. Gecikmenin hissedilen
+ * kısmı buydu.
+ *
+ * `tazele` ise kısa bir gecikmeyle çalışıyor: olay yükünde kullanıcının adı
+ * ve fotoğrafı yok (join yapılmıyor), onları tam okuma getiriyor. Ayrıca tek
+ * bir "otur" işlemi eski koltuğu boşaltıp yenisini doldurduğu için iki olay
+ * üretiyor; tazeleme onları tek okumada birleştiriyor.
+ */
+export function koltuklariDinle(
+  odaId: number,
+  isleyiciler: { anlik: (satir: KoltukSatiri, silindi: boolean) => void; tazele: () => void },
+): () => void {
+  const sb = supabase;
+  if (!sb) return () => {};
+  let zamanlayici: ReturnType<typeof setTimeout> | null = null;
+  const ch = sb
+    .channel(`oda-koltuk-${odaId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "oda_koltuklari", filter: `oda_id=eq.${odaId}` },
+      (yuk) => {
+        const silindi = yuk.eventType === "DELETE";
+        const ham = (silindi ? yuk.old : yuk.new) as Partial<KoltukRow> | undefined;
+        if (ham?.koltuk_no != null) {
+          isleyiciler.anlik(
+            {
+              koltukNo: dbdenIstemciye(Number(ham.koltuk_no)),
+              kullaniciId: ham.kullanici_id == null ? null : Number(ham.kullanici_id),
+              micAcik: !ham.susturulmus,
+              kilitli: !!ham.kilitli,
+              // Ad/foto olay yükünde yok; tazeleme dolduruyor.
+              ad: null,
+              foto: null,
+              publicId: null,
+              yetkili: false,
+            },
+            silindi,
+          );
+        }
+        if (zamanlayici) clearTimeout(zamanlayici);
+        zamanlayici = setTimeout(isleyiciler.tazele, 120);
+      },
+    )
+    .subscribe((durum) => {
+      if (durum !== "SUBSCRIBED") console.warn(`[koltuk] kanal ${durum}`);
+    });
+  return () => {
+    if (zamanlayici) clearTimeout(zamanlayici);
+    sb.removeChannel(ch);
+  };
+}
+
+// ---------------------------------------------------------------------------
+// MİKROFON AKIŞLARI (069) — indirme, sıra, onay
+//
+// Sıra eskiden broadcast'teydi: sonradan giren yönetici bekleyenleri
+// göremiyor, bağlantı kopunca sıra siliniyor, "onaylandın" mesajı kaçarsa
+// kimse koltuğa oturmuyordu. Sıra bir DURUM olduğu için tabloya taşındı;
+// onay da artık sunucuda oturtuyor.
+// ---------------------------------------------------------------------------
+
+export type MicSirasiSatiri = { uid: number; name: string; photo?: string; publicId?: string; at: number };
+
+/** Yönetici: hedefi mikrofondan indir (kendi koltuğun için koltuktanKalk). */
+export async function koltuktanIndir(odaId: number, hedefId: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("koltuktan_indir", { p_oda: odaId, p_hedef: hedefId });
+  if (error) throw error;
+}
+
+export async function micSirasiGetir(odaId: number): Promise<MicSirasiSatiri[]> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("mic_sirasi_getir", { p_oda: odaId });
+  if (error) {
+    if (tabloYok(error)) return []; // 069 henüz çalıştırılmadı — ekran çalışsın
+    throw error;
+  }
+  type Satir = { kullanici_id: number; kullanici_adi: string | null; profil_resmi: string | null; public_id: string | null; talep_tarihi: string };
+  return ((data as Satir[]) ?? []).map((r) => ({
+    uid: Number(r.kullanici_id),
+    name: r.kullanici_adi || "Kullanıcı",
+    photo: r.profil_resmi || undefined,
+    publicId: r.public_id || undefined,
+    at: Date.parse(r.talep_tarihi) || 0,
+  }));
+}
+
+export async function micSirasinaGir(odaId: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("mic_sirasina_gir", { p_oda: odaId });
+  if (error) throw error;
+}
+
+/** hedefId verilmezse kendi elimi indiriyorum. */
+export async function micSirasindanCik(odaId: number, hedefId?: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("mic_sirasindan_cik", { p_oda: odaId, p_hedef: hedefId ?? null });
+  if (error) throw error;
+}
+
+/** Yönetici onayı — sunucu hedefi ilk boş ve kilitsiz koltuğa oturtur. */
+export async function micSirasiOnayla(odaId: number, hedefId: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("mic_sirasi_onayla", { p_oda: odaId, p_hedef: hedefId });
+  if (error) throw error;
+}
+
+/** Sıra değişimlerini canlı dinle (koltuklarla aynı desen). */
+export function micSirasiniDinle(odaId: number, geriCagir: () => void): () => void {
+  const sb = supabase;
+  if (!sb) return () => {};
+  let zamanlayici: ReturnType<typeof setTimeout> | null = null;
+  const ch = sb
+    .channel(`oda-mic-sirasi-${odaId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "oda_mic_sirasi", filter: `oda_id=eq.${odaId}` },
+      () => {
+        if (zamanlayici) clearTimeout(zamanlayici);
+        zamanlayici = setTimeout(geriCagir, 80);
+      },
+    )
+    .subscribe((durum) => {
+      if (durum !== "SUBSCRIBED") console.warn(`[mic-sirasi] kanal ${durum}`);
+    });
+  return () => {
+    if (zamanlayici) clearTimeout(zamanlayici);
+    sb.removeChannel(ch);
+  };
+}
+
+// ---------------------------------------------------------------------------
+// ODADA KİM VAR (070) — sunucu taraflı katılım + kalp atışı
+//
+// Bu bilgi presence ile taşınıyordu ve üç oturum boyunca kararlı çalışmadı:
+// ağ kopunca / arkaplandan dönünce liste boşalıyor, kişi sayısı 0 düşüyordu.
+// Temel şemada hazır bekleyen `oda_katilimcilar` + `last_heartbeat` altyapısı
+// devreye alındı; pg_cron olmadığı için bayat satırları katılım anında
+// temizliyoruz ve okurken de eliyoruz.
+// ---------------------------------------------------------------------------
+
+export type OdaKatilimcisi = {
+  uid: number;
+  name: string;
+  photo?: string;
+  publicId?: string;
+  yetkili: boolean;
+  at: number;
+};
+
+/** Odaya katıldım — satır yoksa açılır, başka odadaysam bu odaya taşınır. */
+export async function odayaKatil(odaId: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("odaya_katil", { p_oda: odaId });
+  if (error && !tabloYok(error)) throw error;
+}
+
+/** "Hâlâ buradayım" — ~25 sn'de bir. */
+export async function odaKalpAtisi(odaId: number): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("oda_kalp_atisi", { p_oda: odaId });
+  if (error && !tabloYok(error)) throw error;
+}
+
+export async function odadanAyril(): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("odadan_ayril");
+  if (error && !tabloYok(error)) throw error;
+}
+
+export async function odaKatilimcilariGetir(odaId: number): Promise<OdaKatilimcisi[]> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("oda_katilimcilari_getir", { p_oda: odaId });
+  if (error) {
+    if (tabloYok(error)) return []; // 070 henüz çalıştırılmadı
+    throw error;
+  }
+  type Satir = { kullanici_id: number; kullanici_adi: string | null; profil_resmi: string | null; public_id: string | null; yetkili: boolean; giris_tarihi: string };
+  return ((data as Satir[]) ?? []).map((r) => ({
+    uid: Number(r.kullanici_id),
+    name: r.kullanici_adi || "Kullanıcı",
+    photo: r.profil_resmi || undefined,
+    publicId: r.public_id || undefined,
+    yetkili: !!r.yetkili,
+    at: Date.parse(r.giris_tarihi) || 0,
+  }));
+}
+
+/** Odaya giren/çıkanı canlı dinle. */
+export function odaKatilimcilariniDinle(odaId: number, geriCagir: () => void): () => void {
+  const sb = supabase;
+  if (!sb) return () => {};
+  let zamanlayici: ReturnType<typeof setTimeout> | null = null;
+  const ch = sb
+    .channel(`oda-katilimci-${odaId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "oda_katilimcilar", filter: `oda_id=eq.${odaId}` },
+      () => {
+        if (zamanlayici) clearTimeout(zamanlayici);
+        zamanlayici = setTimeout(geriCagir, 120);
+      },
+    )
+    .subscribe((durum) => {
+      if (durum !== "SUBSCRIBED") console.warn(`[katilimci] kanal ${durum}`);
+    });
+  return () => {
+    if (zamanlayici) clearTimeout(zamanlayici);
+    sb.removeChannel(ch);
+  };
+}
+
+/**
+ * Oda listesi için kişi sayıları — gerçek katılımcı tablosundan (070).
+ *
+ * Eskiden bu sayı iki zayıf kaynağın birleşimiydi: istemcinin yazdığı
+ * `odalar.aktif_katilimci_sayisi` (057) ve genel presence kanalı
+ * (kaldırılan `odaVarlik.ts`). İkisi de kararsızdı; uygulama zorla kapanınca sayaç >0
+ * kalıyor ve boş oda listede asılı duruyordu (hayalet oda). Artık sayı
+ * kalp atışlı tablodan geliyor: kalbi durmuş kayıt zaten elenmiş oluyor.
+ */
+export async function odaKisiSayilari(): Promise<Map<number, number>> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("oda_kisi_sayilari");
+  if (error) {
+    if (tabloYok(error)) return new Map(); // 070 henüz çalıştırılmadı
+    throw error;
+  }
+  const m = new Map<number, number>();
+  for (const r of (data as { oda_id: number; sayi: number }[]) ?? []) {
+    m.set(Number(r.oda_id), Number(r.sayi));
+  }
+  return m;
+}
+
+/** Herhangi bir odaya giriş/çıkış olduğunda haber ver (oda listesi için). */
+export function odaKisiSayilariniDinle(geriCagir: () => void): () => void {
+  const sb = supabase;
+  if (!sb) return () => {};
+  let zamanlayici: ReturnType<typeof setTimeout> | null = null;
+  const ch = sb
+    .channel("oda-kisi-sayilari")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "oda_katilimcilar" },
+      () => {
+        if (zamanlayici) clearTimeout(zamanlayici);
+        zamanlayici = setTimeout(geriCagir, 250);
+      },
+    )
+    .subscribe((durum) => {
+      if (durum !== "SUBSCRIBED") console.warn(`[oda-sayi] kanal ${durum}`);
+    });
+  return () => {
+    if (zamanlayici) clearTimeout(zamanlayici);
+    sb.removeChannel(ch);
+  };
 }

@@ -42,12 +42,19 @@ export type Seat = {
   speaking?: boolean;
   photo?: string;
   publicId?: string;
+  /** Kuşanılan çerçeve teması (056) — koltukta çizilir. */
+  cerceve?: string | null;
+  /** Bu kişi platform yöneticisi mi — koltukta yetki rozeti çıkar. */
+  yetki?: boolean;
 };
 
 /** Sohbete düşen hediye satırı — kim, kime, ne, kaç tane. */
 export type HediyeSatiri = { emoji: string; ad: string; adet: number; kime: string; renk: string };
 
-export type ChatMsg = { name: string; time: string; text: string; mod?: boolean; host?: boolean; myOwn?: boolean; photo?: string; uid?: number; publicId?: string; sys?: "mesaj" | "uyari"; baslik?: string; hediye?: HediyeSatiri };
+export type ChatMsg = { name: string; time: string; text: string; mod?: boolean; host?: boolean; myOwn?: boolean; photo?: string; uid?: number; publicId?: string; sys?: "mesaj" | "uyari"; baslik?: string; hediye?: HediyeSatiri;
+  /** Yazan platform yoneticisi mi. Rozet, BAKANIN degil YAZANIN yetkisini
+   *  gosterdigi icin mesajla birlikte tasiniyor. */
+  yetki?: boolean };
 
 export type DM = {
   name: string;
