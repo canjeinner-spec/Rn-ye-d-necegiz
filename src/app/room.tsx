@@ -680,6 +680,20 @@ export default function RoomScreen() {
    */
   const sonKoltukIstegiRef = useRef(0);
 
+  /**
+   * Oda kanalı NESLİ — kanal koptuğunda yeniden kurmak için.
+   *
+   * Metro logunda kanıtlandı: kanal `CLOSED` oluyor ve bir daha kurulmuyordu.
+   * Kapalı kanalda `send()` REST'e düşüyor ("Realtime send() is automatically
+   * falling back to REST API") ve `track` zaman aşımına uğruyor — yani davet
+   * gitmiyor, sohbet tek yönlü kalıyor, koltuk ipucu yayılmıyor.
+   *
+   * Daha önce kopmada odadan DÜŞÜYORDUK; onu kaldırdım çünkü oda kendi
+   * kendine kapanıyordu. Ama yerine bir şey koymamıştım. Doğrusu odadan
+   * çıkmak değil, KANALI YENİDEN KURMAK.
+   */
+  const [kanalNesli, setKanalNesli] = useState(0);
+
   /** Uzlaştırmayı bekleme penceresi dolunca yeniden koşturmak için sayaç. */
   const [uzlasTetik, setUzlasTetik] = useState(0);
 
@@ -1385,6 +1399,9 @@ export default function RoomScreen() {
     // `oda_mic_sirasi` tablosundan geliyor, onayı da sunucu uyguluyor.
 
     // Yeniden bağlanmada da tetiklenir; bu yüzden ref üzerinden (yukarı bak).
+    /** Kopmada kanalı yeniden kurma zamanlayıcısı. */
+    let yenidenKurZaman: ReturnType<typeof setTimeout> | null = null;
+
     ch.subscribe(async (status) => {
       if (status !== "SUBSCRIBED") {
         // Baglanti koptu. Supabase kendi kendine yeniden baglanmayi deniyor;
@@ -1404,9 +1421,22 @@ export default function RoomScreen() {
          * Hayalet koltuk riski arkaplan kuralıyla (ARKAPLAN_MS) zaten
          * karşılanıyor: uygulama gerçekten arkada kalırsa odadan düşülüyor.
          */
-        console.warn(`[oda] kanal ${status}`);
+        /**
+         * Odadan düşmüyoruz ama kanalı YENİDEN KURUYORUZ. `CLOSED` bizim
+         * kendi temizliğimizde de oluyor; orada `alive` false olduğu için
+         * buraya gelinmiyor. Buraya gelindiyse kanal gerçekten düşmüş ve
+         * kendi kendine geri gelmiyor demektir.
+         */
+        console.warn(`[oda] kanal ${status} — yeniden kurulacak`);
+        if (!yenidenKurZaman) {
+          yenidenKurZaman = setTimeout(() => {
+            yenidenKurZaman = null;
+            if (alive) setKanalNesli((x) => x + 1);
+          }, 1500);
+        }
         return;
       }
+      if (yenidenKurZaman) { clearTimeout(yenidenKurZaman); yenidenKurZaman = null; }
       await presenceYazRef.current();
       // Yeniden bağlanmada da tabloları tazele: abonelik boşluktayken
       // kaçan değişiklikler ancak böyle geri geliyor.
@@ -1445,6 +1475,7 @@ export default function RoomScreen() {
 
     return () => {
       alive = false;
+      if (yenidenKurZaman) { clearTimeout(yenidenKurZaman); yenidenKurZaman = null; }
       /**
        * SADECE KENDİ kanalımı temizle.
        *
@@ -1506,7 +1537,7 @@ export default function RoomScreen() {
     };
     // userName/userPhoto oturum boyunca sabit; bağımlılığa eklemiyoruz (yeniden abone olmasın)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDbRoom, dbId, myDbId]);
+  }, [isDbRoom, dbId, myDbId, kanalNesli]);
 
   const toast = (msg: string) => {
     setSeatToast(msg);
@@ -1863,13 +1894,34 @@ export default function RoomScreen() {
       toast("Kullanıcı odada görünmüyor, davet ulaşmaz");
       return;
     }
-    chanRef.current
-      ?.send({ type: "broadcast", event: "mic_davet", payload: { uid, cihaz: CIHAZ, ad: userName, koltuk } })
-      .then((r) => {
-        if (r !== "ok") { console.warn("[davet] gonderilemedi:", r); toast("Davet gönderilemedi"); }
-        else toast(`Davet gönderildi · ${koltuk + 1}. koltuk`);
-      })
-      .catch((e) => { console.warn("[davet] hata:", (e as Error)?.message || e); toast("Davet gönderilemedi"); });
+    /**
+     * SESSİZ ÇIKIŞ YOK.
+     *
+     * Eskiden `chanRef.current?.send(...)` yazıyordu: kanal referansı o an
+     * null ise ifade tamamen `undefined` oluyor, `.then` bile çalışmıyordu.
+     * Yani davet hiç gitmiyor ve ekranda HİÇBİR ŞEY olmuyordu — kullanıcının
+     * "davet attım ama karşıda görünmedi" dediği durum buydu. Artık kanal
+     * yoksa (yeniden bağlanıyor olabilir) birkaç kez deneniyor, olmazsa
+     * söyleniyor.
+     */
+    const gonder = async (deneme = 0): Promise<void> => {
+      const kanal = chanRef.current;
+      if (!kanal) {
+        if (deneme < 3) { await new Promise((r) => setTimeout(r, 300)); return gonder(deneme + 1); }
+        toast("Davet gönderilemedi — bağlantı yok");
+        return;
+      }
+      try {
+        const r = await kanal.send({ type: "broadcast", event: "mic_davet", payload: { uid, cihaz: CIHAZ, ad: userName, koltuk } });
+        if (r === "ok") { toast(`Davet gönderildi · ${koltuk + 1}. koltuk`); return; }
+        console.warn("[davet] gonderilemedi:", r, "deneme", deneme);
+      } catch (e) {
+        console.warn("[davet] hata:", (e as Error)?.message || e);
+      }
+      if (deneme < 3) { await new Promise((r) => setTimeout(r, 300)); return gonder(deneme + 1); }
+      toast("Davet gönderilemedi");
+    };
+    void gonder();
   };
 
   /** Davet için koltuk seçimini aç — boş koltuk yoksa hiç açma. */
@@ -2421,6 +2473,19 @@ export default function RoomScreen() {
                       </View>
                       <Txt weight="semibold" size={10} color={C.green} style={{ marginTop: 3 }}>Odada</Txt>
                     </View>
+                    {/* Davetin tek girişi sohbetteki mesaj kartıydı: hiç yazmamış
+                        birini davet etmek mümkün değildi. Asıl beklenen yer burası. */}
+                    {!isMe && isDbRoom && (MY_ROLE === "host" || MY_ROLE === "mod")
+                      && !dbKoltuklar.some((k) => k.kullaniciId === m.uid) && (
+                      <Pressable
+                        onPress={() => { setUserList(false); davetBaslat(m.uid, m.name); }}
+                        hitSlop={6}
+                        style={styles.listeDavet}
+                      >
+                        <Icon name="hand" size={13} color={C.gold2} />
+                        <Txt weight="bold" size={11} color={C.gold2}>Davet</Txt>
+                      </Pressable>
+                    )}
                     <Icon name="chev" size={13} color={C.dim2} />
                   </Pressable>
                 );
@@ -2815,6 +2880,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,.10)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
   },
   gonderBtn: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
+  listeDavet: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingVertical: 7, paddingHorizontal: 11, borderRadius: 999,
+    backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "44",
+  },
   davetKoltuk: {
     width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center",
     borderWidth: 1.5, borderColor: C.gold + "5C", backgroundColor: C.gold + "12",
