@@ -692,6 +692,11 @@ export default function RoomScreen() {
    * asıl faydası bu.
    */
   const koltukTazeleRef = useRef<() => void>(() => {});
+  /** İpucu uygulayıcısının tazesi — kanal geri çağrısı eskisini kapatmasın. */
+  const koltukIpucuUygulaRef = useRef<(p: {
+    koltuk: number; uid: number | null; mic?: boolean;
+    ad?: string | null; foto?: string | null; publicId?: string | null; yetkili?: boolean;
+  }) => void>(() => {});
   const siraTazeleRef = useRef<() => void>(() => {});
   const katilimciTazeleRef = useRef<() => void>(() => {});
 
@@ -1272,6 +1277,19 @@ export default function RoomScreen() {
     // ("1-2 defa anlık oluyor sonra yine buga giriyor"). İkisi de artık
     // `oda_koltuklari` tablosundan, postgres_changes ile geliyor (068).
 
+    // Koltuk ipucu — tablo olayından ~200 ms önce gelir, ekranı hemen günceller.
+    ch.on("broadcast", { event: "koltuk_ipucu" }, ({ payload }) => {
+      const p = payload as {
+        cihaz?: string; koltuk?: number; uid?: number | null; mic?: boolean;
+        ad?: string | null; foto?: string | null; publicId?: string | null; yetkili?: boolean;
+      };
+      if (!alive || p.cihaz === CIHAZ || typeof p.koltuk !== "number") return;
+      koltukIpucuUygulaRef.current({
+        koltuk: p.koltuk, uid: p.uid ?? null, mic: p.mic,
+        ad: p.ad, foto: p.foto, publicId: p.publicId, yetkili: p.yetkili,
+      });
+    });
+
     // Anlık sohbet — broadcast (DB yok). self:true → kendi mesajım da gelir.
     ch.on("broadcast", { event: "chat" }, ({ payload }) => {
       const p = payload as { uid?: number; cihaz?: string; yetki?: boolean; name?: string; photo?: string; publicId?: string; text: string; time: string; hediye?: HediyeSatiri };
@@ -1464,6 +1482,7 @@ export default function RoomScreen() {
     if (dbId != null) koltukYaz(dbId, idx, true);
     presenceYaz({ koltuk: idx, mic: true });
     // Gerçek kayıt sunucuda (068). Reddedilirse yerel iyimser oturuşu geri al.
+    koltukIpucuYolla({ koltuk: idx, uid: myDbId ?? null, mic: true, ad: userName, foto: userPhoto, publicId: myPublicId, yetkili: privileged });
     if (dbId != null) {
       koltugaOtur(dbId, idx).catch((e) => {
         const mesaj = (e as Error)?.message || String(e);
@@ -1484,6 +1503,7 @@ export default function RoomScreen() {
     setMicOn(false);
     if (dbId != null) koltukYaz(dbId, null, false);
     presenceYaz({ koltuk: null, mic: false });
+    if (mySeat != null) koltukIpucuYolla({ koltuk: mySeat, uid: null });
     if (dbId != null) koltuktanKalk(dbId).catch((e) => console.warn("[koltuk] kalkilamadi:", (e as Error)?.message || e));
     setSeatSheet(null);
     toast("Mikrofondan indin");
@@ -1508,6 +1528,61 @@ export default function RoomScreen() {
     sitHere(idx);
     toast("Mikrofona alındın 🎙");
   };
+
+  /**
+   * KOLTUK İPUCU — gecikmeyi insan fark etmeyecek seviyeye indiren katman.
+   *
+   * Koltuk durumu `oda_koltuklari` tablosunda ve doğrusu orada. Ama tablo
+   * değişikliği karşı tarafa WAL → Realtime yolundan geliyor ve o yol doğası
+   * gereği 150-400 ms. Sohbetin anlık hissedilmesinin sebebi broadcast'in bu
+   * yolu hiç kullanmaması (~30-80 ms).
+   *
+   * Bu yüzden değişimi İKİ yoldan birden gönderiyoruz: broadcast ipucu hemen
+   * gidip ekranı günceller, tablo olayı biraz sonra gelip AYNI sonucu
+   * onaylar. Kaçarsa da sorun değil — asıl kaynak tablo, bir sonraki olay
+   * ya da tazeleme zaten doğruyu getiriyor.
+   *
+   * ÖNEMLİ FARK: daha önce broadcast'i TEK kaynak yapmıştık ve kararsızdı,
+   * çünkü kaçan olayın telafisi yoktu. Şimdi sağlam kaynağın ÜSTÜNDE bir
+   * hızlandırıcı; kaçması yalnızca 200 ms geç görünmek demek.
+   */
+  const koltukIpucuUygula = useCallback((p: {
+    koltuk: number; uid: number | null; mic?: boolean;
+    ad?: string | null; foto?: string | null; publicId?: string | null; yetkili?: boolean;
+  }) => {
+    setDbKoltuklar((onceki) => {
+      const digerleri = onceki.filter((k) => k.koltukNo !== p.koltuk);
+      if (p.uid == null) {
+        const eski = onceki.find((k) => k.koltukNo === p.koltuk);
+        // Koltuk boşaldı: kilidi koru, oturanı sil.
+        return [...digerleri, {
+          koltukNo: p.koltuk, kullaniciId: null, micAcik: true,
+          kilitli: eski?.kilitli ?? false, ad: null, foto: null, publicId: null, yetkili: false,
+        }].sort((a, b) => a.koltukNo - b.koltukNo);
+      }
+      const eski = onceki.find((k) => k.koltukNo === p.koltuk);
+      return [...digerleri, {
+        koltukNo: p.koltuk,
+        kullaniciId: p.uid,
+        micAcik: p.mic !== false,
+        kilitli: eski?.kilitli ?? false,
+        ad: p.ad ?? null,
+        foto: p.foto ?? null,
+        publicId: p.publicId ?? null,
+        yetkili: !!p.yetkili,
+      }].sort((a, b) => a.koltukNo - b.koltukNo);
+    });
+  }, []);
+
+  /** İpucunu yayınla (kendi ekranımı çağıran zaten güncelliyor). */
+  const koltukIpucuYolla = useCallback((p: {
+    koltuk: number; uid: number | null; mic?: boolean;
+    ad?: string | null; foto?: string | null; publicId?: string | null; yetkili?: boolean;
+  }) => {
+    chanRef.current
+      ?.send({ type: "broadcast", event: "koltuk_ipucu", payload: { cihaz: CIHAZ, ...p } })
+      .catch((e) => console.warn("[koltuk-ipucu] gonderilemedi:", (e as Error)?.message || e));
+  }, []);
 
   /**
    * Presence yükünü yaz/güncelle.
@@ -1553,6 +1628,7 @@ export default function RoomScreen() {
   // Koltuk / mikrofon değişince presence tazelensin.
   useEffect(() => { presenceYaz(); }, [presenceYaz]);
   useEffect(() => { presenceYazRef.current = presenceYaz; }, [presenceYaz]);
+  useEffect(() => { koltukIpucuUygulaRef.current = koltukIpucuUygula; }, [koltukIpucuUygula]);
   useEffect(() => { tepkiGosterRef.current = tepkiGoster; }, [tepkiGoster]);
 
   /**
@@ -1640,6 +1716,17 @@ export default function RoomScreen() {
   const onayiTamamla = (uid: number, koltuk: number) => {
     if (dbId == null) return;
     haptic.success();
+    const kisi = micQueue.find((q) => q.uid === uid);
+    const ipucu = {
+      koltuk,
+      uid,
+      mic: true,
+      ad: kisi?.name ?? null,
+      foto: kisi?.photo ?? null,
+      publicId: kisi?.publicId ?? null,
+    };
+    koltukIpucuUygula(ipucu);
+    koltukIpucuYolla(ipucu);
     micSirasiOnayla(dbId, uid, koltuk).catch((e) => {
       const mesaj = (e as Error)?.message || String(e);
       console.warn("[mic-sirasi] onaylanamadi:", mesaj);
@@ -1650,6 +1737,8 @@ export default function RoomScreen() {
               : mesaj.includes("yasağı") ? "Kullanıcının mikrofon yasağı var"
                 : "Onaylanamadı",
       );
+      // Sunucu reddetti: tabloyu yeniden oku, iyimser satır silinsin.
+      koltukTazeleRef.current();
     });
   };
   const myRaised = myDbId != null && micQueue.some((e) => e.uid === myDbId);
@@ -1725,6 +1814,10 @@ export default function RoomScreen() {
     setMicOn(next);
     if (dbId != null) koltukYaz(dbId, isMine ? -1 : mySeat, next);
     presenceYaz({ mic: next });
+    const kNo = isMine ? -1 : mySeat;
+    if (kNo != null) {
+      koltukIpucuYolla({ koltuk: kNo, uid: myDbId ?? null, mic: next, ad: userName, foto: userPhoto, publicId: myPublicId, yetkili: privileged });
+    }
     if (dbId != null) koltukMicAyarla(dbId, next).catch((e) => console.warn("[koltuk] mic yazilamadi:", (e as Error)?.message || e));
     if (isMine) setHost((h) => (h ? { ...h, muted: !next } : h));
     else if (mySeat !== null) setSeats((p) => p.map((t, i) => (i === mySeat && t ? { ...t, muted: !next } : t)));
@@ -1769,10 +1862,19 @@ export default function RoomScreen() {
     // yöneticinin ekranında kalkıyordu, karşı tarafta hiçbir şey olmuyordu.
     onKickMic: () => {
       if (dbId == null || s.uid == null) return;
+      // Hem kendi ekranımı hem karşı tarafı BEKLETME: ipucu şimdi,
+      // tablo olayı biraz sonra onaylıyor.
+      const idx = gosterilenKoltuklar.findIndex((x) => x?.uid === s.uid);
+      if (idx >= 0) {
+        koltukIpucuUygula({ koltuk: idx, uid: null });
+        koltukIpucuYolla({ koltuk: idx, uid: null });
+      }
       koltuktanIndir(dbId, s.uid).catch((e) => {
         const mesaj = (e as Error)?.message || String(e);
         console.warn("[koltuk] indirilemedi:", mesaj);
         toast(mesaj.includes("yetkilisi") ? "Bunun için oda yetkilisi olmalısın" : "Mikrofondan indirilemedi");
+        // Sunucu reddetti: iyimser boşaltmayı geri al.
+        koltukTazeleRef.current();
       });
     },
     onKickRoom: () => {
