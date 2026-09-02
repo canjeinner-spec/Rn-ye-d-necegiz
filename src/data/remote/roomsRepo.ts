@@ -185,12 +185,15 @@ function hhmm(iso: string): string {
 /** Oda sohbet mesajları (eskiden yeniye) + yazar adı/fotoğrafı. */
 export async function getRoomMessages(odaId: number, limit = 60): Promise<RoomMessage[]> {
   const sb = requireSupabase();
+  // SON limit mesaj isteniyor: yeniden eskiye çekilip ters çevriliyor.
+  // (ascending:true + limit, EN ESKİ limit mesajı getirirdi — kalabalık
+  // odada geçmiş hep aynı ilk mesajlarda takılı kalırdı.)
   const [{ data, error }, me] = await Promise.all([
-    sb.from("oda_mesajlari").select("id, kullanici_id, icerik, gonderilme_tarihi").eq("oda_id", odaId).order("gonderilme_tarihi", { ascending: true }).limit(limit),
+    sb.from("oda_mesajlari").select("id, kullanici_id, icerik, gonderilme_tarihi").eq("oda_id", odaId).order("gonderilme_tarihi", { ascending: false }).limit(limit),
     getMyProfile().catch(() => null),
   ]);
   if (error) throw error;
-  const rows = (data as { id: number; kullanici_id: number | null; icerik: string; gonderilme_tarihi: string }[]) ?? [];
+  const rows = ((data as { id: number; kullanici_id: number | null; icerik: string; gonderilme_tarihi: string }[]) ?? []).reverse();
   const ids = [...new Set(rows.map((r) => r.kullanici_id).filter((x): x is number => x != null))];
   const names = new Map<number, { kullanici_adi: string; profil_resmi: string | null; public_id: string }>();
   if (ids.length) {
@@ -212,12 +215,16 @@ export async function getRoomMessages(odaId: number, limit = 60): Promise<RoomMe
   });
 }
 
-/** Odaya mesaj gönder (kendi adına). */
+/**
+ * Odaya mesaj gönder — kalıcılık katmanı (078).
+ *
+ * Anlık yol broadcast'te kalıyor; bu yalnız `oda_mesajlari`na yazar.
+ * Doğrudan INSERT grant'i 078'de kapandı: yazma tek yol, RPC. Mikrofon
+ * yasağı/oda yasağı sunucuda kontrol ediliyor.
+ */
 export async function sendRoomMessage(odaId: number, text: string): Promise<void> {
   const sb = requireSupabase();
-  const me = await getMyProfile();
-  if (!me) throw new Error("Profil bulunamadı.");
-  const { error } = await sb.from("oda_mesajlari").insert({ oda_id: odaId, kullanici_id: me.id, icerik: text.trim() });
+  const { error } = await sb.rpc("oda_mesaj_yaz", { p_oda: odaId, p_icerik: text.trim() });
   if (error) throw error;
 }
 
