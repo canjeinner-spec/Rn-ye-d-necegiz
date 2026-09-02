@@ -39,7 +39,7 @@ import { type Gift, TIER_RING } from "@/data/gifts";
 import { hediyeGonder } from "@/data/remote/hediyeRepo";
 import { reportRoom } from "@/data/remote/reportRepo";
 import { addXp } from "@/data/remote/xpRepo";
-import { odaSahibi, type OdaSahibi, amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, koltugaOtur, koltukKilitle, koltukMicAyarla, koltuklariDinle, koltuklariGetir, koltuktanIndir, koltuktanKalk, type KoltukSatiri, micSirasiGetir, micSirasindanCik, micSirasinaGir, micSirasiniDinle, micSirasiOnayla, odadanAyril, odaKalpAtisi, odaKatilimcilariGetir, odaKatilimcilariniDinle, odayaKatil, type OdaKatilimcisi, logRoomMovement, odaKatilimciYaz, toScene, ziyaretKaydet, type MicBan } from "@/data/remote/roomsRepo";
+import { odaSahibi, type OdaSahibi, amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, getRoomMessages, koltugaOtur, koltukKilitle, koltukMicAyarla, koltuklariDinle, koltuklariGetir, koltuktanIndir, koltuktanKalk, type KoltukSatiri, micSirasiGetir, micSirasindanCik, micSirasinaGir, micSirasiniDinle, micSirasiOnayla, odadanAyril, odaKalpAtisi, odaKatilimcilariGetir, odaKatilimcilariniDinle, odayaKatil, type OdaKatilimcisi, logRoomMovement, odaKatilimciYaz, sendRoomMessage, toScene, ziyaretKaydet, type MicBan } from "@/data/remote/roomsRepo";
 import { BALON_TEMALARI } from "@/data/esyaTemalari";
 import { FramePreview } from "@/components/FramePreview";
 import { GirisEfekti } from "@/components/GirisEfekti";
@@ -522,6 +522,32 @@ export default function RoomScreen() {
   const [liveMembers, setLiveMembers] = useState<LiveMember[]>([]);
   /** Kendi kuşandıklarım (056) — kendi mesajım ve giriş efektim için. */
   const kusanili = useApp((s) => s.kusanili);
+
+  /**
+   * Sohbet geçmişi tohumu (078): sonradan giren son 50 mesajı görür.
+   *
+   * Yalnız `msgs` HÂLÂ BOŞKEN tohumlanır — canlı bir broadcast mesajı
+   * geçmişten önce düştüyse tohum atlanır ve bugünkü davranışa dönülür;
+   * hiçbir koşulda mevcut mesajların üstüne yazılmaz. `yetki` geçmişte
+   * taşınmıyor (rozet yalnız canlı mesajlarda) — bilinçli sadelik.
+   */
+  useEffect(() => {
+    if (!isDbRoom || dbId == null) return;
+    let alive = true;
+    getRoomMessages(dbId, 50)
+      .then((gecmis) => {
+        if (!alive || gecmis.length === 0) return;
+        setMsgs((m) => (m.length === 0
+          ? gecmis.map((r) => ({
+              name: r.name, time: r.time, text: r.text, myOwn: r.me,
+              photo: r.photo, uid: r.uid ?? undefined, publicId: r.publicId,
+            }))
+          : m));
+      })
+      .catch((e) => console.warn("[sohbet-gecmis]", (e as Error)?.message || e));
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Sırayla oynayacak giriş bildirimleri (aynı anda tek hap). tema null → sade. */
   const [girisKuyrugu, setGirisKuyrugu] = useState<{ anahtar: string; uid?: number; ad: string; tema: string | null }[]>([]);
@@ -1578,6 +1604,10 @@ export default function RoomScreen() {
         toast("Mesaj gönderilemedi");
       };
       void gonder();
+      // Kalıcılık katmanı (078): broadcast hızına dokunmadan DB'ye de yaz.
+      // Sunucu reddederse (mic yasağı vb.) mesaj yalnız geçmişe düşmez;
+      // anlık yol zaten yukarıdaki istemci kontrolünden geçti.
+      if (dbId != null) void sendRoomMessage(dbId, t).catch((e) => console.warn("[sohbet-db]", (e as Error)?.message || e));
       addXp("oda_mesaj"); // +2/mesaj, günlük tavan sunucuda
       return;
     }
