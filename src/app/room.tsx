@@ -1002,7 +1002,22 @@ export default function RoomScreen() {
   const gosterilenHost = useMemo<Seat | null>(() => {
     if (!gercekOda) return host;
     if (isMine) {
-      return { uid: myDbId ?? undefined, name: "Sen", muted: !micOn, lv: userLevel, host: true, photo: userPhoto || undefined, publicId: myPublicId || undefined };
+      // Kendi çerçevem ve yetki rozetim BURADA da olmalı: bu dal erken
+      // dönüyor ve alttaki `isMine ? ...` ternary'leri hiç çalışmıyor.
+      // Bu yüzden oda sahibi kendi sahne koltuğunda çerçevesini ve yetki
+      // rozetini göremiyordu (karta tıklayınca görünüyordu, çünkü kart
+      // ayrı yerden besleniyor).
+      return {
+        uid: myDbId ?? undefined,
+        name: "Sen",
+        muted: !micOn,
+        lv: userLevel,
+        host: true,
+        photo: userPhoto || undefined,
+        publicId: myPublicId || undefined,
+        cerceve: kusanili.cerceve,
+        yetki: privileged,
+      };
     }
     // Sahip kimliği DB'den kesin; presence yalnızca "şu an odada mı" der.
     const sahipUid = sahipProfil?.id ?? room?.ownerId ?? null;
@@ -1023,8 +1038,9 @@ export default function RoomScreen() {
       muted: hostKoltuk ? !hostKoltuk.micAcik : canli ? canli.mic === false : true,
       lv: 0,
       host: true,
-      cerceve: isMine ? kusanili.cerceve : canli?.cerceve,
-      yetki: isMine ? privileged : canli?.yetki,
+      // Buraya yalnız `isMine` false iken geliniyor (yukarıda erken dönüş var).
+      cerceve: canli?.cerceve,
+      yetki: canli?.yetki,
     };
   }, [gercekOda, host, isMine, micOn, userLevel, userPhoto, myPublicId, myDbId, liveMembers, room?.host, room?.ownerId, sahipProfil, kusanili.cerceve, privileged, hostKoltuk]);
 
@@ -1390,7 +1406,19 @@ export default function RoomScreen() {
     ziyaretKaydet(dbId).catch((e) => console.warn("[ziyaret]", e?.message || e));
 
     return () => {
-      alive = false; chanRef.current = null;
+      alive = false;
+      /**
+       * SADECE KENDİ kanalımı temizle.
+       *
+       * Eskiden koşulsuz `chanRef.current = null` yapıyordu. Effect yeniden
+       * kurulduğunda (uid geldi, oda değişti, hızlı çık-gir) yeni kanal
+       * `chanRef`e yazılıyor; eski mount'un temizliği araya girerse CANLI
+       * referansı siliyordu. Sonuç: `chanRef.current?.send(...)` sessizce
+       * hiçbir şey yapmıyor — mesajların gitmiyor ama gelenler görünmeye
+       * devam ediyor. "iPhone'dan yazdığım Android'de görünmüyor" tam olarak
+       * bu tabloyu üretiyor.
+       */
+      if (chanRef.current === ch) chanRef.current = null;
       // ÖNCE "ben çıktım" gitsin, SONRA kanal kapansın — ÇIKIŞ GECİKMESİNİN
       // SEBEBİ BUYDU. `untrack()` asenkron; beklemeden `removeChannel`
       // çağrılınca mesaj gitmeden soket kapanıyor ve karşı taraf seni ancak
@@ -1452,12 +1480,33 @@ export default function RoomScreen() {
       // gönderene geri gelmiyor — kendi odanda tek başınayken yazdığın mesaj
       // hiç görünmüyordu. Artık yerel ekliyoruz, echo gelirse de eleniyor.
       setMsgs((m) => [...m, { name: userName, time, text: t, myOwn: true, photo: userPhoto || undefined, uid: myDbId ?? undefined, publicId: myPublicId || undefined, yetki: privileged }]);
-      // Gönderim sonucu artık YUTULMUYOR: `send` websocket yerine REST'e
-      // düşebiliyor ve sessizce başarısız olabiliyor. Ulaşmadıysa logda görün.
-      chanRef.current
-        .send({ type: "broadcast", event: "chat", payload: { uid: myDbId, cihaz: CIHAZ, yetki: privileged, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined, text: t, time } })
-        .then((r) => { if (r !== "ok") console.warn("[chat] gonderilemedi:", r); })
-        .catch((e) => console.warn("[chat] gonderim hatasi:", (e as Error)?.message || e));
+      /**
+       * Gönderim sonucu kontrol ediliyor ve bir kez yeniden deneniyor.
+       *
+       * `send` websocket yerine REST'e düşebiliyor ve sessizce başarısız
+       * olabiliyor; kanal o an yeniden bağlanıyorsa ilk deneme kaçıyor.
+       * İkisi de olmazsa kullanıcıya söylüyoruz — mesajın gitmediğini
+       * bilmemek, gitmemesinden beter.
+       */
+      const yuk = { type: "broadcast" as const, event: "chat", payload: { uid: myDbId, cihaz: CIHAZ, yetki: privileged, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined, text: t, time } };
+      const gonder = async (deneme = 0): Promise<void> => {
+        const kanal = chanRef.current;
+        if (!kanal) {
+          if (deneme < 3) { await new Promise((r) => setTimeout(r, 300)); return gonder(deneme + 1); }
+          toast("Mesaj gönderilemedi — bağlantı yok");
+          return;
+        }
+        try {
+          const r = await kanal.send(yuk);
+          if (r === "ok") return;
+          console.warn("[chat] gonderilemedi:", r, "deneme", deneme);
+        } catch (e) {
+          console.warn("[chat] gonderim hatasi:", (e as Error)?.message || e);
+        }
+        if (deneme < 3) { await new Promise((r) => setTimeout(r, 300)); return gonder(deneme + 1); }
+        toast("Mesaj gönderilemedi");
+      };
+      void gonder();
       addXp("oda_mesaj"); // +2/mesaj, günlük tavan sunucuda
       return;
     }
