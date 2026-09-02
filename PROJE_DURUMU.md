@@ -193,6 +193,13 @@ Hepsi **idempotent** (`CREATE OR REPLACE`, `IF NOT EXISTS`) — tekrar
 | 070 | oda_katilimcilari | `oda_katilimcilar` + kalp atışı devreye alındı; `oda_kisi_sayilari` ✅ |
 | 071 | mic_sirasi_koltuk_secimi | `mic_sirasi_onayla(oda, hedef, koltuk DEFAULT NULL)` — onaylayan koltuğu seçebiliyor (eski 2-arg sürüm DROP) ✅ |
 | 072 | oda_moderatoru_sozluk | `_oda_moderatoru` YANLIŞ sözlüğe bakıyordu (`yonetici/moderator` ölü enum değerleri) → `('sahip','yardimci')`; yardımcının mic yetkileri sunucuda ilk kez çalışıyor ⏳ |
+| 073 | koltuk_yarislari | `koltuga_otur`/`mic_sirasi_onayla` koşullu yazma + ROW_COUNT; yarışta sessiz ezme yerine 'Koltuk dolu.' ⏳ |
+| 074 | odul_ve_satinalma_yarislari | `esya_satin_al` kullanıcı satırı kilidi; `gunluk_giris_al` ilk-gün çift ödül kapandı ⏳ |
+| 075 | admin_eposta_kisiti | e-posta yine yalnız `ben_developer()` — 038'de düşen 029 kısıtı geri ⏳ |
+| 076 | search_path_pg_temp | `oda_ziyaret_kaydet`'e eksik `pg_temp` ⏳ |
+| 077 | anon_grant_supurme | 021-024 fonksiyonlarına `FROM PUBLIC, anon` süpürmesi + doğrulama sorgusu ⏳ |
+| 078 | oda_mesaj_rpc | `oda_mesaj_yaz` RPC (mic/oda yasağı sunucuda); 011'in doğrudan INSERT grant'i kapandı; sohbet artık kalıcı ⏳ |
+| 079 | sayac_emekliligi | `oda_katilimci_yaz` no-op; `siralama_odalar`/`admin_oda_getir` canlı sayıma geçti; bayat değerler 0'landı ⏳ |
 | 048 | hesap_yasak_dm | `hesap_yasak_ver/kaldir` OR REPLACE → yasak verilince/kalkınca hedefe kalıcı **Sistem DM'i** (sebep+süre; yasaklı ancak yasağı kalkınca görür) + bildirim |
 
 **Birleşik dosyalar:**
@@ -1089,9 +1096,18 @@ Canlı veritabanı **2 Eylül'de** yoklandı (`pg_proc` sorgusuyla).
 
 | Dosya | Durum |
 |---|---|
-| `053_admin_oda_kapak.sql` | ❌ **TEK EKSİK** → yönetim panelindeki kapak düğmeleri hata verir |
-| `067` · `068` · `069` · `070` | ✅ uygulandı, fonksiyonlar canlıda doğrulandı |
+| `072`-`079` (Faz 0 mantık+kararlılık seti) | ❌ **ÇALIŞTIRILACAK** — sırayla 072→079, hepsi idempotent. İstemci hazır: 078 çalışana kadar sohbet DB yazımı sessizce düşer (broadcast etkilenmez), 079 çalışana kadar sayaç sadece yazılmamış olur |
+| `053_admin_oda_kapak.sql` | ❌ eksik → yönetim panelindeki kapak düğmeleri hata verir |
+| `067` · `068` · `069` · `070` · `071` | ✅ uygulandı, fonksiyonlar canlıda doğrulandı |
 | 001-066 | ✅ uygulandı |
+
+**Faz 0 seti ne düzeltiyor (özet):** 072 yardımcının sunucuda reddedilmesi
+(yanlış rol sözlüğü) · 073 koltuk/onay yarışları (sessiz ezme → 'Koltuk dolu.')
+· 074 çift dokunuşta çift ücret/ödül · 075 e-posta yalnız developer'a ·
+076 eksik pg_temp · 077 anon süpürmesi (021-024) · 078 oda mesajı RPC +
+kalıcılık (mic yasağı sunucuda) · 079 sayaç emekliliği (tek kaynak
+`oda_katilimcilar`). İstemci tarafı aynı commit'lerde bağlandı; kendi giriş
+efektinin çift oynaması da düzeltildi (yinelenen mount bloğu).
 
 Doğrulama sorgusu (tekrar gerekirse):
 
