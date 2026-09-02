@@ -12,7 +12,7 @@ import { createRoom, getMyRoom, listRooms } from "@/data/remote/roomsRepo";
 import { listPosts } from "@/data/remote/feedRepo";
 import { addXp } from "@/data/remote/xpRepo";
 import { prefetch, setCached } from "@/lib/cache";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { benzersizKanalAdi, isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export type BroadcastData = {
   sender: string;
@@ -186,7 +186,10 @@ function startBanEnforcement(dbId: number, onChange: () => void) {
     if (banChannel) { supabase.removeChannel(banChannel); banChannel = null; }
     watchedBanDbId = dbId;
     banChannel = supabase
-      .channel(`hesap-yasak-${dbId}`)
+      // Ad benzersiz: bir üstteki `removeChannel` ASENKRON, aynı adla hemen
+      // yenisini istemek abone olmuş kanalı geri getirip `on(...)` hatası
+      // verebiliyor (bkz. lib/supabase.ts benzersizKanalAdi).
+      .channel(benzersizKanalAdi(`hesap-yasak-${dbId}`))
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "hesap_yasaklari", filter: `kullanici_id=eq.${dbId}` },

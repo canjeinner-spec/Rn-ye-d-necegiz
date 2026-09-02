@@ -47,6 +47,24 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
     })
   : null;
 
+/**
+ * Her dinleyiciye BENZERSİZ Realtime kanal adı.
+ *
+ * `supabase.channel(ad)` aynı adla çağrılınca VAR OLAN kanalı döndürüyor.
+ * Abone olmuş bir kanala sonradan `on("postgres_changes", ...)` eklemek
+ * ise hata fırlatıyor:
+ *   cannot add `postgres_changes` callbacks ... after `subscribe()`
+ *
+ * İki yerde patlıyordu: oda listesi ile "Odam" ekranı aynı sabit adı
+ * paylaşıyordu (ikincisi açılınca çöküyordu), ve ekranlar hızlı yeniden
+ * kurulunca eski kanal daha kapanmadan aynı ad isteniyordu. Abonelik
+ * kanal adına değil tablo/filtreye bağlı olduğu için benzersiz ad hiçbir
+ * şey kaybettirmiyor.
+ */
+let kanalSayaci = 0;
+export const benzersizKanalAdi = (taban: string) =>
+  `${taban}-${++kanalSayaci}-${Math.random().toString(36).slice(2, 7)}`;
+
 /** Guard: yapılandırılmamışsa anlaşılır hata fırlatır (repo katmanında kullanılır). */
 export function requireSupabase(): SupabaseClient {
   if (!supabase) {

@@ -105,13 +105,31 @@ export async function sendToRoom(odaId: number, baslik: string, icerik: string, 
 /** O an odada bulunanlara canlı sistem baloncuğu (room-<id> broadcast kanalı). */
 async function broadcastRoomSystem(odaId: number, tur: MesajTur, baslik: string, icerik: string): Promise<void> {
   const sb = requireSupabase();
-  const ch = sb.channel(`room-${odaId}`);
+  const topic = `room-${odaId}`;
+  const time = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  const yuk = { type: "broadcast" as const, event: "system", payload: { tur, baslik, text: icerik, time } };
+
+  /**
+   * ZATEN O ODADAYSAK kendi kanalımızı kullan ve SAKIN kapatma.
+   *
+   * Bu fonksiyon oda ekranıyla AYNI topic'i (`room-<id>`) kullanıyor.
+   * `supabase.channel(ad)` var olanı döndürdüğü için, odadayken sistem
+   * mesajı gönderen yönetici aşağıdaki `removeChannel` ile KENDİ oda
+   * kanalını kapatıyordu: sohbet, presence ve koltuk yayını tek mesaj
+   * yüzünden düşüyordu.
+   */
+  const mevcut = sb.getChannels().find((c) => c.topic === topic || c.topic === `realtime:${topic}`);
+  if (mevcut) {
+    await mevcut.send(yuk);
+    return;
+  }
+
+  const ch = sb.channel(topic);
   await new Promise<void>((resolve) => {
     ch.subscribe((status) => { if (status === "SUBSCRIBED") resolve(); });
     setTimeout(resolve, 2500); // yayına giremezsek yine de bırak
   });
-  const time = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-  await ch.send({ type: "broadcast", event: "system", payload: { tur, baslik, text: icerik, time } });
+  await ch.send(yuk);
   setTimeout(() => sb.removeChannel(ch), 800);
 }
 

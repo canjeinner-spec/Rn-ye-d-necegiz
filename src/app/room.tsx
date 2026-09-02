@@ -47,7 +47,7 @@ import { CHAT0, SEATS, type ChatMsg, type HediyeSatiri, type Seat } from "@/data
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { FEATURES } from "@/lib/features";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { benzersizKanalAdi, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
@@ -453,7 +453,7 @@ export default function RoomScreen() {
     const sb = supabase;
     if (!isDbRoom || !sb || myDbId == null) return;
     const ch = sb
-      .channel(`mic-yasak-${myDbId}`)
+      .channel(benzersizKanalAdi(`mic-yasak-${myDbId}`))
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "mic_yasaklari", filter: `kullanici_id=eq.${myDbId}` },
@@ -840,8 +840,13 @@ export default function RoomScreen() {
   const [emojiAcik, setEmojiAcik] = useState(false);
   /** uid -> o an avatarında süzülen emoji. */
   const [tepkiler, setTepkiler] = useState<Record<number, string>>({});
-  /** Bana gelen mikrofon daveti — kimin gönderdiği. */
-  const [micDavet, setMicDavet] = useState<string | null>(null);
+  /** Bana gelen mikrofon daveti — kim çağırdı ve HANGİ koltuğa. */
+  const [micDavet, setMicDavet] = useState<{ ad: string; koltuk: number } | null>(null);
+  /** Davet kabul edilince: seçilen koltuk hâlâ uygunsa oraya, değilse ilk boşa. */
+  const daveteKatilRef = useRef<(koltuk: number) => void>(() => {});
+
+  /** Davet edilecek kişi seçildi, şimdi koltuk seçiliyor. */
+  const [davetSec, setDavetSec] = useState<{ uid: number; ad: string } | null>(null);
   const tepkiGoster = useCallback((uid: number, emoji: string) => {
     setTepkiler((t) => ({ ...t, [uid]: emoji }));
     setTimeout(() => setTepkiler((t) => { const y = { ...t }; delete y[uid]; return y; }), 1700);
@@ -1071,7 +1076,7 @@ export default function RoomScreen() {
     const sb = supabase;
     if (!isDbRoom || !dbId || !sb) return;
     const ch = sb
-      .channel(`oda-ayar-${dbId}`)
+      .channel(benzersizKanalAdi(`oda-ayar-${dbId}`))
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "odalar", filter: `id=eq.${dbId}` },
@@ -1264,9 +1269,10 @@ export default function RoomScreen() {
 
     // Mikrofon daveti — hedef onaylamadan koltuğa oturtmuyoruz.
     ch.on("broadcast", { event: "mic_davet" }, ({ payload }) => {
-      const p = payload as { uid?: number; ad?: string };
+      const p = payload as { uid?: number; ad?: string; koltuk?: number };
       if (!alive || p.uid == null || p.uid !== myDbId) return;
-      setMicDavet(p.ad || "Yönetici");
+      // Koltuğu davet eden seçiyor; karşı tarafa yalnızca çağrı gidiyor.
+      setMicDavet({ ad: p.ad || "Yönetici", koltuk: typeof p.koltuk === "number" ? p.koltuk : -1 });
     });
 
     // Emoji tepkisi — koltuktaki avatarın üstünde süzülür, sohbete düşmez.
@@ -1456,6 +1462,17 @@ export default function RoomScreen() {
   };
 
   // Sıradan onaylanınca ilk boş (kilitsiz) koltuğa oturt — her render'da güncel state'i görsün diye ref
+  daveteKatilRef.current = (koltuk: number) => {
+    if (oturuyorum) { toast("Zaten mikrofondasın"); return; }
+    const uygun = koltuk >= 0 && koltuk < 8 && !gosterilenKoltuklar[koltuk] && !seatLocks[koltuk];
+    if (uygun) { sitHere(koltuk); toast(`Mikrofona geçtin · ${koltuk + 1}. koltuk`); return; }
+    // Davet edilen koltuk bu arada dolduysa boş bırakmayalım.
+    const idx = gosterilenKoltuklar.findIndex((s2, i) => !s2 && !seatLocks[i]);
+    if (idx < 0) { toast("O koltuk dolmuş, boş koltuk da kalmamış"); return; }
+    sitHere(idx);
+    toast(`Davet edilen koltuk dolmuştu · ${idx + 1}. koltuğa geçtin`);
+  };
+
   sitFirstEmptyRef.current = () => {
     if (mySeat !== null) { toast("Zaten mikrofondasın"); return; }
     const idx = gosterilenKoltuklar.findIndex((s, i) => !s && !seatLocks[i]);
@@ -1593,10 +1610,49 @@ export default function RoomScreen() {
     });
   };
   const myRaised = myDbId != null && micQueue.some((e) => e.uid === myDbId);
-  /** Mikrofona davet et — hedefin ekranında onay soran bir kutu açılır. */
-  const micDavetYolla = (uid: number) => {
-    chanRef.current?.send({ type: "broadcast", event: "mic_davet", payload: { uid, ad: userName } });
+  /**
+   * Mikrofona davet et — hedefin ekranında onay soran bir kutu açılır.
+   *
+   * Davet bilerek BROADCAST: kişiye özel, anlık ve kalıcılığı anlamsız bir
+   * bildirim (bkz. README taşıyıcı kuralı). Kabul edilince asıl iş yine
+   * sunucuda oluyor — `koltuga_otur` çağrılıyor.
+   *
+   * Broadcast'in zayıf yanı teslim garantisi olmaması. Bunu üç kontrolle
+   * kapatıyoruz: boş koltuk var mı, hedef gerçekten odada mı, ve gönderim
+   * sonucu ne döndü. Eskiden üçü de bakılmıyordu; davet hiç ulaşmasa bile
+   * yöneticiye "davet edildi" yazıyordu.
+   */
+  const micDavetYolla = (uid: number, koltuk: number) => {
+    if (isDbRoom && !odadakiler.some((m) => m.uid === uid)) {
+      toast("Kullanıcı odada görünmüyor, davet ulaşmaz");
+      return;
+    }
+    chanRef.current
+      ?.send({ type: "broadcast", event: "mic_davet", payload: { uid, cihaz: CIHAZ, ad: userName, koltuk } })
+      .then((r) => {
+        if (r !== "ok") { console.warn("[davet] gonderilemedi:", r); toast("Davet gönderilemedi"); }
+        else toast(`Davet gönderildi · ${koltuk + 1}. koltuk`);
+      })
+      .catch((e) => { console.warn("[davet] hata:", (e as Error)?.message || e); toast("Davet gönderilemedi"); });
   };
+
+  /** Davet için koltuk seçimini aç — boş koltuk yoksa hiç açma. */
+  const davetBaslat = (uid: number, ad: string) => {
+    const bosVar = gosterilenKoltuklar.some((s2, i) => !s2 && !seatLocks[i]);
+    if (!bosVar) { toast("Boş koltuk yok — önce yer açman gerekiyor"); return; }
+    setDavetSec({ uid, ad });
+  };
+
+  /**
+   * Gelen davet sonsuza kadar ekranda kalmasın — 30 sn sonra kendiliğinden
+   * kapanıyor. Davet anlık bir çağrı; bir dakika sonra kabul etmenin anlamı
+   * yok, o arada koltuk da dolmuş olabilir.
+   */
+  useEffect(() => {
+    if (!micDavet) return;
+    const t = setTimeout(() => setMicDavet(null), 30000);
+    return () => clearTimeout(t);
+  }, [micDavet]);
 
   /**
    * Emoji tepkisi gönder — kendi avatarımda hemen, odadakilerde broadcast ile.
@@ -1740,7 +1796,7 @@ export default function RoomScreen() {
       viewerRole: MY_ROLE,
       // Koltukta olmayan biri — yalnızca burada mikrofona davet edilebilir.
       onInviteMic: isDbRoom && uid != null && (MY_ROLE === "host" || MY_ROLE === "mod")
-        ? () => micDavetYolla(uid)
+        ? () => davetBaslat(uid, m.name)
         : undefined,
       onKickRoom: isDbRoom && dbId && uid != null
         ? () => banRoomUser(dbId, uid).catch((e) => toast((e as Error)?.message || "Yasaklanamadı"))
@@ -2083,11 +2139,11 @@ export default function RoomScreen() {
       <Sheet visible={userList} onClose={() => setUserList(false)} maxHeightRatio={0.72}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <Txt weight="displayBold" size={16} color="#fff">Odadaki Kullanıcılar</Txt>
-          <Pill bg="rgba(255,255,255,.07)" color={C.dim} border={C.line}>{(isDbRoom ? liveMembers.length : occupants.length)} kişi</Pill>
+          <Pill bg="rgba(255,255,255,.07)" color={C.dim} border={C.line}>{(isDbRoom ? odadakiler.length : occupants.length)} kişi</Pill>
         </View>
         <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ gap: 4 }}>
           {isDbRoom
-            ? liveMembers.map((m) => {
+            ? odadakiler.map((m) => {
                 const isMe = m.uid === myDbId;
                 const rol = roomRoles.get(m.uid);
                 return (
@@ -2282,6 +2338,44 @@ export default function RoomScreen() {
 
       {statsOpen && <RoomStats room={room} roomName={roomName} roomPhoto={roomPhoto} onClose={() => setStatsOpen(false)} />}
 
+      {/* Davet için koltuk seçimi — koltuğu DAVET EDEN seçiyor, karşı tarafa
+          yalnızca çağrı gidiyor. Yalla'daki akış da böyle: yönetici sahneyi
+          düzenliyor, davet edilen sadece kabul ediyor. */}
+      <CenterModal visible={!!davetSec} onClose={() => setDavetSec(null)} dim={0.8}>
+        <View style={styles.davetKart}>
+          <Gradient colors={[C.teal + "24", "transparent"]} deg={160} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <View style={[styles.davetIkon, { borderColor: C.teal + "55", backgroundColor: C.teal + "14" }]}>
+            <Icon name="mic" size={24} color={C.teal} />
+          </View>
+          <Txt weight="displayBold" size={16} color="#fff" align="center" style={{ marginTop: 14 }}>Hangi koltuğa?</Txt>
+          <Txt size={12.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 8 }}>
+            <Txt weight="extrabold" size={12.5} color={C.gold2}>{davetSec?.ad}</Txt> için boş bir koltuk seç.
+          </Txt>
+
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center", marginTop: 18 }}>
+            {gosterilenKoltuklar.map((koltuk, i) =>
+              koltuk || seatLocks[i] ? null : (
+                <Pressable
+                  key={i}
+                  onPress={() => {
+                    const hedef = davetSec;
+                    setDavetSec(null);
+                    if (hedef) { haptic.light(); micDavetYolla(hedef.uid, i); }
+                  }}
+                  style={styles.davetKoltuk}
+                >
+                  <Txt weight="displayBold" size={16} color={C.gold2}>{i + 1}</Txt>
+                </Pressable>
+              ),
+            )}
+          </View>
+
+          <Pressable onPress={() => setDavetSec(null)} style={[styles.davetVazgec, { alignSelf: "stretch", marginTop: 18 }]}>
+            <Txt weight="extrabold" size={13} color={C.dim}>Vazgeç</Txt>
+          </Pressable>
+        </View>
+      </CenterModal>
+
       {/* Mikrofon daveti — davet eden koltuğa oturtmuyor, sen karar veriyorsun. */}
       <CenterModal visible={!!micDavet} onClose={() => setMicDavet(null)} dim={0.8}>
         <View style={styles.davetKart}>
@@ -2291,14 +2385,14 @@ export default function RoomScreen() {
           </View>
           <Txt weight="displayBold" size={16} color="#fff" align="center" style={{ marginTop: 14 }}>Mikrofona davet</Txt>
           <Txt size={12.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 8 }}>
-            <Txt weight="extrabold" size={12.5} color={C.gold2}>{micDavet}</Txt> seni mikrofona çağırdı.
+            <Txt weight="extrabold" size={12.5} color={C.gold2}>{micDavet?.ad}</Txt> seni mikrofona çağırdı.
           </Txt>
           <View style={{ flexDirection: "row", gap: 10, alignSelf: "stretch", marginTop: 20 }}>
             <Pressable onPress={() => setMicDavet(null)} style={styles.davetVazgec}>
               <Txt weight="extrabold" size={13} color={C.dim}>Şimdi değil</Txt>
             </Pressable>
             <Pressable
-              onPress={() => { setMicDavet(null); haptic.success(); sitFirstEmptyRef.current(); }}
+              onPress={() => { const k = micDavet?.koltuk ?? -1; setMicDavet(null); haptic.success(); daveteKatilRef.current(k); }}
               style={{ flex: 1, borderRadius: 14, overflow: "hidden" }}
             >
               <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 13, alignItems: "center" }}>
@@ -2465,6 +2559,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,.10)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
   },
   gonderBtn: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
+  davetKoltuk: {
+    width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5, borderColor: C.gold + "5C", backgroundColor: C.gold + "12",
+  },
   davetKart: {
     width: 300, borderRadius: 24, padding: 22, alignItems: "center", overflow: "hidden",
     backgroundColor: "rgba(18,15,24,.97)", borderWidth: 1, borderColor: C.gold + "40",

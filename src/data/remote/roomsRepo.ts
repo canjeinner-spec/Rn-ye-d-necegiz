@@ -1,7 +1,7 @@
 import { type SceneKind } from "@/components/Scene";
 import { type RoomBadgeItem } from "@/components/RoomBadges";
 import { type Room } from "@/data/seed";
-import { requireSupabase, supabase } from "@/lib/supabase";
+import { benzersizKanalAdi, requireSupabase, supabase } from "@/lib/supabase";
 import { getMyProfile } from "@/data/remote/profileRepo";
 
 const TEMEL_COLS =
@@ -802,7 +802,7 @@ export function odaDegisiklikleriniDinle(geriCagir: () => void): () => void {
   };
 
   const ch = sb
-    .channel("odalar-degisim")
+    .channel(benzersizKanalAdi("odalar-degisim"))
     .on("postgres_changes", { event: "*", schema: "public", table: "odalar" }, tetikle)
     .subscribe();
 
@@ -1006,7 +1006,7 @@ export function koltuklariDinle(
   if (!sb) return () => {};
   let zamanlayici: ReturnType<typeof setTimeout> | null = null;
   const ch = sb
-    .channel(`oda-koltuk-${odaId}`)
+    .channel(benzersizKanalAdi(`oda-koltuk-${odaId}`))
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "oda_koltuklari", filter: `oda_id=eq.${odaId}` },
@@ -1103,7 +1103,7 @@ export function micSirasiniDinle(odaId: number, geriCagir: () => void): () => vo
   if (!sb) return () => {};
   let zamanlayici: ReturnType<typeof setTimeout> | null = null;
   const ch = sb
-    .channel(`oda-mic-sirasi-${odaId}`)
+    .channel(benzersizKanalAdi(`oda-mic-sirasi-${odaId}`))
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "oda_mic_sirasi", filter: `oda_id=eq.${odaId}` },
@@ -1184,7 +1184,7 @@ export function odaKatilimcilariniDinle(odaId: number, geriCagir: () => void): (
   if (!sb) return () => {};
   let zamanlayici: ReturnType<typeof setTimeout> | null = null;
   const ch = sb
-    .channel(`oda-katilimci-${odaId}`)
+    .channel(benzersizKanalAdi(`oda-katilimci-${odaId}`))
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "oda_katilimcilar", filter: `oda_id=eq.${odaId}` },
@@ -1231,7 +1231,7 @@ export function odaKisiSayilariniDinle(geriCagir: () => void): () => void {
   if (!sb) return () => {};
   let zamanlayici: ReturnType<typeof setTimeout> | null = null;
   const ch = sb
-    .channel("oda-kisi-sayilari")
+    .channel(benzersizKanalAdi("oda-kisi-sayilari"))
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "oda_katilimcilar" },
