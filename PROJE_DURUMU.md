@@ -507,12 +507,42 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
-> **Son güncelleme: 2 Eylül 2026** · Dal `claude/metro-recovery-1xc2kq`
-> · **origin'e PUSH EDİLMEDİ** · güncel commit için `git log --oneline -5`
-> · Dal `claude/metro-recovery-1xc2kq` · **origin’e PUSH EDİLMEDİ**
-> (yerel commit’ler; şema dökümü için `db/SEMA_DOKUMU.md`’ye bak)
+> **Son güncelleme: 2 Eylül 2026 (akşam)** · Dal `claude/metro-recovery-1xc2kq`
+> · **origin'e PUSH EDİLMEDİ** · güncel commit için `git log --oneline -15`
+> (şema dökümü için `db/SEMA_DOKUMU.md`)
+
+### 🟢 EN GÜNCEL: FAZLI YOL HARİTASI — Faz 0 kodu bitti, SQL + duman testi bekliyor
+
+**Plan dosyası: `YOL_HARITASI.md`** (repo kökü) — A'dan Z'ye analiz (3 keşif
+ajanı + tasarım ajanı) sonrası kullanıcı onaylı 5 fazlı plan. Kararlar
+(support = salt okunur + rapor, RTC = Agora, para akışları betada gerçek,
+DM/profil hediyesi bayrakla kapatılıp Faz 4'te gerçek) o dosyanın başında.
+
+**Nerede kaldık:**
+- **Faz 0 (mantık + kararlılık) — KOD ✅** 13 commit (`0170a86` → `0ef7dc3`),
+  `tsc` temiz. Migration'lar 072-079 yazıldı, birleşik `SON_072_079.sql`
+  hazır. Metro temiz önbellekle yeniden başlatıldı, tünel ayakta.
+- **Sıradaki adım (kullanıcı):** `db/migrations/SON_072_079.sql`'i Supabase
+  SQL Editor'da çalıştır (tek yapıştırma; enum yok, hepsi idempotent).
+  Kullanıcı dosya açamıyorsa içeriği sohbete yapıştır.
+- **Sonra:** Faz 0 iki-cihaz duman testi (`YOL_HARITASI.md` Faz 0 sonu, 6
+  madde). Geçmeden Faz 1'e geçilmez. Test sırasında Metro logu okunur
+  (`scratchpad/metro2.log` — tahmin değil kanıt).
+- **Sonra:** Faz 1 (native his): 1.1 arama ikonu → 1.2 loglar → 1.3 mesaj
+  tavanı → 1.4 Touch sarmalayıcı → … (sıra planda).
+
+**Faz 0'ın kapattıkları (kısa):** yardımcının sunucuda reddedilmesi (072,
+"mantık hatası var gibi" hissinin ana kaynağı) · koltuk/onay yarışları (073)
+· çift ücret/ödül (074) · e-posta sızıntısı (075) · pg_temp/anon (076/077)
+· **oda sohbeti artık kalıcı, mic yasağı sunucuda** (078 + istemci) ·
+kişi sayısı tek kaynak `oda_katilimcilar` (079) · giriş efekti çift oynama.
 
 ### 🟡 ODA LİSTESİ GÖRÜNÜRLÜĞÜ — karar verildi + düzeltildi, CİHAZDA DOĞRULANMADI
+
+> **(2 Eylül akşam, 079 ile aşıldı):** aşağıdaki "iki kaynağın büyüğü" ve
+> "sayaç istatistik olarak kalır" kararları TARİHÎ KAYIT. Artık tek kaynak
+> `oda_katilimcilar` (070); `aktif_katilimci_sayisi` emekli (hep 0),
+> sıralama/yönetim ekranları canlı sayımı okuyor, istemci sayaç yazmıyor.
 
 > **DÜZELTME (30 Ağustos, aynı gün, üçüncü tur):** "tek kaynak seç" kararı
 > UYGULANMADI — çünkü hem presence'ı hem sayacı tek başına seçmek aynı hataya
@@ -1637,17 +1667,17 @@ olan veriydi. İki kaynak, tek görünüm:
 > noktayı taşıyoruz. Hediye 059'la, altın bakiyesi 062'yle geçti; eşya
 > tabloları (056) çalıştığı için yerinde bırakıldı.
 >
-> Çalıştırılmayı bekleyen migration listesi §10'un başında (2 Eylül: yalnız 053).
+> Çalıştırılmayı bekleyen migration listesi §10'un ortasında (2 Eylül akşam:
+> 053 + Faz 0 seti 072-079).
 
-> **AÇIK İŞLER (2 Eylül, güncel):**
+> **AÇIK İŞLER (2 Eylül akşam, güncel) — asıl sıra `YOL_HARITASI.md`'de:**
+> - `SON_072_079.sql` çalıştırılacak, ardından Faz 0 duman testi (iki cihaz).
 > - `053` çalıştırılacak — yönetim panelinde oda kapağı düğmeleri onsuz çalışmıyor
-> - **İki cihazda temiz doğrulama turu yapılmadı.** 068-070 canlıda ama
->   koltuk/mikrofon/sıra/katılımcı akışları uçtan uca test edilmedi.
-> - **"Sustur"** (başkasını susturma) hâlâ YEREL — sunucu RPC'si yok.
+> - **"Sustur"** (başkasını susturma) hâlâ YEREL — Faz 2 adım 2.1 (`080`).
+> - "Yardımcı Yap" sonrası rol/rozet canlı tazelenmiyor — Faz 2 adım 2.2 (`081`).
 > - `CamZemin` yalnız 4 yüzeye uygulandı; GiftSheet, RoomStats, BottomNav,
 >   RoomEntryGate, BadgeInfoModal hâlâ eski blur deseninde (Android'de saydam).
-> - Oda sohbeti hâlâ DB'ye yazılmıyor (aşağıda 9. madde) — rozet kuralları
->   bu yüzden tetiklenmiyor.
+> - ~~Oda sohbeti DB'ye yazılmıyor~~ → **078 ile çözüldü** (aşağıda 9. madde).
 
 1. ✅ **ODA LİSTESİ GÖRÜNÜRLÜĞÜ — BİTTİ (2 Eylül).** Kişi sayısı artık
    `oda_kisi_sayilari()` ile kalp atışlı `oda_katilimcilar` tablosundan
@@ -1685,25 +1715,19 @@ olan veriydi. İki kaynak, tek görünüm:
    dönem seçici). Kalan: ajans ve yayıncı sekmeleri, o kayıtlar oluşunca.
 8. **DM'den hediye** — peer'ın dbId'si ekranda yok, gönderim yalnızca
    animasyon oynatıyor. "Tümü"ne gönderim de tek RPC ile yapılamıyor.
-9. **Oda sohbeti veritabanına HİÇ yazılmıyor.** Sohbet yalnızca broadcast;
-   `sendRoomMessage` repoda duruyor ama hiçbir yerden çağrılmıyor, yani
-   `oda_mesajlari` hep boş. İki sonucu var: (a) sonradan giren sohbet
-   geçmişini göremiyor, (b) **Sohbet Ustası / Gece Kuşu / Erkenci rozetleri
-   asla tetiklenmiyor** (066 kurallarını o tabloya dayadı). Karar gerekiyor:
-   sohbeti DB'ye de yazmak mı, o üç rozetin kuralını değiştirmek mi.
-10. **Anon'a açık RPC denetimi yapılmadı.** 063/064 yalnızca 059-062'nin
-    fonksiyonlarını kapattı. Ölçüldü: `benim_hesap_yasagim` ve
-    `oda_katilimci_yaz` hâlâ anon anahtarla çağrılabiliyor. İkincisi
-    içeride `benim_kullanici_id() IS NULL` kontrolüyle korunuyor (yazma
-    olmuyor) ama **eski migration'ların tamamı taranmalı** — aynı desende
-    korumasız olan varsa açık demektir.
-11. **Hayalet odalar** — `aktif_katilimci_sayisi` yalnızca istemci yazıyor
-   (odadaki en küçük uid). Uygulama zorla kapanırsa sayı >0 kalıyor.
-   **Listede artık zarar vermiyor** (30 Ağustos: görünürlük presence'tan
-   geliyor, sayaç yalnızca soğuk açılış yedeği) ama sayaç hâlâ bayat
-   kalabiliyor ve onu **sıralama (060) ile yönetim ekranları okuyor**.
-   Kalıcı çözüm sunucu tarafı presence ya da TTL (sayaç N dakikadır
-   dokunulmadıysa 0 say).
+9. ✅ ~~Oda sohbeti veritabanına HİÇ yazılmıyor~~ — **078 + istemci ile
+   çözüldü (2 Eylül akşam).** Broadcast anlık yol olarak kaldı; `send()`
+   arkadan `oda_mesaj_yaz` RPC'sine fire-and-forget yazıyor, girişte son 50
+   mesaj tohumlanıyor. Mic/oda yasağı sunucuda. Sohbet rozetleri (066) ve
+   görev sayaçları (061) artık gerçek veriyle tetiklenebilir.
+10. **Anon'a açık RPC denetimi — kısmen (077).** 021-024 fonksiyonlarına
+    `FROM PUBLIC, anon` süpürmesi yazıldı; dosyada doğrulama sorgusu var,
+    **canlıda koşulup sonucu okunmalı.** `benim_hesap_yasagim` ayrıca
+    bakılacak.
+11. ✅ ~~Hayalet odalar / bayat sayaç~~ — **079 ile çözüldü.** İstemci sayaç
+   yazmıyor, `oda_katilimci_yaz` no-op, sıralama (060) ve yönetim (054)
+   canlı `oda_katilimcilar` sayımını okuyor. Kolon hep 0; yalnız oda
+   listesinde tablo okunana kadarki ilk kare yedeği.
 12. ~~Oda rozet sistemi~~ — **066 ile yapıldı** (kural motoru + elle verme).
     Kalan: kullanıcı rozetleri hâlâ ayrı bir konu; oda rozetleri yalnızca
     oda listesinde çiziliyor, oda profilinde de gösterilmeli.
@@ -1774,6 +1798,13 @@ olan veriydi. İki kaynak, tek görünüm:
 
 ## 11) Yeni Sohbete Nasıl Devam Edilir
 
+0. **§10'un başındaki "EN GÜNCEL" bloğu → `YOL_HARITASI.md`.** Onaylı fazlı
+   plan orada; hangi adımda kaldığımız §10'da. Faz disiplini: her adım tek
+   commit + okuyucu taraması + `tsc`; faz sonu iki-cihaz duman testi
+   geçmeden sonraki faza geçilmez. Migration'ları KULLANICI Supabase SQL
+   Editor'da çalıştırır (dosya açamıyorsa içerik sohbete yapıştırılır);
+   Metro'yu (`--clear`) ve tüneli AI yönetir, cihaz logları
+   `scratchpad/metro2.log`'dan okunur.
 1. Bu dosyayı (`PROJE_DURUMU.md`, repo kökünde) oku.
 1b. **Migration yazmadan önce `db/SEMA_DOKUMU.md`’ye bak.** Temel şemanın
    repoda dosyası yok; orada zaten var olan bir tabloyu tekrar kurmaya
