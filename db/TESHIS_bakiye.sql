@@ -1,85 +1,113 @@
 -- ============================================================================
--- TESHIS_bakiye.sql — "altın donuk" + "yönetimden verilen bakiye gelmiyor"
+-- TESHIS_bakiye.sql — para sisteminin TAM DOKUMU (salt okunur)
 -- ----------------------------------------------------------------------------
--- SADECE OKUR. Hiçbir şeyi değiştirmez, güvenle çalıştırılabilir.
+-- Hicbir seyi DEGISTIRMEZ. Supabase SQL Editor'a yapistir, calistir,
+-- donen tek hucreyi kopyalayip sohbete yapistir.
 --
--- NEDEN: iki belirti de aynı yere işaret ediyor — kayıt düşüyor ama bakiye
--- güncellenmiyor. Sebebi tahmin etmeden önce canlıda NE OLDUĞUNU görmek
--- gerekiyor: hangi fonksiyon sürümü yüklü, hediye parasını hangi trigger
--- taşıyor, ve o trigger ölü `cuzdan` tablosuna mı bakıyor.
---
--- Kolon adları db/SEMA_DOKUMU.md'den doğrulandı (uydurma yok).
---
--- KULLANIM: aşağıdaki satıra etkilenen kullanıcının public_id'sini yaz,
--- tamamını Supabase SQL Editor'a yapıştır, dönen tek satırı sohbete geri
--- yapıştır.
+-- public_id yazmana GEREK YOK — sorgu tutarsiz kullanicilari kendisi buluyor.
 -- ============================================================================
 
-WITH hedef AS (
-    -- ⬇⬇⬇ ETKİLENEN KULLANICININ public_id'si ⬇⬇⬇
-    SELECT id FROM public.kullanicilar WHERE public_id = 'BURAYA_PUBLIC_ID' LIMIT 1
-)
 SELECT jsonb_pretty(jsonb_build_object(
 
-  -- 1) 067 canlıda mı? Yeni sürüm `lot_yatir`, eskisi `_bakiye_uygula` kullanır.
-  'bakiye_ekle_surumu', (
-    SELECT CASE
-      WHEN pg_get_functiondef(p.oid) ILIKE '%lot_yatir%'      THEN '067 YUKLU (temel defter)'
-      WHEN pg_get_functiondef(p.oid) ILIKE '%_bakiye_uygula%' THEN 'ESKI SURUM (olu cuzdan tablosu)'
-      ELSE 'BILINMEYEN'
-    END
-    FROM pg_proc p
-    WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'bakiye_ekle' LIMIT 1),
+  ----------------------------------------------------------------- 1. FONKSIYONLAR
+  -- Para yolundaki her fonksiyonun TAM kaynagi. Hangi surumun yuklu oldugunu
+  -- ve neyin olu `cuzdan` tablosuna baktigini buradan gorecegim.
+  'fonksiyonlar', (
+    SELECT COALESCE(jsonb_object_agg(ad, kaynak), '{}'::jsonb) FROM (
+      SELECT p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' AS ad,
+             pg_get_functiondef(p.oid) AS kaynak
+      FROM pg_proc p
+      WHERE p.pronamespace = 'public'::regnamespace
+        AND p.proname IN (
+          'bakiye_ekle','admin_bakiye_ekle','_bakiye_uygula','bakiye_transfer',
+          'lot_yatir','lot_harca','_altin_harca','_odul_ver',
+          'benim_bakiyem','benim_bakiyem_v2','hediye_gonder_v2','esya_satin_al',
+          'admin_kullanici_getir','admin_varlik_dondur','elmas_altin_donustur')
+    ) f),
 
-  -- 2) Hediye parasını hangi trigger taşıyor, neye bakıyor?
-  'hediye_triggerlari', (
+  ----------------------------------------------------------------- 2. TRIGGERLAR
+  -- EN KRITIK PARCA: hediye parasini tasiyan trigger repoda YOK (temel sema
+  -- Supabase'te elle kurulmus). Tam kaynagi burada gelecek.
+  'triggerlar', (
     SELECT COALESCE(jsonb_agg(jsonb_build_object(
+             'tablo', c.relname,
              'trigger', t.tgname,
+             'ne_zaman', CASE WHEN (t.tgtype & 2) > 0 THEN 'BEFORE' ELSE 'AFTER' END,
+             'olay', CASE WHEN (t.tgtype & 4) > 0 THEN 'INSERT'
+                          WHEN (t.tgtype & 8) > 0 THEN 'DELETE'
+                          WHEN (t.tgtype & 16) > 0 THEN 'UPDATE' ELSE '?' END,
              'fonksiyon', pr.proname,
-             'cuzdan_kullaniyor', pg_get_functiondef(pr.oid) ILIKE '%cuzdan%',
-             'lot_kullaniyor',    (pg_get_functiondef(pr.oid) ILIKE '%lot_harca%'
-                                   OR pg_get_functiondef(pr.oid) ILIKE '%lot_yatir%'),
-             'dondu_kontrolu',    pg_get_functiondef(pr.oid) ILIKE '%dondu%')), '[]'::jsonb)
+             'kaynak', pg_get_functiondef(pr.oid))), '[]'::jsonb)
     FROM pg_trigger t
+    JOIN pg_class c ON c.oid = t.tgrelid
     JOIN pg_proc pr ON pr.oid = t.tgfoid
-    WHERE t.tgrelid = 'public.hediye_gecmisi'::regclass AND NOT t.tgisinternal),
+    WHERE NOT t.tgisinternal
+      AND c.relname IN ('hediye_gecmisi','balance_lots','wallet_ledger',
+                        'cuzdan','kullanicilar','cuzdan_hareketleri')),
 
-  -- 3) İKİ kaynak birbirini tutuyor mu + dondurma bayrağı
-  'kullanici', (
-    SELECT jsonb_build_object(
-             'id', k.id, 'ad', k.kullanici_adi,
-             'cached_altin',  COALESCE(k.cached_altin_balance, 0),
-             'cached_toplam', COALESCE(k.cached_total_balance, 0),
-             'cuzdan_altin',  COALESCE(c.altin, 0),
-             'cuzdan_elmas',  COALESCE(c.elmas, 0),
-             'ALTIN_DONDU',   COALESCE(c.altin_dondu, FALSE),
-             'ELMAS_DONDU',   COALESCE(c.elmas_dondu, FALSE))
-    FROM public.kullanicilar k
-    LEFT JOIN public.cuzdan c ON c.kullanici_id = k.id
-    WHERE k.id = (SELECT id FROM hedef)),
+  ----------------------------------------------------------------- 3. KOLONLAR
+  'kolonlar', (
+    SELECT COALESCE(jsonb_object_agg(tablo, kols), '{}'::jsonb) FROM (
+      SELECT table_name AS tablo,
+             jsonb_agg(column_name || ' ' || data_type ORDER BY ordinal_position) AS kols
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name IN ('kullanicilar','cuzdan','balance_lots','wallet_ledger',
+                           'hediye_gecmisi','hediyeler','cuzdan_hareketleri')
+      GROUP BY table_name) k),
 
-  -- 4) Temel defterde satır var mı? Admin verdiyse BURADA olmalı.
+  ----------------------------------------------------------------- 4. ENUMLAR
+  'enumlar', (
+    SELECT COALESCE(jsonb_object_agg(tip, etiketler), '{}'::jsonb) FROM (
+      SELECT t.typname AS tip, jsonb_agg(e.enumlabel ORDER BY e.enumsortorder) AS etiketler
+      FROM pg_type t JOIN pg_enum e ON e.enumtypid = t.oid
+      WHERE t.typname IN ('varlik_tipi','islem_tipi','bakiye_kaynagi','yon','ekonomi_rolu')
+      GROUP BY t.typname) en),
+
+  ----------------------------------------------------------------- 5. TUTARSIZLIK
+  -- cached_altin_balance ile balance_lots toplami TUTMALI. Tutmuyorsa cache
+  -- bozuk demektir ve asil ariza budur.
+  'cache_vs_lot_tutarsizlik', (
+    SELECT COALESCE(jsonb_agg(to_jsonb(x)), '[]'::jsonb) FROM (
+      SELECT k.id, k.kullanici_adi, k.public_id,
+             COALESCE(k.cached_altin_balance, 0) AS cache_altin,
+             COALESCE(l.lot_altin, 0)            AS lot_altin,
+             COALESCE(k.cached_altin_balance, 0) - COALESCE(l.lot_altin, 0) AS fark,
+             COALESCE(c.altin, 0)      AS olu_cuzdan_altin,
+             COALESCE(c.altin_dondu, FALSE) AS altin_dondu,
+             COALESCE(c.elmas_dondu, FALSE) AS elmas_dondu
+      FROM public.kullanicilar k
+      LEFT JOIN public.cuzdan c ON c.kullanici_id = k.id
+      LEFT JOIN (SELECT kullanici_id, SUM(kalan_miktar) AS lot_altin
+                   FROM public.balance_lots
+                  WHERE varlik = 'altin'::varlik_tipi
+                  GROUP BY kullanici_id) l ON l.kullanici_id = k.id
+      WHERE COALESCE(k.cached_altin_balance,0) <> COALESCE(l.lot_altin,0)
+         OR COALESCE(c.altin,0) > 0
+         OR COALESCE(c.altin_dondu,FALSE) OR COALESCE(c.elmas_dondu,FALSE)
+      ORDER BY abs(COALESCE(k.cached_altin_balance,0) - COALESCE(l.lot_altin,0)) DESC
+      LIMIT 25) x),
+
+  ----------------------------------------------------------------- 6. SON HAREKETLER
   'son_defter_satirlari', (
-    SELECT COALESCE(jsonb_agg(to_jsonb(s)), '[]'::jsonb) FROM (
-      SELECT w.olusturulma_tarihi AS tarih, w.varlik::text, w.yon::text,
-             w.islem::text, w.miktar, w.bakiye_sonrasi, w.aciklama
-      FROM public.wallet_ledger w
-      WHERE w.kullanici_id = (SELECT id FROM hedef)
-      ORDER BY w.olusturulma_tarihi DESC LIMIT 10) s),
+    SELECT COALESCE(jsonb_agg(to_jsonb(w)), '[]'::jsonb) FROM (
+      SELECT l.olusturulma_tarihi AS tarih, l.kullanici_id, l.varlik::text,
+             l.yon::text, l.islem::text, l.miktar, l.bakiye_sonrasi, l.aciklama
+      FROM public.wallet_ledger l
+      ORDER BY l.olusturulma_tarihi DESC LIMIT 20) w),
 
-  -- 5) Lot toplamı cache ile tutuyor mu? Tutmuyorsa cache bozuk.
-  'lot_toplami_altin', (
-    SELECT COALESCE(SUM(b.kalan_miktar), 0)
-    FROM public.balance_lots b
-    WHERE b.kullanici_id = (SELECT id FROM hedef)
-      AND b.varlik = 'altin'::varlik_tipi),
-
-  -- 6) "Eklendi" diyen yönetici kaydı
   'son_yonetici_islemleri', (
     SELECT COALESCE(jsonb_agg(to_jsonb(y)), '[]'::jsonb) FROM (
-      SELECT l.tarih, l.islem, l.detay
-      FROM public.yonetici_islem_log l
-      WHERE l.hedef_id = (SELECT id FROM hedef) AND l.hedef_tip = 'kullanici'
-      ORDER BY l.tarih DESC LIMIT 5) y)
+      SELECT g.tarih, g.hedef_id, g.islem, g.detay
+      FROM public.yonetici_islem_log g
+      WHERE g.islem LIKE 'bakiye%' OR g.islem LIKE 'varlik%'
+      ORDER BY g.tarih DESC LIMIT 15) y),
+
+  'son_hediyeler', (
+    SELECT COALESCE(jsonb_agg(to_jsonb(h)), '[]'::jsonb) FROM (
+      SELECT g.gonderilme_tarihi AS tarih, g.gonderen_id, g.alici_id, g.hediye_id,
+             g.miktar, g.birim_fiyat, g.toplam_deger, g.kazanc_miktari
+      FROM public.hediye_gecmisi g
+      ORDER BY g.id DESC LIMIT 10) h)
 
 )) AS teshis;
