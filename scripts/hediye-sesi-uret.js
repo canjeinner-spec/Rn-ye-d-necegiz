@@ -75,6 +75,18 @@ function bantGecirgen(giris, merkez, q) {
   return cikis;
 }
 
+/** Tek kutuplu alcak gecirgen — tizleri kisar, sesi kalinlastirir. */
+function alcakGecirgen(giris, kesim) {
+  const y = new Float32Array(giris.length);
+  const a = 1 - Math.exp((-2 * Math.PI * kesim) / HZ);
+  let onceki = 0;
+  for (let i = 0; i < giris.length; i++) {
+    onceki += a * (giris[i] - onceki);
+    y[i] = onceki;
+  }
+  return y;
+}
+
 function gurultu(sure, atak, sonum) {
   const x = bos(sure);
   const z = zarf(x.length, atak, sonum);
@@ -137,6 +149,96 @@ function wavYaz(yol, ornekler) {
   fs.writeFileSync(yol, Buffer.concat([bas, veri]));
 }
 
+// ── Ses teli sentezi (kaynak-suzgec modeli) ────────────────────────────────
+//
+// Miyav, kukreme ve kahkaha SINUS VE GURULTUYLE YAPILAMAZ. Bunlar ses teli
+// sesidir ve iki parcadan olusur:
+//   KAYNAK  — ses tellerinin urettigi darbe dizisi (perde = f0).
+//   SUZGEC  — agiz ve bogaz bosluklarinin rezonanslari (FORMANTLAR). Bir
+//             sesi "a" ya da "o" yapan sey perde degil, bu rezonanslarin
+//             frekansidir.
+// Konusan/miyavlayan bir sesin sirri formantlarin ZAMAN ICINDE KAYMASI:
+// "miyav" derken agiz acilip kapaniyor, F1 ve F2 birlikte suzuluyor.
+
+/**
+ * Ses teli darbesi (Rosenberg benzeri): yumusak yukselis, hizli dusus.
+ * `titrek` perdeye kucuk rastgele sapma katar — tam duzgun perde robot gibi
+ * duyulur; canlilar hicbir zaman tam duzgun degildir.
+ * `nefes` darbeye gurultu karistirir (h sesi, hirilti, kukremedeki catallik).
+ */
+function sesTeli(sure, perdeEgrisi, titrek, nefes) {
+  const x = bos(sure);
+  let faz = 0;
+  const yukselis = 0.4, dusus = 0.16;
+  for (let i = 0; i < x.length; i++) {
+    const t = i / x.length;
+    const f0 = perdeEgrisi(t) * (1 + (Math.random() * 2 - 1) * titrek);
+    faz += f0 / HZ;
+    if (faz >= 1) faz -= 1;
+    let v;
+    if (faz < yukselis) { const u = faz / yukselis; v = 3 * u * u - 2 * u * u * u; }
+    else if (faz < yukselis + dusus) { const u = (faz - yukselis) / dusus; v = 1 - u * u; }
+    else v = 0;
+    const n = typeof nefes === "function" ? nefes(t) : nefes;
+    x[i] = (v - 0.45) * 2 * (1 - n) + (Math.random() * 2 - 1) * n;
+  }
+  return x;
+}
+
+/**
+ * Zamanla kayan formant rezonansi (iki kutuplu suzgec).
+ * Katsayilar her ornekte yeniden hesaplaniyor; formantlar yavas degistigi
+ * icin bu kararli ve "kayan agiz" etkisini veren sey tam olarak bu.
+ */
+function formant(giris, frekansEgrisi, bant) {
+  const y = new Float32Array(giris.length);
+  let y1 = 0, y2 = 0;
+  const r = Math.exp((-Math.PI * bant) / HZ);
+  for (let i = 0; i < giris.length; i++) {
+    const t = i / giris.length;
+    const F = typeof frekansEgrisi === "function" ? frekansEgrisi(t) : frekansEgrisi;
+    const th = (2 * Math.PI * F) / HZ;
+    const a1 = 2 * r * Math.cos(th), a2 = -(r * r);
+    const g = (1 - r) * Math.sqrt(Math.max(0, 1 - 2 * r * Math.cos(2 * th) + r * r));
+    const v = g * giris[i] + a1 * y1 + a2 * y2;
+    y[i] = v; y2 = y1; y1 = v;
+  }
+  return y;
+}
+
+/** Birden cok formanti paralel toplar — sesli harfi olusturan sey budur. */
+function agiz(kaynak, formantlar) {
+  const y = new Float32Array(kaynak.length);
+  for (const [F, B, k] of formantlar) {
+    const f = formant(kaynak, F, B);
+    for (let i = 0; i < y.length; i++) y[i] += f[i] * k;
+  }
+  return y;
+}
+
+/** Iki nokta arasinda dogrusal gecis — perde ve formant egrileri icin. */
+function egri(noktalar) {
+  return (t) => {
+    for (let i = 1; i < noktalar.length; i++) {
+      if (t <= noktalar[i][0]) {
+        const [t0, v0] = noktalar[i - 1], [t1, v1] = noktalar[i];
+        const u = t1 === t0 ? 0 : (t - t0) / (t1 - t0);
+        return v0 + (v1 - v0) * u;
+      }
+    }
+    return noktalar[noktalar.length - 1][1];
+  };
+}
+
+/** DC kaymasini temizler — darbe dizisi simetrik degil, birikirse boguklasir. */
+function dcSil(x) {
+  let ort = 0;
+  for (let i = 0; i < x.length; i++) ort += x[i];
+  ort /= x.length;
+  for (let i = 0; i < x.length; i++) x[i] -= ort;
+  return x;
+}
+
 // Nota adindan frekans (A4 = 440 Hz).
 const NOTALAR = { C: -9, "C#": -8, D: -7, "D#": -6, E: -5, F: -4, "F#": -3, G: -2, "G#": -1, A: 0, "A#": 1, B: 2 };
 function nota(ad) {
@@ -161,12 +263,26 @@ const SESLER = {
     return x;
   },
 
-  /** Asik Kedi — oyuncu iki nota, sonda kucuk bir pirilti. */
+  /**
+   * Asik Kedi — GERCEK MIYAV.
+   *
+   * Kedi miyavi iki seyin birlesimi: yuksek ve BUKULEN bir perde (560 ->
+   * 1020 -> 480 Hz) ve agzin acilip kapanmasiyla KAYAN formantlar.
+   * "mi-ya-uv" hecelerinin karsiligi: baslangicta agiz kapali (m, alcak F1),
+   * ortada tam acik (a, F1 900'e cikar), sonda buzulup kapaniyor (u, F1 ve
+   * F2 birlikte duser). Bu kaymayi yapmazsan sadece tiz bir dudugun olur.
+   */
   kedi() {
-    const x = bos(1.3);
-    ekle(x, tel(nota("E5"), 0.4), 0.0, 0.9);
-    ekle(x, tel(nota("A5"), 0.45), 0.12, 0.9);
-    ["E6", "A6", "C#7"].forEach((n, i) => ekle(x, zil(nota(n), 0.5, ZIL_KISMI), 0.34 + i * 0.06, 0.3));
+    const sure = 0.85;
+    const perde = egri([[0, 560], [0.25, 1020], [0.55, 900], [1, 480]]);
+    const nefes = egri([[0, 0.05], [0.8, 0.06], [1, 0.25]]);
+    const kaynak = dcSil(sesTeli(sure, perde, 0.012, nefes));
+    const F1 = egri([[0, 300], [0.12, 520], [0.40, 900], [0.70, 620], [1, 420]]);
+    const F2 = egri([[0, 1100], [0.12, 1900], [0.40, 1500], [0.70, 1050], [1, 850]]);
+    const s = agiz(kaynak, [[F1, 90, 1], [F2, 120, 0.55], [2800, 220, 0.18]]);
+    const genlik = egri([[0, 0.25], [0.14, 1], [0.72, 0.9], [1, 0]]);
+    const x = bos(sure);
+    for (let i = 0; i < x.length; i++) x[i] = s[i] * genlik(i / x.length);
     return x;
   },
 
@@ -188,13 +304,34 @@ const SESLER = {
     return x;
   },
 
-  /** Kukreyen Kaplan — alcak kukreme + gurultu gumburtusu + ilk vurus. */
+  /**
+   * Kukreyen Kaplan — GERCEK KUKREME.
+   *
+   * Kukreme de ses telidir, ama iki farkla: perde cok alcak (105 -> 52 Hz)
+   * ve TITREKLIK yuksek (0.055). O titreklik kukremenin catallik ve
+   * kabaligini veren sey — duzgun perdeyle sadece bir korna cikardi.
+   * Ustune 28 Hz genlik dalgalanmasi geliyor: gogusten gelen gumburtu.
+   * Nefes payi basta ve sonda yuksek (hirilti), ortada dusuk (ton).
+   */
   kaplan() {
-    const x = bos(1.9);
-    ekle(x, suzulme(150, 58, 1.5, 0.02, 0.55), 0.02, 0.9);
-    ekle(x, suzulme(300, 116, 1.4, 0.02, 0.45), 0.02, 0.35);
-    ekle(x, bantGecirgen(gurultu(1.4, 0.05, 0.5), 420, 0.55), 0.03, 0.55);
-    ekle(x, suzulme(180, 40, 0.2, 0.001, 0.06), 0, 0.8);
+    const sure = 1.9;
+    const perde = egri([[0, 105], [0.25, 78], [0.7, 62], [1, 52]]);
+    // NEFES VE TITREKLIK OLCUMLE DUSURULDU. Ilk denemede nefes 0.3-0.6 ve
+    // titreklik 0.055'ti; `scripts/ses-incele.js` sonucu: perde hic
+    // okunamiyor ve parlaklik 1803 Hz. Yani hirilti asil sesi bastirmis,
+    // kukreme degil tislama cikiyordu. Bir kukremenin agirligi 600 Hz'in
+    // altinda olmali.
+    const nefes = egri([[0, 0.26], [0.2, 0.1], [0.75, 0.13], [1, 0.32]]);
+    const kaynak = dcSil(sesTeli(sure, perde, 0.028, nefes));
+    const F1 = egri([[0, 420], [0.4, 560], [1, 480]]);
+    const F2 = egri([[0, 1000], [0.4, 1250], [1, 1050]]);
+    const s = alcakGecirgen(agiz(kaynak, [[F1, 130, 1], [F2, 200, 0.26], [2500, 400, 0.04]]), 850);
+    const genlik = egri([[0, 0], [0.12, 1], [0.62, 0.95], [1, 0]]);
+    const x = bos(sure);
+    for (let i = 0; i < x.length; i++) {
+      x[i] = s[i] * genlik(i / x.length) * (0.85 + 0.15 * Math.sin((2 * Math.PI * 28 * i) / HZ));
+    }
+    ekle(x, suzulme(70, 45, 1.5, 0.05, 0.6), 0.02, 0.35); // gogus rezonansi
     return x;
   },
 
@@ -204,13 +341,34 @@ const SESLER = {
    * durmasin diye her patlama birkac milisaniye kaydiriliyor.
    */
   noel() {
-    const x = bos(2.4);
-    const ritim = [0, 0.16, 0.3, 0.46, 0.62, 0.75, 0.92, 1.06, 1.22, 1.38];
-    ritim.forEach((t, i) => {
-      const patlama = bantGecirgen(gurultu(0.34, 0.001, 0.09), 3600 + (i % 3) * 700, 0.28);
-      ekle(x, patlama, t + Math.sin(i * 12.9898) * 0.008, i % 2 ? 0.5 : 0.72);
+    const x = bos(2.9);
+
+    // "HO HO HO" — her hece dusen perdeli bir /o/. Kahkahayi kahkaha yapan
+    // sey perdenin her hecede DUSMESI ve hecelerin giderek alcalmasi.
+    // Bastaki "h" nefes payinin yuksek baslayip hemen dusmesiyle olusuyor.
+    // /o/ sesli harfi: F1 ve F2 birbirine yakin ve alcak — yuvarlak, kalin.
+    [0, 0.36, 0.7].forEach((t, i) => {
+      const sure = 0.3;
+      const perde = egri([[0, 132 - i * 8], [1, 96 - i * 6]]);
+      const nefes = egri([[0, 0.75], [0.18, 0.1], [1, 0.22]]);
+      const kaynak = dcSil(sesTeli(sure, perde, 0.02, nefes));
+      const s = agiz(kaynak, [
+        [egri([[0, 460], [1, 420]]), 80, 1],
+        [egri([[0, 820], [1, 760]]), 100, 0.6],
+        [2500, 220, 0.12],
+      ]);
+      const genlik = egri([[0, 0], [0.08, 1], [0.55, 0.8], [1, 0]]);
+      const b = bos(sure);
+      for (let k = 0; k < b.length; k++) b[k] = s[k] * genlik(k / b.length);
+      ekle(x, b, t, 1);
     });
-    ["G4", "B4", "D5"].forEach((n) => ekle(x, zil(nota(n), 1.8, ZIL_KISMI), 0.02, 0.32));
+
+    // Ardindan kizak canlari: dar bantta suzulmus kisa gurultu patlamalari.
+    // Ritim kasten hafif duzensiz, makine gibi durmasin.
+    [1.05, 1.2, 1.33, 1.49, 1.64, 1.78, 1.94, 2.08].forEach((t, i) => {
+      const patlama = bantGecirgen(gurultu(0.34, 0.001, 0.09), 3600 + (i % 3) * 700, 0.28);
+      ekle(x, patlama, t + Math.sin(i * 12.9898) * 0.008, i % 2 ? 0.34 : 0.48);
+    });
     return x;
   },
 

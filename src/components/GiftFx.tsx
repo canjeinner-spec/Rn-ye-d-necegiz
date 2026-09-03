@@ -1,4 +1,3 @@
-import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
 import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, {
@@ -16,6 +15,7 @@ import Animated, {
 import { Anim } from "@/components/Anim";
 import { type Gift, type GiftTier, TIER_RING } from "@/data/gifts";
 import { sceneFor } from "@/gifts/bigGifts";
+import { hediyeSesiCal } from "@/lib/hediyeSesi";
 import { Gradient } from "@/theme/Gradient";
 import { Txt } from "./Txt";
 
@@ -116,17 +116,9 @@ export function GiftFx({ gift }: { gift: FxGift }) {
    * kalirdi. Kanca erken donusten ONCE, kosulsuz cagriliyor.
    */
   useEffect(() => {
-    let player: ReturnType<typeof createAudioPlayer> | null = null;
     const ses = sceneFor(gift.id).sound;
     if (!ses) return;
-    // Sessiz moddaki telefonda da duyulsun — hediye geri bildirimi.
-    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
-    try {
-      player = createAudioPlayer(ses);
-      player.volume = 1;
-      player.play();
-    } catch {}
-    return () => { player?.remove(); };
+    return hediyeSesiCal(ses);
   }, [gift.id]);
   const popStil = useAnimatedStyle(() => ({
     opacity: pop.value,

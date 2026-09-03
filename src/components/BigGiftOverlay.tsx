@@ -1,4 +1,3 @@
-import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
 import { BlurView } from "expo-blur";
 import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
@@ -17,6 +16,7 @@ import Svg, { Defs, Polygon, RadialGradient, Stop } from "react-native-svg";
 import { type Gift } from "@/data/gifts";
 import { Anim } from "@/components/Anim";
 import { sceneFor } from "@/gifts/bigGifts";
+import { hediyeSesiCal } from "@/lib/hediyeSesi";
 import { Txt } from "@/components/Txt";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
@@ -62,17 +62,10 @@ export function BigGiftOverlay({ gift, qty, sender, onDone }: { gift: Gift; qty:
   const bannerOp = useSharedValue(0);
 
   useEffect(() => {
-    let player: ReturnType<typeof createAudioPlayer> | null = null;
-    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
-    try {
-      // Ses artık isteğe bağlı (bigGifts.ts): dosyası olmayan hediye sessiz
-      // oynar. Eskiden `sound` zorunluydu ve her sahne aynı sesi kullanıyordu.
-      if (scene.sound) {
-        player = createAudioPlayer(scene.sound);
-        player.volume = 1;
-        player.play();
-      }
-    } catch {}
+    // Ses isteğe bağlı (bigGifts.ts): dosyası olmayan hediye sessiz oynar.
+    // Çalma işi `lib/hediyeSesi`de — Android'de ses odağı ve yükleme
+    // beklemesi orada çözülüyor, burada kopyası durmasın.
+    const sesiBirak = scene.sound ? hediyeSesiCal(scene.sound) : null;
 
     dim.value = withTiming(1, { duration: 260 });
     flash.value = withSequence(withTiming(0.85, { duration: 110 }), withTiming(0, { duration: 460 }));
@@ -82,7 +75,7 @@ export function BigGiftOverlay({ gift, qty, sender, onDone }: { gift: Gift; qty:
     bannerY.value = withDelay(520, withSpring(0, { damping: 14 }));
 
     const t = setTimeout(onDone, scene.duration);
-    return () => { clearTimeout(t); player?.remove(); };
+    return () => { clearTimeout(t); sesiBirak?.(); };
   }, []);
 
   const dimStyle = useAnimatedStyle(() => ({ opacity: dim.value }));
