@@ -34,7 +34,23 @@ export const LEGENDARY_SOUND = require("../../assets/gifts/legendary.wav");
 export const GIFT_SCENES: Record<string, GiftScene> = {
   gul:    { anim: require("../anim/gifts/gul.json"),    duration: 4000 },
   ayicik: { anim: require("../anim/gifts/ayicik.json"), duration: 4530 },
+  kedi:   { anim: require("../anim/gifts/kedi.json"),   duration: 6000 },
+  tavsan: { anim: require("../anim/gifts/tavsan.json"), duration: 2000 },
+  kaplan: { anim: require("../anim/gifts/kaplan.json"), duration: 6000 },
   hazine: { anim: require("../anim/gifts/hazine.json"), sound: LEGENDARY_SOUND, duration: 3600 },
+
+  /**
+   * EN AĞIR VARLIK — 4.6 MB, 1440x1024, 10.67 sn, 60 fps, 334 katman.
+   *
+   * Dosya sınırımız (Anim.tsx) 100 KB; bu onun 25 katı ve bundle'ı tek
+   * başına ~6.6 MB'dan ~11 MB'a çıkarıyor. Bilinçli kabul edildi: efsanevi
+   * kademede tek bir gösteri parçası. AMA yeni büyük hediyeler pakete
+   * GÖMÜLMEMELİ — hediyeler.animasyon_url kolonu ve Lottie'nin {uri}
+   * kaynağı bunun için var, Storage'dan yüklenmeli.
+   *
+   * Cihazda kare düşerse ilk bakılacak yer burası.
+   */
+  zafer: { anim: require("../anim/gifts/zafer.json"), sound: LEGENDARY_SOUND, duration: 10670 },
 
   // Efsanevi hediyeler için varsayılan (Lottie'si olmayan).
   _legendary: { sound: LEGENDARY_SOUND, duration: 3600 },
