@@ -7,7 +7,11 @@ import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { Portrait } from "@/components/Portrait";
 import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
+import { BosDurum } from "@/components/BosDurum";
 import { Txt } from "@/components/Txt";
+// Sıralama boş durumu — kupalı şampiyon. Renkleri scripts/lottie-boya.js ile
+// temaya boyandı (özgün dosyada konfeti pembe/camgöbeği/yeşildi).
+import SAMPIYON from "@/anim/sampiyon.json";
 import { listRooms } from "@/data/remote/roomsRepo";
 import {
   PERIYOTLAR, cazibe, donemBitis, kalanSure, odalar as odaSiralamasi, zenginlik,
@@ -123,17 +127,11 @@ function Podyum({ ilk3, bas }: { ilk3: SiraKisi[]; bas: (k: SiraKisi) => void })
   );
 }
 
-/** Veri kaynağı olmayan / henüz boş sekmeler için dürüst boş durum. */
+/** Veri kaynağı olmayan / henüz boş sekmeler için dürüst boş durum.
+ *  Görsel kabuk ortak `BosDurum`'a taşındı; burada yalnız sıralamaya
+ *  özgü şampiyon animasyonu seçiliyor. */
 function Bos({ baslik, alt }: { baslik: string; alt: string }) {
-  return (
-    <View style={styles.bos}>
-      <View style={styles.bosIkon}>
-        <Icon name="trophy" size={22} color={C.gold} />
-      </View>
-      <Txt weight="displayBold" size={14.5} color="#fff" style={{ marginTop: 13 }}>{baslik}</Txt>
-      <Txt size={11.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 7, maxWidth: 260 }}>{alt}</Txt>
-    </View>
-  );
+  return <BosDurum anim={SAMPIYON} baslik={baslik} alt={alt} dolgu={54} animBoyut={165} />;
 }
 
 /** Kişi sıralaması — podyum + liste, ortak gövde (Zenginlik ve Cazibe aynı). */
@@ -402,9 +400,4 @@ const styles = StyleSheet.create({
   odaKapak: { width: 42, height: 42 },
   odaSahne: { width: 42, height: 42, borderRadius: 13, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
 
-  bos: { alignItems: "center", paddingVertical: 54, paddingHorizontal: 18 },
-  bosIkon: {
-    width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center",
-    backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "3D",
-  },
 });

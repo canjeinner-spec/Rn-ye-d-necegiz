@@ -7,7 +7,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Portrait } from "@/components/Portrait";
 import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
+import { BosDurum } from "@/components/BosDurum";
 import { Txt } from "@/components/Txt";
+import BOS_KUTU from "@/anim/bos-kutu.json";
 
 import {
   katildigimOdalar,
@@ -276,14 +278,7 @@ export default function MyRoomHub() {
               />
             ))
           ) : (
-            <View style={{ paddingVertical: 46, alignItems: "center", gap: 10 }}>
-              <View style={styles.bosIkon}>
-                <Icon name={tab === 2 ? "heart" : tab === 1 ? "users" : "door"} size={20} color={C.dim2} />
-              </View>
-              <Txt size={12.5} color={C.dim} align="center" lh={1.55} style={{ maxWidth: 250 }}>
-                {hata ?? BOS_METIN[tab]}
-              </Txt>
-            </View>
+            <BosDurum anim={BOS_KUTU} dolgu={30} animBoyut={130} alt={hata ?? BOS_METIN[tab]} />
           )}
         </ScrollView>
       </SafeAreaView>
@@ -304,5 +299,4 @@ const styles = StyleSheet.create({
   nokta: { width: 6, height: 6, borderRadius: 3 },
   card: { flexDirection: "row", alignItems: "center", gap: 13, padding: 12, borderRadius: 18, marginBottom: 10, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   cardThumb: { width: 62, height: 62, borderRadius: 15, overflow: "hidden" },
-  bosIkon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
 });

@@ -5,7 +5,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CoinBadge } from "@/components/Coins";
 import { Tabs } from "@/components/Tabs";
+import { BosDurum } from "@/components/BosDurum";
 import { Txt } from "@/components/Txt";
+import BOS_KUTU from "@/anim/bos-kutu.json";
 import {
   girisDurumu, girisOdulAl, gorevOdulAl, gorevlerim,
   type GirisDurumu, type Gorev,
@@ -120,11 +122,7 @@ export default function TasksScreen() {
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
           {tab === 0 ? (
             gunler.length === 0 ? (
-              <View style={styles.bos}>
-                <Txt size={12} color={C.dim} align="center" lh={1.5}>
-                  Günlük giriş ödülleri henüz açılmadı.
-                </Txt>
-              </View>
+              <BosDurum anim={BOS_KUTU} dolgu={30} animBoyut={130} alt="Günlük giriş ödülleri henüz açılmadı." />
             ) : (
               <>
                 {/* Kart cüzdandaki bakiye kartıyla aynı dil: siyah cam, altın
@@ -206,11 +204,7 @@ export default function TasksScreen() {
               </>
             )
           ) : gorevler.length === 0 ? (
-            <View style={styles.bos}>
-              <Txt size={12} color={C.dim} align="center" lh={1.5}>
-                Görevler henüz açılmadı.
-              </Txt>
-            </View>
+            <BosDurum anim={BOS_KUTU} dolgu={30} animBoyut={130} alt="Görevler henüz açılmadı." />
           ) : (
             gorevler.map((t) => {
               const tamam = t.ilerleme >= t.hedef;
@@ -270,7 +264,6 @@ const styles = StyleSheet.create({
   mesaj: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 16, marginTop: 12, padding: 11, borderRadius: 13, borderWidth: 1 },
   mesajOk: { backgroundColor: C.green + "12", borderColor: C.green + "33" },
   mesajHata: { backgroundColor: C.red + "12", borderColor: C.red + "33" },
-  bos: { paddingVertical: 48, paddingHorizontal: 24 },
 
   dailyCard: { borderRadius: 20, padding: 16, paddingTop: 18, borderWidth: 1, borderColor: C.gold + "3D", backgroundColor: "rgba(18,15,24,.72)", overflow: "hidden" },
   cardSheen: { position: "absolute", top: 0, left: 26, right: 26, height: 1, backgroundColor: "rgba(255,255,255,.28)" },

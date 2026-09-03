@@ -9,7 +9,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { CenterModal } from "@/components/CenterModal";
 import { PNG_BADGE_IMG } from "@/components/PngBadge";
 import { ROOM_BADGE_IMG } from "@/components/RoomBadges";
+import { BosDurum } from "@/components/BosDurum";
 import { Txt } from "@/components/Txt";
+import BOS_KUTU from "@/anim/bos-kutu.json";
 import { equipBadge, getMyBadgeProgress, unequipBadge, type RozetIlerleme } from "@/data/remote/badgeRepo";
 import { useApp } from "@/store/appStore";
 import { Icon } from "@/icons/Icon";
@@ -179,6 +181,15 @@ export default function BadgesScreen() {
           </View>
         ) : (
           <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
+            {/* Her kategori için aşağıda `if (!grup.length) return null` var; hepsi
+                boşsa ekran BOMBOŞ kalıyordu, hiçbir açıklama yoktu. */}
+            {gosterilen.length === 0 && (
+              <BosDurum
+                anim={BOS_KUTU}
+                baslik="Henüz rozetin yok"
+                alt="Odalarda aktif oldukça ve görevleri tamamladıkça rozetler burada birikir."
+              />
+            )}
             {GORUNEN_KATEGORILER.map((kat) => {
               const grup = gosterilen.filter((r) => r.kategori === kat);
               if (!grup.length) return null;

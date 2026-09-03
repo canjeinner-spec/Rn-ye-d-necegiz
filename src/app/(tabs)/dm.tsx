@@ -7,7 +7,9 @@ import { Portrait } from "@/components/Portrait";
 import { Sheet } from "@/components/Sheet";
 import { OfficialAvatar, SystemAvatar } from "@/components/SpecialAvatars";
 import { Tabs } from "@/components/Tabs";
+import { BosDurum } from "@/components/BosDurum";
 import { Txt } from "@/components/Txt";
+import BOS_KUTU from "@/anim/bos-kutu.json";
 import { DM_THREADS, type DMThread } from "@/data/dm";
 import { DM_ID_OFFSET, listThreads } from "@/data/remote/dmRepo";
 import { listAnnouncements } from "@/data/remote/announceRepo";
@@ -176,7 +178,13 @@ export default function DmTab() {
               </View>
             </Pressable>
           ))}
-          {filtered.length === 0 && <Txt size={12.5} color={C.dim} align="center" style={{ paddingVertical: 50 }}>Sohbet yok.</Txt>}
+          {filtered.length === 0 && (
+            <BosDurum
+              anim={BOS_KUTU}
+              baslik="Sohbet yok"
+              alt="Odalarda tanıştığın kişilerle buradan yazışabilirsin."
+            />
+          )}
         </ScrollView>
       </SafeAreaView>
 

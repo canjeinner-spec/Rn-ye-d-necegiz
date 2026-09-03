@@ -5,7 +5,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { EsyaOnizleme } from "@/components/EsyaOnizleme";
 import { Tabs } from "@/components/Tabs";
+import { BosDurum } from "@/components/BosDurum";
 import { Txt } from "@/components/Txt";
+import BOS_KUTU from "@/anim/bos-kutu.json";
 import { NADIRLIK } from "@/data/esyaTemalari";
 import { cikar, esyalarim, kusan, type EsyaTip, type SahipEsya } from "@/data/remote/esyaRepo";
 import { Icon } from "@/icons/Icon";
@@ -149,15 +151,14 @@ export default function InventoryScreen() {
           {esyalar === null ? (
             <View style={{ paddingVertical: 54 }}><ActivityIndicator color={C.dim} /></View>
           ) : liste.length === 0 ? (
-            <View style={{ alignItems: "center", paddingVertical: 44, gap: 11 }}>
-              <View style={styles.bosIkon}><Icon name="ticket" size={20} color={C.dim2} /></View>
-              <Txt size={12.5} color={C.dim} align="center" lh={1.55} style={{ maxWidth: 240 }}>{BOS_METIN[tip]}</Txt>
+            <BosDurum anim={BOS_KUTU} dolgu={30} animBoyut={130} alt={BOS_METIN[tip]}>
+              {/* Uygulamadaki tek "boş durumdan aksiyona" yolu — korunuyor. */}
               <Pressable onPress={() => { haptic.light(); router.navigate("/store"); }} style={styles.bosBtnSarma}>
                 <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.bosBtn}>
                   <Txt weight="extrabold" size={12.5} color="#241A05">Mağazaya git</Txt>
                 </Gradient>
               </Pressable>
-            </View>
+            </BosDurum>
           ) : (
             <View style={styles.grid}>
               {liste.map((e) => {
@@ -259,7 +260,6 @@ const styles = StyleSheet.create({
   kusanildiRozet: { position: "absolute", top: 9, right: 9, width: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: C.gold2, zIndex: 2 },
   onizleme: { height: 66, alignItems: "center", justifyContent: "center", marginBottom: 8 },
   actBtn: { paddingVertical: 9, alignItems: "center", justifyContent: "center", borderRadius: 12 },
-  bosIkon: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   bosBtnSarma: { borderRadius: 13, overflow: "hidden", marginTop: 2 },
   bosBtn: { paddingVertical: 11, paddingHorizontal: 22, alignItems: "center" },
 });

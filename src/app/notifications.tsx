@@ -4,7 +4,9 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Portrait } from "@/components/Portrait";
+import { BosDurum } from "@/components/BosDurum";
 import { Txt } from "@/components/Txt";
+import BOS_KUTU from "@/anim/bos-kutu.json";
 import { NOTIF_TABS, NOTIFS, type BildirimKategori, type BildirimItem } from "@/data/notifications";
 import { enrichAvatars, listNotifications, mapNotif, markAllNotifsRead, markNotifRead } from "@/data/remote/notifRepo";
 import { getCached, setCached } from "@/lib/cache";
@@ -102,7 +104,11 @@ export default function NotificationsScreen() {
 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
           {filtered.length === 0 && (
-            <Txt weight="semibold" size={12.5} color={C.dim} align="center" style={{ paddingVertical: 60 }}>Bu kategoride bildirim yok.</Txt>
+            <BosDurum
+              anim={BOS_KUTU}
+              baslik="Bildirim yok"
+              alt="Bu kategoride henüz bir şey olmadı. Yeni bir gelişme olduğunda burada görürsün."
+            />
           )}
           {filtered.map((n) => (
             <Pressable

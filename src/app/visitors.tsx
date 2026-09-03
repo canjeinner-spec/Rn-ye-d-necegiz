@@ -5,7 +5,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Badge } from "@/components/Badge";
 import { Portrait } from "@/components/Portrait";
+import { BosDurum } from "@/components/BosDurum";
 import { Txt } from "@/components/Txt";
+import BOS_KUTU from "@/anim/bos-kutu.json";
 import { VISITORS, type Visitor } from "@/data/visitors";
 import { getMyVisitors } from "@/data/remote/visitRepo";
 import { getCached, setCached } from "@/lib/cache";
@@ -112,15 +114,11 @@ export default function VisitorsScreen() {
           </View>
 
           {visitors.length === 0 ? (
-            <View style={styles.bos}>
-              <View style={styles.bosIkon}>
-                <Icon name="eye" size={22} color={C.gold} />
-              </View>
-              <Txt weight="displayBold" size={14} color="#fff" style={{ marginTop: 13 }}>Henüz ziyaretçin yok</Txt>
-              <Txt size={11.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 6, maxWidth: 250 }}>
-                Profilini ziyaret edenler burada listelenir.
-              </Txt>
-            </View>
+            <BosDurum
+              anim={BOS_KUTU}
+              baslik="Henüz ziyaretçin yok"
+              alt="Profilini ziyaret edenler burada listelenir."
+            />
           ) : (
             <>
               {today.length > 0 && (
@@ -153,8 +151,6 @@ const styles = StyleSheet.create({
   summaryIcon: { width: 46, height: 46, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "44" },
   sectionLbl: { letterSpacing: 0.5, marginBottom: 9 },
   lvHap: { paddingVertical: 1.5, paddingHorizontal: 7, borderRadius: 999, backgroundColor: "rgba(94,234,212,.12)", borderWidth: 1, borderColor: "rgba(94,234,212,.30)" },
-  bos: { alignItems: "center", paddingVertical: 54, paddingHorizontal: 18 },
-  bosIkon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "3D" },
   group: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 72 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 12 },

@@ -6,7 +6,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
 import { Sheet } from "@/components/Sheet";
 import { Tabs } from "@/components/Tabs";
+import { BosDurum } from "@/components/BosDurum";
 import { Txt } from "@/components/Txt";
+import BOS_KUTU from "@/anim/bos-kutu.json";
 import { getMyBalance, listMyLedger, type LedgerRow as LedgerData } from "@/data/remote/walletRepo";
 import { getCached, setCached } from "@/lib/cache";
 import { Icon } from "@/icons/Icon";
@@ -74,15 +76,14 @@ function StatCard({ label, sub, accent, children }: { label: string; sub: string
 /** Hiç işlem yokken — sahte örnek satırlar yerine dürüst boş durum. */
 function BosDefter() {
   return (
-    <View style={styles.bos}>
-      <View style={styles.bosIkon}>
-        <Icon name="wallet" size={22} color={C.gold} />
-      </View>
-      <Txt weight="displayBold" size={14} color="#fff" style={{ marginTop: 13 }}>Henüz işlem yok</Txt>
-      <Txt size={11.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 7, maxWidth: 250 }}>
-        Elmas yüklediğinde veya hediye gönderdiğinde işlemlerin burada listelenir.
-      </Txt>
-    </View>
+    <BosDurum
+      anim={BOS_KUTU}
+      kart
+      dolgu={34}
+      animBoyut={130}
+      baslik="Henüz işlem yok"
+      alt="Elmas yüklediğinde veya hediye gönderdiğinde işlemlerin burada listelenir."
+    />
   );
 }
 
@@ -264,6 +265,5 @@ const styles = StyleSheet.create({
   ledgerRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 13 },
   ledgerDivider: { height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,.08)", marginLeft: 65 },
   ledgerIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1 },
-  bos: { alignItems: "center", paddingVertical: 34, paddingHorizontal: 18, borderRadius: 18, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: "rgba(255,255,255,.07)" },
   bosIkon: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "3D" },
 });

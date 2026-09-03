@@ -6,7 +6,9 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { Portrait } from "@/components/Portrait";
 import { Tabs } from "@/components/Tabs";
+import { BosDurum } from "@/components/BosDurum";
 import { Txt } from "@/components/Txt";
+import BOS_KUTU from "@/anim/bos-kutu.json";
 import { FRIEND_LIST, FRIEND_REQS, type Friend, type FriendReq } from "@/data/friends";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
@@ -135,17 +137,11 @@ export default function FriendsScreen() {
                   ))}
                 </View>
               ) : (
-                <View style={styles.bos}>
-                  <View style={styles.bosIkon}>
-                    <Icon name="search" size={22} color={C.dim2} />
-                  </View>
-                  <Txt weight="displayBold" size={14} color="#fff" style={{ marginTop: 13 }}>
-                    {q ? "Arkadaş bulunamadı" : "Henüz arkadaşın yok"}
-                  </Txt>
-                  <Txt size={11.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 6, maxWidth: 250 }}>
-                    {q ? `"${q}" ile eşleşen bir arkadaşın yok.` : "Odalarda tanıştığın kişilere arkadaşlık isteği gönderebilirsin."}
-                  </Txt>
-                </View>
+                <BosDurum
+                  anim={BOS_KUTU}
+                  baslik={q ? "Arkadaş bulunamadı" : "Henüz arkadaşın yok"}
+                  alt={q ? `"${q}" ile eşleşen bir arkadaşın yok.` : "Odalarda tanıştığın kişilere arkadaşlık isteği gönderebilirsin."}
+                />
               )}
             </>
           ) : reqs.length > 0 ? (
@@ -193,15 +189,11 @@ export default function FriendsScreen() {
               ))}
             </View>
           ) : (
-            <View style={styles.bos}>
-              <View style={styles.bosIkon}>
-                <Icon name="userAdd" size={22} color={C.gold} />
-              </View>
-              <Txt weight="displayBold" size={14} color="#fff" style={{ marginTop: 13 }}>Bekleyen istek yok</Txt>
-              <Txt size={11.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 6, maxWidth: 250 }}>
-                Sana arkadaşlık isteği gelirse burada görünür.
-              </Txt>
-            </View>
+            <BosDurum
+              anim={BOS_KUTU}
+              baslik="Bekleyen istek yok"
+              alt="Sana arkadaşlık isteği gelirse burada görünür."
+            />
           )}
         </ScrollView>
       </SafeAreaView>
@@ -234,7 +226,5 @@ const styles = StyleSheet.create({
   reqKart: { padding: 14, borderRadius: 18, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: C.gold + "2E" },
   notKutu: { marginTop: 12, paddingVertical: 10, paddingHorizontal: 13, borderRadius: 14, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)" },
   reqBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 13 },
-  bos: { alignItems: "center", paddingVertical: 54, paddingHorizontal: 18 },
-  bosIkon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "3D" },
   toast: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: C.gold + "66", paddingVertical: 12, paddingHorizontal: 20, borderRadius: 999 },
 });
