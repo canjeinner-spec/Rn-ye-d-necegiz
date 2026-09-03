@@ -64,6 +64,18 @@ export const GIFT_SCENES: Record<string, GiftScene> = {
   // 959 KB ama 30 katman ve sıfır özel özellik: çizmesi ucuz.
   tavsan: { anim: () => require("../anim/gifts/tavsan.json"), duration: 2000 },              // 959 KB
 
+  /**
+   * KARE DİZİSİ — vektör değil, Lottie kılığına girmiş bir video: 24 fps'te
+   * 97 kare, her katman bir gömülü görsel ve tam 1 kare yaşıyor, aynı anda
+   * ekranda hep tek katman var. Çizmesi ucuz (kare başına tek bitmap) ama
+   * BELLEK pahalı: lottie-android çözdüğü bitmap'leri kompozisyon boyunca
+   * tutuyor. Özgün hâli 800x800'dü ve ~237 MB ediyordu — orta seviye
+   * Android'de çökme demek. `scripts/lottie-gorsel-kucult.js` ile 256'ya
+   * indirildi: ~24 MB. Zemini de o betik sildi (kaynak WebP'lerde alfa yoktu,
+   * koyu temada beyaz kutu olarak çıkıyordu).
+   */
+  noel:   { anim: () => require("../anim/gifts/noel.json"),   duration: 4040, sound: LEGENDARY_SOUND }, // 1357 KB
+
   // Efsanevi hediyeler için varsayılan (Lottie'si olmayan).
   _legendary: { sound: LEGENDARY_SOUND, duration: 3600 },
 };

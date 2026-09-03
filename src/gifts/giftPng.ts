@@ -26,6 +26,7 @@ const PNG: Record<string, ImageSourcePropType> = {
   tavsan: require("../anim/gifts/png/tavsan.png"),
   kaplan: require("../anim/gifts/png/kaplan.png"),
   hazine: require("../anim/gifts/png/hazine.png"),
+  noel: require("../anim/gifts/png/noel.png"),
 };
 
 /** Karo gorseli. Yoksa cagiran emojiye dusmeli. */

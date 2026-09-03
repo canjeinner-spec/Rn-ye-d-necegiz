@@ -51,13 +51,29 @@ function denetle(yol) {
   gez(j.layers); gez(j.assets);
 
   const sure = ((j.op - j.ip) / j.fr).toFixed(1);
+
+  // KARE DIZISI: vektor degil, gomulu gorselden olusan bir video (her katman
+  // ty:2 ve tam 1 kare yasar, ayni anda ekranda tek katman olur). Bunlarda
+  // katman sayisi YANILTICI — cizmesi ucuz, asil olcut BELLEK: lottie-android
+  // cozdugu bitmap'leri kompozisyon boyunca tutuyor.
+  const kareDizisi = Array.isArray(j.layers) && j.layers.length > 1 &&
+    j.layers.every((l) => l.ty === 2 && l.op - l.ip === 1);
+  const bellekMB = (j.assets || []).reduce((s, a) => s + (a.w || 0) * (a.h || 0) * 4, 0) / 1048576;
+
   const sorun = [];
   const uyari = [];
   if (s.bm > 0) sorun.push(s.bm + " blend mode (renkler bozuk cizilir)");
   if (s.ef > 0) sorun.push(s.ef + " efekt (yok sayilir)");
   if (s.dis > 0) sorun.push(s.dis + " dis dosya (bos cizer)");
-  if (katman > 80) sorun.push(katman + " katman (cok agir)");
-  if (kb > 400) uyari.push(kb.toFixed(0) + " KB (buyuk; katman azsa sorun degil)");
+  if (kareDizisi) {
+    // Esik deneyimden: 24 MB (Noel Baba, 256 piksel x 97 kare) sorunsuz;
+    // 237 MB (ayni dosyanin 800 piksel hali) cokme riski.
+    if (bellekMB > 60) sorun.push("kare dizisi, ~" + bellekMB.toFixed(0) + " MB bellek (scripts/lottie-gorsel-kucult.js ile kucult)");
+    else uyari.push("kare dizisi, ~" + bellekMB.toFixed(0) + " MB bellek");
+  } else if (katman > 80) {
+    sorun.push(katman + " katman (cok agir)");
+  }
+  if (kb > 400 && !kareDizisi) uyari.push(kb.toFixed(0) + " KB (buyuk; katman azsa sorun degil)");
   if (s.mm > 10) uyari.push(s.mm + " merge path (yavaslatabilir)");
   if (s.tt > 20) uyari.push(s.tt + " track matte");
   if (s.metin > 0) uyari.push(s.metin + " metin katmani (yazi tipi gomulu degilse bozulur)");
