@@ -25,6 +25,12 @@ import { Gradient } from "@/theme/Gradient";
 
 type Msg = { id?: number; me: boolean; text?: string; gift?: Gift; qty?: number; time: string };
 
+/**
+ * DM dizisi tavanı — room.tsx ile aynı gerekçe: sohbet bir ScrollView ve
+ * `msgs.map` her mesajı çiziyor. Geçmiş `dm_mesajlari` tablosunda duruyor.
+ */
+const MSG_TAVAN = 200;
+
 function IconBtn({ name, onPress }: { name: "back" | "phone"; onPress?: () => void }) {
   return (
     <Pressable onPress={onPress} style={styles.iconBtn}>
@@ -83,13 +89,13 @@ export default function DMChatScreen() {
     const sb = supabase;
     if (!isRealDM || !convId || !sb) return;
     let alive = true;
-    getMessages(convId).then((m) => { if (alive) setMsgs(m); }).catch(() => {});
+    getMessages(convId).then((m) => { if (alive) setMsgs(m.slice(-MSG_TAVAN)); }).catch(() => {});
     markRead(convId).catch(() => {});
     const ch = sb
       .channel(`dm-${convId}-${Date.now()}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "dm_mesajlari", filter: `konusma_id=eq.${convId}` }, (payload) => {
         const msg = mapRealtimeMessage(payload.new as never, dbId);
-        setMsgs((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
+        setMsgs((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg].slice(-MSG_TAVAN)));
         if (!msg.me) markRead(convId).catch(() => {});
       })
       .subscribe();
@@ -111,16 +117,16 @@ export default function DMChatScreen() {
     if (isRealDM && convId) {
       try {
         const msg = await sendMessage(convId, t);
-        setMsgs((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
+        setMsgs((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg].slice(-MSG_TAVAN)));
       } catch { /* gönderilemezse sessiz geç */ }
       return;
     }
-    setMsgs((m) => [...m, { me: true, text: t, time: "Şimdi" }]);
+    setMsgs((m) => [...m, { me: true, text: t, time: "Şimdi" }].slice(-MSG_TAVAN));
   };
   const sendGift = (g: Gift, qty: number) => {
     haptic.success();
     setGiftOpen(false);
-    setMsgs((m) => [...m, { me: true, gift: g, qty, time: "Şimdi" }]);
+    setMsgs((m) => [...m, { me: true, gift: g, qty, time: "Şimdi" }].slice(-MSG_TAVAN));
   };
 
   if (!peer) {

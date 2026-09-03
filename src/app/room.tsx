@@ -101,6 +101,14 @@ const ARKAPLAN_MS = 20000;
  */
 const BEKLEME_MS = 1200;
 
+/**
+ * Sohbet dizisi tavanı. Sohbet bir ScrollView ve `msgs.map` HER mesajı
+ * çiziyor — dizi sınırsız büyürse uzun oturumda her yeni mesaj tüm geçmişi
+ * yeniden çizdiriyor. Geçmişin tamamı zaten `oda_mesajlari` tablosunda (078);
+ * ekranda tutulan yalnız son pencere.
+ */
+const MSG_TAVAN = 200;
+
 const { width: EKRAN } = Dimensions.get("window");
 const KOLTUK = Math.round((EKRAN / 4) * 0.512);
 const SAHIP_KOLTUK = Math.round(KOLTUK * 1.5);
@@ -940,7 +948,7 @@ export default function RoomScreen() {
     // kime ne gönderdiği kayıt olarak kalmıyordu.
     const hediye = { emoji: g.emoji, ad: g.name, adet: qty, kime: recipient, renk: TIER_RING[g.tier] || C.gold };
     const saat = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-    setMsgs((m) => [...m, { name: "Sen", time: saat, text: "", myOwn: true, uid: myDbId ?? undefined, hediye }]);
+    setMsgs((m) => [...m, { name: "Sen", time: saat, text: "", myOwn: true, uid: myDbId ?? undefined, hediye }].slice(-MSG_TAVAN));
     if (isDbRoom && chanRef.current) {
       chanRef.current.send({
         type: "broadcast",
@@ -1360,7 +1368,7 @@ export default function RoomScreen() {
         publicId: mine ? myPublicId || undefined : p.publicId,
         hediye: p.hediye,
         yetki: p.yetki,
-      }]);
+      }].slice(-MSG_TAVAN));
     });
 
     // Mikrofon daveti — hedef onaylamadan koltuğa oturtmuyoruz.
@@ -1381,10 +1389,16 @@ export default function RoomScreen() {
     // Yönetici sistem mesajı / uyarısı — o an içeridekilere canlı baloncuk.
     ch.on("broadcast", { event: "system" }, ({ payload }) => {
       const p = payload as { tur?: "mesaj" | "uyari"; baslik?: string; text: string; time?: string };
-      if (alive) setMsgs((prev) => [...prev, {
-        name: "Sistem", time: p.time || new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
-        text: p.text, sys: p.tur === "uyari" ? "uyari" : "mesaj", baslik: p.baslik,
-      }]);
+      if (alive) setMsgs((prev) => {
+        // Blok gövde: .slice() araya girince dizi literali bağlamsal tipini
+        // kaybediyor ve `sys` alanı `string`e genişliyor. Ara değişken tipi
+        // `ChatMsg[]` olarak sabitliyor — cast yok, denetim tam.
+        const eklenen: ChatMsg[] = [...prev, {
+          name: "Sistem", time: p.time || new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
+          text: p.text, sys: p.tur === "uyari" ? "uyari" : "mesaj", baslik: p.baslik,
+        }];
+        return eklenen.slice(-MSG_TAVAN);
+      });
     });
 
     // Mikrofon sırası broadcast'i KALDIRILDI (069): sıra artık
@@ -1549,7 +1563,7 @@ export default function RoomScreen() {
       // automatically falling back to REST API") ve REST ile giden yayın
       // gönderene geri gelmiyor — kendi odanda tek başınayken yazdığın mesaj
       // hiç görünmüyordu. Artık yerel ekliyoruz, echo gelirse de eleniyor.
-      setMsgs((m) => [...m, { name: userName, time, text: t, myOwn: true, photo: userPhoto || undefined, uid: myDbId ?? undefined, publicId: myPublicId || undefined, yetki: privileged }]);
+      setMsgs((m) => [...m, { name: userName, time, text: t, myOwn: true, photo: userPhoto || undefined, uid: myDbId ?? undefined, publicId: myPublicId || undefined, yetki: privileged }].slice(-MSG_TAVAN));
       /**
        * Gönderim sonucu kontrol ediliyor ve bir kez yeniden deneniyor.
        *
@@ -1584,7 +1598,7 @@ export default function RoomScreen() {
       addXp("oda_mesaj"); // +2/mesaj, günlük tavan sunucuda
       return;
     }
-    setMsgs((m) => [...m, { name: "Sen", time: "21:49", text: t, myOwn: true }]);
+    setMsgs((m) => [...m, { name: "Sen", time: "21:49", text: t, myOwn: true }].slice(-MSG_TAVAN));
   };
 
   const sitHere = (idx: number) => {
