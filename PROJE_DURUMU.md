@@ -523,17 +523,17 @@ DM/profil hediyesi bayrakla kapatılıp Faz 4'te gerçek) o dosyanın başında.
 - **Faz 0 (mantık + kararlılık) — KOD ✅** 13 commit (`0170a86` → `0ef7dc3`),
   `tsc` temiz. Migration'lar 072-079 yazıldı, birleşik `SON_072_079.sql` hazır.
 
-- **⛔ FAZ 0 HÂLÂ CANLIYA UYGULANMADI — iki iş kullanıcıda, ikisi de duruyor:**
-  1. `db/migrations/SON_072_079.sql` Supabase SQL Editor'da çalıştırılacak
-     (tek yapıştırma; enum yok, hepsi idempotent). Dosya açılamıyorsa içerik
-     sohbete yapıştırılır.
-  2. Sonra Faz 0 iki-cihaz duman testi (`YOL_HARITASI.md` Faz 0 sonu, 6 madde).
-     Metro logu okunur (`scratchpad/metro2.log` — tahmin değil kanıt).
+- **✅ FAZ 0 SQL'İ CANLIDA ÇALIŞTIRILDI** (3 Eylül, kullanıcı doğruladı).
+  `db/migrations/SON_072_079.sql` koştu. Bu dosyada uzun süre "bekliyor"
+  yazıyordu ve AI o nota güvenip doğrulamadan tekrarladı — **ders: durum
+  notu kanıt değildir, doğrulanmadan tekrarlanmaz.**
+  Log tarafı da destekliyor: istemci her mesajda 078'in `oda_mesaj_yaz`
+  RPC'sini çağırıyor ve `scratchpad/metro2.log`'da tek bir `[sohbet-db]`
+  hatası yok.
 
-  **Bu yapılana kadar 072-079'un kapattığı hatalar canlıda AÇIK:** yardımcı
-  sunucuda hâlâ reddediliyor, koltuk yarışı hâlâ sessizce eziyor, çift ödül
-  hâlâ mümkün, e-posta hâlâ her super_admin'e görünüyor, oda sohbeti hâlâ
-  kalıcı değil.
+  **KALAN:** Faz 0 iki-cihaz duman testi (`YOL_HARITASI.md` Faz 0 sonu,
+  6 madde) hâlâ yapılmadı. Yardımcı yetkileri, koltuk yarışı ve çift ödül
+  korumaları canlıda AÇIK ama davranışları ekranda doğrulanmadı.
 
 - **Faz 1 (native his) — 1.1 → 1.4b ve 1.14 → 1.16 ✅** 15 commit
   (`f8d1839` → `893640c`). Doğrulama: `tsc --noEmit` temiz + android/ios/web
@@ -599,10 +599,20 @@ DM/profil hediyesi bayrakla kapatılıp Faz 4'te gerçek) o dosyanın başında.
   **Takip işleri (logların ortaya çıkardığı, dokunulmadı):**
   - `GirisEfekti` ölçüm fırtınası: `onLayout` efekt başına 30-40 kez, açılma
     animasyonu her seferinde yeniden başlıyor. Çalışıyor ama israf.
-  - **`[oda-sayi]` kanalı hasta:** 10 CHANNEL_ERROR + 12 CLOSED. Oda listesi
-    sayaç kanalı sürekli kopup kuruluyor; oda kanalının CLOSED'larını ve
-    `track timed out`ları tetikleyen bu olabilir. **Öncelikli aday.**
-  - Yasak yoklaması 5 sn'de bir dönüyor, 40+ log satırı (1.10 zaten bunu diyor).
+  - **DÜZELTME — önce "`[oda-sayi]` kanalı hasta" denmişti, yanlıştı.** Daha
+    dikkatli okuyunca: `[koltuk]`/`[katilimci]`/`[mic-sirasi]` CLOSED
+    satırlarının HEPSİ `[oda] UNMOUNT`'tan hemen önce geliyor, yani
+    uygulamanın kendi temizliği. Yalnızca WARN seviyesinde loglandıkları için
+    arıza gibi görünüyorlar. **Takip işi: kendi teardown'umuzu WARN'la
+    loglamayı bırak** — logu yanlış okutuyor.
+  - **ASIL SORUN — yasak yoklaması ağı dövüyor.** 1574 satırlık logun 562'si
+    `yasak kontrolu bitti`, 217'si `AuthGate` tekrarı, 140'ı oda listesi
+    yeniden yüklemesi. Ve **45 tane gerçek ağ hatası** var, hepsi aynı
+    çağrıda: `[hesapYasak] benim_hesap_yasagim RPC hatası: Network request
+    failed`. `[oda-sayi]` kanalının ilk CHANNEL_ERROR'ı da bir ağ hatasının
+    hemen ardında. Yani Realtime kanallarını deviren şey bu yoklama trafiği.
+    Yol haritası 1.10 buna değiniyor ama kapsamı dar — asıl mesele yoklama
+    sıklığı ve hata durumunda geri çekilme (backoff) yokluğu.
 
 - **CİHAZDA DOĞRULANACAKLAR (giriş efekti ✅ doğrulandı, kalan 14 commit bekliyor):**
   1. Basılı his: alt bar, koltuklar, sekmeler, alt gezinme (Android'de dalga).
