@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import BOS_KUTU from "@/anim/bos-kutu.json";
 import { BosDurum } from "@/components/BosDurum";
 import { DiamondBadge } from "@/components/Coins";
 import { Tabs } from "@/components/Tabs";
@@ -136,9 +137,10 @@ export default function GiftHistoryScreen() {
             <Yukleniyor yazi="Geçmiş yükleniyor" boyut={110} />
           ) : satirlar.length === 0 ? (
             <BosDurum
+              anim={BOS_KUTU}
+              animBoyut={140}
               baslik={tab === 0 ? "Henüz hediye almadın" : "Henüz hediye göndermedin"}
               alt={tab === 0 ? "Odalarda vakit geçirdikçe burası dolmaya başlar." : "Bir odada ya da profilden hediye gönderdiğinde burada görünür."}
-              ikon="gift"
             />
           ) : (
             satirlar.map((r) => {
