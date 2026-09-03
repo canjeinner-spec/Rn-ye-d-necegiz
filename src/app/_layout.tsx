@@ -16,6 +16,20 @@ import { fontMap } from "@/theme/fonts";
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 /**
+ * Üretimde teşhis logları susturulur — `console.log/debug/info` no-op olur.
+ * `console.warn` ve `console.error` BİLEREK DURUYOR: 59 uyarının hepsi
+ * `.catch` dallarında ve gerçek arıza anlatıyor; crash raporunda da işe yarar.
+ *
+ * Expo Go ve dev build'de HİÇBİR ŞEY değişmez (`__DEV__` true) — duman
+ * testlerinin kanıtı Metro logundan okunuyor, o akış korunmalı.
+ */
+if (!__DEV__) {
+  console.log = () => {};
+  console.debug = () => {};
+  console.info = () => {};
+}
+
+/**
  * Tek güvenilir auth navigasyon sürücüsü. Bir `useEffect` içinde çalışır
  * (render sonrası, navigasyon ağacı commit olduktan sonra) — böylece Google
  * OAuth dönüşünde (uygulama arka plandan resume olurken) düşmez. Eskiden
