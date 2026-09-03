@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type DimensionValue, Pressable, StyleSheet, View, type ViewStyle } from "react-native";
 import Animated, {
   Easing,
@@ -71,6 +71,24 @@ export function GirisEfekti({
   const g = useSharedValue(KAPALI_G);
   const opak = useSharedValue(0);
 
+  /**
+   * `onBitti` REF üzerinden — KUYRUĞUN HİÇ BOŞALMAMASININ SEBEBİ BUYDU.
+   *
+   * Çağıran taraf inline arrow geçiyor (`onBitti={() => setGirisKuyrugu(...)}`),
+   * yani oda ekranı her render olduğunda `onBitti` YENİ bir fonksiyon.
+   * Aşağıdaki effect'in bağımlılığında olduğu için her render'da temizlik
+   * koşuyor ve `clearTimeout(bitir)` zamanlayıcıyı SIFIRLIYORDU. Oda ekranı
+   * presence sync, mesaj ve yoklamalarla saniyede birkaç kez render olduğu
+   * için 2,4 saniyelik sayaç hiç dolmuyordu: `onBitti` hiç ateşlenmiyor,
+   * kuyruk hiç boşalmıyordu.
+   *
+   * Sonuç: kuyruğun sıfırıncı elemanı (kendi mount efektim) sonsuza kadar
+   * ekranda; karşı tarafın yayını birinci sıraya girip orada kalıyordu.
+   * "Kendi efektimi görüyorum, karşı taraf görmüyor" tam olarak buydu.
+   */
+  const onBittiRef = useRef(onBitti);
+  onBittiRef.current = onBitti;
+
   useEffect(() => {
     opak.value = withTiming(1, { duration: 200 });
   }, [opak]);
@@ -83,10 +101,15 @@ export function GirisEfekti({
       g.value = withTiming(KAPALI_G, { duration: KAPANMA_MS, easing: Easing.in(Easing.cubic) });
       opak.value = withDelay(KAPANMA_MS - 140, withTiming(0, { duration: 160 }));
     }, acikKalma);
-    const bitir = setTimeout(onBitti, acikKalma + KAPANMA_MS + 60);
+    const bitir = setTimeout(() => {
+      console.log("[giris] efekt bitti, kuyruk ilerliyor");
+      onBittiRef.current();
+    }, acikKalma + KAPANMA_MS + 60);
 
     return () => { clearTimeout(kapat); clearTimeout(bitir); };
-  }, [hedef, g, opak, onBitti, acikKalma]);
+    // onBitti BİLEREK dışarıda — yukarıdaki açıklama.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hedef, g, opak, acikKalma]);
 
   const stil = useAnimatedStyle(() => ({ width: g.value, opacity: opak.value }));
 
