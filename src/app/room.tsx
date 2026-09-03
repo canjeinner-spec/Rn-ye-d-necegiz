@@ -130,6 +130,15 @@ const DUSURME_ONAY_MS = 900;
  * atıp tam okumaya güveniyoruz.
  */
 const BIRIKINTI_MS = 1500;
+/**
+ * Koltuk isteğimin sunucuda onaylanmasını en fazla bu kadar bekleriz.
+ * Bu süre boyunca tablo beni ESKİ koltuğumda gösterse bile geri zıplatmayız —
+ * kendi isteğim, henüz ulaşmamış bir güncellemeden daha taze bilgidir.
+ * Süre dolarsa tabloya uyulur (sunucu isteği gerçekten kabul etmemiş olabilir).
+ */
+const BEKLEYEN_KOLTUK_TAVAN_MS = 8000;
+/** Onay gelmediyse tabloyu bu aralıkla yeniden okuruz. */
+const ONAY_YOKLAMA_MS = 800;
 
 /**
  * Giriş duyurusu için pencere. Kanal kopup geri gelirse duyuru yeniden
@@ -1009,6 +1018,22 @@ export default function RoomScreen() {
   const dusurmeOnayRef = useRef(0);
 
   /**
+   * Sunucudan onay bekleyen koltuk isteğim (null = yok).
+   *
+   * NEDEN ZAMAN PENCERESİ YETMEDİ: önceden "isteğim 1.2 sn'den yeniyse
+   * erteleme" deniyordu. Ama tablo o sürede güncellenmezse pencere doluyor ve
+   * kişi yine eski koltuğa fırlatılıyordu — kullanıcının tarifi bu:
+   * "2-3-4'e tek tek geçerken beni anlık orada gösterip geri 1'e fırlatıyordu,
+   * ama Android'de düzgün görünüyordu." Sunucu haklıydı; güncellenmeyen kendi
+   * istemcimin tablo görüntüsüydü.
+   *
+   * Artık NİYET takip ediliyor: onay gelene kadar (ya da tavan dolana kadar)
+   * kendi isteğim kazanıyor ve bu arada tablo yeniden okunuyor.
+   */
+  const bekleyenKoltukRef = useRef<number | null>(null);
+  const bekleyenBaslangicRef = useRef(0);
+
+  /**
    * Bu ana kadar gelen ANLIK koltuk olayları yok sayılır.
    *
    * NEDEN: uygulama arkaplandayken gelen `postgres_changes` olayları
@@ -1059,10 +1084,18 @@ export default function RoomScreen() {
        * durumlar (sıra onayı, davet, yönetici müdahalesi) `mySeat` null
        * olduğu ya da pencere dolduğu için aynen uygulanıyor.
        */
-      const gecenA = Date.now() - sonKoltukIstegiRef.current;
-      if (mySeat !== null && mySeat !== benim.koltukNo && gecenA < BEKLEME_MS) {
-        const t = setTimeout(() => setUzlasTetik((x) => x + 1), BEKLEME_MS - gecenA + 50);
-        return () => clearTimeout(t);
+      const bekleyen = bekleyenKoltukRef.current;
+      if (bekleyen != null) {
+        if (benim.koltukNo === bekleyen) {
+          bekleyenKoltukRef.current = null; // sunucu onayladı
+        } else if (Date.now() - bekleyenBaslangicRef.current < BEKLEYEN_KOLTUK_TAVAN_MS) {
+          // Tablo hâlâ eski koltuğu gösteriyor. Geri zıplatma; taze oku ve bekle.
+          koltukTazeleRef.current();
+          const t = setTimeout(() => setUzlasTetik((x) => x + 1), ONAY_YOKLAMA_MS);
+          return () => clearTimeout(t);
+        } else {
+          bekleyenKoltukRef.current = null; // tavan doldu, tabloya uy
+        }
       }
       if (mySeat !== benim.koltukNo) setMySeat(benim.koltukNo);
       if (micOn !== benim.micAcik) setMicOn(benim.micAcik);
@@ -2056,6 +2089,9 @@ export default function RoomScreen() {
     });
     const wasNull = mySeat === null;
     sonKoltukIstegiRef.current = Date.now();
+    // Onay gelene kadar bu istek tabloyu yener (bkz. bekleyenKoltukRef).
+    bekleyenKoltukRef.current = idx;
+    bekleyenBaslangicRef.current = Date.now();
     setMySeat(idx);
     setMicOn(true);
     if (dbId != null) koltukYaz(dbId, idx, true);
@@ -2063,9 +2099,15 @@ export default function RoomScreen() {
     // Gerçek kayıt sunucuda (068). Reddedilirse yerel iyimser oturuşu geri al.
     koltukIpucuYolla({ koltuk: idx, uid: myDbId ?? null, mic: true, ad: userName, foto: userPhoto, publicId: myPublicId, yetkili: privileged });
     if (dbId != null) {
-      koltugaOtur(dbId, idx).catch((e) => {
+      koltugaOtur(dbId, idx).then(() => {
+        // Kendi tablomu HEMEN tazele: canlı olay gecikse ya da hiç gelmese
+        // bile koltuğum doğru satırdan onaylansın. "Android doğru görüyor
+        // ama ben eski koltuğa dönüyorum" tam olarak bunun eksikliğiydi.
+        koltukTazeleRef.current();
+      }).catch((e) => {
         const mesaj = (e as Error)?.message || String(e);
         console.warn("[koltuk] oturulamadi:", mesaj);
+        bekleyenKoltukRef.current = null;
         setMySeat(null);
         setMicOn(false);
         toast(mesaj.includes("kilitli") ? "Bu koltuk kilitli" : mesaj.includes("dolu") ? "Koltuk dolu" : "Koltuğa oturulamadı");
@@ -2078,6 +2120,7 @@ export default function RoomScreen() {
     if (mySeat === null) return;
     setSeats((p) => p.map((t, i) => (i === mySeat ? null : t)));
     sonKoltukIstegiRef.current = Date.now();
+    bekleyenKoltukRef.current = null; // artık koltuk istemiyorum
     setMySeat(null);
     setMicOn(false);
     if (dbId != null) koltukYaz(dbId, null, false);
