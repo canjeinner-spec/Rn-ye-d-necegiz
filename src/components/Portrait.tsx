@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { Circle, Ellipse, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 
@@ -36,8 +36,24 @@ export function Portrait({
   const p = PEOPLE[name] || PEOPLE.Sen;
   const src = photo || p.photo;
   const [imgOk, setImgOk] = useState(true);
+  /**
+   * Fotoğraf YÜKLENDİ mi.
+   *
+   * Silüet SVG'si fotoğraf yüklendikten sonra da çiziliyordu — tamamen
+   * kapalı olduğu hâlde. Her Portrait bir SVG ağacı (gradyan + iki daire +
+   * dört-beş path) ve bu bileşen uygulamadaki HER avatarda kullanılıyor:
+   * sohbet satırları, koltuklar, kullanıcı listesi, kalabalık şeridi.
+   * Yükleme bitince silüet kaldırılıyor; yüklenene kadar duruyor, çünkü
+   * yerine boşluk koymak "yanıp sönen avatar" demek olurdu.
+   */
+  const [yuklendi, setYuklendi] = useState(false);
   const gid = "pg" + useId().replace(/[^a-zA-Z0-9]/g, "");
   const ringColor = ring || "rgba(255,255,255,.14)";
+  const fotoVar = !!src && imgOk;
+  // Kaynak değişince (liste satırı geri dönüştürüldü, kullanıcı fotoğrafını
+  // değiştirdi) baştan başla; yoksa yeni fotoğraf yüklenirken eskisinin
+  // "yüklendi" durumu silüeti gizli tutar.
+  useEffect(() => { setYuklendi(false); setImgOk(true); }, [src]);
 
   return (
     <View style={{ width: size, height: size }}>
@@ -67,7 +83,9 @@ export function Portrait({
         ]}
       >
         <View style={{ flex: 1, borderRadius: (size - 4) / 2, overflow: "hidden" }}>
-        {/* taban silüet */}
+        {/* Taban silüet — fotoğraf yüklenene kadar. Yüklendiyse tamamen
+            kapalı kalacağı için hiç çizilmiyor. */}
+        {!(fotoVar && yuklendi) && (
         <Svg viewBox="0 0 100 100" width="100%" height="100%" style={StyleSheet.absoluteFill}>
           <RadialGradient id={gid} cx="50%" cy="32%" r="120%">
             <Stop offset="0%" stopColor={p.bg[0]} />
@@ -90,9 +108,10 @@ export function Portrait({
           <Path d="M62 27 C67.5 33 68 48 63.5 57" stroke={p.acc} strokeWidth={1.6} fill="none" opacity={0.85} strokeLinecap="round" />
           <Path d="M70 70 C79 75 84 86 85.5 100" stroke={p.acc} strokeWidth={1.6} fill="none" opacity={0.5} strokeLinecap="round" />
         </Svg>
+        )}
 
-        {/* gerçek foto — yüklenirse silüeti kapatır */}
-        {src && imgOk && (
+        {/* gerçek foto — yüklenince silüetin yerini alır */}
+        {fotoVar && (
           <Image
             source={{ uri: src }}
             style={StyleSheet.absoluteFill}
@@ -115,6 +134,7 @@ export function Portrait({
             cachePolicy="memory-disk"
             transition={160}
             recyclingKey={src}
+            onLoad={() => setYuklendi(true)}
             onError={() => setImgOk(false)}
           />
         )}

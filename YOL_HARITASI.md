@@ -76,8 +76,38 @@ Yapılanların commit listesi ve bilinçli olarak ATLANANLARIN gerekçeleri
 2. **1.2 (C4) ✅ `25cfcc1` + `5a66edb`:** İki sıcak yol logu silindi (her presence sync'inde string kuruyorlardı); üretimde `console.log/debug/info` `__DEV__` kapısıyla no-op, `warn`/`error` bilerek duruyor. **Babel eklentisi ERTELENDİ:** projede `babel.config.js` yok, sıfırdan yazmak reanimated/worklets yolunu riske atar; dev build turunda (Faz 4) eklenecek.
 3. **1.3 (C2a) ✅ `dcc3a2a` + `eeba834`:** Mesaj tavanı `.slice(-200)` (room.tsx 5 + dm-chat 5 ekleme noktası); `liveMembers.find` → `uyeHaritasi` (`Map<uid, LiveMember>`, 7 arama).
 4. **1.4 (C1) — (a) ✅ `8eb09cd`, (b) ✅ `a4f1271`, (c) SIRADA:** `src/components/Touch.tsx` Pressable sarmalayıcı (`pressed && {opacity:.6, scale:.97}` + android_ripple; `kucul={false}` ile küçülme kapatılabilir). (a) oda alt barı 10 + koltuk 2 + aksiyon satırı 1, (b) `Tabs.tsx` + `BottomNav.tsx` (ikisi de `kucul={false}`), **(c) kalan ~810 yer — toplu regex YAPILMAZ, dalga dalga.**
-5. **1.5 (C2b):** FlatList geçişleri — ekran başına commit+test: önce oda sohbeti (inverted; iki-cihaz testi ŞART), sonra index, dm, notifications, rank, oda kullanıcı listesi; feed yalnız dış liste.
-6. **1.6 (C3) — ÖNCE YENİDEN YAPILANDIRMA GEREKİYOR:** `React.memo` şu hâliyle İŞE YARAMAZ — `ChatRow`'a geçilen `onSelfPress`/`onTapUser` düz arrow const (room.tsx:2065, :2100), her render'da yeni kimlik alıyorlar. `useCallback` ile sarmak `openChatUserCard`'ın geniş kapanışı (`occupants`, `MY_ROLE`, `isDbRoom`, `dbId`, `davetBaslat`, `uyeHaritasi`, `seatActions`) yüzünden bayat kapanış riski; ayrıca `uyeHaritasi` her presence sync'inde değişip memo'yu tam gerektiği anda geçersiz kılıyor. **Doğru çözüm:** `ChatRow`'a `uid` geçip aramayı sabit bir işleyicinin içine almak. (AYNI dosyada — **room.tsx bölme bu fazda YAPILMAZ**.) Ayrıca `Portrait.tsx` SVG yalnız `!photo` iken.
+5. **1.5 (C2b) — ERTELENDİ (kullanıcı kararı, 4 Eylül):** "bunun acelesi
+   yok, çok sonraya sakla."
+   Gerekçe doğru: kaydırmada hissedilen bir takılma bildirilmedi ve listelerin
+   çoğu kısa (FlatList'in kazancı ancak uzun listede çıkar). Buna karşılık üç
+   somut risk var: (1) oda sohbetinin otomatik en alta kayması
+   `onContentSizeChange` ile çalışıyor, FlatList'te bu farklı kurulur ve
+   yanlış kurulursa yeni mesajda sohbet alta inmez — ciddi regresyon;
+   (2) hızlı kaydırmada boş kare; (3) az satırda kazanç yok, yalnız karmaşa.
+   **Önce 1.6 yapılmalı:** asıl darboğaz muhtemelen orada — sohbet satırları
+   memo'suz olduğu için her presence güncellemesinde 200 satır birden
+   yeniden çiziliyor. Bu, listeyi değiştirmeden çözülebiliyor.
+6. **1.6 (C3) ✅ — `ChatRow` memo'landı + `Portrait` silüeti koşullu:**
+   Planın teşhisi doğruydu: `React.memo` olduğu gibi İŞE YARAMAZDI, çünkü
+   `onSelfPress`/`onTapUser` düz arrow const'tu ve her render'da yeni kimlik
+   alıyordu. `useCallback` ile sarmak da yetmezdi — kapanışları geniş
+   (`occupants`, `MY_ROLE`, `isDbRoom`, `dbId`, `davetBaslat`,
+   `uyeHaritasi`, `seatActions`) ve bayat kapanış riski taşıyordu.
+   **Çözüm ref oldu:** kimlik sabit (`useCallback([])`), davranış ref
+   üzerinden güncel. `room.tsx` BÖLÜNMEDİ.
+   • Memo'nun tutması için üç şart vardı, üçü de sağlandı: `m` kimliğini
+     koruyor (mesajlar diziye eklenirken var olanlar yeniden kurulmuyor);
+     `balonTema`/`cerceve`/`rol` haritalardan DEĞER olarak geçiyor, yani
+     harita kimliği presence senkronunda değişse de memo tutuyor;
+     işleyiciler kararlı.
+   • **Kazanç:** sohbet 200 mesaj tutuyor ve presence sık senkronlanıyor
+     (biri girdi, biri mikrofona çıktı, biri emoji gönderdi). Önce her
+     senkronda 200 satırın hepsi yeniden çiziliyordu.
+   • **`Portrait` silüeti** fotoğraf yüklendikten sonra da çiziliyordu,
+     tamamen kapalı olduğu hâlde. Her Portrait bir SVG ağacı ve bu bileşen
+     HER avatarda kullanılıyor. Artık yükleme bitince kaldırılıyor; yüklenene
+     kadar duruyor (yerine boşluk koymak "yanıp sönen avatar" olurdu).
+
 7. **1.7 (C5) — sürükle-kapat ✅, `freezeOnBlur` SIRADA:** Plan
    "`Sheet.tsx` → `BottomSheetModal`, 26 modal" diyordu; İKİSİ DE DÜZELTİLDİ.
    • **Sayı yanlıştı:** `<Sheet>` 26 değil, 6 dosyada 11 yerde kullanılıyor

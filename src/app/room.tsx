@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AppState,
   Dimensions,
@@ -457,7 +457,28 @@ type LiveMember = {
   yetki?: boolean;
 };
 
-function ChatRow({
+/**
+ * Sohbet satırı — MEMO'LU.
+ *
+ * NEDEN: sohbet 200 mesaj tutuyor ve bu satır memo'suzdu. Presence her
+ * senkronda değişiyor (odaya biri girdi, biri mikrofona çıktı, biri emoji
+ * gönderdi) ve her seferinde 200 satırın HEPSİ yeniden çiziliyordu — her
+ * satırda avatar, çerçeve SVG'si, rozet, baloncuk var.
+ *
+ * MEMO'NUN TUTMASI İÇİN ÜÇ ŞART VARDI, üçü de sağlandı:
+ *   1. `m` kimliğini koruyor — mesajlar diziye eklenirken var olanlar
+ *      yeniden oluşturulmuyor (`[...m, yeni]`).
+ *   2. `balonTema` / `cerceve` / `rol` haritalardan geliyor ama DEĞER
+ *      olarak geçiyorlar (string veya null). Harita kimliği her presence
+ *      senkronunda değişse de değer aynı kaldığı sürece memo tutuyor.
+ *   3. İşleyiciler artık KARARLI. `openMyCard` ve `openChatUserCard` düz
+ *      arrow const'tu, her render'da yeni kimlik alıyorlardı ve memo'yu tek
+ *      başlarına geçersiz kılıyorlardı. `useCallback` ile sarmak yetmezdi:
+ *      kapanışları geniş (`occupants`, `MY_ROLE`, `isDbRoom`, `dbId`,
+ *      `davetBaslat`, `uyeHaritasi`, `seatActions`) ve bayat kapanış riski
+ *      var. Ref üzerinden çağrılıyorlar: kimlik sabit, davranış güncel.
+ */
+const ChatRow = memo(function ChatRow({
   m,
   userName,
   userPhoto,
@@ -590,7 +611,7 @@ function ChatRow({
       </View>
     </View>
   );
-}
+});
 
 /** Yönetici sistem mesajı / uyarısı — canlı sohbet baloncuğu (mesaj: altın, uyarı: kırmızı). */
 function SystemNotice({ m }: { m: ChatMsg }) {
@@ -2757,6 +2778,18 @@ export default function RoomScreen() {
     openChatUserCard({ name: k.name, uid: k.uid, photo: k.photo, publicId: k.publicId, text: "", time: "" });
   };
 
+  /**
+   * KARARLI İŞLEYİCİLER — `ChatRow` memo'sunun tek engeli bunlardı.
+   * Kimlik sabit (`useCallback([])`), davranış ref üzerinden güncel.
+   */
+  const openMyCardRef = useRef(openMyCard);
+  openMyCardRef.current = openMyCard;
+  const kartKendim = useCallback(() => openMyCardRef.current(), []);
+
+  const openChatUserCardRef = useRef(openChatUserCard);
+  openChatUserCardRef.current = openChatUserCard;
+  const kartYazan = useCallback((mesaj: ChatMsg) => openChatUserCardRef.current(mesaj), []);
+
   const openByName = (name: string) => {
     if (name === "Sen") { openMyCard(); return; }
     const s = occupants.find((o) => o.name === name);
@@ -2950,8 +2983,8 @@ export default function RoomScreen() {
                     balonTema={m.myOwn ? kusanili.balon : uyeler?.balon}
                     cerceve={m.myOwn ? kusanili.cerceve : uyeler?.cerceve}
                     rol={m.uid != null ? roomRoles.get(m.uid) ?? null : null}
-                    onSelfPress={openMyCard}
-                    onTapUser={openChatUserCard}
+                    onSelfPress={kartKendim}
+                    onTapUser={kartYazan}
                     onTapHediye={hediyeyeDokunuldu}
                   />
                 );
