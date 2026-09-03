@@ -14,14 +14,18 @@
  *                                  hediye_gonder tetikleyicisi; komisyon %30
  *     dmGift / profileGift       → hediyeRepo (3 Eylül): profil ve DM'den
  *                                  gönderim gerçekten bakiyeden düşüyor
- *     agency-panel (yayıncı)     → hediye_gecmisi'nden saatlik/günlük kazanç
+ *     agency-panel (yayıncı)     → KAZANÇ kısmı gerçek (hediye_gecmisi'nden
+ *                                  saatlik/günlük). ÜYE LİSTESİ hâlâ sabit
+ *                                  (data/agency.ts) — ekranın tamamı gerçek DEĞİL
+ *     gift-history               → 088'den gerçek (alınan + gönderilen + toplam)
  *     rank sekmesi               → siralamaRepo (060): zenginlik/cazibe/odalar
  *     görevler + günlük giriş    → gorevRepo (061): ilerleme sunucuda türetilir
  *     visitors, notifications, odam sekmeleri, oda listesi
  *
  *   HÂLÂ SAHTE / BAĞLANMAMIŞ
- *     vip                        → sabit paket listesi
- *     gift-history               → sabit geçmiş
+ *     vip                        → sabit paket listesi; abone düğmesi
+ *                                  HİÇBİR ŞEY YAPMIYORDU (yalnız titriyordu).
+ *                                  4 Eylül: sönükleştirildi + açık uyarı
  *     friends / events           → data/friends.ts, data/events.ts (sabit)
  *     giftCoupon                 → kupon doğrulaması yok
  *     withdraw                   → akış ve tasarım duruyor, GERÇEK DEĞİL:

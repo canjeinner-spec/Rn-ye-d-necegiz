@@ -310,6 +310,60 @@ export async function kazancGunluk(gun = 7): Promise<GunDilimi[]> {
   }));
 }
 
+/** Gönderdiğim hediye (088). */
+export type GidenHediye = {
+  id: number;
+  alici: string;
+  aliciPid: string | null;
+  kod: string | null;
+  ad: string;
+  emoji: string;
+  adet: number;
+  tutar: number;
+  tarih: number;
+};
+
+/**
+ * Gönderdiklerim (088).
+ *
+ * `sonHediyelerim` yalnız ALINANI veriyordu; "Hediye Geçmişi" ekranındaki
+ * "Gönderilen" sekmesi bu yüzden sabit uydurma veriyle doluydu.
+ */
+export async function gonderdiklerim(kullaniciId: number, limit = 30): Promise<GidenHediye[]> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("hediye_gonderdiklerim", { p_kullanici: kullaniciId, p_limit: limit });
+  if (error) {
+    if (yokSay(error)) return [];
+    throw error;
+  }
+  return ((data as Record<string, unknown>[]) ?? []).map((r) => ({
+    id: Number(r.id),
+    alici: String(r.alici ?? "Kullanıcı"),
+    aliciPid: (r.alici_pid as string) ?? null,
+    kod: (r.kod as string) ?? null,
+    ad: String(r.ad ?? "Hediye"),
+    emoji: String(r.emoji ?? "🎁"),
+    adet: Number(r.adet ?? 1),
+    tutar: Number(r.tutar ?? 0),
+    tarih: Date.parse(String(r.tarih)) || 0,
+  }));
+}
+
+/**
+ * Özet toplamlar (088) — LİSTEDEN değil tablonun tamamından.
+ * Listede son 30 satır var; toplamı oradan hesaplamak "toplam" olmaz.
+ */
+export async function hediyeOzetim(kullaniciId: number): Promise<{ alinan: number; gonderilen: number }> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("hediye_ozetim", { p_kullanici: kullaniciId });
+  if (error) {
+    if (yokSay(error)) return { alinan: 0, gonderilen: 0 };
+    throw error;
+  }
+  const r = (data as Record<string, unknown>[])?.[0];
+  return { alinan: Number(r?.alinan ?? 0), gonderilen: Number(r?.gonderilen ?? 0) };
+}
+
 export async function sonHediyelerim(limit = 20): Promise<GelenHediye[]> {
   const sb = requireSupabase();
   const { data, error } = await sb.rpc("son_hediyelerim_v2", { p_limit: limit });

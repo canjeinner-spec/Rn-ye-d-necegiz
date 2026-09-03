@@ -1,28 +1,99 @@
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { BosDurum } from "@/components/BosDurum";
 import { DiamondBadge } from "@/components/Coins";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
-import { GIFT_BY_ID, GIFT_LOG } from "@/data/giftHistory";
+import { Yukleniyor } from "@/components/Yukleniyor";
+import {
+  gonderdiklerim,
+  hediyeOzetim,
+  sonHediyelerim,
+  type GelenHediye,
+  type GidenHediye,
+} from "@/data/remote/hediyeRepo";
+import { giftPng } from "@/gifts/giftPng";
 import { Icon } from "@/icons/Icon";
-import { haptic } from "@/lib/haptics";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
-import { Gradient } from "@/theme/Gradient";
 import { Zemin } from "@/theme/Zemin";
 
+/**
+ * Hediye Geçmişi.
+ *
+ * ÖNCEDEN TAMAMEN UYDURMAYDI. `src/data/giftHistory.ts` içindeki sabit dizi
+ * gösteriliyordu — "Mervee'den taht", "Zeno Sv.'den 99 gül", "Dün 22:05".
+ * Her kullanıcı aynı sahte geçmişi görüyordu ve kendi gönderdiği hediye hiç
+ * görünmüyordu.
+ *
+ * ALINAN tarafın gerçek kaynağı (`son_hediyelerim_v2`) zaten vardı ve bu
+ * ekran onu kullanmıyordu. GÖNDERİLEN taraf için hiçbir yol yoktu; 088 ile
+ * `hediye_gonderdiklerim` eklendi. Özet kartları da 088'deki
+ * `hediye_ozetim`den geliyor — LİSTEDEN toplamak yanlış olurdu, listede
+ * yalnız son 30 satır var.
+ */
+
 const fmt = (n: number) => (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "K" : String(n));
-const valueOf = (rows: { gid: string; qty: number }[]) =>
-  rows.reduce((s, r) => s + (GIFT_BY_ID[r.gid]?.price ?? 0) * r.qty, 0);
+
+/** Bugün "14:32", dün "Dün 22:05", öncesi "3 gün önce". */
+function zamanYaz(epoch: number): string {
+  if (!epoch) return "";
+  const d = new Date(epoch);
+  const bugun = new Date();
+  const gun = (a: Date) => new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
+  const fark = Math.round((gun(bugun) - gun(d)) / 86400000);
+  const saat = d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  if (fark <= 0) return saat;
+  if (fark === 1) return `Dün ${saat}`;
+  return `${fark} gün önce`;
+}
+
+/** İki sekmenin ortak satır biçimi. */
+type Satir = {
+  key: string;
+  ad: string;
+  emoji: string;
+  kod: string | null;
+  adet: number;
+  kisi: string;
+  tutar: number;
+  tarih: number;
+};
 
 export default function GiftHistoryScreen() {
   const router = useRouter();
+  const dbId = useApp((s) => s.dbId);
   const [tab, setTab] = useState(0);
-  const rows = tab === 0 ? GIFT_LOG.received : GIFT_LOG.sent;
-  const totalIn = valueOf(GIFT_LOG.received);
-  const totalOut = valueOf(GIFT_LOG.sent);
+
+  const [alinan, setAlinan] = useState<GelenHediye[] | null>(null);
+  const [giden, setGiden] = useState<GidenHediye[] | null>(null);
+  const [ozet, setOzet] = useState<{ alinan: number; gonderilen: number } | null>(null);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || dbId == null) { setAlinan([]); setGiden([]); setOzet({ alinan: 0, gonderilen: 0 }); return; }
+    let acik = true;
+    sonHediyelerim(30).then((r) => { if (acik) setAlinan(r); }).catch(() => { if (acik) setAlinan([]); });
+    gonderdiklerim(dbId, 30).then((r) => { if (acik) setGiden(r); }).catch(() => { if (acik) setGiden([]); });
+    hediyeOzetim(dbId).then((r) => { if (acik) setOzet(r); }).catch(() => { if (acik) setOzet({ alinan: 0, gonderilen: 0 }); });
+    return () => { acik = false; };
+  }, [dbId]);
+
+  const yukleniyor = tab === 0 ? alinan === null : giden === null;
+  const satirlar: Satir[] =
+    tab === 0
+      ? (alinan ?? []).map((r) => ({
+          key: "a" + r.id, ad: r.hediyeAd, emoji: r.emoji, kod: null,
+          adet: r.adet, kisi: r.gonderen, tutar: r.kazanc, tarih: r.tarih,
+        }))
+      : (giden ?? []).map((r) => ({
+          key: "g" + r.id, ad: r.ad, emoji: r.emoji, kod: r.kod,
+          adet: r.adet, kisi: r.alici, tutar: r.tutar, tarih: r.tarih,
+        }));
 
   return (
     <View style={styles.root}>
@@ -43,14 +114,14 @@ export default function GiftHistoryScreen() {
             <Txt weight="bold" size={10.5} color="#6EE7B7">Toplam Alınan</Txt>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
               <DiamondBadge size={16} />
-              <Txt weight="displayBold" size={21} color="#fff">{fmt(totalIn)}</Txt>
+              <Txt weight="displayBold" size={21} color="#fff">{ozet ? fmt(ozet.alinan) : "—"}</Txt>
             </View>
           </View>
           <View style={[styles.sumCard, { borderColor: C.gold + "3D" }]}>
             <Txt weight="bold" size={10.5} color={C.gold2}>Toplam Gönderilen</Txt>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
               <DiamondBadge size={16} />
-              <Txt weight="displayBold" size={21} color="#fff">{fmt(totalOut)}</Txt>
+              <Txt weight="displayBold" size={21} color="#fff">{ozet ? fmt(ozet.gonderilen) : "—"}</Txt>
             </View>
           </View>
         </View>
@@ -58,38 +129,51 @@ export default function GiftHistoryScreen() {
         <Tabs items={["Alınan", "Gönderilen"]} active={tab} set={setTab} fill pad={16} />
 
         <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-          {rows.map((r, i) => {
-            const g = GIFT_BY_ID[r.gid] ?? { emoji: "🎁", name: "Hediye", price: 0, c1: "#FDE68A", c2: "#B45309" };
-            const peer = tab === 0 ? r.from : r.to;
-            const value = g.price * r.qty;
-            return (
-              <View key={i} style={styles.row}>
-                <View style={[styles.giftIcon, { borderColor: `${g.c1}40` }]}>
-                  <Gradient colors={[`${g.c1}33`, `${g.c2}22`]} deg={150} style={StyleSheet.absoluteFill} />
-                  <Txt size={24}>{g.emoji}</Txt>
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <Txt weight="extrabold" size={13.5} color={C.text}>{g.name}</Txt>
-                    <Txt weight="bold" size={11.5} color={C.gold2}>×{r.qty}</Txt>
+          {yukleniyor ? (
+            <Yukleniyor yazi="Geçmiş yükleniyor" boyut={110} />
+          ) : satirlar.length === 0 ? (
+            <BosDurum
+              baslik={tab === 0 ? "Henüz hediye almadın" : "Henüz hediye göndermedin"}
+              alt={tab === 0 ? "Odalarda vakit geçirdikçe burası dolmaya başlar." : "Bir odada ya da profilden hediye gönderdiğinde burada görünür."}
+              ikon="gift"
+            />
+          ) : (
+            satirlar.map((r) => {
+              const png = giftPng(r.kod);
+              return (
+                <View key={r.key} style={styles.row}>
+                  <View style={styles.giftIcon}>
+                    {png ? (
+                      <Image source={png} style={{ width: 38, height: 38 }} contentFit="contain" transition={0} />
+                    ) : (
+                      <Txt size={24}>{r.emoji}</Txt>
+                    )}
                   </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
-                    <Txt weight="bold" size={11} color={tab === 0 ? "#6EE7B7" : C.gold2}>{tab === 0 ? "Gönderen:" : "Alıcı:"}</Txt>
-                    <Txt size={11} color={C.dim}>{peer}</Txt>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Txt weight="extrabold" size={13.5} color={C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{r.ad}</Txt>
+                      <Txt weight="bold" size={11.5} color={C.gold2}>×{r.adet}</Txt>
+                    </View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
+                      <Txt weight="bold" size={11} color={tab === 0 ? "#6EE7B7" : C.gold2}>{tab === 0 ? "Gönderen:" : "Alıcı:"}</Txt>
+                      <Txt size={11} color={C.dim} numberOfLines={1} style={{ flexShrink: 1 }}>{r.kisi}</Txt>
+                    </View>
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Txt weight="extrabold" size={13} color={tab === 0 ? "#34D399" : C.gold2}>{tab === 0 ? "+" : "−"}</Txt>
+                      <DiamondBadge size={13} />
+                      <Txt weight="extrabold" size={13} color={tab === 0 ? "#34D399" : C.gold2}>{fmt(r.tutar)}</Txt>
+                    </View>
+                    <Txt weight="semibold" size={10} color={C.dim2} style={{ marginTop: 3 }}>{zamanYaz(r.tarih)}</Txt>
                   </View>
                 </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                    <Txt weight="extrabold" size={13} color={tab === 0 ? "#34D399" : "#F472B6"}>{tab === 0 ? "+" : "−"}</Txt>
-                    <DiamondBadge size={13} />
-                    <Txt weight="extrabold" size={13} color={tab === 0 ? "#34D399" : "#F472B6"}>{fmt(value)}</Txt>
-                  </View>
-                  <Txt weight="semibold" size={10} color={C.dim2} style={{ marginTop: 3 }}>{r.when}</Txt>
-                </View>
-              </View>
-            );
-          })}
-          <Txt size={10.5} color={C.dim2} align="center" style={{ marginTop: 16 }}>Son 30 günün hediye geçmişi gösteriliyor</Txt>
+              );
+            })
+          )}
+          {!yukleniyor && satirlar.length > 0 && (
+            <Txt size={10.5} color={C.dim2} align="center" style={{ marginTop: 16 }}>Son 30 kayıt gösteriliyor</Txt>
+          )}
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -103,5 +187,5 @@ const styles = StyleSheet.create({
   summary: { flexDirection: "row", gap: 10, marginHorizontal: 16, marginTop: 8 },
   sumCard: { flex: 1, borderRadius: 16, padding: 14, borderWidth: 1, backgroundColor: "rgba(255,255,255,.045)" },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.05)" },
-  giftIcon: { width: 46, height: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", borderWidth: 1, overflow: "hidden" },
+  giftIcon: { width: 46, height: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.10)", backgroundColor: "rgba(255,255,255,.04)", overflow: "hidden" },
 });

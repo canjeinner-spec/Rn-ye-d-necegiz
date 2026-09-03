@@ -6,6 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { DiamondBadge } from "@/components/Coins";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
+import { YakindaNotu } from "@/components/YakindaNotu";
 import { VipEmblem } from "@/components/VipEmblem";
 import { VIP_PERKS, VIP_TIERS, type VipTierKey } from "@/data/vip";
 import { Icon } from "@/icons/Icon";
@@ -126,7 +127,16 @@ export default function VipScreen() {
 
         {/* ---- Abonelik ---- */}
         <View style={[styles.altBar, { paddingBottom: 10 + insets.bottom }]}>
-          <Pressable onPress={() => haptic.medium()} style={[styles.subBtn, { shadowColor: t.color }]}>
+          {/* DÜĞME HİÇBİR ŞEY YAPMIYORDU — `onPress` yalnız titretiyordu.
+              Sahte başarı kadar bariz değil ama aynı türden: kullanıcı abone
+              olduğunu sanabilir ya da uygulamanın bozuk olduğunu düşünür.
+              VIP satın alma gerçek ödemeye bağlı (Faz 4.12); o gelene kadar
+              düğme sönük ve durum açıkça yazıyor. */}
+          <YakindaNotu metin="VIP abonelik henüz açık değil. Paketler ve ayrıcalıklar önizleme amaçlı; ödeme alınmıyor." />
+          <Pressable
+            onPress={() => haptic.warning()}
+            style={[styles.subBtn, { shadowColor: t.color, opacity: 0.55, marginTop: 12 }]}
+          >
             <Gradient colors={t.grad} deg={100} style={styles.subInner}>
               <Icon name="crown" size={17} sw={2} color="#241A05" />
               <Txt weight="extrabold" size={14} color="#241A05">{t.name} ol · {t.price}/ay</Txt>
