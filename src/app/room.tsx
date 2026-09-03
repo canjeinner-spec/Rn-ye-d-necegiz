@@ -31,8 +31,8 @@ import { Sheet } from "@/components/Sheet";
 import { Touch } from "@/components/Touch";
 import { Txt } from "@/components/Txt";
 import { ContributionView } from "@/sheets/ContributionView";
-import { Anim } from "@/components/Anim";
-import { kucukKaynak, sceneFor } from "@/gifts/bigGifts";
+import { sceneFor } from "@/gifts/bigGifts";
+import { giftPng } from "@/gifts/giftPng";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { ProfileCard, type ProfileCardUser } from "@/sheets/ProfileCard";
 import { MicQueueSheet } from "@/sheets/MicQueueSheet";
@@ -274,7 +274,6 @@ function ChatRow({
   userPhoto,
   privileged,
   balonTema,
-  hediyeCanli,
   onSelfPress,
   onTapUser,
 }: {
@@ -284,15 +283,6 @@ function ChatRow({
   privileged: boolean;
   /** Gönderenin kuşandığı sohbet balonu teması (056) */
   balonTema?: string | null;
-  /**
-   * Hediye animasyonu bu satırda OYNASIN mı.
-   *
-   * Yalnız EN SON hediye mesajı için true. Sohbet bir ScrollView ve tavan
-   * 200 mesaj; her hediye satırına çalışan bir Lottie koymak 200 native
-   * görünüm ve 200 çizim döngüsü demek olurdu. Eski hediyeler emojiyle
-   * kalıyor — kaydırıp yukarı çıkınca zaten geçmişe bakıyorsun.
-   */
-  hediyeCanli?: boolean;
   onSelfPress: () => void;
   onTapUser?: (m: ChatMsg) => void;
 }) {
@@ -310,8 +300,9 @@ function ChatRow({
   const balonT = balonTema ? BALON_TEMALARI[balonTema] : null;
   // Değişkene alınıyor: `sceneFor(...).anim` iki ayrı çağrıda TS tarafından
   // daraltılamıyor (koşulda kontrol edilse bile prop'ta `undefined` kalıyor).
-  // Sohbet satırı 30px — en küçük yer. Ağır hediye burada emojiye düşer.
-  const hediyeAnim = m.hediye?.kod ? kucukKaynak(m.hediye.kod) : undefined;
+  // Sohbet satırı 30px. Lottie DEĞİL, statik PNG: burası bir liste satırı
+  // ve tavan 200 mesaj — her birine Lottie koymak 200 native görünüm olurdu.
+  const hediyePng = giftPng(m.hediye?.kod);
   return (
     <View style={{ flexDirection: "row", gap: 9, alignItems: "flex-start" }}>
       {/* Sohbette çerçeve YOK: 30px avatarda halka okunmuyor, satırı
@@ -337,14 +328,8 @@ function ChatRow({
           <View style={[styles.hediyeSatiri, { borderColor: m.hediye.renk + "59" }]}>
             <Gradient colors={[m.hediye.renk + "24", "rgba(255,255,255,.03)"]} deg={110} style={StyleSheet.absoluteFill} />
             <View style={[styles.hediyeIkon, { borderColor: m.hediye.renk + "4D", backgroundColor: m.hediye.renk + "1A" }]}>
-              {hediyeAnim ? (
-                <Anim
-                  kaynak={hediyeAnim}
-                  boyut={30}
-                  dongu={false}
-                  // Son hediye oynar, eskiler tek kare. Bkz. `hediyeCanli`.
-                  ilerleme={hediyeCanli ? undefined : 0.5}
-                />
+              {hediyePng ? (
+                <Image source={hediyePng} style={{ width: 30, height: 30 }} contentFit="contain" transition={0} />
               ) : (
                 <Txt size={17}>{m.hediye.emoji}</Txt>
               )}
@@ -1068,19 +1053,6 @@ export default function RoomScreen() {
     for (const m of liveMembers) h.set(m.uid, m);
     return h;
   }, [liveMembers]);
-
-  /**
-   * EN SON hediye mesajının sırası — yalnız o satırda animasyon oynar.
-   *
-   * Sohbet bir ScrollView ve tavan 200 mesaj. Her hediye satırına çalışan
-   * bir Lottie koymak 200 native görünüm ve 200 çizim döngüsü demek olurdu
-   * (Anim.tsx'in başındaki kural: liste satırına Lottie konmaz). Yeni gelen
-   * hediye canlı oynuyor, yukarıda kalanlar tek kare olarak duruyor.
-   */
-  const sonHediyeIx = useMemo(() => {
-    for (let i = msgs.length - 1; i >= 0; i--) if (msgs[i].hediye) return i;
-    return -1;
-  }, [msgs]);
 
   /**
    * Gerçek odada koltuklar presence'tan türetilir — herkes aynı tabloyu görür.
@@ -2444,7 +2416,6 @@ export default function RoomScreen() {
                     userPhoto={userPhoto}
                     privileged={privileged}
                     balonTema={m.myOwn ? kusanili.balon : uyeler?.balon}
-                    hediyeCanli={i === sonHediyeIx}
                     onSelfPress={openMyCard}
                     onTapUser={openChatUserCard}
                   />

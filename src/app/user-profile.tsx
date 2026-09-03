@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
@@ -29,7 +30,8 @@ import { hediyeDmMetni, hediyeGonder, hediyeVitrini, type VitrinSatiri } from "@
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { Anim } from "@/components/Anim";
-import { kucukKaynak, sceneFor } from "@/gifts/bigGifts";
+import { sceneFor } from "@/gifts/bigGifts";
+import { giftPng } from "@/gifts/giftPng";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
@@ -308,16 +310,17 @@ export default function UserProfileScreen() {
                   ) : (
                     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
                       {vitrin.map((v) => {
-                        // Vitrin karosu 74px: ağır hediye emojiyle görünür.
-                        const anim = v.kod ? kucukKaynak(v.kod) : undefined;
+                        // Vitrin karosu 74px: statik PNG. Lottie yalnız
+                        // aşağıdaki büyük önizlemede kuruluyor.
+                        const png = giftPng(v.kod);
                         return (
                           <Pressable
                             key={v.hediyeId}
                             onPress={() => { haptic.light(); setOnizleme(v); }}
                             style={styles.vitrinKutu}
                           >
-                            {anim ? (
-                              <Anim kaynak={anim} boyut={74} ilerleme={0.5} />
+                            {png ? (
+                              <Image source={png} style={{ width: 74, height: 74 }} contentFit="contain" transition={0} />
                             ) : (
                               <View style={{ height: 74, justifyContent: "center" }}>
                                 <Txt size={42}>{v.emoji}</Txt>

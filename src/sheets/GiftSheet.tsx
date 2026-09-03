@@ -188,7 +188,7 @@ export function GiftSheet({
                       // Seçim tek işaretle anlatılıyor — yumuşak zemin.
                       style={[styles.hucre, on && styles.hucreSecili]}
                     >
-                      <GiftIcon gift={g} size={58} oynat={on} />
+                      <GiftIcon gift={g} size={58} />
                       <Txt weight="bold" size={9.5} color={on ? "#fff" : C.text} numberOfLines={1} align="center" style={{ marginTop: 5, maxWidth: 72 }}>
                         {k.ad}
                       </Txt>
