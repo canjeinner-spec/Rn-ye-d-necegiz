@@ -77,12 +77,17 @@ export function GlobalBroadcast({ data, onGo, top = 52 }: { data: BroadcastData;
               </Txt>
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-              <View style={[styles.hediyeIkon, { borderColor: ring + "4D", backgroundColor: ring + "1A" }]}>
-                {/* Gercek gorsel — emoji yalniz PNG'si olmayan hediyede. */}
+              {/* KAPSÜL YOK. Yuvarlak bir çerçeve içinde 15 piksellik görsel
+                  vardı ve hediye görselleri şeffaf payı kırpıldığı için artık
+                  farklı oranlarda (gül 0.48 dar-uzun, kedi 1.73 basık-geniş):
+                  dairede biri ince bir dilim, öbürü ezik duruyordu. Hediye
+                  kutusunda ve sohbette kapsül zaten kaldırılmıştı, burası
+                  unutulmuş. Görsel çıplak ve daha büyük. */}
+              <View style={styles.seritIkon}>
                 {seritGorsel ? (
-                  <Image source={seritGorsel} style={{ width: 15, height: 15 }} contentFit="contain" transition={0} />
+                  <Image source={seritGorsel} style={{ width: 24, height: 24 }} contentFit="contain" transition={0} />
                 ) : (
-                  <Txt size={11}>{data.gift.emoji}</Txt>
+                  <Txt size={16}>{data.gift.emoji}</Txt>
                 )}
               </View>
               <Txt weight="bold" size={10.5} color="rgba(255,255,255,.82)" numberOfLines={1} style={{ flexShrink: 1 }}>
@@ -122,7 +127,7 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 12,
   },
-  hediyeIkon: { width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  seritIkon: { width: 24, height: 24, alignItems: "center", justifyContent: "center" },
   adet: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 7, borderWidth: 1 },
   git: { flexDirection: "row", alignItems: "center", gap: 2, paddingVertical: 7, paddingHorizontal: 11, borderRadius: 999, backgroundColor: C.gold2 },
 });
