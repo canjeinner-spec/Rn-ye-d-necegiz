@@ -103,6 +103,13 @@ const ARKAPLAN_MS = 20000;
 const BEKLEME_MS = 1200;
 
 /**
+ * Giriş duyurusu için pencere. Kanal kopup geri gelirse duyuru yeniden
+ * deneniyor, ama bu süre geçtiyse vazgeçiliyor — geç gelen "odaya girdi"
+ * efekti karşı tarafta yanlış bilgi olur.
+ */
+const GIRIS_DUYURU_PENCERESI_MS = 30000;
+
+/**
  * Sohbet dizisi tavanı. Sohbet bir ScrollView ve `msgs.map` HER mesajı
  * çiziyor — dizi sınırsız büyürse uzun oturumda her yeni mesaj tüm geçmişi
  * yeniden çizdiriyor. Geçmişin tamamı zaten `oda_mesajlari` tablosunda (078);
@@ -1237,7 +1244,13 @@ export default function RoomScreen() {
     // benzersiz olunca geç gelen "ayrıldım" yalnızca kendi eski kaydını
     // siliyor. Kısa bir an iki kayıt görünse bile üye listesi uid'e göre
     // tekilleştiriyor.
-    const ch = sb.channel(topic, { config: { presence: { key: `${myDbId}-${CIHAZ}-${katildiRef.current}` }, broadcast: { self: true } } });
+    // `ack: true` — BUNSUZ send() her zaman ANINDA "ok" donuyordu, yani
+    // hem sohbetin hem girisin "gonderildi mi?" kontrolu ÖLÜ KODDU.
+    // Metro logunda 0 tane "[giris] yayinlanamadi" gorunmesinin sebebi
+    // basarili olmasi degil, basarisizligin hic olculmemesiydi.
+    // Ack ile send() sunucu onayini bekler; sohbetteki uc denemeli yeniden
+    // gonderim de ilk kez gercekten calisir.
+    const ch = sb.channel(topic, { config: { presence: { key: `${myDbId}-${CIHAZ}-${katildiRef.current}` }, broadcast: { self: true, ack: true } } });
     chanRef.current = ch;
 
     ch.on("presence", { event: "sync" }, () => {
@@ -1465,12 +1478,27 @@ export default function RoomScreen() {
       koltukTazeleRef.current();
       siraTazeleRef.current();
       katilimciTazeleRef.current();
-      // Girişimi bir kez duyur. Yeniden bağlanmada bu geri çağrı tekrar
-      // tetikleniyor, o yüzden mount başına tek sefer bayrağı var.
+      /**
+       * GİRİŞ DUYURUSU — ölçü "denedim" değil "ULAŞTI".
+       *
+       * ESKİ HATA (karşı taraf giriş efektini hiç görmüyordu):
+       * bayrak `send`den ÖNCE true yapılıyordu. Kanal kapanıp yeniden
+       * kurulduğunda (Metro logu: "[oda] kanal CLOSED — yeniden kurulacak",
+       * yanında "[presence] track reddedildi: timed out") effect yeniden
+       * koşuyor ve YENİ kanal kuruluyor, ama bayrak hâlâ true olduğu için
+       * giriş BİR DAHA duyurulmuyordu. İlk kanal duyuruyu göndermeden ya da
+       * gönderdiği an kapandığı için karşı tarafa hiçbir şey ulaşmıyordu.
+       *
+       * Artık bayrak yalnızca sunucu onayından (`ack`) sonra set ediliyor;
+       * onaylanmazsa bir sonraki kanal nesli tekrar deniyor.
+       */
       if (girisDuyuruldurmuRef.current) return;
-      girisDuyuruldurmuRef.current = true;
-      ch.send({
-        type: "broadcast",
+      // Geç duyuru YANLIŞ olur: iki dakika sonra yeniden bağlanınca karşı
+      // tarafta "az önce girdi" efekti oynatmak yanıltıcı. Pencere dışında
+      // sessizce vazgeçiyoruz (kişi listesine zaten tablodan giriyor).
+      if (Date.now() - katildiRef.current > GIRIS_DUYURU_PENCERESI_MS) return;
+      const girisYuk = {
+        type: "broadcast" as const,
         event: "giris",
         payload: {
           cihaz: CIHAZ,
@@ -1483,9 +1511,20 @@ export default function RoomScreen() {
           publicId: myPublicId || null,
           yetkili: privileged,
         },
-      })
-        .then((r) => { if (r !== "ok") console.warn("[giris] yayinlanamadi:", r); })
-        .catch((e) => console.warn("[giris] yayin hatasi:", (e as Error)?.message || e));
+      };
+      for (let deneme = 0; deneme < 3 && alive; deneme++) {
+        try {
+          const r = await ch.send(girisYuk);
+          if (r === "ok") { girisDuyuruldurmuRef.current = true; return; }
+          console.warn("[giris] yayinlanamadi:", r, "deneme", deneme);
+        } catch (e) {
+          console.warn("[giris] yayin hatasi:", (e as Error)?.message || e, "deneme", deneme);
+        }
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      // Uc deneme de tutmadi: bayrak FALSE kaldi, kanal yeniden kurulunca
+      // (pencere icindeyse) yeniden denenecek.
+      console.warn("[giris] duyurulamadi — kanal yeniden kurulunca denenecek");
     });
 
     addXp("oda_katilim"); // günde 1 kez sayılır (sunucu tavanlar)
