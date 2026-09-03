@@ -82,19 +82,60 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
         )}
       </View>
 
-      <View style={{ flex: 1, minWidth: 0, gap: 5, marginRight: tier ? 6 : 0 }}>
-        <Txt weight="extrabold" size={14} color="#fff" numberOfLines={1}>
-          {room.name}
-        </Txt>
-        {/* Eskiden bu satır "Arkadaşlar" diyordu ama gösterdiği kişiler
-            odadakilerdi, arkadaşların değil. Üstelik gerçek odalarda crowd
-            boş geldiği için etiket boşlukta duruyordu. Artık oda sahibi
-            yazıyor; odadakilerin yüzleri varsa yanında gösteriliyor. */}
+      {/*
+        DİZİLİM (WePlay oda listesi referans alındı, tema/renk DEĞİŞMEDİ):
+        iki satır. Üstte oda adı + sağ üstte durum hapı, altta tek meta
+        satırı ve onun sağında rozetler.
+
+        Eskiden sağda AYRI BİR SÜTUN vardı ve içinde üç şey üst üste
+        yarışıyordu: rozetler, canlı hapı, kişi sayısı. Dar bir şeritte üç
+        farklı bilgi. Sayı meta satırına, durum hapı sağ üste taşındı;
+        sağda yalnız rozetler kaldı — kendi çizdiğin 27 parçalık set artık
+        kalabalıkta kaybolmuyor.
+      */}
+      <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
+        {/* İsim satırı. Özel odalarda sağ üst köşeyi RoomTopTag kaplıyor,
+            o yüzden ada sağdan pay bırakılıyor ve hap çizilmiyor. */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Txt
+            weight="extrabold"
+            size={14}
+            color="#fff"
+            numberOfLines={1}
+            style={{ flexShrink: 1, marginRight: tier ? 78 : 0 }}
+          >
+            {room.name}
+          </Txt>
+          {!tier && (
+            <View style={{ marginLeft: "auto" }}>
+              {room.live ? (
+                <View style={[styles.livePill, { backgroundColor: C.green + "1F", borderWidth: 1, borderColor: C.green + "4D" }]}>
+                  <View style={[styles.liveDot, { backgroundColor: "#6EE7B7" }]} />
+                  <Txt weight="extrabold" size={10} color="#6EE7B7">Canlı</Txt>
+                </View>
+              ) : (
+                <View style={[styles.livePill, { backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" }]}>
+                  <Txt weight="extrabold" size={10} color={C.dim2}>Sessiz</Txt>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Meta satırı: sahip · kişi · yüzler ——— rozetler
+            Eskiden bu satır "Arkadaşlar" diyordu ama gösterdiği kişiler
+            odadakilerdi, arkadaşların değil. */}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Icon name="crown" size={11} color={C.gold + "AA"} />
           <Txt weight="semibold" size={10.5} color={C.dim} numberOfLines={1} style={{ flexShrink: 1 }}>{room.host}</Txt>
+
+          <View style={styles.metaAyrac} />
+          <Icon name="user" size={11} color={C.dim2} />
+          <Txt weight="bold" size={10.5} color={C.dim}>{room.online}</Txt>
+          {room.live && <Eq color="#F59E0B" />}
+
           {friendAvatars.length > 0 && (
-            <View style={{ flexDirection: "row", marginLeft: 2 }}>
+            <View style={{ flexDirection: "row", marginLeft: 4 }}>
               {friendAvatars.map((n, i) => (
                 <View key={n} style={{ marginLeft: i ? -7 : 0, borderRadius: 11, borderWidth: 1.5, borderColor: "#15121C" }}>
                   <Portrait name={n} size={18} />
@@ -102,28 +143,13 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
               ))}
             </View>
           )}
-        </View>
-      </View>
 
-      <View style={{ minWidth: tier ? 84 : undefined, alignItems: "flex-end", justifyContent: tier ? "flex-end" : "space-between", alignSelf: "stretch" }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          {room.badges && <RoomBadges badges={room.badges} size={22} />}
-          {/* Canlı rozeti mordu; yeşil daha okunur ve "yayında" hissini verir. */}
-          {!tier && (room.live ? (
-            <View style={[styles.livePill, { backgroundColor: C.green + "1F", borderWidth: 1, borderColor: C.green + "4D" }]}>
-              <View style={[styles.liveDot, { backgroundColor: "#6EE7B7" }]} />
-              <Txt weight="extrabold" size={10} color="#6EE7B7">Canlı</Txt>
+          {/* Rozetler sağa yaslı — WePlay'de de üçlü sıra halinde sağda. */}
+          {room.badges && room.badges.length > 0 && (
+            <View style={{ marginLeft: "auto", paddingLeft: 6 }}>
+              <RoomBadges badges={room.badges} size={22} />
             </View>
-          ) : (
-            <View style={[styles.livePill, { backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" }]}>
-              <Txt weight="extrabold" size={10} color={C.dim2}>Sessiz</Txt>
-            </View>
-          ))}
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
-          <Icon name="user" size={12} color={C.dim2} />
-          <Txt weight="bold" size={10.5} color={C.dim}>{room.online}</Txt>
-          {room.live && <Eq color="#F59E0B" />}
+          )}
         </View>
       </View>
     </Pressable>
@@ -403,5 +429,7 @@ const styles = StyleSheet.create({
   cover: { width: 62, height: 62, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   lockTag: { position: "absolute", top: 4, right: 4, width: 18, height: 18, borderRadius: 9, backgroundColor: "rgba(0,0,0,.55)", alignItems: "center", justifyContent: "center" },
   livePill: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 4, paddingHorizontal: 11, borderRadius: 999 },
+  // Meta satirinda sahip ile kisi sayisi arasindaki ince dikey cizgi.
+  metaAyrac: { width: 1, height: 9, backgroundColor: "rgba(255,255,255,.14)", marginHorizontal: 2 },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#fff" },
 });
