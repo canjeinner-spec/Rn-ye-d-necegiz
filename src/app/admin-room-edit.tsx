@@ -195,7 +195,7 @@ export default function AdminRoomEdit() {
             <View style={styles.group}><View style={{ padding: 12, flexDirection: "row", alignItems: "center", gap: 13 }}>
               <View style={styles.kapakOnizleme}>
                 {r.photo
-                  ? <Image source={{ uri: r.photo }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                  ? <Image source={{ uri: r.photo }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} />
                   : <View style={styles.kapakBos}><Icon name="camera" size={18} color={C.dim2} /></View>}
               </View>
               <View style={{ flex: 1, gap: 7 }}>

@@ -83,6 +83,8 @@ export function OzelIdKart({
       {photo && (
         <Image
           source={{ uri: photo }}
+          cachePolicy="memory-disk"
+          transition={160}
           style={{
             position: "absolute",
             left: width * px.l,

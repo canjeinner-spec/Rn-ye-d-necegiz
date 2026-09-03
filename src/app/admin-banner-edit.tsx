@@ -144,7 +144,7 @@ export default function AdminBannerEdit() {
                 {!!foto && <Pressable onPress={() => setFoto(null)}><Icon name="x" size={14} color="#FB7185" /></Pressable>}
               </View>
               <Txt size={9.5} color={C.dim2} lh={1.4}>Önerilen ölçü 1680×480 (7:2). Önizleme banner'da göreceğinin birebir aynısı.</Txt>
-              {!!foto && <View style={styles.preview}><Image source={{ uri: foto }} style={StyleSheet.absoluteFill} contentFit="cover" /></View>}
+              {!!foto && <View style={styles.preview}><Image source={{ uri: foto }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /></View>}
             </View></View>
 
             {/* Açılır sayfa içeriği */}

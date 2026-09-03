@@ -392,7 +392,7 @@ export default function Onboarding() {
                   >
                     <View style={styles.avatar}>
                       {rPhoto
-                        ? <Image source={{ uri: rPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                        ? <Image source={{ uri: rPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} />
                         : <Icon name="camera" size={26} color={C.dim} />}
                     </View>
                   </Gradient>
@@ -409,20 +409,27 @@ export default function Onboarding() {
                 </Txt>
               </View>
 
+              {/* Liste boşken bölüm HİÇ çizilmiyor: pravatar çıkarıldı, yerine
+                  kendi Storage URL'lerimiz gelecek (yükleme canlıda). Boş bir
+                  "HAZIR AVATARLAR" başlığı ve altında hiçbir şey olmaması,
+                  bozuk görünürdü. */}
+              {PRESET_AVATARS.length > 0 && (
               <View style={styles.ayirici}>
                 <View style={styles.cizgi} />
                 <Txt weight="bold" size={9.5} color={C.dim2} style={{ letterSpacing: 1 }}>HAZIR AVATARLAR</Txt>
                 <View style={styles.cizgi} />
               </View>
+              )}
 
               {/* Sarmalanmış ızgara yerine yatay şerit — yeni avatar eklendikçe
                   ekran aşağı doğru şişmez. */}
+              {PRESET_AVATARS.length > 0 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 2 }}>
                 {PRESET_AVATARS.map((u) => {
                   const on = rPhoto === u;
                   return (
                     <Pressable key={u} onPress={() => { haptic.select(); setRPhoto(u); setRBase64(null); }} style={[styles.preset, { borderColor: on ? C.gold : "rgba(255,255,255,.12)" }]}>
-                      <Image source={{ uri: u }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                      <Image source={{ uri: u }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} />
                       {on && (
                         <View style={styles.presetTik}>
                           <Icon name="check" size={10} sw={3} color="#241A05" />
@@ -432,6 +439,7 @@ export default function Onboarding() {
                   );
                 })}
               </ScrollView>
+              )}
 
               <View style={{ marginTop: 8 }}>
                 <Alan

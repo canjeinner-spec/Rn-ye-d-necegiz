@@ -117,7 +117,7 @@ export default function RoomManageEdit() {
             <View style={{ alignItems: "center" }}>
               <Pressable onPress={pickCover} disabled={busy} style={styles.coverWrap}>
                 <View style={styles.coverPreview}>
-                  {currentRoom?.photo ? <Image source={{ uri: currentRoom.photo }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={currentRoom?.scene ?? "club"} />}
+                  {currentRoom?.photo ? <Image source={{ uri: currentRoom.photo }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /> : <Scene kind={currentRoom?.scene ?? "club"} />}
                 </View>
                 <View style={styles.camBadge}>
                   <Icon name="camera" size={14} sw={2} color="#241A05" />

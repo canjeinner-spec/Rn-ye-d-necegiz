@@ -176,7 +176,7 @@ export default function RoomManageScreen() {
                   <View style={[styles.onizleme, styles.onizlemeOrtali]}>
                     <View style={styles.odaAvatar}>
                       {currentRoom?.photo
-                        ? <Image source={{ uri: currentRoom.photo }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                        ? <Image source={{ uri: currentRoom.photo }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} />
                         : <View style={styles.onizlemeBos}><Icon name="camera" size={19} color={C.dim2} /></View>}
                     </View>
                   </View>

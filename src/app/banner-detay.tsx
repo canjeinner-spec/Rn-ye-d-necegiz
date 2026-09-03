@@ -65,7 +65,7 @@ export default function BannerDetay() {
             {/* Hero */}
             {banner.foto ? (
               <View style={styles.heroImgWrap}>
-                <Image source={{ uri: banner.foto }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                <Image source={{ uri: banner.foto }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} />
                 <Gradient colors={["rgba(8,8,12,.05)", "rgba(8,8,12,.8)"]} deg={180} style={StyleSheet.absoluteFill} pointerEvents="none" />
                 <View style={styles.heroImgText}>
                   <View style={[styles.rozet, { backgroundColor: t.accent }]}>

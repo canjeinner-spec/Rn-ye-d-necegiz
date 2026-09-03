@@ -2804,7 +2804,7 @@ export default function RoomScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <Pressable onPress={() => { setPanelOpen(true); }} style={styles.roomChip}>
                 <View style={styles.thumb}>
-                  {room.photo ? <Image source={{ uri: room.photo }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
+                  {room.photo ? <Image source={{ uri: room.photo }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /> : <Scene kind={room.scene} />}
                 </View>
                 <View style={{ minWidth: 0, flexShrink: 1 }}>
                   <Txt weight="extrabold" size={13.5} color="#fff" numberOfLines={1}>

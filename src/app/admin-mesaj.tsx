@@ -199,7 +199,7 @@ export default function AdminMesaj() {
                   </Pressable>
                   {!!foto && <Pressable onPress={() => setFoto(null)}><Icon name="x" size={14} color="#FB7185" /></Pressable>}
                 </View>
-                {!!foto && <View style={s.preview}><Image source={{ uri: foto }} style={StyleSheet.absoluteFill} contentFit="cover" /></View>}
+                {!!foto && <View style={s.preview}><Image source={{ uri: foto }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /></View>}
               </>
             )}
             <View style={s.switchRow}>

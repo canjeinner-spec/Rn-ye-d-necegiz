@@ -227,7 +227,7 @@ export default function DMChatScreen() {
                       </View>
                     )}
                     {!isSystem && p.title && <Txt weight="extrabold" size={13} color={C.text} style={{ marginBottom: 6 }}>{p.title}</Txt>}
-                    {!!p.foto && <View style={styles.bcFoto}><Image source={{ uri: p.foto }} style={StyleSheet.absoluteFill} contentFit="cover" /></View>}
+                    {!!p.foto && <View style={styles.bcFoto}><Image source={{ uri: p.foto }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /></View>}
                     <Txt size={12.5} color="#DBD9E2" lh={1.55}>{p.text}</Txt>
                     {!isSystem && (
                       <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 10, paddingTop: 9, borderTopWidth: 1, borderTopColor: C.line }}>

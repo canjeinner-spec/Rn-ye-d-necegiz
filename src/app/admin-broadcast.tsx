@@ -78,7 +78,7 @@ export default function AdminBroadcast() {
               </Pressable>
               {!!foto && <Pressable onPress={() => setFoto(null)}><Icon name="x" size={14} color="#FB7185" /></Pressable>}
             </View>
-            {!!foto && <View style={s.preview}><Image source={{ uri: foto }} style={StyleSheet.absoluteFill} contentFit="cover" /></View>}
+            {!!foto && <View style={s.preview}><Image source={{ uri: foto }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /></View>}
             <View style={s.switchRow}>
               <View style={{ flex: 1 }}>
                 <Txt weight="bold" size={12} color={C.text}>Bildirim olarak da gönder</Txt>

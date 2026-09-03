@@ -27,11 +27,16 @@ export const COUNTRIES: Ulke[] = [
 // Demo: kayıtlı numaralar → doğrudan giriş; diğerleri → kayıt formu
 export const REGISTERED_PHONES = ["5321440788", "5551234567"];
 
-export const PRESET_AVATARS = [
-  "https://i.pravatar.cc/150?img=11",
-  "https://i.pravatar.cc/150?img=5",
-  "https://i.pravatar.cc/150?img=52",
-  "https://i.pravatar.cc/150?img=32",
-  "https://i.pravatar.cc/150?img=68",
-  "https://i.pravatar.cc/150?img=23",
-];
+/**
+ * Kayıt ekranındaki "hazır avatarlar".
+ *
+ * pravatar.cc ÇIKARILDI: üçüncü taraf bir demo servisiydi ve HER YENİ
+ * KULLANICIYA gösteriliyordu — yani mağazaya çıkacak uygulamanın kayıt
+ * akışı dışarıya bağımlıydı, ağ yoksa kutular boş kalıyordu.
+ *
+ * Yerine kendi Storage kovamızdaki URL'ler gelecek (görsel YÜKLEME canlıda
+ * yapılacak, koddan yapılamaz). Liste boşken bölüm hiç çizilmiyor; kullanıcı
+ * kendi fotoğrafını yükleyebiliyor ve yüklemezse `Portrait` adından
+ * üretilmiş avatarı çiziyor — akış kırılmıyor.
+ */
+export const PRESET_AVATARS: string[] = [];

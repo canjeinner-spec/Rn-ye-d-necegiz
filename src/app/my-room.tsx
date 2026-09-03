@@ -64,7 +64,7 @@ function RoomCard({ room, altYazi, onPress }: { room: OdamOdasi; altYazi?: strin
   return (
     <Pressable onPress={onPress} style={styles.card}>
       <View style={styles.cardThumb}>
-        {(room.photo || PEOPLE[room.host]?.photo) ? <Image source={{ uri: room.photo || PEOPLE[room.host]?.photo || "" }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
+        {(room.photo || PEOPLE[room.host]?.photo) ? <Image source={{ uri: room.photo || PEOPLE[room.host]?.photo || "" }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /> : <Scene kind={room.scene} />}
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
@@ -223,7 +223,7 @@ export default function MyRoomHub() {
           <Txt weight="bold" size={10} color={C.dim} style={{ marginBottom: 9, letterSpacing: 0.8 }}>ODAM</Txt>
           <Pressable onPress={enterMine} style={styles.mineCard}>
             <View style={styles.mineThumb}>
-              {(myRoom?.photo || userPhoto) ? <Image source={{ uri: myRoom?.photo || userPhoto || "" }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind="club" />}
+              {(myRoom?.photo || userPhoto) ? <Image source={{ uri: myRoom?.photo || userPhoto || "" }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /> : <Scene kind="club" />}
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Txt weight="extrabold" size={15} color="#fff" numberOfLines={1}>{odamGercek && myRoom ? myRoom.name : `${userName} Odası`}</Txt>

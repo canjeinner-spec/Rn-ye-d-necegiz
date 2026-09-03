@@ -97,6 +97,24 @@ export function Portrait({
             source={{ uri: src }}
             style={StyleSheet.absoluteFill}
             contentFit="cover"
+            /**
+             * Uygulamadaki BÜTÜN avatarlar bu bileşenden geçiyor; görsel
+             * ayarları burada olunca tek yerden yönetiliyor.
+             *
+             * `cachePolicy` hiçbir yerde verilmemişti (31 dosyada sıfır
+             * kullanım). `memory-disk`: aynı avatar liste kaydırırken ve
+             * ekranlar arasında gezerken yeniden çözülmüyor.
+             *
+             * `transition` varsayılanı 0 — görseller "pat" diye beliriyordu.
+             * 160 ms yumuşak geçiş, native hissin ucuz ve görünür parçası.
+             *
+             * `recyclingKey`: satır geri dönüştürüldüğünde önceki kişinin
+             * fotoğrafı bir kare görünmesin. FlatList'e geçince (1.5) şart
+             * olacak; şimdiden doğru.
+             */
+            cachePolicy="memory-disk"
+            transition={160}
+            recyclingKey={src}
             onError={() => setImgOk(false)}
           />
         )}

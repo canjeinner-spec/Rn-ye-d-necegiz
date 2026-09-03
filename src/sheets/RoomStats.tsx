@@ -58,7 +58,7 @@ export function RoomStats({ room, roomName, roomPhoto, onClose }: { room: Room; 
             <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 24 + insets.bottom, paddingTop: 8 }}>
               <View style={styles.levelCard}>
                 <View style={styles.levelThumb}>
-                  {roomPhoto ? <Image source={{ uri: roomPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
+                  {roomPhoto ? <Image source={{ uri: roomPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /> : <Scene kind={room.scene} />}
                 </View>
                 <Txt weight="displayBold" size={17} color="#fff" numberOfLines={1}>{roomName}</Txt>
                 <Gradient colors={["#5EEAD4", "#06B6D4"]} deg={135} style={styles.lvPill}>

@@ -111,6 +111,8 @@ function Banner({ b, onPress }: { b: EventBanner; onPress: () => void }) {
                 source={{ uri: b.image }}
                 style={StyleSheet.absoluteFill}
                 contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={160}
                 onLoad={(e) => olcu(e.source?.width ?? 0, e.source?.height ?? 0)}
               />
               <Gradient colors={["rgba(8,8,12,.10)", "rgba(8,8,12,.70)"]} deg={180} style={StyleSheet.absoluteFill} pointerEvents="none" />

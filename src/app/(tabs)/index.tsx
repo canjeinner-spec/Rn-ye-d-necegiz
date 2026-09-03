@@ -75,7 +75,7 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
       <View style={styles.ayirac} pointerEvents="none" />
 
       <View style={styles.cover}>
-        {coverUri ? <Image source={{ uri: coverUri }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
+        {coverUri ? <Image source={{ uri: coverUri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /> : <Scene kind={room.scene} />}
         {room.locked && (
           <View style={styles.lockTag}>
             <Icon name="lock" size={10} color="#fff" />

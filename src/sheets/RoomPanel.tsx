@@ -197,7 +197,7 @@ export function RoomPanel(props: Props) {
               <View style={styles.kapak}>
                 {roomPhoto ? (
                   <>
-                    <Image source={{ uri: roomPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={26} />
+                    <Image source={{ uri: roomPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} blurRadius={26} />
                     <View style={styles.kapakKarart} pointerEvents="none" />
                   </>
                 ) : (
@@ -231,7 +231,7 @@ export function RoomPanel(props: Props) {
                 <View style={styles.kapakYazi}>
                   <View style={styles.odaAvatar}>
                     {roomPhoto
-                      ? <Image source={{ uri: roomPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                      ? <Image source={{ uri: roomPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} />
                       : <Scene kind={room.scene} />}
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>

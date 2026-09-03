@@ -92,7 +92,24 @@ Yapılanların commit listesi ve bilinçli olarak ATLANANLARIN gerekçeleri
      var; gövdeye pan koymak kaydırmayla kavga eder. Tutamaç alanı görünenden
      yüksek (22px) ki parmakla yakalanabilsin. Kapanma: 90px ya da 900 px/sn.
    • `(tabs)/_layout` `freezeOnBlur: true` HENÜZ YAPILMADI.
-8. **1.8 (C6):** expo-image `transition`+`cachePolicy`(+`recyclingKey`); pravatar sökümü: `people.ts` → yerel asset; `onboarding.ts` 6 PRESET avatar → kendi Storage bucket URL'leri (**yükleme canlıda**).
+8. **1.8 (C6) ✅ — görsel ayarları + pravatar söküldü:**
+   • `cachePolicy` HİÇBİR YERDE verilmemişti (31 dosya, sıfır kullanım) ve
+     `transition` varsayılanı 0'dı — görseller "pat" diye beliriyordu.
+     21 uzak görselin hepsine `cachePolicy="memory-disk"` + `transition={160}`
+     kondu; `Portrait`e ayrıca `recyclingKey` (FlatList'e geçince şart olacak).
+     `Portrait` tek başına en önemlisi: uygulamadaki BÜTÜN avatarlar oradan
+     geçiyor.
+   • **pravatar.cc TAMAMEN ÇIKTI.** İki yerdeydi:
+     – `people.ts` 9 demo kişinin fotoğrafı. Silindi; `Portrait` zaten aynı
+       kişiler için `bg/hair/style/acc` ile KENDİ avatarını üretiyor, foto
+       onu eziyordu. Oda kapağı yedeği de `Scene`e düşüyor, kırılmadı.
+     – `onboarding.ts` 6 hazır avatar. Bu daha kötüydü: HER YENİ KULLANICIYA
+       gösteriliyordu, yani mağazaya çıkacak uygulamanın kayıt akışı üçüncü
+       taraf bir demo servisine bağlıydı. Liste boşaltıldı; **boşken bölüm
+       hiç çizilmiyor**, kullanıcı kendi fotoğrafını yükleyebiliyor,
+       yüklemezse üretilmiş avatar geliyor.
+   • **KALAN CANLI İŞ:** hazır avatarlar için kendi Storage kovamıza görsel
+     yüklenip `PRESET_AVATARS` doldurulacak. Koddan yapılamaz.
 9. **1.9 (C7):** `useCachedResource` yaygınlaştırma (store, inventory, badges, visitors, user-profile, dm-chat); oda sahnesine oda-id bazlı cache seed.
 10. **1.10 (C9):** Selector'süz 12 `useApp()` → alan bazlı (önce `AppOverlays.tsx`, `profile.tsx`); `banPollTimer` değişmedikçe yazmaz.
 11. **1.11 (C8):** KeyboardAware eksik 16 dosya; `paddingBottom:110/120` sabitleri inset tabanlı ortak değere.

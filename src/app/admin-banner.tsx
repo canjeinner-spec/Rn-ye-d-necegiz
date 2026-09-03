@@ -58,7 +58,7 @@ export default function AdminBanner() {
                   {i > 0 && <View style={s.divider} />}
                   <Pressable onPress={() => router.navigate(`/admin-banner-edit?id=${b.id}`)} style={styles.bannerRow}>
                     <View style={styles.bThumb}>
-                      {b.foto ? <Image source={{ uri: b.foto }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Icon name={SABLON_IC[b.sablon]} size={16} color={C.dim2} />}
+                      {b.foto ? <Image source={{ uri: b.foto }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /> : <Icon name={SABLON_IC[b.sablon]} size={16} color={C.dim2} />}
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <View style={styles.sablonBadge}><Txt weight="bold" size={8} color={C.gold2} style={{ letterSpacing: 0.5 }}>{SABLON_AD[b.sablon]}</Txt></View>
