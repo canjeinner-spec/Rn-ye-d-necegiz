@@ -78,7 +78,20 @@ Yapılanların commit listesi ve bilinçli olarak ATLANANLARIN gerekçeleri
 4. **1.4 (C1) — (a) ✅ `8eb09cd`, (b) ✅ `a4f1271`, (c) SIRADA:** `src/components/Touch.tsx` Pressable sarmalayıcı (`pressed && {opacity:.6, scale:.97}` + android_ripple; `kucul={false}` ile küçülme kapatılabilir). (a) oda alt barı 10 + koltuk 2 + aksiyon satırı 1, (b) `Tabs.tsx` + `BottomNav.tsx` (ikisi de `kucul={false}`), **(c) kalan ~810 yer — toplu regex YAPILMAZ, dalga dalga.**
 5. **1.5 (C2b):** FlatList geçişleri — ekran başına commit+test: önce oda sohbeti (inverted; iki-cihaz testi ŞART), sonra index, dm, notifications, rank, oda kullanıcı listesi; feed yalnız dış liste.
 6. **1.6 (C3) — ÖNCE YENİDEN YAPILANDIRMA GEREKİYOR:** `React.memo` şu hâliyle İŞE YARAMAZ — `ChatRow`'a geçilen `onSelfPress`/`onTapUser` düz arrow const (room.tsx:2065, :2100), her render'da yeni kimlik alıyorlar. `useCallback` ile sarmak `openChatUserCard`'ın geniş kapanışı (`occupants`, `MY_ROLE`, `isDbRoom`, `dbId`, `davetBaslat`, `uyeHaritasi`, `seatActions`) yüzünden bayat kapanış riski; ayrıca `uyeHaritasi` her presence sync'inde değişip memo'yu tam gerektiği anda geçersiz kılıyor. **Doğru çözüm:** `ChatRow`'a `uid` geçip aramayı sabit bir işleyicinin içine almak. (AYNI dosyada — **room.tsx bölme bu fazda YAPILMAZ**.) Ayrıca `Portrait.tsx` SVG yalnız `!photo` iken.
-7. **1.7 (C5):** `Sheet.tsx` → `BottomSheetModal` (26 modal sürükle-kapat; her sheet elle doğrulanır); `(tabs)/_layout` `freezeOnBlur: true`.
+7. **1.7 (C5) — sürükle-kapat ✅, `freezeOnBlur` SIRADA:** Plan
+   "`Sheet.tsx` → `BottomSheetModal`, 26 modal" diyordu; İKİSİ DE DÜZELTİLDİ.
+   • **Sayı yanlıştı:** `<Sheet>` 26 değil, 6 dosyada 11 yerde kullanılıyor
+     (26, `CenterModal` ve düz `Modal` dahil TÜM modallerin sayısıydı).
+   • **Kütüphane değiştirilmedi.** Amaç sürükleyip kapatma hissiydi, paket
+     değil. Gorhom'a geçmek kök sağlayıcı + çocuk API'si + snap point +
+     klavye davranışını baştan kurmayı ve 11 çağrı yerini yeniden yazmayı
+     gerektiriyordu; kazanç aynı, risk katbekat fazla. Davranış `Sheet`in
+     İÇİNE kondu (gesture-handler zaten kurulu, `GestureHandlerRootView`
+     kökte duruyordu): dış API aynı, çağrı yerleri değişmedi, yerleşim aynı.
+   • **Sürükleme yalnız tutamaçtan.** Sayfaların çoğunda içeride `ScrollView`
+     var; gövdeye pan koymak kaydırmayla kavga eder. Tutamaç alanı görünenden
+     yüksek (22px) ki parmakla yakalanabilsin. Kapanma: 90px ya da 900 px/sn.
+   • `(tabs)/_layout` `freezeOnBlur: true` HENÜZ YAPILMADI.
 8. **1.8 (C6):** expo-image `transition`+`cachePolicy`(+`recyclingKey`); pravatar sökümü: `people.ts` → yerel asset; `onboarding.ts` 6 PRESET avatar → kendi Storage bucket URL'leri (**yükleme canlıda**).
 9. **1.9 (C7):** `useCachedResource` yaygınlaştırma (store, inventory, badges, visitors, user-profile, dm-chat); oda sahnesine oda-id bazlı cache seed.
 10. **1.10 (C9):** Selector'süz 12 `useApp()` → alan bazlı (önce `AppOverlays.tsx`, `profile.tsx`); `banPollTimer` değişmedikçe yazmaz.
