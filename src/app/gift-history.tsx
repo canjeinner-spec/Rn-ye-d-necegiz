@@ -10,10 +10,10 @@ import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { Yukleniyor } from "@/components/Yukleniyor";
 import {
+  aldiklarim,
   gonderdiklerim,
   hediyeOzetim,
-  sonHediyelerim,
-  type GelenHediye,
+  type AlinanHediye,
   type GidenHediye,
 } from "@/data/remote/hediyeRepo";
 import { giftPng } from "@/gifts/giftPng";
@@ -31,11 +31,14 @@ import { Zemin } from "@/theme/Zemin";
  * Her kullanıcı aynı sahte geçmişi görüyordu ve kendi gönderdiği hediye hiç
  * görünmüyordu.
  *
- * ALINAN tarafın gerçek kaynağı (`son_hediyelerim_v2`) zaten vardı ve bu
- * ekran onu kullanmıyordu. GÖNDERİLEN taraf için hiçbir yol yoktu; 088 ile
- * `hediye_gonderdiklerim` eklendi. Özet kartları da 088'deki
- * `hediye_ozetim`den geliyor — LİSTEDEN toplamak yanlış olurdu, listede
- * yalnız son 30 satır var.
+ * Önce ALINAN tarafı temel şemanın `son_hediyelerim_v2`sine bağlanmıştı ama
+ * oradaki `kazanc` alanı SIFIR dönüyordu: listede bütün satırlarda "+0"
+ * yazıyordu. Özet kartı ise `toplam_deger` topluyordu, yani satırlar ile
+ * toplam FARKLI SÜTUNDAN besleniyordu — toplam doğru, satırlar sıfır.
+ *
+ * Artık iki sekme de kendi fonksiyonlarımızdan geliyor (088 + 089) ve ikisi
+ * de `hediye_gecmisi.toplam_deger` kullanıyor; satırlarla özet aynı şeyi
+ * söylüyor. Özet LİSTEDEN toplanmıyor — listede yalnız son 30 satır var.
  */
 
 const fmt = (n: number) => (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "K" : String(n));
@@ -70,14 +73,14 @@ export default function GiftHistoryScreen() {
   const dbId = useApp((s) => s.dbId);
   const [tab, setTab] = useState(0);
 
-  const [alinan, setAlinan] = useState<GelenHediye[] | null>(null);
+  const [alinan, setAlinan] = useState<AlinanHediye[] | null>(null);
   const [giden, setGiden] = useState<GidenHediye[] | null>(null);
   const [ozet, setOzet] = useState<{ alinan: number; gonderilen: number } | null>(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured || dbId == null) { setAlinan([]); setGiden([]); setOzet({ alinan: 0, gonderilen: 0 }); return; }
     let acik = true;
-    sonHediyelerim(30).then((r) => { if (acik) setAlinan(r); }).catch(() => { if (acik) setAlinan([]); });
+    aldiklarim(dbId, 30).then((r) => { if (acik) setAlinan(r); }).catch(() => { if (acik) setAlinan([]); });
     gonderdiklerim(dbId, 30).then((r) => { if (acik) setGiden(r); }).catch(() => { if (acik) setGiden([]); });
     hediyeOzetim(dbId).then((r) => { if (acik) setOzet(r); }).catch(() => { if (acik) setOzet({ alinan: 0, gonderilen: 0 }); });
     return () => { acik = false; };
@@ -87,8 +90,8 @@ export default function GiftHistoryScreen() {
   const satirlar: Satir[] =
     tab === 0
       ? (alinan ?? []).map((r) => ({
-          key: "a" + r.id, ad: r.hediyeAd, emoji: r.emoji, kod: null,
-          adet: r.adet, kisi: r.gonderen, tutar: r.kazanc, tarih: r.tarih,
+          key: "a" + r.id, ad: r.ad, emoji: r.emoji, kod: r.kod,
+          adet: r.adet, kisi: r.gonderen, tutar: r.tutar, tarih: r.tarih,
         }))
       : (giden ?? []).map((r) => ({
           key: "g" + r.id, ad: r.ad, emoji: r.emoji, kod: r.kod,

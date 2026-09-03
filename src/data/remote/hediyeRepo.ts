@@ -310,6 +310,48 @@ export async function kazancGunluk(gun = 7): Promise<GunDilimi[]> {
   }));
 }
 
+/** Aldığım hediye (089). */
+export type AlinanHediye = {
+  id: number;
+  gonderen: string;
+  gonderenPid: string | null;
+  kod: string | null;
+  ad: string;
+  emoji: string;
+  adet: number;
+  tutar: number;
+  tarih: number;
+};
+
+/**
+ * Aldıklarım (089).
+ *
+ * NEDEN `sonHediyelerim` DEĞİL: o temel şemadaki `son_hediyelerim_v2`ye
+ * gidiyor ve oradaki `kazanc` alanı sıfır dönüyordu — listede bütün
+ * satırlarda "+0" yazıyordu. Özet kartı ise `toplam_deger` topluyordu, yani
+ * satırlar ile toplam farklı sütundan besleniyordu. Bu fonksiyon
+ * `gonderdiklerim`in simetriği: ikisi de `toplam_deger` kullanıyor.
+ */
+export async function aldiklarim(kullaniciId: number, limit = 30): Promise<AlinanHediye[]> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("hediye_aldiklarim", { p_kullanici: kullaniciId, p_limit: limit });
+  if (error) {
+    if (yokSay(error)) return [];
+    throw error;
+  }
+  return ((data as Record<string, unknown>[]) ?? []).map((r) => ({
+    id: Number(r.id),
+    gonderen: String(r.gonderen ?? "Kullanıcı"),
+    gonderenPid: (r.gonderen_pid as string) ?? null,
+    kod: (r.kod as string) ?? null,
+    ad: String(r.ad ?? "Hediye"),
+    emoji: String(r.emoji ?? "🎁"),
+    adet: Number(r.adet ?? 1),
+    tutar: Number(r.tutar ?? 0),
+    tarih: Date.parse(String(r.tarih)) || 0,
+  }));
+}
+
 /** Gönderdiğim hediye (088). */
 export type GidenHediye = {
   id: number;
