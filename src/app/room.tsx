@@ -124,6 +124,12 @@ const BEKLEME_MS = 1200;
  * koltukta görmeye devam ediyordu.
  */
 const DUSURME_ONAY_MS = 900;
+/**
+ * Öne döndükten sonra ANLIK koltuk olaylarının yok sayıldığı süre.
+ * Arkaplanda biriken olaylar bu pencerede teslim ediliyor; oynatmak yerine
+ * atıp tam okumaya güveniyoruz.
+ */
+const BIRIKINTI_MS = 1500;
 
 /**
  * Giriş duyurusu için pencere. Kanal kopup geri gelirse duyuru yeniden
@@ -910,6 +916,9 @@ export default function RoomScreen() {
       // uygula. Ad/foto sonraki tazelemede doluyor.
       anlik: (olaylar) => {
         if (!acik) return;
+        // Arkaplan birikintisi: geçmiş hareketleri ileri sarımda oynatma.
+        // Tazeleme son durumu getiriyor.
+        if (Date.now() < anlikYokSayRef.current) return;
         setDbKoltuklar((onceki) => {
           const harita = new Map(onceki.map((k) => [k.koltukNo, k]));
           for (const { satir, silindi } of olaylar) {
@@ -998,6 +1007,20 @@ export default function RoomScreen() {
   const [mySeat, setMySeat] = useState<number | null>(koltukBaslangic ? koltukBaslangic.koltuk : null);
   /** Son "beni düşürmeden önce doğrula" isteğinin zamanı (bkz. DUSURME_ONAY_MS). */
   const dusurmeOnayRef = useRef(0);
+
+  /**
+   * Bu ana kadar gelen ANLIK koltuk olayları yok sayılır.
+   *
+   * NEDEN: uygulama arkaplandayken gelen `postgres_changes` olayları
+   * birikiyor ve öne dönünce SIRAYLA teslim ediliyor. Her biri tek tek
+   * uygulanınca kişi geçmişteki hareketlerini ileri sarımda tekrar yaşıyor:
+   * kullanıcının tarifiyle "tek tek, çok hızlı, oradan oraya geçiş yapmışım
+   * gibi" 3-4 koltukta arka arkaya görünüyor. Bunlar canlı değil, GEÇMİŞ.
+   *
+   * Öne dönüşte doğru davranış birikintiyi oynatmak değil, atmak: tablo
+   * zaten baştan okunuyor (`koltukTazeleRef`) ve son durumu o getiriyor.
+   */
+  const anlikYokSayRef = useRef(0);
 
   /**
    * Sunucu beni koltukta görmüyorsa yerel iyimser koltuğumu bırak.
@@ -1349,8 +1372,12 @@ export default function RoomScreen() {
        * ÖNCE KENDİMİ DİĞER KOLTUKLARDAN SİL. İyimser koltuk tablonun ÜSTÜNE
        * yazılıyordu ama tablodaki eski satırım kaldırılmıyordu; koltuk
        * değiştirirken yeni satır gelene kadar iki koltukta birden
-       * görünüyordum. Olaylar arkaplandan dönüşte toplu gelince bu "aynı anda
-       * 3-4 mikrofonda görünme" hâline dönüşüyordu.
+       * görünebiliyordum.
+       *
+       * NOT: bu kural doğru ama kullanıcının bildirdiği "3-4 koltukta
+       * görünme" belirtisinin sebebi DEĞİLDİ — orada koltuklar aynı anda
+       * değil ARKA ARKAYA doluyordu, sebebi arkaplan birikintisinin
+       * oynatılmasıydı (bkz. `anlikYokSayRef`). İlk teşhis yanlıştı.
        */
       for (let i = 0; i < arr.length; i++) {
         if (i !== mySeat && arr[i]?.uid != null && arr[i]?.uid === myDbId) arr[i] = null;
@@ -2206,6 +2233,9 @@ export default function RoomScreen() {
         presenceYazRef.current();
         // Kalp atışı arkaplanda durdu; satır bayat kalmasın diye hemen at.
         kalpAtisiRef.current();
+        // Arkaplanda birikmiş koltuk olayları şimdi toplu gelecek; onları
+        // oynatmıyoruz (bkz. anlikYokSayRef), doğruyu tazeleme getiriyor.
+        anlikYokSayRef.current = Date.now() + BIRIKINTI_MS;
         // Arkaplandayken kaçan değişiklikleri topla.
         koltukTazeleRef.current();
         siraTazeleRef.current();
