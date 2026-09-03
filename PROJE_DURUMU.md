@@ -551,7 +551,97 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 > · **origin'e PUSH EDİLMEDİ** · güncel commit için `git log --oneline -15`
 > (şema dökümü için `db/SEMA_DOKUMU.md`)
 
-### 🟢 EN GÜNCEL: FAZLI YOL HARİTASI — Faz 1 sürüyor (15 commit, cihaz doğrulaması bekliyor)
+### 🎁🔊🪑 3-4 EYLÜL OTURUMU — hediye sistemi, ses, efekt kuyruğu, koltuk kararlılığı
+
+Bu oturumda 27 commit atıldı. Hepsi `git log --oneline -30` ile görülebilir;
+buradaki özet KARARLARI ve BULUNAN KÖK SEBEPLERİ kaydediyor.
+
+**HEDİYE SİSTEMİ — Lottie'den PNG+Lottie karmasına**
+- Katalog 7 hediye: gül, Âşık Kedi, Şanslı Ayıcık, Tavşan Çifti, Kükreyen
+  Kaplan, Noel Baba, Hazine Sandığı. Migration `087` (085+086'yı kapsar).
+- **Zafer Gecesi KALDIRILDI.** 4.6 MB, 334 katman, 55 efekt, 30 blend mode;
+  lottie-android efekt ve blend mode'ların çoğunu yok sayıyor, kale ağları
+  bembeyaz çıkıyordu. Bundle 10.05 → 6.00 MB.
+- **Karolarda artık PNG var, Lottie yalnız gönderim efektinde.** Sebep
+  ölçüldü: duruk kare (`ilerleme`) çizim döngüsünü durduruyor ama katman
+  ağacını YİNE kuruyor; altı karo aynı anda ekranda olunca ızgara akmıyordu.
+  PNG'ler aynı Lottie'lerden üretiliyor (`scripts/lottie-png.js`), toplam
+  120 KB — aynı görselleri Lottie olarak çizmek 1.8 MB JSON demekti.
+- **Üç yeni betik:** `lottie-denetle.js` (dosya eklemeden önce uygunluk),
+  `lottie-png.js` (statik karo üretimi), `lottie-gorsel-kucult.js` (gömülü
+  görselli dosyaları küçültme + zemin silme).
+- Bilinen uyarı: `kaplan.json` 4 blend mode, `hazine.json` 2 metin katmanı
+  taşıyor — tam ekran efektte sapma olabilir, cihazda bakılacak.
+
+**SES — üretildi, indirilmedi**
+- `scripts/hediye-sesi-uret.js`: bağımlılıksız sentez (sinüs, gürültü, bant
+  geçirgen süzgeç, ses teli/formant modeli). Gerekçe: indirilen dosya
+  dinlenmeden seçilemez ve uygulama markete çıkacak, üretilen ses tamamen
+  bizim.
+- `scripts/ses-incele.js`: üretilen sesi ÖLÇER (perde eğrisi, enerji,
+  parlaklık). Sesleri duyamadığım için tek doğrulama yolu bu. Aracın kendi
+  iki hatası da bulundu ve düzeltildi (pencerelemesiz DFT tizleri şişiriyordu;
+  perde dedektörü kısa gecikmeleri kayırıyordu).
+- **Android'de ses hiç çıkmıyordu, sonra sesin BAŞI yeniyordu.** İki sebep:
+  `playsInSilentMode` iOS'a özel (Android'e hiçbir şey söylenmiyordu →
+  `mixWithOthers`), ve yüklenmemiş oynatıcıya `play()` denmesi. Oynatıcılar
+  artık havuzda ve oda açılırken ön yükleniyor; seslerin başına 120 ms
+  emniyet susması eklendi.
+
+**EFEKT KUYRUĞU**
+- Efektler üst üste biniyordu ve zamanlayıcı hangi hediyenin gösterildiğine
+  BAKMADAN siliyordu (A'nın sayacı B'yi düşürüyordu). `gifts/efektKuyrugu.ts`:
+  sırayla oynatma, kuyruk uzadıkça kısalan gösterim, aynı gönderenin aynı
+  hediyesini birleştirme, 12'lik tavan (efsanevi düşürülmez).
+- **Projedeki tek otomatik test:** `scripts/kuyruk-testi.js`, 10 kontrol.
+
+**SOHBET / GÖRÜNÜM**
+- Hediye satırı gönderenin BALONUNUN içine alındı; kuşanılan balon teması
+  hediye satırında hiç görünmüyordu.
+- Çerçeve artık sohbette ve BAŞKASININ profilinde de çiziliyor.
+- Oda sahibi rozeti hiç görünmüyordu: yayın `yetki` taşıyordu ama
+  `host`/`mod` taşımıyordu. Rol yüke KONMADI (gönderen yalan söyleyebilir),
+  alıcıda `roomRoles`ten türetiliyor.
+- Kullanıcı listesi yeniden yazıldı: tek kaynak (`odaListesi` = katılımcı
+  tablosu + presence + koltuk tablosu birleşimi), tutarlı satır, dokununca
+  KART açılıyor (profile gitmiyor).
+
+**KOLTUK KARARLILIĞI — altı ayrı kök sebep**
+Hepsi aynı desenin yüzleri: *gecikmeli ya da eksik gelen olaylara anlık bakıp
+kesin karar vermek.*
+1. Tek koltuk değişimi İKİ satır olayı üretiyor; tek tek uygulanınca arada
+   boş kare oluşuyordu → 45 ms toplu uygulama + kişiyi eski koltuğundan yerel
+   düşürme.
+2. Kanal koptuğunda yeniden abone olan kod YOKTU → üstel geri çekilmeli
+   yeniden bağlanma + her abonelikte tam okuma.
+3. "Hayalet süzgeci" tek kaynağa (katılımcı tablosu) güveniyordu; kalp atışı
+   arkaplanda durunca mikrofondaki kişi karşı tarafta siliniyordu → iki
+   bağımsız kaynağın birden "yok" demesi şartı.
+4. İstemci kendi kendini mikrofondan indiriyordu → düşürmeden önce taze okuma.
+5. Arkaplan birikintisi ileri sarımda oynatılıyordu → öne dönüşte 1.5 sn
+   anlık olaylar yok sayılıyor.
+6. **Asıl olan:** uzlaşmanın (a) dalı koşulsuzdu ve kişiyi ESKİ koltuğa geri
+   zıplatıyordu → zaman penceresi yerine NİYET takibi (`bekleyenKoltukRef`)
+   + RPC başarılı olunca kendi tabloyu hemen tazeleme.
+
+**YERLEŞİM**
+- Koltuk ölçüleri pikselden ölçülüp WePlay'e hizalandı (çap %51.2 → %58.3,
+  satır arası 22 → 44pt, sahip koltuğu 1.5 → 1.15 kat). Hücre yüksekliği
+  SABİTLENDİ; dolu koltuk boş koltuktan uzun olduğu için sıralar ayrılıyordu.
+- Klavye açıkken mikrofonlar tamamen gizleniyordu → tek satırlık `MiniSahne`.
+
+### ⚠️ AÇIK KALAN (bu oturumda dokunulmadı)
+
+- **`ARKAPLAN_MS = 20000`** — uygulama arkaplanda 20 saniye kalınca odadan
+  otomatik düşürülüyor. İki telefonla test ederken diğerine 20 sn'den fazla
+  bakmak yeterli: sunucu artık kişiyi odada görmüyor, mikrofon daveti "odada
+  bulunamadı" diyor, çık-gir yapınca düzeliyor. **Kullanıcı mikrofon/koltuk
+  koduna dokunulmamasını istedi**, o yüzden yalnız teşhis edildi. Süreyi
+  uzatmak (ör. 2-3 dk) muhtemel çözüm; kullanıcı onayı bekliyor.
+- `kaplan.json` blend mode ve `hazine.json` metin katmanı uyarıları.
+- Faz 0 iki cihaz duman testi hâlâ yapılmadı.
+
+### 🟢 FAZLI YOL HARİTASI — Faz 1 sürüyor (cihaz doğrulaması bekliyor)
 
 **Plan dosyası: `YOL_HARITASI.md`** (repo kökü) — A'dan Z'ye analiz (3 keşif
 ajanı + tasarım ajanı) sonrası kullanıcı onaylı 5 fazlı plan. Kararlar
@@ -1281,7 +1371,9 @@ Dosyanın sonunda **isteğe bağlı** ve kendini bir kez çalıştıran (iki kez
 | `082_hediye_katalogu_lottie.sql` | ✅ çalıştırıldı (42P10'dan sonra, kısmi indeks düzeltmesiyle) |
 | `083_oda_katki.sql` | ✅ çalıştırıldı — kullanıcı katkı listesini ekranda görüyor |
 | `084_hediye_vitrini.sql` | ✅ çalıştırıldı — vitrin ekranda dolu geliyor |
-| `085_hediye_katalogu_yeni.sql` | ❌ **SIRADAKİ** — 7 hediyelik katalog (kedi/tavşan/kaplan/zafer eklendi). Çalışana kadar yeni dördü hediye kutusunda görünmez |
+| `085_hediye_katalogu_yeni.sql` | ⏭️ **ATLANABİLİR** — 087 aynı işi kapsıyor (katalogun tamamını yazıyor) |
+| `086_hediye_zafer_kaldir.sql` | ⏭️ **ATLANABİLİR** — 087 zaten zafer'i listeye almıyor |
+| `087_hediye_noel_baba.sql` | ❓ **ÇALIŞTIRILDI MI, TEYİT EDİLMEDİ** — 7 hediyelik katalog (Noel Baba dahil). Çalışmadıysa yeni hediyeler kutuda görünmez. Tek başına yeterli: 085+086'nın işini de yapar |
 | `053_admin_oda_kapak.sql` | ❓ teyit edilmedi — eksikse yönetim panelindeki kapak düğmeleri hata verir. İddia etmeden önce ölç |
 
 **Faz 0 seti ne düzeltiyor (özet):** 072 yardımcının sunucuda reddedilmesi

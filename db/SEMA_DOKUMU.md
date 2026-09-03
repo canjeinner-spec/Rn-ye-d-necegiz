@@ -1586,3 +1586,39 @@ promo tarafına düşer: hediyeye harcanır ama çekilemez.
 - `yorum_sil(p_yorum_id bigint)` → boolean
 - `ziyaret_kaydet(p_edilen bigint)` → void
 - `ziyaret_sayisi(p_kullanici bigint)` → integer
+
+---
+
+## 080-087 ile eklenen / değişenler (3-4 Eylül)
+
+Bu döküm 30 Ağustos'ta canlıdan çıkarıldı; sonrasında çalıştırılan
+migration'ların getirdikleri aşağıda. Yeniden döküm alınırsa bu bölüm
+gereksizleşir, o zaman silinebilir.
+
+**Yeni fonksiyonlar**
+
+- `hediye_gonder_herkese(p_hediye integer, p_miktar integer, p_oda bigint, p_mesaj text DEFAULT NULL)` → TABLE(...)
+  — 081. Odadaki HERKESE tek işlemde hediye. Alıcı başına ücretlendirir;
+  istemci de aynı çarpanı gösteriyor (`GiftSheet`), yoksa kullanıcı tek fiyat
+  görüp N kat ödüyordu.
+- `oda_katki(p_oda bigint, p_saat integer DEFAULT 24)` → TABLE(sira, kullanici_id, ad, public_id, foto, toplam)
+  — 083. Saatlik/haftalık katkı sıralaması. Kaynak `hediye_gecmisi`
+  (oda_id + gonderen_id + toplam_deger). Öncesinde istemcide UYDURMA sabit
+  dizi vardı.
+- `hediye_vitrini(p_kullanici bigint)` → TABLE(hediye_id, kod, ad, emoji, renk1, renk2, kademe, adet, deger)
+  — 084. Kişinin ALDIĞI hediyeler, hediye başına toplanmış. Pasife alınmış
+  hediyeler de listeleniyor: katalogdan kalkması geçmişi silmez.
+
+**Değişen davranışlar**
+
+- `bakiye_ekle` (080) artık temel ledger'a yazıyor (`lot_yatir` + `cache_artir`).
+  Öncesinde ölü `cuzdan` tablosuna yazıyordu, yani yönetimden verilen bakiye
+  hiçbir yerde görünmüyordu.
+- Ban/dondurma bayrakları (080): ban `kullanicilar.banli` ile senkron,
+  dondurma `gift_blocked` / `coin_conversion_blocked` yazıyor.
+- `hediyeler` kataloğu (087) 7 aktif satır: gul, kedi, ayicik, tavsan,
+  kaplan, noel, hazine. **`kod` değerleri istemcideki `GIFT_SCENES`
+  (`src/gifts/bigGifts.ts`) ve `giftPng.ts` anahtarlarıyla BİREBİR aynı
+  olmalı** — eşleşmezse hediye sessizce emojiye düşer, hata vermez.
+- `uq_hediye_kod` KISMİ indeks (`WHERE kod IS NOT NULL`); `ON CONFLICT`
+  yazarken aynı koşul tekrarlanmazsa 42P10 alırsın.

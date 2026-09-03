@@ -84,3 +84,21 @@ db/migrations/    sıralı SQL
 
 Kod yorumları, commit mesajları ve arayüz **Türkçe**. Commit mesajlarında
 diakritik kullanılmıyor (ASCII).
+
+---
+
+## Durum — 4 Eylül 2026
+
+Son oturumda 27 commit: hediye sistemi (7 hediye, PNG karo + Lottie efekt),
+üretilen hediye sesleri, efekt kuyrugu, sohbet/liste gorunumu ve KOLTUK
+KARARLILIGI (alti ayri kok sebep).
+
+Ayrinti icin `PROJE_DURUMU.md` §10 — orada oturum bolumu ve acik kalanlar var.
+Plan icin `YOL_HARITASI.md` (Faz 1 maddeleri 1.17-1.22 eklendi).
+
+**Bekleyen:** `db/migrations/087_hediye_noel_baba.sql` calistirildi mi teyit
+edilmedi; Faz 0 iki cihaz duman testi hala yapilmadi; `ARKAPLAN_MS = 20000`
+(arkaplanda 20 sn sonra odadan dusme) kullanici onayi bekliyor.
+
+Uc yeni betik: `scripts/lottie-denetle.js`, `scripts/lottie-png.js`,
+`scripts/hediye-sesi-uret.js` (+ `ses-incele.js`, `kuyruk-testi.js`).

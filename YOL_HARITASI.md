@@ -41,7 +41,7 @@ Konu başına dosya (tek büyük dosya değil). Faz 0 → 072-079 ✅, para/hedi
 
 ---
 
-## FAZ 0 — Mantık hataları + kararlılık ✅ KOD BİTTİ (SQL + test bekliyor)
+## FAZ 0 — Mantık hataları + kararlılık ✅ KOD BİTTİ · SQL ÇALIŞTI · **iki cihaz duman testi HÂLÂ YAPILMADI**
 
 | Adım | Dosya/commit | Ne |
 |---|---|---|
@@ -92,6 +92,39 @@ Yapılanların commit listesi ve bilinçli olarak ATLANANLARIN gerekçeleri
 14. **1.14 (Lottie altyapısı) ✅ `14de012` `30c5485` `531bf8e` `5775af0`:** `lottie-react-native` (Expo Go'da çalışır, dev build gerekmez) + `@lottiefiles/dotlottie-react` (web'in istediği isteğe bağlı bağımlılık; kurulmazsa web export çöküyordu). **`scripts/lottie-boya.js`** hazır Lottie dosyalarının rengini temaya çevirir — indirilen dosyalar açık tema için çizilmiş geliyor, siyah kontur `#08080C` üstünde kayboluyor. Araç `assets` içindeki prekompozisyonları da gezer (ilk sürümü gezmiyordu, bir dosyanın konfeti renkleri sessizce atlanmıştı). **`Anim.tsx`** sarmalayıcı + **`BosDurum.tsx`** ortak boş durum. Varlıklar: `bos-kutu.json`, `bos-kutu-altin.json`, `sampiyon.json`. 11 ekranın boş durumu geçti; `badges.tsx`'te boş durum HİÇ YOKTU, eklendi.
 15. **1.15 (Yükleniyor) ✅ `df00e29`:** 20 çıplak `ActivityIndicator`ın 11'i **`Yukleniyor.tsx`**'e geçti (animasyon + yazı + 200 ms flaş koruması). Buton ve arama kutusu içindeki küçük çemberler bilerek kaldı.
 16. **1.16 (Oda kartı + liste dizilimi) ✅ `83dd96c` `893640c`:** WePlay referans alındı (APK layout'ları çözüldü + kullanıcının ekran görüntüsü). Kart: sağdaki ayrı sütun kalktı, kişi sayısı meta satırına indi, durum hapı sağ üste çıktı, rozetler sağa yaslı tek sıra. Liste: yüzen kartlar → sayfaya gömülü tam genişlik satırlar, ayırıcı kapak genişliği kadar içeriden. Renk, tema ve boyutlar değişmedi.
+
+**3-4 Eylül oturumunda eklenenler (kullanıcı isteğiyle, plan dışı).**
+Hepsi Faz 1'in "native his" başlığına ait; ayrıntı ve kök sebepler
+`PROJE_DURUMU.md` §10'daki oturum bölümünde.
+
+17. **1.17 (Hediye kataloğu) ✅** 7 hediye (`087`). Zafer Gecesi eklendi ve
+    KALDIRILDI — 334 katman + 55 efekt + 30 blend mode, lottie-android sadık
+    çizemiyor. Bundle 10.05 → 6.00 MB.
+18. **1.18 (Hediye görselleri) ✅** Karolarda statik PNG, Lottie yalnız
+    gönderim efektinde. Duruk kare çizim döngüsünü durduruyor ama katman
+    ağacını yine kuruyordu. Üç yeni betik: `lottie-denetle.js`,
+    `lottie-png.js`, `lottie-gorsel-kucult.js`.
+19. **1.19 (Ses) ✅** Sesler ÜRETİLDİ (`hediye-sesi-uret.js`), indirilmedi —
+    lisans ve "dinlemeden seçemem" gerekçesiyle. `ses-incele.js` ölçüm aracı.
+    Android'de ses hiç çıkmıyordu (iOS'a özel `playsInSilentMode`) ve sonra
+    sesin başı yeniyordu (yüklenmemiş oynatıcıya `play()`); oynatıcı havuzu
+    + ön yükleme + 120 ms emniyet susması.
+20. **1.20 (Efekt kuyruğu) ✅** `gifts/efektKuyrugu.ts` — sırayla oynatma,
+    kuyruk uzadıkça kısalan gösterim, birleştirme, 12 tavan.
+    **`scripts/kuyruk-testi.js` projedeki tek otomatik test (10 kontrol).**
+21. **1.21 (Sohbet görünümü) ✅** Hediye satırı gönderenin balonuna alındı;
+    çerçeve sohbette ve başkasının profilinde çiziliyor; oda sahibi rozeti
+    artık görünüyor (rol yükten DEĞİL `roomRoles`ten türetiliyor).
+22. **1.22 (Kullanıcı listesi + koltuk yerleşimi) ✅** Liste tek kaynağa
+    bağlandı (katılımcı + presence + koltuk birleşimi), satırlar tutarlı,
+    dokununca kart açılıyor. Koltuk ölçüleri pikselden ölçülüp hizalandı;
+    hücre yüksekliği sabitlendi; klavye açıkken `MiniSahne`.
+
+**Plan dışı — cihaz testinden çıkan KARARLILIK işleri (Faz 0'ın devamı
+sayılmalı).** Altı ayrı kök sebep, hepsi aynı desen: *gecikmeli ya da eksik
+gelen olaylara anlık bakıp kesin karar vermek.* Toplu uygulama, kanal
+yeniden bağlanma, iki kaynaklı hayalet süzgeci, düşürmeden önce doğrulama,
+arkaplan birikintisini atma, niyet takibi. Ayrıntı `PROJE_DURUMU.md`.
 
 ### Faz 1 duman testi
 300+ mesajla kaydırma akıcı + tavan; presence sync'te sohbet satırları yeniden çizilmiyor; tüm sheet'ler sürükle-kapat; uçak modunda ilk açılış avatarlı; tema turu; withdraw/diamond-load dürüst; DM/profil hediye butonu yok. **Regresyon nöbeti:** Faz 0 senaryoları 1-3 ve 6.
