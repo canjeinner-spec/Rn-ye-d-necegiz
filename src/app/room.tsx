@@ -968,6 +968,21 @@ export default function RoomScreen() {
   };
 
   /**
+   * uid -> üye haritası. Aynı render içinde onlarca arama yapılıyordu
+   * (koltuk kurulumu, kalabalık başlığı, HER sohbet satırı) ve her biri
+   * `liveMembers` dizisini baştan tarıyordu: maliyet arama x üye.
+   *
+   * `liveMembers` değişince yeniden kuruluyor, yani kimlik değişimi diziyle
+   * birebir aynı anda oluyor — bağımlılık dizilerine EKLENDİ, dizinin kendisi
+   * ÇIKARILMADI (isim üzerinden arayan tek yer hâlâ diziyi kullanıyor).
+   */
+  const uyeHaritasi = useMemo(() => {
+    const h = new Map<number, LiveMember>();
+    for (const m of liveMembers) h.set(m.uid, m);
+    return h;
+  }, [liveMembers]);
+
+  /**
    * Gerçek odada koltuklar presence'tan türetilir — herkes aynı tabloyu görür.
    * Demo odada eski yerel state (SEATS sabiti) kullanılmaya devam eder.
    */
@@ -996,7 +1011,7 @@ export default function RoomScreen() {
       if (!benMi && suzgecGuvenli && !odadaSet.has(k.kullaniciId)) continue;
       // Kozmetikler (çerçeve/balon) presence'ta taşınıyor — koltuk için kritik
       // değil, geç gelirse yalnız çerçeve geç çizilir.
-      const uye = liveMembers.find((m) => m.uid === k.kullaniciId);
+      const uye = uyeHaritasi.get(k.kullaniciId);
       arr[k.koltukNo] = {
         uid: k.kullaniciId,
         name: benMi ? "Sen" : k.ad || uye?.name || "Kullanıcı",
@@ -1024,7 +1039,7 @@ export default function RoomScreen() {
       };
     }
     return arr;
-  }, [dbKoltuklar, odadakiler, liveMembers, myDbId, userPhoto, myPublicId, isMine, mySeat, micOn, userLevel, kusanili.cerceve, privileged]);
+  }, [dbKoltuklar, odadakiler, liveMembers, uyeHaritasi, myDbId, userPhoto, myPublicId, isMine, mySeat, micOn, userLevel, kusanili.cerceve, privileged]);
 
   const gosterilenKoltuklar = gercekOda ? canliKoltuklar : seats;
 
@@ -1056,7 +1071,7 @@ export default function RoomScreen() {
     // Sahip kimliği DB'den kesin; presence yalnızca "şu an odada mı" der.
     const sahipUid = sahipProfil?.id ?? room?.ownerId ?? null;
     const canli =
-      (sahipUid != null ? liveMembers.find((m) => m.uid === sahipUid) : undefined) ??
+      (sahipUid != null ? uyeHaritasi.get(sahipUid) : undefined) ??
       liveMembers.find((m) => m.name === (sahipProfil?.ad ?? room?.host));
 
     const ad = canli?.name ?? sahipProfil?.ad ?? room?.host;
@@ -1076,7 +1091,7 @@ export default function RoomScreen() {
       cerceve: canli?.cerceve,
       yetki: canli?.yetki,
     };
-  }, [gercekOda, host, isMine, micOn, userLevel, userPhoto, myPublicId, myDbId, liveMembers, room?.host, room?.ownerId, sahipProfil, kusanili.cerceve, privileged, hostKoltuk]);
+  }, [gercekOda, host, isMine, micOn, userLevel, userPhoto, myPublicId, myDbId, liveMembers, uyeHaritasi, room?.host, room?.ownerId, sahipProfil, kusanili.cerceve, privileged, hostKoltuk]);
 
   /** Sahip şu an odada mı — koltuğu soluk gösterip "Ayrıldı" yazmak için. */
   /**
@@ -1108,7 +1123,7 @@ export default function RoomScreen() {
       // 2) Katılımcı tablosu
       if (odadakiler.some((m) => m.uid === sahipUid)) return true;
       // 3) Presence
-      if (liveMembers.some((m) => m.uid === sahipUid)) return true;
+      if (uyeHaritasi.has(sahipUid)) return true;
     } else {
       // Kimi arayacağımızı bilmiyorsak suçlamayalım.
       return true;
@@ -1118,7 +1133,7 @@ export default function RoomScreen() {
     // bilgi değil, bilgisizlik — "Ayrıldı" yazma.
     const veriVar = dbKoltuklar.length > 0 || odadakiler.length > 0 || liveMembers.length > 0;
     return !veriVar;
-  }, [gercekOda, isMine, hostKoltuk, odadakiler, liveMembers, dbKoltuklar, sahipProfil, room?.ownerId]);
+  }, [gercekOda, isMine, hostKoltuk, odadakiler, liveMembers, uyeHaritasi, dbKoltuklar, sahipProfil, room?.ownerId]);
 
   const occupants = useMemo(
     () => [gosterilenHost, ...gosterilenKoltuklar].filter(Boolean) as Seat[],
@@ -1133,7 +1148,7 @@ export default function RoomScreen() {
         key: "u" + m.uid,
         name: m.uid === myDbId ? userName : m.name,
         photo: m.uid === myDbId ? userPhoto || undefined : m.photo,
-        cerceve: m.uid === myDbId ? kusanili.cerceve : liveMembers.find((x) => x.uid === m.uid)?.cerceve,
+        cerceve: m.uid === myDbId ? kusanili.cerceve : uyeHaritasi.get(m.uid)?.cerceve,
       }))
     : occupants.map((o, i) => ({
         key: (o.name || "u") + i,
@@ -2076,7 +2091,7 @@ export default function RoomScreen() {
   const girisKartiAc = (e: { uid?: number; ad: string }) => {
     haptic.light();
     if (e.uid != null && e.uid === myDbId) { openMyCard(); return; }
-    const uye = e.uid != null ? liveMembers.find((x) => x.uid === e.uid) : undefined;
+    const uye = e.uid != null ? uyeHaritasi.get(e.uid) : undefined;
     if (!uye) { toast(`${e.ad} odadan ayrıldı`); return; }
     openChatUserCard({ name: uye.name, uid: uye.uid, photo: uye.photo, publicId: uye.publicId, text: "", time: "" });
   };
@@ -2095,7 +2110,7 @@ export default function RoomScreen() {
       photo: m.photo,
       publicId: m.publicId,
       // Kart açılınca karşı tarafın kuşandığı çerçeve de görünsün (056)
-      cerceve: m.uid != null ? liveMembers.find((x) => x.uid === m.uid)?.cerceve : undefined,
+      cerceve: m.uid != null ? uyeHaritasi.get(m.uid)?.cerceve : undefined,
       viewerRole: MY_ROLE,
       // Koltukta olmayan biri — yalnızca burada mikrofona davet edilebilir.
       onInviteMic: isDbRoom && uid != null && (MY_ROLE === "host" || MY_ROLE === "mod")
@@ -2280,7 +2295,7 @@ export default function RoomScreen() {
               <SystemBanner roomName={roomName} />
               {msgs.map((m, i) => {
                 // Kendi mesajımda kendi kuşandığım, başkasınınkinde presence'tan gelen tema.
-                const uyeler = m.uid != null ? liveMembers.find((x) => x.uid === m.uid) : undefined;
+                const uyeler = m.uid != null ? uyeHaritasi.get(m.uid) : undefined;
                 return (
                   <ChatRow
                     key={i}
