@@ -59,21 +59,28 @@ import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
 /**
- * Koltuk ölçüleri — WePlay'den ölçülerek çıkarıldı.
+ * Koltuk ölçüleri — iki ekran görüntüsü PİKSELDEN ölçülerek çıkarıldı
+ * (ikisi de 1290px = 430pt @3x, aynı cihaz, yan yana).
  *
- * Referans ekran görüntüsü 1290px genişliğinde (430pt @3x):
- *   • koltuk çapı 165px  = 55pt
- *   • sütun genişliği    = 430/4 = 107.5pt  (ızgara tam ekran genişliğinde,
- *                          yatay dolgu yok)
- *   • oda sahibi çapı 273px = 91pt
+ *                 koltuk çapı        satır arası      sahip çapı
+ *   bizim eski    164px (54.7pt)     67px (22pt)      236px
+ *   WePlay        188px (62.7pt)     133px (44pt)     191px
  *
- * Yani çap sütunun %51'i. Sabit piksel yerine bu oranı kullanıyoruz ki her
- * ekran boyutunda aynı denge korunsun:
- *   390pt ekran → koltuk 50     430pt ekran → koltuk 55
+ * Üç fark da düzeltildi:
+ *   • Koltuklarımız %15 KÜÇÜKTÜ. Çap sütun genişliğinin %51.2'siydi,
+ *     ölçülen WePlay oranı %58.3 (188 / 322.5).
+ *   • Satır arası YARISI KADARDI. 22pt → 44pt.
+ *   • Sahip koltuğu ise TERSİNE, fazla büyüktü: bizde koltuğun 1.44 katı,
+ *     WePlay'de 1.02 katı — yani onlarda sahip neredeyse koltukla aynı boy.
+ *     Birebir 1.0'a inmedik: bizde sahibin altında isim ve yetki etiketi
+ *     var ve sahibin öne çıkması bilinçli bir tercih. 1.15'te durduk.
  *
- * Sahip koltuğu WePlay'de koltuğun 1.65 katı; bizde 1.5 kullanıyoruz —
- * WePlay'in aksine sahibin altında isim ve yetki etiketi de var, 1.65
- * fazla baskın duruyordu.
+ * Oran sabit pikselden daha iyi: her ekran boyutunda aynı denge korunuyor.
+ *   390pt ekran → koltuk 57     430pt ekran → koltuk 63
+ *
+ * ÖNCEKİ NOT YANLIŞTI: "WePlay koltuğu 55pt, sahip 91pt" yazıyordu; o başka
+ * bir ekran görüntüsünden gelmişti ve bu ölçümle tutmuyor. Ölçüm bu iki
+ * dosyadan, tekrarlanabilir (scripts yerine tek seferlik, ama sayılar burada).
  */
 /**
  * BU CİHAZIN oturum kimliği — uygulama açık kaldığı sürece sabit.
@@ -122,8 +129,8 @@ const GIRIS_DUYURU_PENCERESI_MS = 30000;
 const MSG_TAVAN = 200;
 
 const { width: EKRAN } = Dimensions.get("window");
-const KOLTUK = Math.round((EKRAN / 4) * 0.512);
-const SAHIP_KOLTUK = Math.round(KOLTUK * 1.5);
+const KOLTUK = Math.round((EKRAN / 4) * 0.583);
+const SAHIP_KOLTUK = Math.round(KOLTUK * 1.15);
 
 const ROOM_REPORT: { ic: IconName; t: string }[] = [
   { ic: "adult", t: "Uygunsuz / 18+ içerik" },
@@ -3117,7 +3124,9 @@ const styles = StyleSheet.create({
   // Dolgu koydukça sütun daralıyor, aynı çaptaki koltuk sıkışık görünüyordu.
   stage: { paddingTop: 10, paddingBottom: 10 },
   hostSeat: { alignItems: "center", marginBottom: 18 },
-  grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 22 },
+  // rowGap 22 -> 44: olculen WePlay satir arasi 133px = 44pt idi, bizimki
+  // 67px = 22pt. Izgara bu yuzden sikisik duruyordu.
+  grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 44 },
   // Alt bar — WePlay/Yalla düzeni: yuvarlak düğmeler + ortada "Yaz …" hapı.
   barYuvarlak: {
     width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center",
