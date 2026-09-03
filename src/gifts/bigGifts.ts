@@ -1,26 +1,46 @@
+import type LottieView from "lottie-react-native";
+import type { ComponentProps } from "react";
+
 /**
- * Büyük (ekranı kaplayan) hediye sahne manifesti.
- * id → { sound, duration, svga? }
+ * Hediye sahne manifesti — id (katalogdaki `kod`) → animasyon + ses + süre.
  *
- * NOT: Gerçek WePlay/Yalla kalitesinde SVGA/PAG dosyaları native player gerektirir
- * (dev-client). Bu yüzden `svga` alanı şimdilik boş; dev-client'a geçince
- * her sahneye .svga dosyası eklenip BigGiftOverlay içindeki renderer
- * <SvgaPlayer source={scene.svga}/> ile değiştirilecek. Manifest aynı kalır.
+ * ANIMASYON ARTIK LOTTIE. Eskiden burada `svga` alanı vardı ve boştu; SVGA
+ * native player gerektirdiği için hiç kullanılamadı. Lottie ise Expo Go'da
+ * çalışıyor (`lottie-react-native` Expo'nun paket listesinde), o yüzden
+ * hediye efektleri gerçek animasyona bu yoldan geçti.
+ *
+ * SES: `sound` alanı `require(...)` ile bir ses dosyası bekliyor. Yeni ses
+ * eklemek için dosyayı `assets/gifts/` içine koyup buraya `require` ile
+ * bağlamak yeterli — `BigGiftOverlay` ve `GiftFx` onu kendisi çalıyor
+ * (`expo-audio`, sessiz modda da çalar).
  */
 export type GiftScene = {
-  sound: number;
+  /** Ekranda oynayacak Lottie. Yoksa eski kodla çizilen efekt kullanılır. */
+  anim?: ComponentProps<typeof LottieView>["source"];
+  /** `expo-audio` ile çalınacak ses. */
+  sound?: number;
+  /** Efektin ekranda kalma süresi (ms). */
   duration: number;
-  svga?: number;
 };
 
 export const LEGENDARY_SOUND = require("../../assets/gifts/legendary.wav");
 
+/**
+ * Lottie dosyaları `src/anim/gifts/` altında ve KENDİ RENKLERİNDE bırakıldı.
+ * Boş durum/yükleniyor animasyonları temaya boyanıyor (`scripts/lottie-boya.js`)
+ * ama hediyeler öyle değil: gül kırmızı, hazine altın, ayıcık kahverengi
+ * olmalı. Altına çevirmek hepsini aynı ve tanınmaz yapardı.
+ */
 export const GIFT_SCENES: Record<string, GiftScene> = {
-  // tüm efsanevi hediyeler için varsayılan sahne
+  gul:    { anim: require("../anim/gifts/gul.json"),    duration: 4000 },
+  ayicik: { anim: require("../anim/gifts/ayicik.json"), duration: 4530 },
+  hazine: { anim: require("../anim/gifts/hazine.json"), sound: LEGENDARY_SOUND, duration: 3600 },
+
+  // Efsanevi hediyeler için varsayılan (Lottie'si olmayan).
   _legendary: { sound: LEGENDARY_SOUND, duration: 3600 },
-  // örnek: ileride giriş efektleri / özel hediyeler
-  // car:   { sound: require("../../assets/gifts/car.wav"),   duration: 5200, svga: require("../../assets/gifts/car.svga") },
-  // throne:{ sound: require("../../assets/gifts/throne.wav"), duration: 4200, svga: require("../../assets/gifts/throne.svga") },
 };
 
 export const sceneFor = (id: string): GiftScene => GIFT_SCENES[id] ?? GIFT_SCENES._legendary;
+
+/** Bu hediyenin kendi Lottie animasyonu var mı? */
+export const animVar = (id: string): boolean => !!GIFT_SCENES[id]?.anim;

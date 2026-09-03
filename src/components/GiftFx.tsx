@@ -12,7 +12,9 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { Anim } from "@/components/Anim";
 import { type Gift, type GiftTier, TIER_RING } from "@/data/gifts";
+import { sceneFor } from "@/gifts/bigGifts";
 import { Gradient } from "@/theme/Gradient";
 import { Txt } from "./Txt";
 
@@ -109,6 +111,27 @@ export function GiftFx({ gift }: { gift: FxGift }) {
     opacity: pop.value,
     transform: [{ scale: 0.55 + pop.value * 0.45 }],
   }));
+
+  // Hediyenin kendi Lottie animasyonu varsa madalyon/kıvılcım düzeni yerine
+  // onu oynatıyoruz. Kendi kompozisyonu var; halkanın içine sokmak kırpıyor.
+  const sahne = sceneFor(gift.id);
+  if (sahne.anim) {
+    return (
+      <View style={styles.root} pointerEvents="none">
+        <Animated.View entering={FadeIn.duration(300)} exiting={FadeOut} style={styles.dim} />
+        <Animated.View style={[{ alignItems: "center", gap: 10 }, popStil]}>
+          <Anim kaynak={sahne.anim} boyut={260} dongu={false} />
+          <View style={[styles.kapsul, { borderColor: ring + "66" }]}>
+            <Gradient colors={[gift.c1 + "3D", "rgba(10,9,14,.92)"]} deg={120} style={StyleSheet.absoluteFill} />
+            <Txt weight="displayBold" size={15} color="#fff" numberOfLines={1}>{gift.name}</Txt>
+            <View style={[styles.adet, { borderColor: ring + "55" }]}>
+              <Txt weight="extrabold" size={12} color={ring}>×{gift.qty}</Txt>
+            </View>
+          </View>
+        </Animated.View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root} pointerEvents="none">

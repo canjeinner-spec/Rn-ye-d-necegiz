@@ -15,6 +15,7 @@ import Animated, {
 import Svg, { Defs, Polygon, RadialGradient, Stop } from "react-native-svg";
 
 import { type Gift } from "@/data/gifts";
+import { Anim } from "@/components/Anim";
 import { sceneFor } from "@/gifts/bigGifts";
 import { Txt } from "@/components/Txt";
 import { C } from "@/theme/colors";
@@ -62,9 +63,13 @@ export function BigGiftOverlay({ gift, qty, sender, onDone }: { gift: Gift; qty:
     let player: ReturnType<typeof createAudioPlayer> | null = null;
     setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
     try {
-      player = createAudioPlayer(scene.sound);
-      player.volume = 1;
-      player.play();
+      // Ses artık isteğe bağlı (bigGifts.ts): dosyası olmayan hediye sessiz
+      // oynar. Eskiden `sound` zorunluydu ve her sahne aynı sesi kullanıyordu.
+      if (scene.sound) {
+        player = createAudioPlayer(scene.sound);
+        player.volume = 1;
+        player.play();
+      }
     } catch {}
 
     dim.value = withTiming(1, { duration: 260 });
@@ -129,11 +134,18 @@ export function BigGiftOverlay({ gift, qty, sender, onDone }: { gift: Gift; qty:
 
         {/* Emblem: çıplak 108px emoji yerine hediyenin renklerinden madalyon */}
         <Animated.View style={[styles.emblem, { shadowColor: gift.c1 }, emblemStyle]}>
+          {scene.anim ? (
+            // Hediyenin kendi Lottie'si varsa madalyon YOK — animasyon
+            // kendi kompozisyonuyla gelir, halkanın içine hapsetmek onu
+            // küçültür ve kenarlarını kırpar.
+            <Anim kaynak={scene.anim} boyut={300} dongu={false} />
+          ) : (
           <Gradient colors={[gift.c1, gift.c2, gift.c1]} deg={135} style={styles.emblemHalka}>
             <View style={styles.emblemIc}>
               <Txt size={92}>{gift.emoji}</Txt>
             </View>
           </Gradient>
+          )}
         </Animated.View>
       </View>
 

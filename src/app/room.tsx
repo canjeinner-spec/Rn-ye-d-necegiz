@@ -31,6 +31,7 @@ import { Sheet } from "@/components/Sheet";
 import { Touch } from "@/components/Touch";
 import { Txt } from "@/components/Txt";
 import { ContributionView } from "@/sheets/ContributionView";
+import { sceneFor } from "@/gifts/bigGifts";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { ProfileCard, type ProfileCardUser } from "@/sheets/ProfileCard";
 import { MicQueueSheet } from "@/sheets/MicQueueSheet";
@@ -997,7 +998,10 @@ export default function RoomScreen() {
       return;
     }
     setGiftFx({ ...g, qty });
-    const dur = g.tier === "epic" ? 3000 : 2400;
+    // Süre artık sahne manifestinden (bigGifts.ts): Lottie'nin kendi uzunluğu
+    // var, sabit 2400/3000 ms animasyonu yarıda kesiyordu.
+    const sahne = sceneFor(g.id);
+    const dur = sahne.anim ? sahne.duration : g.tier === "epic" ? 3000 : 2400;
     setTimeout(() => setGiftFx(null), dur);
   };
 
