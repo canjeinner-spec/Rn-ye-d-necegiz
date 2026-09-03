@@ -115,6 +115,9 @@ export function GiftFx({ gift }: { gift: FxGift }) {
   // Hediyenin kendi Lottie animasyonu varsa madalyon/kıvılcım düzeni yerine
   // onu oynatıyoruz. Kendi kompozisyonu var; halkanın içine sokmak kırpıyor.
   const sahne = sceneFor(gift.id);
+  // TESHIS (gecici): hediye kodu ile GIFT_SCENES anahtari eslesiyor mu?
+  // Eslesmezse sessizce eski emoji efektine dusuyor ve sebebi gorunmuyor.
+  console.log(`[hediye] id=${gift.id} kademe=${gift.tier} anim=${sahne.anim ? "VAR" : "YOK"}`);
   if (sahne.anim) {
     return (
       <View style={styles.root} pointerEvents="none">
