@@ -323,7 +323,7 @@ export default function Home() {
             <Txt weight="displayBold" size={19} color="#fff" style={{ letterSpacing: 2 }}>ARON</Txt>
             <Txt weight="displayBold" size={19} color={C.gold} style={{ letterSpacing: 2 }}>CHAT</Txt>
           </View>
-          <Pressable onPress={() => router.navigate("/preview")} hitSlop={8} style={styles.roundBtn}>
+          <Pressable onPress={() => router.navigate("/user-search")} hitSlop={8} style={styles.roundBtn}>
             <Icon name="search" size={19} color={C.text} />
           </Pressable>
         </View>
