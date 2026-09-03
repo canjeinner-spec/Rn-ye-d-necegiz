@@ -93,6 +93,30 @@ export function GirisEfekti({
     opak.value = withTiming(1, { duration: 200 });
   }, [opak]);
 
+  /**
+   * KUYRUĞU İLERLETME — LAYOUT'A BAĞLI DEĞİL, mount'ta bir kez kurulur.
+   *
+   * İkinci kök sebep (Metro logu: iki turda da "kuyruga eklendi, onceki
+   * uzunluk=1" var ama "efekt bitti" HİÇ yok): bitiş zamanlayıcısı `hedef`
+   * ölçümünün geldiği effect'in içindeydi. `hedef` `onLayout`tan geliyor;
+   * ölçüm hiç gelmezse zamanlayıcı hiç kurulmuyor, ölçüm değişip durursa
+   * sürekli sıfırlanıyor. Kuyruğu ilerletmek bir ölçüm callback'ine
+   * bağlanamaz — ölçüm olmasa bile bu eleman ~2,4 sn sonra sıradan
+   * çıkmak ZORUNDA, yoksa arkasındaki hiçbir şey görünmüyor.
+   *
+   * Her kuyruk elemanı `key` ile ayrı örnek olduğu için bu effect eleman
+   * başına tam bir kez çalışır.
+   */
+  useEffect(() => {
+    const bitir = setTimeout(() => {
+      console.log("[giris] efekt bitti, kuyruk ilerliyor");
+      onBittiRef.current();
+    }, acikKalma + KAPANMA_MS + 60);
+    return () => clearTimeout(bitir);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Açılma/kapanma animasyonu — bu kısım ölçüme bağlı kalabilir. */
   useEffect(() => {
     if (hedef == null) return;
     g.value = withTiming(hedef, { duration: ACILMA_MS, easing: Easing.out(Easing.cubic) });
@@ -101,14 +125,8 @@ export function GirisEfekti({
       g.value = withTiming(KAPALI_G, { duration: KAPANMA_MS, easing: Easing.in(Easing.cubic) });
       opak.value = withDelay(KAPANMA_MS - 140, withTiming(0, { duration: 160 }));
     }, acikKalma);
-    const bitir = setTimeout(() => {
-      console.log("[giris] efekt bitti, kuyruk ilerliyor");
-      onBittiRef.current();
-    }, acikKalma + KAPANMA_MS + 60);
 
-    return () => { clearTimeout(kapat); clearTimeout(bitir); };
-    // onBitti BİLEREK dışarıda — yukarıdaki açıklama.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => clearTimeout(kapat);
   }, [hedef, g, opak, acikKalma]);
 
   const stil = useAnimatedStyle(() => ({ width: g.value, opacity: opak.value }));
@@ -126,7 +144,16 @@ export function GirisEfekti({
       {/* Hap dokunulabilir: girenin kartını açar. */}
       <Pressable onPress={onBas} style={StyleSheet.absoluteFill} />
 
-      <View pointerEvents="none" style={styles.icerik} onLayout={(e) => setHedef(Math.ceil(e.nativeEvent.layout.width))}>
+      <View
+        pointerEvents="none"
+        style={styles.icerik}
+        onLayout={(e) => {
+          const w = Math.ceil(e.nativeEvent.layout.width);
+          // TEŞHİS (geçici): ölçüm geliyor mu, kaç kez değişiyor?
+          console.log(`[giris] olcum geldi w=${w}`);
+          setHedef(w);
+        }}
+      >
         <View
           style={[
             styles.ikon,
