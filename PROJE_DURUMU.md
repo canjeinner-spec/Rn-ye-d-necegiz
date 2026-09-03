@@ -507,11 +507,11 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
-> **Son güncelleme: 3 Eylül 2026** · Dal `claude/metro-recovery-1xc2kq`
+> **Son güncelleme: 3 Eylül 2026 (gece)** · Dal `claude/metro-recovery-1xc2kq`
 > · **origin'e PUSH EDİLMEDİ** · güncel commit için `git log --oneline -15`
 > (şema dökümü için `db/SEMA_DOKUMU.md`)
 
-### 🟢 EN GÜNCEL: FAZLI YOL HARİTASI — Faz 1 başladı (1.1 → 1.4b bitti)
+### 🟢 EN GÜNCEL: FAZLI YOL HARİTASI — Faz 1 sürüyor (15 commit, cihaz doğrulaması bekliyor)
 
 **Plan dosyası: `YOL_HARITASI.md`** (repo kökü) — A'dan Z'ye analiz (3 keşif
 ajanı + tasarım ajanı) sonrası kullanıcı onaylı 5 fazlı plan. Kararlar
@@ -535,19 +535,23 @@ DM/profil hediyesi bayrakla kapatılıp Faz 4'te gerçek) o dosyanın başında.
   hâlâ mümkün, e-posta hâlâ her super_admin'e görünüyor, oda sohbeti hâlâ
   kalıcı değil.
 
-- **Faz 1 (native his) — 1.1 → 1.4b ✅** 7 commit (`f8d1839` → `a4f1271`).
-  Doğrulama: `tsc --noEmit` temiz + `expo export --platform web` başarılı
-  (1769 modül, bütün rotalar üretildi). **Cihazda görsel doğrulama YOK.**
+- **Faz 1 (native his) — 1.1 → 1.4b ve 1.14 → 1.16 ✅** 15 commit
+  (`f8d1839` → `893640c`). Doğrulama: `tsc --noEmit` temiz + android/ios/web
+  bundle'ları başarılı. **Cihazda görsel doğrulama neredeyse hiç YOK** —
+  kullanıcı yalnız oda listesindeki boş durum animasyonunu gördü.
 
   | Adım | Commit | Ne yapıldı |
   |---|---|---|
-  | 1.1 ✅ | `f8d1839` | Oda listesi arama ikonu `/preview` (bileşen galerisi) yerine `/user-search`'e gidiyor. |
-  | 1.2a ✅ | `25cfcc1` | room.tsx'te her presence sync'inde string kuran iki teşhis logu silindi (11 satır). |
-  | 1.2b ✅ | `5a66edb` | `_layout.tsx`'te `if (!__DEV__)` kapısı — üretimde `console.log/debug/info` no-op. `warn`/`error` bilerek duruyor. |
-  | 1.3a ✅ | `dcc3a2a` | Sohbet dizilerine 200 mesaj tavanı (room.tsx 5 ekleme noktası + dm-chat 5). |
-  | 1.3b ✅ | `eeba834` | `liveMembers.find` → `uyeHaritasi` (`Map<uid, LiveMember>`); 7 arama çevrildi. |
-  | 1.4a ✅ | `8eb09cd` | **YENİ `src/components/Touch.tsx`** + oda alt barı (10), koltuklar (2), aksiyon satırı (1). |
+  | 1.1 ✅ | `f8d1839` | Oda listesi arama ikonu `/preview` yerine `/user-search`'e gidiyor. |
+  | 1.2a ✅ | `25cfcc1` | Her presence sync'inde string kuran iki teşhis logu silindi. |
+  | 1.2b ✅ | `5a66edb` | `_layout.tsx`'te `if (!__DEV__)` kapısı; `warn`/`error` duruyor. |
+  | 1.3a ✅ | `dcc3a2a` | Sohbet dizilerine 200 mesaj tavanı (room 5 + dm-chat 5 nokta). |
+  | 1.3b ✅ | `eeba834` | `liveMembers.find` → `uyeHaritasi` (`Map<uid, LiveMember>`), 7 arama. |
+  | 1.4a ✅ | `8eb09cd` | **`Touch.tsx`** + oda alt barı (10), koltuklar (2), aksiyon satırı (1). |
   | 1.4b ✅ | `a4f1271` | `Tabs.tsx` + `BottomNav.tsx` → `Touch` (`kucul={false}`). |
+  | 1.14 ✅ | `14de012` `30c5485` `531bf8e` `5775af0` | Lottie altyapısı, `scripts/lottie-boya.js`, `Anim.tsx`, `BosDurum.tsx`, 3 varlık, 11 ekranın boş durumu. |
+  | 1.15 ✅ | `df00e29` | **`Yukleniyor.tsx`** — 11 çıplak spinner animasyon + yazıya geçti. |
+  | 1.16 ✅ | `83dd96c` `893640c` | Oda kartı WePlay dizilimine geçti; liste yüzen kartlardan gömülü satırlara. |
 
 - **BİLİNÇLİ OLARAK YAPILMAYANLAR (sebepleriyle):**
   - **1.4c (kalan ~810 Pressable):** toplu regex plan gereği YASAK, dalga dalga
@@ -570,6 +574,22 @@ DM/profil hediyesi bayrakla kapatılıp Faz 4'te gerçek) o dosyanın başında.
     `babel-preset-expo`'yu kendisi uyguluyor ve worklets eklentisini de
     ekliyor). Sıfırdan yazmak reanimated + expo-router yolunu riske atar,
     kazancı yalnız üretim bundle'ında. Dev build turunda (Faz 4) eklenecek.
+  - **Oda kartında kategori hapı:** WePlay'de isim altında "Aile / Oyun /
+    Sohbet / Müzik" hapı var. Bizde O VERİ YOK — `odalar.kategori` içerik
+    kategorisi değil, oda TEMASI tutuyor (`official/club/lounge/night/fire`,
+    `SceneKind`). Uydurulmadı; istenirse önce şemaya alan eklenmeli.
+
+- **CİHAZDA DOĞRULANACAKLAR (14 commit birikti):**
+  1. Basılı his: alt bar, koltuklar, sekmeler, alt gezinme (Android'de dalga).
+  2. Boş durumlar: 11 ekran (Sıralama'da şampiyon, kalanında kutu).
+  3. Yükleniyor: uygulama açılışı, Rozetlerim, Envanter, Mağaza, Hediye sayfası.
+     **200 ms altındaki yüklemelerde hiçbir şey görünmez — bu doğru davranış.**
+  4. Oda kartı: satırlar kenara kadar mı, ayırıcı kapaktan sonra mı başlıyor,
+     uzun oda adı durum hapının altına giriyor mu, resmî/daily odada arma ile
+     isim çakışıyor mu.
+  5. **Regresyon nöbeti (1.3b riski):** koltuklarda doğru isim/fotoğraf/çerçeve,
+     sohbette isme dokununca doğru kart, giriş efekti kartı, üst kalabalık
+     şeridindeki çerçeveler.
 
 - **Sıradaki:** önce Faz 0'ın iki bekleyen işi (SQL + duman testi). Sonra
   Faz 1'in kalanı: 1.4c dalgaları → 1.5 → 1.6 → 1.7 …

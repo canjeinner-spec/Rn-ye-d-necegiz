@@ -4,12 +4,18 @@
 > + 1 tasarım ajanı, kullanıcı onaylı) uygulama planı. Hangi fazda
 > olduğumuz `PROJE_DURUMU.md` §10'un başında; burası planın kendisi.
 >
-> **DURUM (3 Eylül):** Faz 0 kod tarafı ✅ bitti (13 commit). Faz 1'de
-> 1.1 → 1.4b ✅ bitti (7 commit, `f8d1839` → `a4f1271`).
-> **HÂLÂ BEKLEYEN (kullanıcıda):** `db/migrations/SON_072_079.sql` canlıda
-> çalıştırılacak → Faz 0 duman testi (iki cihaz). Faz 1 kodu bundan bağımsız
-> olduğu için paralel ilerledi, ama Faz 0'ın kapattığı hatalar canlıda hâlâ
-> AÇIK ve Faz 1'in cihaz doğrulaması da o tura bağlı.
+> **DURUM (3 Eylül, gece):** Faz 0 kod tarafı ✅ bitti (13 commit). Faz 1'de
+> 1.1 → 1.4b ve sonradan eklenen 1.14 → 1.16 ✅ bitti (15 commit,
+> `f8d1839` → `893640c`).
+>
+> **⛔ EN ESKİ TIKANMA — HÂLÂ KULLANICIDA:** `db/migrations/SON_072_079.sql`
+> canlıda çalıştırılmadı, Faz 0 iki-cihaz duman testi yapılmadı. Faz 1 kodu
+> bundan bağımsız olduğu için paralel ilerledi, **ama Faz 0'ın kapattığı
+> mantık hataları canlıda hâlâ AÇIK** (yardımcı yetkileri, koltuk yarışı,
+> çift ödül, e-posta sızıntısı, kalıcı sohbet).
+>
+> Faz 1'in cihaz doğrulaması da yapılmadı: kullanıcı yalnız oda listesindeki
+> boş durum animasyonunu gördü, kalan 14 commit ekranda doğrulanmadı.
 
 ## Kullanıcının verdiği kararlar
 
@@ -79,6 +85,13 @@ Yapılanların commit listesi ve bilinçli olarak ATLANANLARIN gerekçeleri
 11. **1.11 (C8):** KeyboardAware eksik 16 dosya; `paddingBottom:110/120` sabitleri inset tabanlı ortak değere.
 12. **1.12 (A4/A5):** Tema hizalama — standart zemin (`#16121F → #0B0A11 → #08080C` + altın hale): referral, badges, about, updates, diamond-load, level, user-profile, RoomStats, ContributionView + sekme zeminleri. `Kart` bileşeni oluşturulur, yalnız dokunulan ekranlarda kullanılır.
 13. **1.13 (A2):** Sahte başarılar kaldırılır — `withdraw.tsx` ve `diamond-load.tsx` yalanı yerine geçici dürüst durum (Faz 4'te gerçeğe bağlanana kadar); `features.ts` `profileGift`/`dmGift` → `false`.
+
+**Plana SONRADAN eklenenler (3 Eylül, kullanıcı isteğiyle).** Üçü de Faz 1'in
+"native his" başlığına ait; numaralandırma bozulmasın diye sona eklendi:
+
+14. **1.14 (Lottie altyapısı) ✅ `14de012` `30c5485` `531bf8e` `5775af0`:** `lottie-react-native` (Expo Go'da çalışır, dev build gerekmez) + `@lottiefiles/dotlottie-react` (web'in istediği isteğe bağlı bağımlılık; kurulmazsa web export çöküyordu). **`scripts/lottie-boya.js`** hazır Lottie dosyalarının rengini temaya çevirir — indirilen dosyalar açık tema için çizilmiş geliyor, siyah kontur `#08080C` üstünde kayboluyor. Araç `assets` içindeki prekompozisyonları da gezer (ilk sürümü gezmiyordu, bir dosyanın konfeti renkleri sessizce atlanmıştı). **`Anim.tsx`** sarmalayıcı + **`BosDurum.tsx`** ortak boş durum. Varlıklar: `bos-kutu.json`, `bos-kutu-altin.json`, `sampiyon.json`. 11 ekranın boş durumu geçti; `badges.tsx`'te boş durum HİÇ YOKTU, eklendi.
+15. **1.15 (Yükleniyor) ✅ `df00e29`:** 20 çıplak `ActivityIndicator`ın 11'i **`Yukleniyor.tsx`**'e geçti (animasyon + yazı + 200 ms flaş koruması). Buton ve arama kutusu içindeki küçük çemberler bilerek kaldı.
+16. **1.16 (Oda kartı + liste dizilimi) ✅ `83dd96c` `893640c`:** WePlay referans alındı (APK layout'ları çözüldü + kullanıcının ekran görüntüsü). Kart: sağdaki ayrı sütun kalktı, kişi sayısı meta satırına indi, durum hapı sağ üste çıktı, rozetler sağa yaslı tek sıra. Liste: yüzen kartlar → sayfaya gömülü tam genişlik satırlar, ayırıcı kapak genişliği kadar içeriden. Renk, tema ve boyutlar değişmedi.
 
 ### Faz 1 duman testi
 300+ mesajla kaydırma akıcı + tavan; presence sync'te sohbet satırları yeniden çizilmiyor; tüm sheet'ler sürükle-kapat; uçak modunda ilk açılış avatarlı; tema turu; withdraw/diamond-load dürüst; DM/profil hediye butonu yok. **Regresyon nöbeti:** Faz 0 senaryoları 1-3 ve 6.
