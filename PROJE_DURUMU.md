@@ -245,6 +245,46 @@ görünümleri (materialized view + zamanlanmış yenileme).
 
 ## 8) Bilinen Ortam Kısıtları + Tünel
 
+### 🧊 SOĞUK BAŞLATMA TAKILMASI — kök sebep bulundu (3 Eylül)
+
+**Belirti (kullanıcı):** "Expo başlatırken takılıyor, arkaplandan kapatıp
+açınca düzeliyor."
+
+**Kök sebep — uygulama değil, TÜNEL.** Cloudflare hızlı tünelinin origin
+yanıtı için ~100 saniyelik sınırı var. Metro `--clear` ile başladığında ilk
+paket derlemesi 100-140 saniye sürüyor. Telefon o paketi tünelden isteyince
+Cloudflare **HTTP 524** dönüyor ve uygulama açılışta donuyor. Kullanıcı
+uygulamayı öldürüp açınca Metro derlemeyi bitirmiş oluyor ve paket anında
+geliyor — "kapatıp açınca düzeliyor" belirtisinin tamamı bu.
+
+**Ölçüm (aynı oturum, aynı tünel):**
+
+| İstek | Sonuç |
+|---|---|
+| Soğuk Metro, tünelden ilk paket | **524**, 125 sn |
+| Aynı paket, Metro derlemeyi bitirdikten sonra | **200**, 0.84 sn |
+
+**ELENEN ihtimal:** açılış örtüsünün (`AppOverlays`, `banChecked`) takıldığı
+sanılmıştı. Log çürüttü: örtü 12 kez açılmış, yasak kontrolü 562 kez
+bitmiş — örtü takılmıyor. `enforceAccountBan` üç yolda da `banChecked: true`
+yapıyor ve 5 sn zaman aşımıyla yarışıyor.
+
+**ÇÖZÜM — `scripts/metro-tunel.sh`.** Tüneli ve Metro'yu kurar, sonra paketi
+**localhost üzerinden** ısıtır. Localhost'ta Cloudflare sınırı yok, derleme
+ne kadar sürerse sürsün tamamlanıyor; telefon bağlandığında tünel yalnızca
+SICAK paket servis ediyor.
+
+```
+bash scripts/metro-tunel.sh --clear     # tam temiz kurulum
+bash scripts/metro-tunel.sh             # onbellek korunur, hizli
+```
+
+**DİKKAT:** betiği ön planda çalıştırma — soğuk ısıtma 10 dakikalık araç
+sınırını aşabiliyor ve zaman aşımı alt süreçleri de öldürüyor (Metro dahil,
+bir kez yaşandı). Arka planda çalıştır, `scratchpad/kurulum.log`'dan izle.
+Betik sonunda `exp://` adresini basıyor.
+
+
 > ### ⚠️ ORTAM DEĞİŞTİ — bu bölümün altı ESKİ ortama ait
 >
 > Proje artık **bulut sandbox'ta değil**, bir **Windows makinesinde** çalışıyor

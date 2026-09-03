@@ -40,10 +40,14 @@ sleep 2
 echo "[2/5] Tunel aciliyor..."
 rm -f "$TUNEL_LOG"
 ( cd "$KOK" && nohup "$CF" tunnel --url http://localhost:8081 --no-autoupdate > "$TUNEL_LOG" 2>&1 & )
+# NOT: bu bekleme dongulerinde GECIKME sart. Ilk surumde yoktu; 60 tekrar
+# milisaniyede tukeniyor ve "adres alinamadi" diye pes ediliyordu — tunel
+# aslinda ayaktaydi, yalnizca adresini henuz basmamisti.
 ADRES=""
 for _ in $(seq 1 60); do
   ADRES="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$TUNEL_LOG" 2>/dev/null | head -1)"
   [ -n "$ADRES" ] && break
+  sleep 1
 done
 [ -n "$ADRES" ] || { echo "HATA: tunel adresi alinamadi, bkz $TUNEL_LOG"; exit 1; }
 echo "      $ADRES"
@@ -54,8 +58,9 @@ ANA="${ADRES#https://}"
 ( cd "$KOK" \
   && EXPO_PACKAGER_PROXY_URL="$ADRES" REACT_NATIVE_PACKAGER_HOSTNAME="$ANA" \
      nohup node node_modules/expo/bin/cli start --port 8081 ${1:-} > "$METRO_LOG" 2>&1 & )
-for _ in $(seq 1 600); do
+for _ in $(seq 1 180); do
   grep -qE 'Waiting on|Logs for your project' "$METRO_LOG" 2>/dev/null && break
+  sleep 1
 done
 grep -qE 'Waiting on|Logs for your project' "$METRO_LOG" || { echo "HATA: Metro hazir olmadi, bkz $METRO_LOG"; exit 1; }
 echo "      hazir"
