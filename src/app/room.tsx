@@ -1332,12 +1332,7 @@ export default function RoomScreen() {
         foto?: string | null; publicId?: string | null; yetkili?: boolean;
       };
       if (!alive || p.cihaz === CIHAZ) return;
-      // TEŞHİS (geçici): yayın ULAŞIYOR mu, kuyruk kaçta?
-      console.log(`[giris] dinleyici aldi uid=${p.uid} ad=${p.ad} tema=${p.tema ?? "-"}`);
-      setGirisKuyrugu((q) => {
-        console.log(`[giris] kuyruga eklendi, onceki uzunluk=${q.length}`);
-        return [...q, { anahtar: `g${p.uid ?? "x"}-${q.length}`, uid: p.uid, ad: p.ad || "Kullanıcı", tema: p.tema ?? null }];
-      });
+      setGirisKuyrugu((q) => [...q, { anahtar: `g${p.uid ?? "x"}-${q.length}`, uid: p.uid, ad: p.ad || "Kullanıcı", tema: p.tema ?? null }]);
 
       // Sayaç ve kişi listesi de ANINDA. Tablo olayı (WAL → Realtime) biraz
       // sonra gelip aynı sonucu onaylıyor; kaçarsa tazeleme düzeltiyor.
@@ -1517,11 +1512,10 @@ export default function RoomScreen() {
           yetkili: privileged,
         },
       };
-      console.log(`[giris] duyuru basliyor uid=${myDbId} tema=${girisYuk.payload.tema ?? "-"}`);
       for (let deneme = 0; deneme < 3 && alive; deneme++) {
         try {
           const r = await ch.send(girisYuk);
-          if (r === "ok") { girisDuyuruldurmuRef.current = true; console.log("[giris] duyuruldu (sunucu onayladi)"); return; }
+          if (r === "ok") { girisDuyuruldurmuRef.current = true; return; }
           console.warn("[giris] yayinlanamadi:", r, "deneme", deneme);
         } catch (e) {
           console.warn("[giris] yayin hatasi:", (e as Error)?.message || e, "deneme", deneme);

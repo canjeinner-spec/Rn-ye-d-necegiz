@@ -108,10 +108,7 @@ export function GirisEfekti({
    * başına tam bir kez çalışır.
    */
   useEffect(() => {
-    const bitir = setTimeout(() => {
-      console.log("[giris] efekt bitti, kuyruk ilerliyor");
-      onBittiRef.current();
-    }, acikKalma + KAPANMA_MS + 60);
+    const bitir = setTimeout(() => onBittiRef.current(), acikKalma + KAPANMA_MS + 60);
     return () => clearTimeout(bitir);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -147,12 +144,7 @@ export function GirisEfekti({
       <View
         pointerEvents="none"
         style={styles.icerik}
-        onLayout={(e) => {
-          const w = Math.ceil(e.nativeEvent.layout.width);
-          // TEŞHİS (geçici): ölçüm geliyor mu, kaç kez değişiyor?
-          console.log(`[giris] olcum geldi w=${w}`);
-          setHedef(w);
-        }}
+        onLayout={(e) => setHedef(Math.ceil(e.nativeEvent.layout.width))}
       >
         <View
           style={[
