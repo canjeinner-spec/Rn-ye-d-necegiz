@@ -119,7 +119,7 @@ export function RoomStats({ room, roomName, roomPhoto, onClose }: { room: Room; 
                         <Icon name={p.ic} size={19} color="#04231A" />
                       </Gradient>
                     ) : (
-                      <View style={[styles.perkIcon, { backgroundColor: "rgba(255,255,255,.06)" }]}>
+                      <View style={[styles.perkIcon, { backgroundColor: C.kontrol }]}>
                         <Icon name={p.ic} size={19} color={C.dim} />
                       </View>
                     )}

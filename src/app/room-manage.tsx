@@ -280,7 +280,7 @@ export default function RoomManageScreen() {
             style={[styles.input, edit?.multiline && { height: 90, textAlignVertical: "top" }]}
           />
           <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
-            <Pressable onPress={() => setEdit(null)} style={[styles.dlgBtn, { backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" }]}>
+            <Pressable onPress={() => setEdit(null)} style={[styles.dlgBtn, { backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.12)" }]}>
               <Txt weight="bold" size={13} color={C.text}>İptal</Txt>
             </Pressable>
             <Pressable onPress={saveEdit} style={{ flex: 1, borderRadius: 12, overflow: "hidden" }}>
@@ -302,7 +302,7 @@ export default function RoomManageScreen() {
             Odanı şifrelersen oda listesinde görünmez olur; yalnızca doğrudan katılanlar şifreyle girebilir.
           </Txt>
           <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
-            <Pressable onPress={() => setLockWarn(false)} style={[styles.dlgBtn, { backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" }]}>
+            <Pressable onPress={() => setLockWarn(false)} style={[styles.dlgBtn, { backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.14)" }]}>
               <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
             </Pressable>
             <Pressable onPress={() => { setLockWarn(false); setPass(""); setLockPad(true); }} style={{ flex: 1.3, borderRadius: 13, overflow: "hidden" }}>
@@ -353,7 +353,7 @@ export default function RoomManageScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
   islemUyari: { flexDirection: "row", alignItems: "center", gap: 11, marginTop: 14, padding: 13, borderRadius: 16, backgroundColor: "rgba(251,113,133,.10)", borderWidth: 1.5, borderColor: "rgba(251,113,133,.34)" },
   islemIkon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.14)", borderWidth: 1, borderColor: "rgba(251,113,133,.30)" },
   kapali: { opacity: 0.45 },
@@ -365,22 +365,22 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13 },
   countPill: { minWidth: 18, paddingHorizontal: 6, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: `${C.red}29`, borderWidth: 1, borderColor: `${C.red}4D` },
   onizlemeKart: { flex: 1, borderRadius: 16, overflow: "hidden", backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
-  onizleme: { height: 78, backgroundColor: "rgba(255,255,255,.04)" },
+  onizleme: { height: 78, backgroundColor: C.kart },
   onizlemeOrtali: { alignItems: "center", justifyContent: "center" },
-  odaAvatar: { width: 58, height: 58, borderRadius: 29, overflow: "hidden", borderWidth: 1.5, borderColor: C.gold + "4D", backgroundColor: "rgba(255,255,255,.05)" },
+  odaAvatar: { width: 58, height: 58, borderRadius: 29, overflow: "hidden", borderWidth: 1.5, borderColor: C.gold + "4D", backgroundColor: C.kontrol },
   onizlemeBos: { flex: 1, alignItems: "center", justifyContent: "center" },
   onizlemeAlt: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 9, paddingHorizontal: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line },
-  emptyKick: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: C.line },
+  emptyKick: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 16, backgroundColor: C.kart, borderWidth: 1, borderColor: C.line },
   unkickBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 11, borderRadius: 10, backgroundColor: `${C.green}1F`, borderWidth: 1, borderColor: `${C.green}47` },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   toggle: { width: 42, height: 24, borderRadius: 999, padding: 2, justifyContent: "center" },
   knob: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },
   dialog: { borderRadius: 24, padding: 22, backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
   dialogIcon: { width: 54, height: 54, borderRadius: 16, alignItems: "center", justifyContent: "center", marginBottom: 14 },
-  input: { width: "100%", backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: C.text, fontSize: 13.5, fontFamily: "PlusJakartaSans_500Medium" },
+  input: { width: "100%", backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: C.text, fontSize: 13.5, fontFamily: "PlusJakartaSans_500Medium" },
   dlgBtn: { flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   passCell: { width: 44, height: 54, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1.5 },
   keypad: { flexDirection: "row", flexWrap: "wrap", gap: 10, width: "100%" },
   key: { width: "30%", flexGrow: 1, paddingVertical: 14, alignItems: "center", borderRadius: 14 },
-  keyFilled: { backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
+  keyFilled: { backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
 });

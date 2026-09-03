@@ -310,7 +310,7 @@ export default function BadgesScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
   sayacPill: { paddingVertical: 4, paddingHorizontal: 11, borderRadius: 999, backgroundColor: `${C.gold}14`, borderWidth: 1, borderColor: `${C.gold}44` },
   orta: { flex: 1, alignItems: "center", justifyContent: "center", padding: 30 },
   baslikSatir: { flexDirection: "row", alignItems: "center", marginBottom: 10, paddingHorizontal: 2 },
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 4,
     borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,.035)",
+    backgroundColor: C.kart,
     borderWidth: 1,
     borderColor: C.line,
   },
@@ -345,6 +345,6 @@ const styles = StyleSheet.create({
   cikarBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
     paddingVertical: 13, borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: C.line,
+    backgroundColor: C.kontrol, borderWidth: 1, borderColor: C.line,
   },
 });

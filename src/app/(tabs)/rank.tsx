@@ -357,14 +357,14 @@ const styles = StyleSheet.create({
   periyotSatiri: { flexDirection: "row", gap: 7, paddingHorizontal: 16, paddingTop: 12 },
   periyotHap: {
     paddingVertical: 5.5, paddingHorizontal: 12, borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
+    backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
   },
   periyotHapAktif: { backgroundColor: C.gold + "1F", borderColor: C.gold + "5C" },
 
   notHap: {
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
     marginBottom: 11, paddingVertical: 5, paddingHorizontal: 11, borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
+    backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
   },
 
   podyum: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 8, paddingTop: 22, paddingBottom: 22 },
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
 
   satir: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
+    backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
     borderRadius: 16, paddingVertical: 11, paddingHorizontal: 13, marginBottom: 9, overflow: "hidden",
   },
   siraYuva: { width: 26, alignItems: "center", justifyContent: "center" },
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   puan: {
     flexDirection: "row", alignItems: "center", gap: 5,
     paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
+    backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
   },
   kisiHap: {
     flexDirection: "row", alignItems: "center", gap: 4,

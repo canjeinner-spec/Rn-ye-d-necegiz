@@ -535,7 +535,7 @@ const ChatRow = memo(function ChatRow({
       ? { backgroundColor: "rgba(245,206,110,.14)", borderColor: C.gold + "55" }
       : bubble === "mod"
         ? { backgroundColor: "rgba(94,234,212,.12)", borderColor: C.teal + "55" }
-        : { backgroundColor: "rgba(255,255,255,.06)", borderColor: "rgba(255,255,255,.1)" };
+        : { backgroundColor: C.kontrol, borderColor: "rgba(255,255,255,.1)" };
   // Değişkene alınıyor: `sceneFor(...).anim` iki ayrı çağrıda TS tarafından
   // daraltılamıyor (koşulda kontrol edilse bile prop'ta `undefined` kalıyor).
   // Sohbet satırı 30px. Lottie DEĞİL, statik PNG: burası bir liste satırı
@@ -3512,7 +3512,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   topbar: { paddingHorizontal: 14, paddingTop: 4, paddingBottom: 6 },
   micBanIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.12)", borderWidth: 1, borderColor: "rgba(251,113,133,.3)" },
-  micBanRow: { alignSelf: "stretch", marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line },
+  micBanRow: { alignSelf: "stretch", marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: C.kart, borderWidth: 1, borderColor: C.line },
   // Yalla tarzı: çip ekranın sol kenarına yapışır, bu yüzden solu köşeli
   // başlar ve sağa doğru ovalleşir. Dolgu çok düşük opaklıkta beyaz —
   // kendi kutusu gibi durmaz, zemine karışır.
@@ -3600,7 +3600,7 @@ const styles = StyleSheet.create({
   },
   davetVazgec: {
     flex: 1, paddingVertical: 13, borderRadius: 14, alignItems: "center",
-    backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)",
+    backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.12)",
   },
   tepkiOrtu: {
     position: "absolute", top: 0, left: 0,
@@ -3623,7 +3623,7 @@ const styles = StyleSheet.create({
   aracHucre: { width: "25%", alignItems: "center", paddingVertical: 14, gap: 9 },
   aracIkon: {
     width: 52, height: 52, borderRadius: 18, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
+    backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
   },
   aracRozet: {
     position: "absolute", top: -5, right: -8, minWidth: 20, height: 18, borderRadius: 9,
@@ -3632,7 +3632,7 @@ const styles = StyleSheet.create({
   bubble: { alignSelf: "flex-start", maxWidth: "94%", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 15, borderTopLeftRadius: 5, borderWidth: 1 },
   // İçerik kadar geniş: eskiden alignSelf "stretch" idi, kısa bir hediye adı
   // için bile satır sohbetin tamamını kaplıyordu.
-  ayrildiCip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: "rgba(255,255,255,.05)" },
+  ayrildiCip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: C.kontrol },
   hediyeBalonu: { flexDirection: "row", alignItems: "center", gap: 13, paddingVertical: 9, paddingHorizontal: 14 },
   // Hafif egim: rakami bir rozet gibi gosteriyor, duz yazidan ayiriyor.
   hediyeAdet: { letterSpacing: 0.5, transform: [{ skewX: "-8deg" }] },
@@ -3663,14 +3663,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 26,
     paddingHorizontal: 16,
-    backgroundColor: "rgba(255,255,255,.06)",
+    backgroundColor: C.kontrol,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,.13)",
   },
   input: { color: C.text, fontSize: 13, fontFamily: "PlusJakartaSans_500Medium", minWidth: 0, paddingVertical: 10 },
   toastKatman: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
   toast: { backgroundColor: "rgba(15,13,21,.96)", borderWidth: 1, borderColor: C.gold + "66", paddingVertical: 15, paddingHorizontal: 24, borderRadius: 20, maxWidth: "80%" },
-  actionBtn: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", borderRadius: 14, padding: 14, marginTop: 8 },
+  actionBtn: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", borderRadius: 14, padding: 14, marginTop: 8 },
   /**
    * Liste satırı: kart zemini YOK, ince ayırıcı VAR.
    * Kart zeminli satırlar yan yana gelince ızgara gibi görünüyor ve rozetler
@@ -3682,7 +3682,7 @@ const styles = StyleSheet.create({
     paddingVertical: 11, paddingHorizontal: 4,
     borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.06)",
   },
-  bigCircle: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.08)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
+  bigCircle: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", backgroundColor: C.kartUst, borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
   exitOverlay: { flex: 1, alignItems: "center", justifyContent: "center" },
   exitDim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(8,8,12,.55)" },
   exitRow: { flexDirection: "row", gap: 48, alignItems: "flex-start" },

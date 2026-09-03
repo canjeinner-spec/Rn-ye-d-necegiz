@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   iconBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,.3)", borderWidth: 1, borderColor: C.line, alignItems: "center", justifyContent: "center" },
   heroImg: { width: "100%", aspectRatio: 1731 / 909, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
   sectionLbl: { letterSpacing: 0.5, marginTop: 26, marginBottom: 12 },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: 16, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line, marginBottom: 10 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: 16, backgroundColor: C.kart, borderWidth: 1, borderColor: C.line, marginBottom: 10 },
   rowIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   stPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, borderWidth: 1 },
   stDot: { width: 5, height: 5, borderRadius: 2.5 },

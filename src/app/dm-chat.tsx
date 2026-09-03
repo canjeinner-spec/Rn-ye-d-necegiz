@@ -367,13 +367,13 @@ export default function DMChatScreen() {
 const styles = StyleSheet.create({
   hataToast: { position: "absolute", left: 24, right: 24, bottom: 96, backgroundColor: "rgba(15,13,21,.96)", borderWidth: 1, borderColor: "rgba(248,113,113,.5)", paddingVertical: 11, paddingHorizontal: 16, borderRadius: 14 },
   root: { flex: 1, backgroundColor: C.bg },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
   chatHeader: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: C.line },
   bcHeader: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 12 },
   verify: { width: 15, height: 15, borderRadius: 8, backgroundColor: "#3B82F6", alignItems: "center", justifyContent: "center" },
-  dateTag: { backgroundColor: "rgba(255,255,255,.05)", paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999, overflow: "hidden" },
+  dateTag: { backgroundColor: C.kontrol, paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999, overflow: "hidden" },
   bcCard: { flex: 1, backgroundColor: C.card2, borderWidth: 1, borderColor: C.line, borderRadius: 18, borderTopLeftRadius: 6, padding: 14 },
-  bcFoto: { width: "100%", aspectRatio: 16 / 9, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: C.line, marginBottom: 9, backgroundColor: "rgba(255,255,255,.04)" },
+  bcFoto: { width: "100%", aspectRatio: 16 / 9, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: C.line, marginBottom: 9, backgroundColor: C.kart },
   csBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingVertical: 15, borderRadius: 999 },
   bubble: { paddingVertical: 9, paddingHorizontal: 13, borderRadius: 16 },
   bubbleThem: { alignSelf: "flex-start", maxWidth: "76%", backgroundColor: C.card2, borderWidth: 1, borderColor: C.line, borderTopLeftRadius: 5 },
@@ -382,5 +382,5 @@ const styles = StyleSheet.create({
   input: { color: C.text, fontSize: 12.5, fontFamily: "PlusJakartaSans_500Medium", paddingVertical: 11 },
   giftBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: C.gold + "44", backgroundColor: C.gold + "14", alignItems: "center", justifyContent: "center" },
   sendBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  blockBar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, marginHorizontal: 16, marginTop: 8, marginBottom: 6, paddingVertical: 13, paddingHorizontal: 14, borderRadius: 14, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line },
+  blockBar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, marginHorizontal: 16, marginTop: 8, marginBottom: 6, paddingVertical: 13, paddingHorizontal: 14, borderRadius: 14, backgroundColor: C.kart, borderWidth: 1, borderColor: C.line },
 });

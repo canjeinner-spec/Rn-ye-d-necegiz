@@ -88,7 +88,7 @@ export default function NotificationsScreen() {
                 {on ? (
                   <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={StyleSheet.absoluteFill} />
                 ) : (
-                  <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(255,255,255,.06)" }]} />
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: C.kontrol }]} />
                 )}
                 {/* Seçili hap altın dolgulu; üstünde beyaz yazı okunmuyordu */}
                 <Txt weight="extrabold" size={12} color={on ? "#241A05" : C.dim}>{label}</Txt>
@@ -156,7 +156,7 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
   tabsScroll: { flexGrow: 0, flexShrink: 0 },
   tabs: { gap: 8, alignItems: "center", paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10 },
   tab: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, height: 32, paddingHorizontal: 15, borderRadius: 999, overflow: "hidden" },

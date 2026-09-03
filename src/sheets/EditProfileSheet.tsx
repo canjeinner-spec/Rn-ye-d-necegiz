@@ -119,7 +119,7 @@ export function EditProfileSheet({ visible, onClose }: { visible: boolean; onClo
         ) : null}
 
         <View style={{ flexDirection: "row", gap: 10, marginTop: 20 }}>
-          <Pressable onPress={onClose} disabled={saving} style={[styles.btn, { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: C.line }]}>
+          <Pressable onPress={onClose} disabled={saving} style={[styles.btn, { flex: 1, backgroundColor: C.kontrol, borderWidth: 1, borderColor: C.line }]}>
             <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
           </Pressable>
           <Pressable onPress={save} disabled={!kaydedilebilir} style={{ flex: 1, borderRadius: 14, overflow: "hidden", opacity: kaydedilebilir ? 1 : 0.45 }}>

@@ -65,7 +65,7 @@ export function Alan(p: {
 }
 
 const styles = StyleSheet.create({
-  alan: { flexDirection: "row", alignItems: "center", height: 50, marginTop: 8, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, backgroundColor: "rgba(255,255,255,.05)" },
+  alan: { flexDirection: "row", alignItems: "center", height: 50, marginTop: 8, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, backgroundColor: C.kontrol },
   alanCok: { height: undefined, minHeight: 92, alignItems: "flex-start", paddingVertical: 12 },
   alanInput: { flex: 1, padding: 0, color: C.text, fontSize: 15, fontFamily: "PlusJakartaSans_700Bold" },
   alanInputCok: { fontSize: 14, lineHeight: 20, textAlignVertical: "top" },

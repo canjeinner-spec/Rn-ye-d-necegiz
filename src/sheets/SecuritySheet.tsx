@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   lbl: { marginTop: 16, letterSpacing: 0.5 },
   phoneBtn: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8, padding: 14, borderRadius: 15, backgroundColor: "rgba(27,21,48,.7)", borderWidth: 1, borderColor: `${C.gold}33` },
   row: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 10, padding: 13, borderRadius: 15, backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
-  socialIcon: { width: 26, height: 26, borderRadius: 8, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center" },
+  socialIcon: { width: 26, height: 26, borderRadius: 8, backgroundColor: C.kartUst, alignItems: "center", justifyContent: "center" },
   goldBox: { backgroundColor: `${C.gold}0E`, borderWidth: 1, borderColor: `${C.gold}33`, borderRadius: 14, padding: 14, marginTop: 16 },
   codeInput: { width: "100%", marginTop: 16, backgroundColor: C.card, borderWidth: 1, borderRadius: 14, paddingVertical: 14, color: C.text, fontSize: 22, textAlign: "center", letterSpacing: 12, fontWeight: "800" },
   statusCircle: { width: 60, height: 60, borderRadius: 30, borderWidth: 1.5, alignItems: "center", justifyContent: "center", marginBottom: 14 },

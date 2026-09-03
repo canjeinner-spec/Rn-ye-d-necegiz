@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   },
   kapatBtn: {
     width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,.07)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)",
+    backgroundColor: C.kartUst, borderWidth: 1, borderColor: C.line,
   },
 
   // Tek kişi varken de panel gibi dursun; kalabalıkta kaydırılsın.
@@ -258,13 +258,13 @@ const styles = StyleSheet.create({
   satir: {
     flexDirection: "row", alignItems: "center", gap: 12,
     paddingVertical: 11, paddingHorizontal: 12, borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.07)",
+    backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.07)",
   },
   satirIlk: { borderColor: `${C.gold}3D`, backgroundColor: `${C.gold}0F` },
   satirBenim: { borderColor: `${C.gold2}55` },
   sira: {
     width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,.06)",
+    backgroundColor: C.kontrol,
   },
   siraIlk: { backgroundColor: C.gold2 },
 
@@ -275,11 +275,11 @@ const styles = StyleSheet.create({
   },
   redBtn: {
     width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)",
+    backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.1)",
   },
   vazgecBtn: {
     paddingVertical: 10, paddingHorizontal: 16, borderRadius: 13,
-    backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)",
+    backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.1)",
   },
 
   bos: { alignItems: "center", justifyContent: "center", paddingHorizontal: 18, minHeight: 168 },
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
 
   altBar: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line, marginTop: 10 },
   aksiyon: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 15 },
-  aksiyonPasif: { borderWidth: 1.5, borderColor: "rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.05)" },
+  aksiyonPasif: { borderWidth: 1.5, borderColor: "rgba(255,255,255,.14)", backgroundColor: C.kontrol },
   // Pasif/"false" görünüm — basılabilir ama aksiyon vaat etmiyor.
-  aksiyonBilgi: { borderWidth: 1.5, borderColor: "rgba(255,255,255,.12)", backgroundColor: "rgba(255,255,255,.04)" },
+  aksiyonBilgi: { borderWidth: 1.5, borderColor: "rgba(255,255,255,.12)", backgroundColor: C.kart },
 });

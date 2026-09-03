@@ -82,7 +82,7 @@ export default function AdminBanner() {
 
 const styles = StyleSheet.create({
   bannerRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12 },
-  bThumb: { width: 46, height: 46, borderRadius: 10, overflow: "hidden", backgroundColor: "rgba(255,255,255,.04)", alignItems: "center", justifyContent: "center" },
+  bThumb: { width: 46, height: 46, borderRadius: 10, overflow: "hidden", backgroundColor: C.kart, alignItems: "center", justifyContent: "center" },
   sablonBadge: { alignSelf: "flex-start", paddingVertical: 1.5, paddingHorizontal: 6, borderRadius: 5, backgroundColor: `${C.gold}14`, borderWidth: 1, borderColor: `${C.gold}33` },
   delBtn: { width: 32, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.1)", borderWidth: 1, borderColor: "rgba(251,113,133,.28)" },
 });

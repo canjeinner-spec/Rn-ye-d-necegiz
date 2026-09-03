@@ -173,7 +173,7 @@ export default function StoreScreen() {
                           <Txt weight="extrabold" size={11.5} color="#6EE7B7">{u.sureGun ? "Uzat" : "Sende var"}</Txt>
                         </View>
                       ) : alinan === u.id ? (
-                        <View style={[styles.btn, { backgroundColor: "rgba(255,255,255,.06)" }]}>
+                        <View style={[styles.btn, { backgroundColor: C.kontrol }]}>
                           <ActivityIndicator size="small" color={C.gold} />
                         </View>
                       ) : (
@@ -198,15 +198,15 @@ export default function StoreScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
   bakiye: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: C.gold + "38", backgroundColor: C.gold + "12" },
   mesaj: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 16, marginTop: 12, padding: 11, borderRadius: 13, borderWidth: 1 },
   mesajOk: { backgroundColor: C.green + "12", borderColor: C.green + "33" },
   mesajHata: { backgroundColor: C.red + "12", borderColor: C.red + "33" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  card: { width: "47%", flexGrow: 1, borderRadius: 18, paddingTop: 30, paddingHorizontal: 12, paddingBottom: 12, alignItems: "center", borderWidth: 1, backgroundColor: "rgba(255,255,255,.04)" },
+  card: { width: "47%", flexGrow: 1, borderRadius: 18, paddingTop: 30, paddingHorizontal: 12, paddingBottom: 12, alignItems: "center", borderWidth: 1, backgroundColor: C.kart },
   nadirlikRozet: { position: "absolute", top: 9, left: 9, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7, borderWidth: 1 },
   onizleme: { height: 66, alignItems: "center", justifyContent: "center", marginBottom: 8 },
   btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 9, borderRadius: 12 },
-  bosIkon: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
+  bosIkon: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
 });

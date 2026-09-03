@@ -113,7 +113,7 @@ export function ProfileInfoSheet({
 const styles = StyleSheet.create({
   langRow: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 13, paddingVertical: 13, paddingHorizontal: 14, marginBottom: 8 },
   badgeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 14, justifyContent: "center", paddingVertical: 6 },
-  badgeCell: { width: "30%", alignItems: "center", gap: 8, paddingVertical: 14, paddingHorizontal: 6, borderRadius: 16, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.07)" },
+  badgeCell: { width: "30%", alignItems: "center", gap: 8, paddingVertical: 14, paddingHorizontal: 6, borderRadius: 16, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.07)" },
   supportBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingVertical: 14 },
   faq: { backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 13, padding: 14, marginBottom: 8 },
 });

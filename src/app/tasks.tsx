@@ -189,7 +189,7 @@ export default function TasksScreen() {
                   style={{ marginTop: 16, borderRadius: 15, overflow: "hidden", opacity: bugunAlindi ? 0.55 : 1 }}
                 >
                   {bugunAlindi ? (
-                    <View style={[styles.claimBtn, { backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" }]}>
+                    <View style={[styles.claimBtn, { backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.12)" }]}>
                       <Icon name="check" size={15} sw={3} color={C.dim} />
                       <Txt weight="extrabold" size={13.5} color={C.dim}>Bugünün ödülü alındı</Txt>
                     </View>
@@ -240,7 +240,7 @@ export default function TasksScreen() {
                         <Txt weight="extrabold" size={11} color="#241A05">Al</Txt>
                       </Gradient>
                     ) : (
-                      <View style={[styles.taskBtn, { backgroundColor: "rgba(255,255,255,.06)" }]}>
+                      <View style={[styles.taskBtn, { backgroundColor: C.kontrol }]}>
                         <Txt weight="extrabold" size={11} color={C.dim2}>Devam</Txt>
                       </View>
                     )}
@@ -258,7 +258,7 @@ export default function TasksScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
   aura: { position: "absolute", top: 0, left: 0, right: 0, height: 230 },
 
   mesaj: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 16, marginTop: 12, padding: 11, borderRadius: 13, borderWidth: 1 },
@@ -273,9 +273,9 @@ const styles = StyleSheet.create({
   dayCell: { borderRadius: 13, paddingVertical: 10, paddingHorizontal: 4, alignItems: "center", borderWidth: 1 },
   claimBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 14, borderRadius: 15 },
 
-  taskRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 14, borderRadius: 15, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 9 },
+  taskRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 14, borderRadius: 15, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 9 },
   taskIcon: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "3D" },
   taskBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 11, alignItems: "center", justifyContent: "center", minWidth: 52 },
-  cubuk: { height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,.08)", overflow: "hidden", marginTop: 7 },
+  cubuk: { height: 4, borderRadius: 2, backgroundColor: C.kartUst, overflow: "hidden", marginTop: 7 },
   cubukDolu: { height: 4, borderRadius: 2, backgroundColor: C.gold },
 });

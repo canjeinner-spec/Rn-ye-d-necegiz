@@ -401,7 +401,7 @@ export default function AgencyPanelScreen() {
           </View>
 
           <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
-            <Pressable onPress={() => setAddOpen(false)} style={[styles.dialogBtn, { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: C.line }]}>
+            <Pressable onPress={() => setAddOpen(false)} style={[styles.dialogBtn, { flex: 1, backgroundColor: C.kontrol, borderWidth: 1, borderColor: C.line }]}>
               <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
             </Pressable>
             <Pressable onPress={addMember} disabled={addId.length < 3} style={{ flex: 1, borderRadius: 14, overflow: "hidden", opacity: addId.length < 3 ? 0.45 : 1 }}>
@@ -425,16 +425,16 @@ export default function AgencyPanelScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
 
   kazancKart: { borderRadius: 20, padding: 18, borderWidth: 1, borderColor: C.gold + "3D", overflow: "hidden" },
-  komisyonCip: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7, borderWidth: 1, borderColor: "rgba(255,255,255,.10)", backgroundColor: "rgba(255,255,255,.04)" },
-  miniCip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: "rgba(255,255,255,.04)" },
-  bosKutu: { paddingVertical: 26, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", backgroundColor: "rgba(255,255,255,.03)" },
+  komisyonCip: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7, borderWidth: 1, borderColor: "rgba(255,255,255,.10)", backgroundColor: C.kart },
+  miniCip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: C.kart },
+  bosKutu: { paddingVertical: 26, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", backgroundColor: C.kart },
   saatGrafik: { flexDirection: "row", alignItems: "flex-end", gap: 2, height: 92 },
-  saatYuva: { width: "100%", flex: 1, justifyContent: "flex-end", borderRadius: 3, backgroundColor: "rgba(255,255,255,.035)" },
+  saatYuva: { width: "100%", flex: 1, justifyContent: "flex-end", borderRadius: 3, backgroundColor: C.kart },
   saatCubuk: { flex: 1, borderRadius: 3, backgroundColor: C.gold + "24" },
-  hediyeSatiri: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 15, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 8 },
+  hediyeSatiri: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 15, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 8 },
   hediyeIkon: { width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.gold + "33", backgroundColor: C.gold + "14" },
   statSerit: { flexDirection: "row", alignItems: "center", marginTop: 16, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,.12)" },
   statAyirici: { width: StyleSheet.hairlineWidth, height: 26, backgroundColor: "rgba(255,255,255,.12)" },
@@ -443,10 +443,10 @@ const styles = StyleSheet.create({
 
   bolumBasi: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 22, marginBottom: 11 },
   grafik: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 8, paddingHorizontal: 4 },
-  cubukYuva: { width: "100%", maxWidth: 26, height: 92, justifyContent: "flex-end", borderRadius: 7, backgroundColor: "rgba(255,255,255,.035)" },
+  cubukYuva: { width: "100%", maxWidth: 26, height: 92, justifyContent: "flex-end", borderRadius: 7, backgroundColor: C.kart },
   cubuk: { flex: 1, borderRadius: 7, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, borderWidth: 1, borderColor: "transparent" },
 
-  ajansSatiri: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: 16, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
+  ajansSatiri: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: 16, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   komisyon: { alignItems: "center", paddingVertical: 5, paddingHorizontal: 11, borderRadius: 11, backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "3D" },
 
   ajansKart: { flexDirection: "row", alignItems: "center", gap: 14, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: C.gold + "3D", overflow: "hidden" },
@@ -454,13 +454,13 @@ const styles = StyleSheet.create({
   siraCip: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, borderWidth: 1, borderColor: C.gold + "33", backgroundColor: C.gold + "14" },
 
   ekleBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 13 },
-  uyeSatiri: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 13, borderRadius: 16, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 9 },
+  uyeSatiri: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 13, borderRadius: 16, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", marginBottom: 9 },
   nokta: { width: 6, height: 6, borderRadius: 3 },
   cikarBtn: { width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: C.red + "14", borderWidth: 1, borderColor: C.red + "33" },
 
   dialog: { borderRadius: 24, padding: 20, backgroundColor: "#12111A", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
   dialogIkon: { width: 36, height: 36, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "33" },
-  girisKutu: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 16, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)", borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14 },
+  girisKutu: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 16, backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14 },
   dialogBtn: { paddingVertical: 14, borderRadius: 14, alignItems: "center", justifyContent: "center" },
 
   toast: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: `${C.gold}55`, paddingVertical: 11, paddingHorizontal: 18, borderRadius: 999 },

@@ -151,7 +151,7 @@ export function GirisEfekti({
             styles.ikon,
             t
               ? { borderColor: t.parca + "66", backgroundColor: t.parca + "24" }
-              : { borderColor: "rgba(255,255,255,.12)", backgroundColor: "rgba(255,255,255,.06)" },
+              : { borderColor: "rgba(255,255,255,.12)", backgroundColor: C.kontrol },
           ]}
         >
           <Icon name={t ? t.ikon : "door"} size={14} color={t ? t.parca : C.dim} />

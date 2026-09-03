@@ -112,5 +112,5 @@ const styles = StyleSheet.create({
     borderColor: C.gold,
   },
   ayirici: { width: StyleSheet.hairlineWidth, height: 24, backgroundColor: "rgba(255,255,255,.14)" },
-  cikBtn: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.05)" },
+  cikBtn: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: C.kontrol },
 });

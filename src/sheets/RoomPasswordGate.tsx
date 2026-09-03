@@ -88,5 +88,5 @@ const styles = StyleSheet.create({
   cell: { width: 44, height: 54, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1.5 },
   keypad: { flexDirection: "row", flexWrap: "wrap", gap: 10, width: "100%" },
   key: { width: "30%", flexGrow: 1, paddingVertical: 14, alignItems: "center", borderRadius: 14 },
-  keyFilled: { backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
+  keyFilled: { backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
 });

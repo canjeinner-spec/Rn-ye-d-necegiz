@@ -188,9 +188,9 @@ export default function GiftHistoryScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
   summary: { flexDirection: "row", gap: 10, marginHorizontal: 16, marginTop: 8 },
-  sumCard: { flex: 1, borderRadius: 16, padding: 14, borderWidth: 1, backgroundColor: "rgba(255,255,255,.045)" },
+  sumCard: { flex: 1, borderRadius: 16, padding: 14, borderWidth: 1, backgroundColor: C.kart },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.05)" },
-  giftIcon: { width: 46, height: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.10)", backgroundColor: "rgba(255,255,255,.04)", overflow: "hidden" },
+  giftIcon: { width: 46, height: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.10)", backgroundColor: C.kart, overflow: "hidden" },
 });

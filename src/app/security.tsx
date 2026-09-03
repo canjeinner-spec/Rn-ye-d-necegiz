@@ -179,7 +179,7 @@ export default function SecurityScreen() {
               </Pressable>
             ) : (
               <View style={[styles.row, styles.rowInGroup]}>
-                <View style={[styles.rowIcon, { backgroundColor: "rgba(255,255,255,.06)" }]}>
+                <View style={[styles.rowIcon, { backgroundColor: C.kontrol }]}>
                   <Icon name="lock" size={16} color={C.dim} />
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -195,7 +195,7 @@ export default function SecurityScreen() {
             <View style={styles.divider} />
 
             <View style={[styles.row, styles.rowInGroup]}>
-              <View style={[styles.rowIcon, { backgroundColor: "rgba(255,255,255,.06)" }]}>
+              <View style={[styles.rowIcon, { backgroundColor: C.kontrol }]}>
                 <Icon name="gear" size={16} color={C.dim} />
               </View>
               <View style={{ flex: 1 }}>
@@ -293,7 +293,7 @@ export default function SecurityScreen() {
               {pw.rep.length > 0 && pw.next !== pw.rep && <Txt size={10.5} color={C.red} style={{ marginTop: 8 }}>Şifreler eşleşmiyor.</Txt>}
               {!!pwErr && <Txt size={10.5} color={C.red} lh={1.4} style={{ marginTop: 8 }}>{pwErr}</Txt>}
               <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
-                <Pressable onPress={closePw} disabled={pwBusy} style={[styles.btn, { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" }]}>
+                <Pressable onPress={closePw} disabled={pwBusy} style={[styles.btn, { flex: 1, backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.12)" }]}>
                   <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
                 </Pressable>
                 <Pressable onPress={savePw} disabled={!pwOk || pwBusy} style={{ flex: 1, borderRadius: 14, overflow: "hidden", opacity: pwOk && !pwBusy ? 1 : 0.45 }}>
@@ -316,7 +316,7 @@ export default function SecurityScreen() {
           <Txt weight="displayBold" size={17} color="#fff">Çıkış yapılsın mı?</Txt>
           <Txt size={12} color={C.dim} align="center" lh={1.6} style={{ marginTop: 8 }}>Hesabından çıkış yapacaksın. Tekrar girmek için telefon numaranla doğrulama yapman gerekecek.</Txt>
           <View style={{ flexDirection: "row", gap: 10, marginTop: 20, alignSelf: "stretch" }}>
-            <Pressable onPress={() => setLogoutOpen(false)} style={[styles.btn, { flex: 1, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)" }]}>
+            <Pressable onPress={() => setLogoutOpen(false)} style={[styles.btn, { flex: 1, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.09)" }]}>
               <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
             </Pressable>
             <Pressable onPress={doLogout} style={[styles.btn, { flex: 1, backgroundColor: `${C.red}1A`, borderWidth: 1, borderColor: `${C.red}66` }]}>
@@ -350,7 +350,7 @@ export default function SecurityScreen() {
           />
           {!!delError && <Txt size={10.5} color={C.red} style={{ marginTop: 10 }}>{delError}</Txt>}
           <View style={{ flexDirection: "row", gap: 10, marginTop: 18, alignSelf: "stretch" }}>
-            <Pressable onPress={closeDel} style={[styles.btn, { flex: 1, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)" }]}>
+            <Pressable onPress={closeDel} style={[styles.btn, { flex: 1, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.09)" }]}>
               <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
             </Pressable>
             <Pressable
@@ -374,18 +374,18 @@ export default function SecurityScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
   sectionLbl: { letterSpacing: 0.5, marginBottom: 10 },
-  group: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
+  group: { borderRadius: 16, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
   dangerGroup: { borderColor: `${C.red}2E` },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 58 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13 },
   rowInGroup: { marginTop: 0 },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   bagliHap: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4, paddingHorizontal: 9, borderRadius: 999, backgroundColor: "rgba(52,211,153,.12)", borderWidth: 1, borderColor: "rgba(52,211,153,.34)" },
-  socialIcon: { width: 26, height: 26, borderRadius: 8, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center" },
+  socialIcon: { width: 26, height: 26, borderRadius: 8, backgroundColor: C.kartUst, alignItems: "center", justifyContent: "center" },
   dialog: { borderRadius: 24, padding: 20, backgroundColor: "#181620", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
-  pwInput: { width: "100%", marginTop: 8, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14, color: C.text, fontSize: 14, fontWeight: "700" },
+  pwInput: { width: "100%", marginTop: 8, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.09)", borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14, color: C.text, fontSize: 14, fontWeight: "700" },
   statusCircle: { width: 60, height: 60, borderRadius: 30, borderWidth: 1.5, alignItems: "center", justifyContent: "center", marginBottom: 14 },
   btn: { paddingVertical: 14, borderRadius: 14, alignItems: "center", justifyContent: "center" },
 });

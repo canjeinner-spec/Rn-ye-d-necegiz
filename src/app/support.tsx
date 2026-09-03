@@ -216,7 +216,7 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: C.line },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
   botAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   connectedBanner: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 16, marginTop: 10, paddingVertical: 9, paddingHorizontal: 13, borderRadius: 12, backgroundColor: "rgba(52,211,153,.1)", borderWidth: 1, borderColor: "rgba(52,211,153,.28)" },
   dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: C.green },
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   bubbleBot: { backgroundColor: C.card2, borderWidth: 1, borderColor: C.line, borderTopLeftRadius: 5 },
   routeBtn: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 13, backgroundColor: "rgba(96,165,250,.12)", borderWidth: 1, borderColor: "rgba(96,165,250,.35)" },
   agentBtn: { flexDirection: "row", alignItems: "center", gap: 7, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 13, backgroundColor: `${C.gold}14`, borderWidth: 1, borderColor: `${C.gold}40` },
-  system: { alignSelf: "center", maxWidth: "88%", paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, backgroundColor: "rgba(255,255,255,.05)" },
+  system: { alignSelf: "center", maxWidth: "88%", paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, backgroundColor: C.kontrol },
   systemInfo: { backgroundColor: `${C.gold}10`, borderWidth: 1, borderColor: `${C.gold}30` },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
   chip: { paddingVertical: 9, paddingHorizontal: 14, borderRadius: 999, backgroundColor: C.card, borderWidth: 1, borderColor: C.line },

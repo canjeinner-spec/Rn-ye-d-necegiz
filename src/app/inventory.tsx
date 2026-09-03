@@ -177,7 +177,7 @@ export default function InventoryScreen() {
                       styles.card,
                       aktif
                         ? { borderColor: C.gold + "66", backgroundColor: C.gold + "0F" }
-                        : { borderColor: "rgba(255,255,255,.08)", backgroundColor: "rgba(255,255,255,.04)" },
+                        : { borderColor: "rgba(255,255,255,.08)", backgroundColor: C.kart },
                       sure.bitti && { opacity: 0.55 },
                     ]}
                   >
@@ -213,7 +213,7 @@ export default function InventoryScreen() {
                         onPress={() => { haptic.light(); router.navigate("/store"); }}
                         style={{ width: "100%", marginTop: 12, borderRadius: 12, overflow: "hidden" }}
                       >
-                        <View style={[styles.actBtn, { backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: C.line }]}>
+                        <View style={[styles.actBtn, { backgroundColor: C.kontrol, borderWidth: 1, borderColor: C.line }]}>
                           <Txt weight="extrabold" size={11.5} color={C.dim}>Uzat</Txt>
                         </View>
                       </Pressable>
@@ -224,11 +224,11 @@ export default function InventoryScreen() {
                         style={{ width: "100%", marginTop: 12, borderRadius: 12, overflow: "hidden", opacity: islemde && islemde !== e.id ? 0.5 : 1 }}
                       >
                         {islemde === e.id ? (
-                          <View style={[styles.actBtn, { backgroundColor: "rgba(255,255,255,.06)" }]}>
+                          <View style={[styles.actBtn, { backgroundColor: C.kontrol }]}>
                             <ActivityIndicator size="small" color={C.gold} />
                           </View>
                         ) : aktif ? (
-                          <View style={[styles.actBtn, { backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: C.line }]}>
+                          <View style={[styles.actBtn, { backgroundColor: C.kontrol, borderWidth: 1, borderColor: C.line }]}>
                             <Txt weight="extrabold" size={11.5} color={C.dim}>Çıkar</Txt>
                           </View>
                         ) : (
@@ -252,11 +252,11 @@ export default function InventoryScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
   magazaBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: C.gold + "38", backgroundColor: C.gold + "12" },
-  kusaniliSerit: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 18, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", backgroundColor: "rgba(255,255,255,.04)" },
-  cikarBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)" },
-  bosMadalyon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", backgroundColor: "rgba(255,255,255,.04)" },
+  kusaniliSerit: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 18, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", backgroundColor: C.kart },
+  cikarBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol },
+  bosMadalyon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", backgroundColor: C.kart },
   bolumBasi: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 22, marginBottom: 10 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   card: { width: "47%", flexGrow: 1, borderRadius: 18, paddingTop: 30, paddingHorizontal: 12, paddingBottom: 12, alignItems: "center", borderWidth: 1 },

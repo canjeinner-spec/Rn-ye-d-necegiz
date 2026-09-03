@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   sar: { alignItems: "center", paddingVertical: 44, paddingHorizontal: 18 },
   kart: {
     borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,.03)",
+    backgroundColor: C.kart,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,.07)",
   },

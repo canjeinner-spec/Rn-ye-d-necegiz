@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   },
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   pack: { width: "47.5%", flexGrow: 1, alignItems: "center", borderRadius: 18, paddingTop: 16, paddingBottom: 12, paddingHorizontal: 10, borderWidth: 1.5, overflow: "hidden" },
   popular: { position: "absolute", top: 0, left: 0, right: 0, paddingVertical: 2, alignItems: "center" },

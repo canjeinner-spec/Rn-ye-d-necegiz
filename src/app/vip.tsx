@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   aura: { position: "absolute", top: 0, left: 0, right: 0, height: 300 },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
 
   kart: {
     alignItems: "center",
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   },
   fiyatSerit: {
     flexDirection: "row", alignItems: "center", alignSelf: "stretch", marginTop: 16,
-    borderRadius: 16, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
+    borderRadius: 16, backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
   },
   fiyatKol: { flex: 1, alignItems: "center", paddingVertical: 12 },
   fiyatAyirici: { width: StyleSheet.hairlineWidth, height: 30, backgroundColor: "rgba(255,255,255,.12)" },
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   durum: {
     flexDirection: "row", alignItems: "center", gap: 9, marginTop: 12,
     paddingVertical: 11, paddingHorizontal: 13, borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)",
+    backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.08)",
   },
 
   bolum: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 22, marginBottom: 11 },
@@ -190,14 +190,14 @@ const styles = StyleSheet.create({
   perk: {
     width: "47.6%", flexGrow: 1, alignItems: "center",
     paddingVertical: 14, paddingHorizontal: 10, borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
+    backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
   },
   perkKilitli: { opacity: 0.55 },
   perkIkon: { width: 44, height: 44, borderRadius: 15, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   kilit: {
     position: "absolute", top: 8, right: 8,
     width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
+    backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
   },
 
   altBar: { paddingHorizontal: 16, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,.10)" },

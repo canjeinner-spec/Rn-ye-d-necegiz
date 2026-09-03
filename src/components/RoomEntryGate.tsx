@@ -203,9 +203,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,.12)",
   },
   kartIkon: { width: 58, height: 58, borderRadius: 29, alignItems: "center", justifyContent: "center", borderWidth: 1 },
-  sebepKutu: { alignSelf: "stretch", marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)" },
+  sebepKutu: { alignSelf: "stretch", marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.09)" },
   anaBtnSarma: { alignSelf: "stretch", marginTop: 20, borderRadius: 15, overflow: "hidden" },
   btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 13, borderRadius: 15 },
   ikinciBtn: { alignSelf: "stretch", marginTop: 8 },
-  tekBtn: { alignSelf: "stretch", marginTop: 18, borderWidth: 1, borderColor: "rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.05)" },
+  tekBtn: { alignSelf: "stretch", marginTop: 18, borderWidth: 1, borderColor: "rgba(255,255,255,.14)", backgroundColor: C.kontrol },
 });

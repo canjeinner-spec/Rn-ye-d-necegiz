@@ -163,8 +163,8 @@ export default function UserSearchScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  searchBox: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 16, backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1 },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
+  searchBox: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 16, backgroundColor: C.kontrol, borderWidth: 1 },
   searchInput: { flex: 1, color: C.text, fontSize: 14, fontWeight: "600", padding: 0 },
   resultCard: { flexDirection: "row", alignItems: "center", gap: 13, marginBottom: 12, padding: 14, borderRadius: 18, backgroundColor: "rgba(124,58,237,.1)", borderWidth: 1, borderColor: `${C.green}44` },
   group: { borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, overflow: "hidden" },

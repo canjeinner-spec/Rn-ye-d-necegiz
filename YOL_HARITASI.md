@@ -204,7 +204,19 @@ Yapılanların commit listesi ve bilinçli olarak ATLANANLARIN gerekçeleri
    • **Kapsam dışı bırakılanlar:** `banner-detay.tsx` ve `banners.ts`
      renkleri banner TÜRÜNE göre veri odaklı vurgu (duyuru/etkinlik),
      sayfa zemini değil — değiştirmek banner kimliğini bozardı.
-   • `Kart` bileşeni HENÜZ YOK; plandaki ikinci yarı duruyor.
+   • **`Kart` bileşeni ✅ + yüzey katları (4 Eylül).** Planda "`Kart`
+     oluşturulur, yalnız dokunulan ekranlarda kullanılır" yazıyordu; ÖLÇÜNCE
+     daha iyi bir sıra çıktı. Aynı "beyaz üstü şeffaf yüzey" BEŞ farklı
+     alfayla çiziliyordu (.03 .035 .04 .045 .05 .06 .08) ve kenarlıkta altı
+     varyant vardı. Bağlamlarına bakınca örtük bir hiyerarşi göründü ama
+     adlandırılmamıştı: .05 dokunulabilir kontroller, .04 içerik kartları,
+     .08 gruplanmış yüzeyler; aradakiler kaymaydı.
+     Önce `colors.ts`e ÜÇ KAT eklendi (`kart` / `kontrol` / `kartUst`) ve
+     **239 elle yazılmış renk token'a geçti** — yalnız dokunulan ekranlarda
+     değil, uygulamanın tamamında; elle yazılmış kart zemini SIFIR kaldı.
+     `theme/Kart.tsx` de eklendi: kartın kendisi (yuvarlaklık, kenarlık,
+     dolgu, vurgu rengi) tek yerde. `GlassPanel`in yerine geçmez — o
+     sayfa/panel yüzeyi, `Kart` düz ve ucuz.
 13. **1.13 (A2) — sahte başarılar kaldırıldı ✅:**
    • `diamond-load` düğmeye basınca **"Satın alma başarılı! N elmas hesabına
      eklendi"** diyordu; `withdraw` **"Çekim tamamlandı, $X karşılığı N elmas

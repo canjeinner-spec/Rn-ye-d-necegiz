@@ -168,7 +168,7 @@ export default function EventsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
   tabs: { flexDirection: "row", marginTop: 6, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.08)" },
   tab: { flex: 1, alignItems: "center", paddingVertical: 13 },
   tabUnderline: { position: "absolute", bottom: -1, width: 28, height: 3, borderRadius: 3 },
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   detailCover: { height: 160 },
   detailClose: { position: "absolute", top: 14, left: 14, width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,.35)", borderWidth: 1, borderColor: "rgba(255,255,255,.25)", alignItems: "center", justifyContent: "center" },
   detailTag: { position: "absolute", bottom: 14, left: 16, backgroundColor: "rgba(0,0,0,.4)", borderWidth: 1, borderColor: "rgba(255,255,255,.4)", borderRadius: 999, paddingVertical: 4, paddingHorizontal: 12 },
-  detailInfo: { marginTop: 12, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)", borderRadius: 14, padding: 14 },
+  detailInfo: { marginTop: 12, backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.1)", borderRadius: 14, padding: 14 },
   detailCta: { flexDirection: "row", gap: 7, paddingVertical: 15, alignItems: "center" },
   toast: { position: "absolute", alignSelf: "center", maxWidth: "86%", backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: `${C.gold}55`, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 999 },
 });

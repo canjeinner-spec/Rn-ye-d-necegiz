@@ -229,10 +229,10 @@ export default function AdminMesaj() {
 }
 
 const styles = StyleSheet.create({
-  search: { flexDirection: "row", alignItems: "center", gap: 9, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
+  search: { flexDirection: "row", alignItems: "center", gap: 9, backgroundColor: C.kontrol, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
   searchInput: { flex: 1, color: C.text, fontSize: 13.5, fontFamily: "PlusJakartaSans_500Medium", padding: 0 },
-  hedefRow: { flexDirection: "row", alignItems: "center", gap: 11, padding: 12, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", borderRadius: 14 },
+  hedefRow: { flexDirection: "row", alignItems: "center", gap: 11, padding: 12, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.09)", borderRadius: 14 },
   resRow: { flexDirection: "row", alignItems: "center", gap: 11, padding: 12 },
-  clearBtn: { paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: C.line },
-  turChip: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 11, borderRadius: 12, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
+  clearBtn: { paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999, backgroundColor: C.kontrol, borderWidth: 1, borderColor: C.line },
+  turChip: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 11, borderRadius: 12, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
 });

@@ -327,8 +327,8 @@ function Satir({ etiket, deger, renk, kalin }: { etiket: string; deger: string; 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  ornekCip: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7, borderWidth: 1, borderColor: "rgba(255,255,255,.10)", backgroundColor: "rgba(255,255,255,.04)" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
+  ornekCip: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7, borderWidth: 1, borderColor: "rgba(255,255,255,.10)", backgroundColor: C.kart },
 
   adimSerit: { flexDirection: "row", gap: 8, paddingHorizontal: 16 },
   adimCizgi: { height: 3, borderRadius: 3 },
@@ -336,19 +336,19 @@ const styles = StyleSheet.create({
   kazancKart: { borderRadius: 20, padding: 18, borderWidth: 1, borderColor: C.gold + "3D", overflow: "hidden" },
   etiket: { letterSpacing: 0.8, marginTop: 20, marginBottom: 8 },
 
-  tutarKutu: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1, backgroundColor: "rgba(255,255,255,.05)" },
+  tutarKutu: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1, backgroundColor: C.kontrol },
   tutarGiris: { flex: 1, padding: 0, color: C.text, fontSize: 26, fontFamily: "Sora_700Bold" },
   oranCip: { flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: C.gold + "33", backgroundColor: C.gold + "12" },
-  cevrimSatiri: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 14, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", backgroundColor: "rgba(255,255,255,.04)" },
+  cevrimSatiri: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 14, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", backgroundColor: C.kart },
 
-  secenek: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", backgroundColor: "rgba(255,255,255,.04)" },
+  secenek: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", backgroundColor: C.kart },
   secenekAcik: { borderColor: C.gold + "66", backgroundColor: C.gold + "0F" },
   secenekIkon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", borderWidth: 1 },
-  idKutu: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 13, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, backgroundColor: "rgba(255,255,255,.05)" },
+  idKutu: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 13, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, backgroundColor: C.kontrol },
   idGiris: { flex: 1, padding: 0, color: C.text, fontSize: 14.5, fontFamily: "PlusJakartaSans_700Bold" },
   bulunanKart: { flexDirection: "row", alignItems: "center", gap: 11, marginTop: 10, paddingVertical: 10, paddingHorizontal: 13, borderRadius: 14, borderWidth: 1, borderColor: C.green + "40", backgroundColor: C.green + "0F" },
 
-  ozetKart: { padding: 16, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.10)", backgroundColor: "rgba(255,255,255,.04)" },
+  ozetKart: { padding: 16, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.10)", backgroundColor: C.kart },
   ayirici: { height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,.12)", marginVertical: 12 },
   uyari: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 14, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: C.gold + "2E", backgroundColor: C.gold + "0F" },
 
@@ -357,5 +357,5 @@ const styles = StyleSheet.create({
 
   basariSarma: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 26 },
   uyariIkon: { width: 68, height: 68, borderRadius: 34, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.gold + "45", backgroundColor: C.gold + "14" },
-  basariKart: { alignSelf: "stretch", marginTop: 22, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.10)", backgroundColor: "rgba(255,255,255,.04)" },
+  basariKart: { alignSelf: "stretch", marginTop: 22, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.10)", backgroundColor: C.kart },
 });

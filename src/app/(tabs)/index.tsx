@@ -116,7 +116,7 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
                   <Txt weight="extrabold" size={10} color="#6EE7B7">Canlı</Txt>
                 </View>
               ) : (
-                <View style={[styles.livePill, { backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" }]}>
+                <View style={[styles.livePill, { backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.10)" }]}>
                   <Txt weight="extrabold" size={10} color={C.dim2}>Sessiz</Txt>
                 </View>
               )}
@@ -418,7 +418,7 @@ export default function Home() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
-  roundBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
+  roundBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
   // Kart değil SATIR: köşe yuvarlatması, çerçevesi ve zemini yok.
   // Ayrım yalnızca iç dolgu + ince ayırıcıdan geliyor; liste bu sayede
   // "sayfaya gömülü" duruyor. (Önce 18 köşe + 1px çerçeve + yarı saydam
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   // çıkan odaların zemini kenardan kenara desenli).
   rowSpecial: { overflow: "hidden" },
   // Ayırıcı kapaktan SONRA başlıyor: 14 dolgu + 62 kapak + 12 boşluk.
-  ayirac: { position: "absolute", left: 88, right: 0, bottom: 0, height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,.07)" },
+  ayirac: { position: "absolute", left: 88, right: 0, bottom: 0, height: StyleSheet.hairlineWidth, backgroundColor: C.line },
   // Arma 124px'ti ve top:-22 ile kartın dışına taşıyordu; kartta
   // overflow:"hidden" olduğu için üst kısmı kesiliyordu. Artık kartın içinde.
   crest: { position: "absolute", right: 2, top: 0, bottom: 0, justifyContent: "center", opacity: 0.85 },

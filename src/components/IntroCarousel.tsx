@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   glow: { position: "absolute", width: 110, height: 110, borderRadius: 55 },
   badge: {
     width: 96, height: 96, borderRadius: 30, borderWidth: 1, overflow: "hidden",
-    alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.04)",
+    alignItems: "center", justifyContent: "center", backgroundColor: C.kart,
   },
   dots: { flexDirection: "row", gap: 7, alignSelf: "center", marginTop: 30 },
   dot: { height: 6, borderRadius: 3 },

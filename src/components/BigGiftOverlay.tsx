@@ -198,6 +198,6 @@ const styles = StyleSheet.create({
   banner: { position: "absolute", left: 24, right: 24, bottom: "20%", alignItems: "center" },
   bannerInner: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, overflow: "hidden", maxWidth: "100%" },
   gonderen: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, borderWidth: 1, maxWidth: 120 },
-  bannerAdet: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 9, borderWidth: 1, backgroundColor: "rgba(255,255,255,.06)" },
+  bannerAdet: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 9, borderWidth: 1, backgroundColor: C.kontrol },
   flash: { backgroundColor: "#fff" },
 });

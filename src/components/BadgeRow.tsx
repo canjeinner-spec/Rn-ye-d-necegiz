@@ -46,11 +46,11 @@ export function BadgeInfoCard({ info, onClose }: { info: BadgeItem | null; onClo
             <Txt size={11} color="rgba(255,255,255,.62)" lh={1.5} align="center" style={{ marginBottom: 11 }}>
               {cur.desc}
             </Txt>
-            <View style={{ alignSelf: "stretch", backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", borderRadius: 12, paddingHorizontal: 12 }}>
+            <View style={{ alignSelf: "stretch", backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", borderRadius: 12, paddingHorizontal: 12 }}>
               <InfoRow label="Ajans ID" value={meta.id || "—"} />
-              <View style={{ height: 1, backgroundColor: "rgba(255,255,255,.07)" }} />
+              <View style={{ height: 1, backgroundColor: C.line }} />
               <InfoRow label="Ajans Adı" value={meta.name || "—"} color={C.gold2} />
-              <View style={{ height: 1, backgroundColor: "rgba(255,255,255,.07)" }} />
+              <View style={{ height: 1, backgroundColor: C.line }} />
               <InfoRow label="Sahibi" value={meta.owner || "—"} />
             </View>
           </>

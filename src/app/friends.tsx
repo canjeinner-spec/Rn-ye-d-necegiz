@@ -176,7 +176,7 @@ export default function FriendsScreen() {
                     )}
 
                     <View style={{ flexDirection: "row", gap: 10, marginTop: 13 }}>
-                      <Pressable onPress={() => reject(i)} style={[styles.reqBtn, { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1.5, borderColor: "rgba(255,255,255,.14)" }]}>
+                      <Pressable onPress={() => reject(i)} style={[styles.reqBtn, { flex: 1, backgroundColor: C.kontrol, borderWidth: 1.5, borderColor: "rgba(255,255,255,.14)" }]}>
                         <Icon name="x" size={15} color={C.dim} />
                         <Txt weight="extrabold" size={12.5} color={C.dim}>Reddet</Txt>
                       </Pressable>
@@ -213,20 +213,20 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  search: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 14, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)", marginBottom: 14 },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
+  search: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 14, backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.1)", marginBottom: 14 },
   searchInput: { flex: 1, color: C.text, fontSize: 12.5, padding: 0 },
-  group: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
+  group: { borderRadius: 16, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginLeft: 70 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 12 },
   chatBtn: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "16", borderWidth: 1, borderColor: C.gold + "44" },
-  ozet: { flexDirection: "row", alignItems: "center", marginBottom: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)" },
+  ozet: { flexDirection: "row", alignItems: "center", marginBottom: 14, borderRadius: 16, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.09)" },
   ozetKol: { flex: 1, alignItems: "center", paddingVertical: 11 },
   ozetAyirici: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: "rgba(255,255,255,.12)" },
   lvHap: { paddingVertical: 1.5, paddingHorizontal: 7, borderRadius: 999, backgroundColor: "rgba(94,234,212,.12)", borderWidth: 1, borderColor: "rgba(94,234,212,.30)" },
   durumNokta: { width: 6, height: 6, borderRadius: 3 },
-  reqKart: { padding: 14, borderRadius: 18, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: C.gold + "2E" },
-  notKutu: { marginTop: 12, paddingVertical: 10, paddingHorizontal: 13, borderRadius: 14, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)" },
+  reqKart: { padding: 14, borderRadius: 18, backgroundColor: C.kart, borderWidth: 1, borderColor: C.gold + "2E" },
+  notKutu: { marginTop: 12, paddingVertical: 10, paddingHorizontal: 13, borderRadius: 14, backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.09)" },
   reqBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 13 },
   toast: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: C.gold + "66", paddingVertical: 12, paddingHorizontal: 20, borderRadius: 999 },
 });

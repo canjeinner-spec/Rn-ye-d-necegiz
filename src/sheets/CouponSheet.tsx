@@ -114,10 +114,10 @@ const styles = StyleSheet.create({
   },
   input: {
     width: "100%", marginTop: 16,
-    backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1.5, borderRadius: 14,
+    backgroundColor: C.kontrol, borderWidth: 1.5, borderRadius: 14,
     paddingVertical: 15, paddingHorizontal: 15,
     color: C.text, fontSize: 15, textAlign: "center", letterSpacing: 2, fontWeight: "700",
   },
   btn: { flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  notrBtn: { backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
+  notrBtn: { backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
 });

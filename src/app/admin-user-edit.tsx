@@ -529,7 +529,7 @@ export default function AdminUserEdit() {
                       <View key={h.id}>
                         {i > 0 && <View style={styles.divider} />}
                         <View style={styles.histRow}>
-                          <View style={[styles.secIcon, { backgroundColor: "rgba(255,255,255,.05)" }]}><Icon name="clipboard" size={14} color={C.dim} /></View>
+                          <View style={[styles.secIcon, { backgroundColor: C.kontrol }]}><Icon name="clipboard" size={14} color={C.dim} /></View>
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <Txt weight="bold" size={12.5} color={C.text}>{ISLEM_LABEL[h.islem] || h.islem}</Txt>
                             {!!h.detay && <Txt size={10.5} color={C.dim} lh={1.4} style={{ marginTop: 2 }}>{h.detay}</Txt>}
@@ -562,7 +562,7 @@ export default function AdminUserEdit() {
           <Txt weight="displayBold" size={16} color="#fff" align="center" style={{ marginTop: 13 }}>{onay?.baslik}</Txt>
           <Txt size={12} color={C.dim} lh={1.55} align="center" style={{ marginTop: 9 }}>{onay?.metin}</Txt>
           <View style={{ flexDirection: "row", gap: 10, marginTop: 20 }}>
-            <Pressable onPress={() => setOnay(null)} style={[styles.onayBtn, { backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" }]}>
+            <Pressable onPress={() => setOnay(null)} style={[styles.onayBtn, { backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.14)" }]}>
               <Txt weight="bold" size={13} color={C.text}>Vazgeç</Txt>
             </Pressable>
             <Pressable
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   onayIkon: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(251,113,133,.14)", borderWidth: 1, borderColor: "rgba(251,113,133,.34)" },
   onayBtn: { flex: 1, paddingVertical: 13, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   // Seçim çipi: bir seçeneği işaretler, tek başına bir şey yapmaz.
-  secim: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 8, paddingHorizontal: 13, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
+  secim: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 8, paddingHorizontal: 13, borderRadius: 999, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
   // Aksiyon butonu: basınca iş yapar. Seçimden ayrılsın diye köşeli ve dolgun.
   aksiyon: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 13, borderWidth: 1.5 },
   anahtar: { width: 44, height: 25, borderRadius: 999, padding: 2.5, justifyContent: "center" },
@@ -593,25 +593,25 @@ const styles = StyleSheet.create({
   // Süre seçenekleri: sabit 3 sütun. Serbest sarmalanınca kutu genişlikleri
   // metne göre değişip dağınık duruyordu.
   sureIzgara: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
-  sureKutu: { width: "31.5%", flexGrow: 1, alignItems: "center", paddingVertical: 10, borderRadius: 12, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
+  sureKutu: { width: "31.5%", flexGrow: 1, alignItems: "center", paddingVertical: 10, borderRadius: 12, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
   bakiyeKutu: { flex: 1, alignItems: "center", gap: 4, paddingVertical: 14 },
   dikeyAyirici: { width: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,.12)" },
   header: { flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 10 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
-  group: { borderRadius: 16, backgroundColor: "rgba(255,255,255,.045)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
+  group: { borderRadius: 16, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.09)", overflow: "hidden" },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.line },
-  chip: { flexDirection: "row", alignItems: "center", paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", justifyContent: "center" },
+  chip: { flexDirection: "row", alignItems: "center", paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.08)", justifyContent: "center" },
   note: { marginBottom: 12, paddingVertical: 9, borderRadius: 12, backgroundColor: `${C.gold}14`, borderWidth: 1, borderColor: `${C.gold}33` },
   lbl: { letterSpacing: 0.5, marginTop: 18, marginBottom: 8 },
-  input: { backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, color: C.text, fontSize: 13, fontFamily: "PlusJakartaSans_500Medium" },
+  input: { backgroundColor: C.kontrol, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, color: C.text, fontSize: 13, fontFamily: "PlusJakartaSans_500Medium" },
   actBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 11, borderRadius: 12, borderWidth: 1 },
   dangerBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 11, borderRadius: 12, backgroundColor: "rgba(251,113,133,.1)", borderWidth: 1, borderColor: "rgba(251,113,133,.3)" },
   gRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12 },
   freezeRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 12, paddingHorizontal: 13 },
-  summary: { flexDirection: "row", borderRadius: 16, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line, paddingVertical: 12 },
+  summary: { flexDirection: "row", borderRadius: 16, backgroundColor: C.kart, borderWidth: 1, borderColor: C.line, paddingVertical: 12 },
   sumCol: { flex: 1, alignItems: "center", gap: 3 },
   sumDiv: { width: StyleSheet.hairlineWidth, backgroundColor: C.line },
   secIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   histRow: { flexDirection: "row", alignItems: "flex-start", gap: 11, paddingVertical: 12, paddingHorizontal: 13 },
-  lockedInfo: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 16, backgroundColor: "rgba(255,255,255,.03)", borderWidth: 1, borderColor: C.line, marginTop: 8 },
+  lockedInfo: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 16, backgroundColor: C.kart, borderWidth: 1, borderColor: C.line, marginTop: 8 },
 });

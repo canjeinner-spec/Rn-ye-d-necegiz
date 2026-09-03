@@ -208,7 +208,7 @@ export default function DmTab() {
               <Icon name="trash" size={17} color={C.red} />
               <Txt weight="bold" size={13.5} color={C.red}>Sohbeti Sil</Txt>
             </Pressable>
-            <Pressable onPress={() => setActionFor(null)} style={[styles.actBtn, { justifyContent: "center", backgroundColor: "rgba(255,255,255,.04)" }]}>
+            <Pressable onPress={() => setActionFor(null)} style={[styles.actBtn, { justifyContent: "center", backgroundColor: C.kart }]}>
               <Txt weight="bold" size={13.5} color={C.dim}>Vazgeç</Txt>
             </Pressable>
           </>
@@ -226,12 +226,12 @@ export default function DmTab() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18, paddingTop: 10, paddingBottom: 8 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
   quickRow: { flexDirection: "row", justifyContent: "space-around", paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14 },
   quickTile: { width: 56, height: 56, borderRadius: 17, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   quickBadge: { position: "absolute", top: -4, right: -4, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: "#F43F5E", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#0A0A0F" },
   threadRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 16 },
   resmiTag: { backgroundColor: "#3B82F622", borderWidth: 1, borderColor: "#3B82F644", borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 },
   unread: { backgroundColor: C.purple, borderRadius: 999, minWidth: 17, height: 17, paddingHorizontal: 5, alignItems: "center", justifyContent: "center" },
-  actBtn: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.07)", marginBottom: 8 },
+  actBtn: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14, backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.07)", marginBottom: 8 },
 });

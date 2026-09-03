@@ -522,7 +522,7 @@ export default function FeedScreen() {
                     <Icon path={SCOPE_LABEL[o.k].ic} size={19} color="#241A05" />
                   </Gradient>
                 ) : (
-                  <View style={[styles.scopeIcon, { backgroundColor: "rgba(255,255,255,.06)" }]}>
+                  <View style={[styles.scopeIcon, { backgroundColor: C.kontrol }]}>
                     <Icon path={SCOPE_LABEL[o.k].ic} size={19} color={C.dim} />
                   </View>
                 )}
@@ -543,7 +543,7 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18, paddingTop: 10, paddingBottom: 4 },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 34, height: 34, borderRadius: 12, backgroundColor: C.kontrol, alignItems: "center", justifyContent: "center" },
   bellBadge: { position: "absolute", top: -3, right: -3, minWidth: 16, height: 16, paddingHorizontal: 3.5, borderRadius: 8, backgroundColor: C.red, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: C.bg },
   composerTrigger: { flexDirection: "row", alignItems: "center", gap: 11, padding: 13, borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, marginTop: 4, marginBottom: 14 },
   shareChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 13, borderRadius: 999, backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "33" },
@@ -553,15 +553,15 @@ const styles = StyleSheet.create({
   pinBadge: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "33", marginBottom: 10 },
   sysIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   spotlight: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
-  editInput: { backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)", borderRadius: 12, padding: 12, color: C.text, fontSize: 13, fontFamily: "PlusJakartaSans_500Medium", minHeight: 70, textAlignVertical: "top" },
+  editInput: { backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.14)", borderRadius: 12, padding: 12, color: C.text, fontSize: 13, fontFamily: "PlusJakartaSans_500Medium", minHeight: 70, textAlignVertical: "top" },
   roomCard: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12, padding: 12, borderRadius: 16, backgroundColor: "rgba(124,58,237,.1)", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
   roomThumb: { width: 46, height: 46, borderRadius: 13, overflow: "hidden" },
   joinChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 8, paddingHorizontal: 13, borderRadius: 999, backgroundColor: C.gold + "1F", borderWidth: 1, borderColor: C.gold + "44" },
-  actionChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
+  actionChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   comments: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.line },
-  cmtBubble: { alignSelf: "flex-start", maxWidth: "100%", backgroundColor: "rgba(255,255,255,.05)", borderRadius: 14, borderTopLeftRadius: 4, paddingVertical: 7, paddingHorizontal: 12 },
-  cmtActionBtn: { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,.04)" },
-  composeBar: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,.04)", borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 6 },
+  cmtBubble: { alignSelf: "flex-start", maxWidth: "100%", backgroundColor: C.kontrol, borderRadius: 14, borderTopLeftRadius: 4, paddingVertical: 7, paddingHorizontal: 12 },
+  cmtActionBtn: { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, backgroundColor: C.kart },
+  composeBar: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.kart, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 6 },
   cmtInput: { flex: 1, color: C.text, fontSize: 12, fontFamily: "PlusJakartaSans_500Medium", paddingHorizontal: 2 },
   replyInput: { flex: 1, color: C.text, fontSize: 11.5, fontFamily: "PlusJakartaSans_500Medium", paddingHorizontal: 2 },
   toast: { position: "absolute", alignSelf: "center", bottom: 104, backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: C.gold + "55", paddingVertical: 11, paddingHorizontal: 18, borderRadius: 999 },

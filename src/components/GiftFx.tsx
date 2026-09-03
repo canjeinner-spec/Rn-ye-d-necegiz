@@ -16,6 +16,7 @@ import { Anim } from "@/components/Anim";
 import { type Gift, type GiftTier, TIER_RING } from "@/data/gifts";
 import { sceneFor } from "@/gifts/bigGifts";
 import { hediyeSesiCal } from "@/lib/hediyeSesi";
+import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 import { Txt } from "./Txt";
 
@@ -220,6 +221,6 @@ const styles = StyleSheet.create({
     maxWidth: 300,
   },
   kademe: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7, borderWidth: 1 },
-  adet: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, backgroundColor: "rgba(255,255,255,.06)" },
+  adet: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, backgroundColor: C.kontrol },
 });
 
