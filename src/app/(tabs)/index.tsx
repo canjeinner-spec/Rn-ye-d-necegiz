@@ -72,6 +72,7 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
         </View>
       )}
       {tier && <RoomTopTag kind={tier} rank={room.daily ?? 1} />}
+      <View style={styles.ayirac} pointerEvents="none" />
 
       <View style={styles.cover}>
         {coverUri ? <Image source={{ uri: coverUri }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Scene kind={room.scene} />}
@@ -364,7 +365,10 @@ export default function Home() {
           {/* Sekmeler banner'ın ÜSTÜNDEYDİ; artık banner ile oda listesinin
               arasında, yani filtrelediği listenin hemen başında duruyor. */}
           <Tabs items={["Keşfet", "Popüler", "Yeni", "Resmî", "Boş"]} active={tab} set={setTab} pad={14} />
-          <View style={{ paddingHorizontal: 12, paddingTop: 14, gap: 10 }}>
+          {/* Satırlar tam genişlik: WePlay'de kartlar sayfaya gömülü, kenar
+              boşluğu ve satır arası boşluk yok. Ayırıcı RoomRow'un içinde,
+              kapak genişliği kadar içeriden başlıyor. */}
+          <View style={{ paddingTop: 10 }}>
             {rooms.length > 0 ? (
               rooms.map((r) => <RoomRow key={r.id} room={r} onPress={() => onRoomPress(r)} />)
             ) : (
@@ -412,17 +416,22 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
   roundBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.06)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
+  // Kart değil SATIR: köşe yuvarlatması, çerçevesi ve zemini yok.
+  // Ayrım yalnızca iç dolgu + ince ayırıcıdan geliyor; liste bu sayede
+  // "sayfaya gömülü" duruyor. (Önce 18 köşe + 1px çerçeve + yarı saydam
+  // zeminle ayrı ayrı yüzen kartlardı.)
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    padding: 10,
-    borderRadius: 18,
-    backgroundColor: "rgba(28,22,40,0.55)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,.06)",
+    paddingVertical: 11,
+    paddingHorizontal: 14,
   },
-  rowSpecial: { overflow: "hidden", borderColor: "rgba(255,255,255,.12)" },
+  // Özel odalarda gradyan zemin tam genişliğe yayılır (WePlay'de de öne
+  // çıkan odaların zemini kenardan kenara desenli).
+  rowSpecial: { overflow: "hidden" },
+  // Ayırıcı kapaktan SONRA başlıyor: 14 dolgu + 62 kapak + 12 boşluk.
+  ayirac: { position: "absolute", left: 88, right: 0, bottom: 0, height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,.07)" },
   // Arma 124px'ti ve top:-22 ile kartın dışına taşıyordu; kartta
   // overflow:"hidden" olduğu için üst kısmı kesiliyordu. Artık kartın içinde.
   crest: { position: "absolute", right: 2, top: 0, bottom: 0, justifyContent: "center", opacity: 0.85 },

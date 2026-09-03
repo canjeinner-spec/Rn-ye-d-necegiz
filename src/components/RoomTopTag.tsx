@@ -56,6 +56,9 @@ export function RoomCrest({ kind }: { kind: RoomTier }) {
 }
 
 const styles = StyleSheet.create({
-  tag: { position: "absolute", top: 0, right: 0, borderTopRightRadius: 18, borderBottomLeftRadius: 14, overflow: "hidden", paddingVertical: 5, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
+  // Satırlar artık köşesiz (liste "gömülü" stile geçti); sağ üst köşedeki
+  // 18px yuvarlatma boşluğa bakıyordu. Yalnız sol alt köşe yuvarlak kaldı,
+  // etiket şerit gibi duruyor.
+  tag: { position: "absolute", top: 0, right: 0, borderBottomLeftRadius: 14, overflow: "hidden", paddingVertical: 5, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
   streak: { position: "absolute", top: -16, left: 0 },
 });
