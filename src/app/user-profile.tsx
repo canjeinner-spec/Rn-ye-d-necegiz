@@ -6,6 +6,7 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CenterModal } from "@/components/CenterModal";
+import { FramePreview } from "@/components/FramePreview";
 import { EquippedBadge } from "@/components/EquippedBadge";
 import { KopyaBtn } from "@/components/KopyaBtn";
 import { OzelIdGosterim } from "@/components/OzelId";
@@ -17,6 +18,7 @@ import { Txt } from "@/components/Txt";
 import { DM_THREADS, type DMThread } from "@/data/dm";
 import { type Gift } from "@/data/gifts";
 import { block, getBlockState, unblock } from "@/data/remote/blockRepo";
+import { kusanilanlariGetir } from "@/data/remote/esyaRepo";
 import { getOrCreateConversation, sendMessage } from "@/data/remote/dmRepo";
 import { follow, getFollowState, unfollow } from "@/data/remote/followRepo";
 import { getPublicProfile, type PublicProfile } from "@/data/remote/profileRepo";
@@ -68,6 +70,13 @@ export default function UserProfileScreen() {
   const [vitrin, setVitrin] = useState<VitrinSatiri[] | null>(null);
   /** Vitrinde dokunulan hediye — tam boy oynatilir. */
   const [onizleme, setOnizleme] = useState<VitrinSatiri | null>(null);
+  /**
+   * Bakılan kişinin kuşandığı ÇERÇEVE. Kendi profil sekmemde çiziliyordu ama
+   * başkasının profilinde hiç çizilmiyordu — mağazadan çerçeve alan kişinin
+   * onu ziyaretçilerine gösterememesi satın almanın anlamını kaldırıyor.
+   * `kusanili_esyalar` görünümü herkese açık, veri zaten erişilebilirdi.
+   */
+  const [cerceve, setCerceve] = useState<string | null>(null);
   useEffect(() => {
     if (!isSupabaseConfigured || !params.publicId) return;
     let alive = true;
@@ -87,6 +96,9 @@ export default function UserProfileScreen() {
         getVisitorCount(p.id).then((c) => { if (alive) setVisitorCount(c); }).catch(() => {});
         getUserRoomCount(p.id).then((c) => { if (alive) setRoomCount(c); }).catch(() => {});
         getBlockState(p.id).then((b) => { if (!alive) return; setBlocked(b.iBlocked); setBlockedByThem(b.blockedByThem); }).catch(() => {});
+        kusanilanlariGetir([p.id])
+          .then((h) => { if (alive) setCerceve(h.get(p.id)?.cerceve ?? null); })
+          .catch(() => {});
       }
     }).catch(() => {});
     return () => { alive = false; };
@@ -216,7 +228,17 @@ export default function UserProfileScreen() {
           </View>
 
           <View style={{ alignItems: "center", marginTop: -46, paddingHorizontal: 18 }}>
-            <Portrait name={name} size={92} ring={C.gold} glow frameBorder="#0A0A0F" photo={photo} />
+            <View style={{ width: 92, height: 92 }}>
+              <Portrait
+                name={name}
+                size={92}
+                ring={cerceve ? "transparent" : C.gold}
+                glow={!cerceve}
+                frameBorder="#0A0A0F"
+                photo={photo}
+              />
+              {!!cerceve && <FramePreview id={cerceve} size={92} />}
+            </View>
             <Txt weight="displayBold" size={18} color="#fff" style={{ marginTop: 10 }}>{name}</Txt>
             {/* Rozet vitrini — yetki (DB) + vip + level. Ajans/streamer kaldırıldı. */}
             <View style={{ flexDirection: "row", gap: 6, marginTop: 9, alignItems: "center", flexWrap: "wrap" }}>
