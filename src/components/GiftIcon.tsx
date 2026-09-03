@@ -2,11 +2,22 @@ import { StyleSheet, View } from "react-native";
 import Svg, { Defs, Ellipse, RadialGradient, Stop } from "react-native-svg";
 
 import { type Gift, TIER_RING } from "@/data/gifts";
+import { sceneFor } from "@/gifts/bigGifts";
+import { Anim } from "./Anim";
 import { Txt } from "./Txt";
 
-export function GiftIcon({ gift, size = 54 }: { gift: Gift; size?: number }) {
+/**
+ * Hediye rozeti.
+ *
+ * Hediyenin kendi Lottie'si varsa GERÇEK GÖRSEL çiziliyor, emoji değil.
+ * Ama ızgarada onlarca satır olabilir: yalnız `oynat` verilen (seçili olan)
+ * animasyon çalışır, kalanlar TEK KARE olarak boyanır (`ilerleme`). Böylece
+ * gerçek görsel görünür ama N tane çizim döngüsü çalışmaz.
+ */
+export function GiftIcon({ gift, size = 54, oynat = false }: { gift: Gift; size?: number; oynat?: boolean }) {
   const ring = TIER_RING[gift.tier] || TIER_RING.normal;
   const legendary = gift.tier === "legendary";
+  const sahne = sceneFor(gift.id);
   return (
     <View
       style={{
@@ -36,7 +47,12 @@ export function GiftIcon({ gift, size = 54 }: { gift: Gift; size?: number }) {
         <Ellipse cx={size / 2} cy={size} rx={size * 0.55} ry={size * 0.5} fill={`url(#gi_${gift.id})`} />
       </Svg>
       <View style={[styles.glint, { top: size * 0.08, left: size * 0.18, width: size * 0.5, height: size * 0.26, borderRadius: size * 0.25 }]} />
-      <Txt size={size * 0.46}>{gift.emoji}</Txt>
+      {sahne.anim ? (
+        // Kapsülü taşırmasın diye biraz büyük çiziliyor; `contain` kırpmıyor.
+        <Anim kaynak={sahne.anim} boyut={size * 0.92} ilerleme={oynat ? undefined : 0.5} />
+      ) : (
+        <Txt size={size * 0.46}>{gift.emoji}</Txt>
+      )}
     </View>
   );
 }

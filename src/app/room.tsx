@@ -31,6 +31,7 @@ import { Sheet } from "@/components/Sheet";
 import { Touch } from "@/components/Touch";
 import { Txt } from "@/components/Txt";
 import { ContributionView } from "@/sheets/ContributionView";
+import { Anim } from "@/components/Anim";
 import { sceneFor } from "@/gifts/bigGifts";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { ProfileCard, type ProfileCardUser } from "@/sheets/ProfileCard";
@@ -273,6 +274,7 @@ function ChatRow({
   userPhoto,
   privileged,
   balonTema,
+  hediyeCanli,
   onSelfPress,
   onTapUser,
 }: {
@@ -282,6 +284,15 @@ function ChatRow({
   privileged: boolean;
   /** Gönderenin kuşandığı sohbet balonu teması (056) */
   balonTema?: string | null;
+  /**
+   * Hediye animasyonu bu satırda OYNASIN mı.
+   *
+   * Yalnız EN SON hediye mesajı için true. Sohbet bir ScrollView ve tavan
+   * 200 mesaj; her hediye satırına çalışan bir Lottie koymak 200 native
+   * görünüm ve 200 çizim döngüsü demek olurdu. Eski hediyeler emojiyle
+   * kalıyor — kaydırıp yukarı çıkınca zaten geçmişe bakıyorsun.
+   */
+  hediyeCanli?: boolean;
   onSelfPress: () => void;
   onTapUser?: (m: ChatMsg) => void;
 }) {
@@ -297,6 +308,9 @@ function ChatRow({
   // kalıyor; balonunu değiştirmek isteyen kuşanılabilir balon alıyor.
   const bubble = m.host ? "host" : m.mod ? "mod" : "plain";
   const balonT = balonTema ? BALON_TEMALARI[balonTema] : null;
+  // Değişkene alınıyor: `sceneFor(...).anim` iki ayrı çağrıda TS tarafından
+  // daraltılamıyor (koşulda kontrol edilse bile prop'ta `undefined` kalıyor).
+  const hediyeAnim = m.hediye?.kod ? sceneFor(m.hediye.kod).anim : undefined;
   return (
     <View style={{ flexDirection: "row", gap: 9, alignItems: "flex-start" }}>
       {/* Sohbette çerçeve YOK: 30px avatarda halka okunmuyor, satırı
@@ -322,7 +336,17 @@ function ChatRow({
           <View style={[styles.hediyeSatiri, { borderColor: m.hediye.renk + "59" }]}>
             <Gradient colors={[m.hediye.renk + "24", "rgba(255,255,255,.03)"]} deg={110} style={StyleSheet.absoluteFill} />
             <View style={[styles.hediyeIkon, { borderColor: m.hediye.renk + "4D", backgroundColor: m.hediye.renk + "1A" }]}>
-              <Txt size={17}>{m.hediye.emoji}</Txt>
+              {hediyeAnim ? (
+                <Anim
+                  kaynak={hediyeAnim}
+                  boyut={30}
+                  dongu={false}
+                  // Son hediye oynar, eskiler tek kare. Bkz. `hediyeCanli`.
+                  ilerleme={hediyeCanli ? undefined : 0.5}
+                />
+              ) : (
+                <Txt size={17}>{m.hediye.emoji}</Txt>
+              )}
             </View>
             <View style={{ minWidth: 0, flexShrink: 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -981,7 +1005,7 @@ export default function RoomScreen() {
 
     // Hediye sohbete de düşer: animasyon birkaç saniyede kayboluyor, kimin
     // kime ne gönderdiği kayıt olarak kalmıyordu.
-    const hediye = { emoji: g.emoji, ad: g.name, adet: qty, kime: recipient, renk: TIER_RING[g.tier] || C.gold };
+    const hediye = { emoji: g.emoji, ad: g.name, adet: qty, kime: recipient, renk: TIER_RING[g.tier] || C.gold, kod: g.id };
     const saat = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
     setMsgs((m) => [...m, { name: "Sen", time: saat, text: "", myOwn: true, uid: myDbId ?? undefined, hediye }].slice(-MSG_TAVAN));
     if (isDbRoom && chanRef.current) {
@@ -1019,6 +1043,19 @@ export default function RoomScreen() {
     for (const m of liveMembers) h.set(m.uid, m);
     return h;
   }, [liveMembers]);
+
+  /**
+   * EN SON hediye mesajının sırası — yalnız o satırda animasyon oynar.
+   *
+   * Sohbet bir ScrollView ve tavan 200 mesaj. Her hediye satırına çalışan
+   * bir Lottie koymak 200 native görünüm ve 200 çizim döngüsü demek olurdu
+   * (Anim.tsx'in başındaki kural: liste satırına Lottie konmaz). Yeni gelen
+   * hediye canlı oynuyor, yukarıda kalanlar tek kare olarak duruyor.
+   */
+  const sonHediyeIx = useMemo(() => {
+    for (let i = msgs.length - 1; i >= 0; i--) if (msgs[i].hediye) return i;
+    return -1;
+  }, [msgs]);
 
   /**
    * Gerçek odada koltuklar presence'tan türetilir — herkes aynı tabloyu görür.
@@ -2374,6 +2411,7 @@ export default function RoomScreen() {
                     userPhoto={userPhoto}
                     privileged={privileged}
                     balonTema={m.myOwn ? kusanili.balon : uyeler?.balon}
+                    hediyeCanli={i === sonHediyeIx}
                     onSelfPress={openMyCard}
                     onTapUser={openChatUserCard}
                   />

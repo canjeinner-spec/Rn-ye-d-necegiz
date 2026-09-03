@@ -49,7 +49,16 @@ export type Seat = {
 };
 
 /** Sohbete düşen hediye satırı — kim, kime, ne, kaç tane. */
-export type HediyeSatiri = { emoji: string; ad: string; adet: number; kime: string; renk: string };
+export type HediyeSatiri = {
+  emoji: string; ad: string; adet: number; kime: string; renk: string;
+  /**
+   * Katalogdaki `kod` — sohbet kapsülünün hediyenin kendi Lottie'sini
+   * bulabilmesi için taşınıyor. Eskiden yalnız emoji vardı, o yüzden
+   * sohbette gerçek görsel çizilemiyordu. Broadcast yüküyle de gidiyor;
+   * eski istemciden gelen mesajda YOK olabilir, o durumda emojiye düşülür.
+   */
+  kod?: string;
+};
 
 export type ChatMsg = { name: string; time: string; text: string; mod?: boolean; host?: boolean; myOwn?: boolean; photo?: string; uid?: number; publicId?: string; sys?: "mesaj" | "uyari"; baslik?: string; hediye?: HediyeSatiri;
   /** Yazan platform yoneticisi mi. Rozet, BAKANIN degil YAZANIN yetkisini

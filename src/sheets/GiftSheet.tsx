@@ -150,7 +150,7 @@ export function GiftSheet({
                       onPress={() => { haptic.select(); setSel(k.kod); }}
                       style={[styles.hucre, on ? { borderColor: ton, backgroundColor: ton + "16" } : { borderColor: "rgba(255,255,255,.06)" }]}
                     >
-                      <GiftIcon gift={giftYap(k)} size={50} />
+                      <GiftIcon gift={giftYap(k)} size={50} oynat={on} />
                       <Txt weight="bold" size={9.5} color={on ? "#fff" : C.text} numberOfLines={1} align="center" style={{ marginTop: 5, maxWidth: 72 }}>
                         {k.ad}
                       </Txt>

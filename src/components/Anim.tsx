@@ -33,17 +33,28 @@ type Props = {
   dongu?: boolean;
   /** 1 = normal. Boş ekranlarda 0.7-0.8 daha sakin durur. */
   hiz?: number;
+  /**
+   * Verilirse animasyon OYNAMAZ, bu orandaki tek kareyi gösterir (0-1).
+   *
+   * Listelerde gerçek görseli göstermenin ucuz yolu: her satır kendi
+   * çizim döngüsünü çalıştırmaz, yalnız bir kare boyanır. 0 yerine 0.5
+   * uygun: hediye animasyonlarının ilk karesi genelde boş olur, nesneler
+   * sahneye sonradan giriyor.
+   */
+  ilerleme?: number;
   style?: StyleProp<ViewStyle>;
 };
 
-export function Anim({ kaynak, boyut = 140, dongu = true, hiz = 1, style }: Props) {
+export function Anim({ kaynak, boyut = 140, dongu = true, hiz = 1, ilerleme, style }: Props) {
+  const durukKare = ilerleme !== undefined;
   return (
     <View style={[{ width: boyut, height: boyut }, style]} pointerEvents="none">
       <LottieView
         source={kaynak}
-        autoPlay
-        loop={dongu}
+        autoPlay={!durukKare}
+        loop={durukKare ? false : dongu}
         speed={hiz}
+        progress={durukKare ? ilerleme : undefined}
         resizeMode="contain"
         style={{ width: "100%", height: "100%" }}
       />
