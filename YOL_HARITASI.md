@@ -75,7 +75,20 @@ Yapılanların commit listesi ve bilinçli olarak ATLANANLARIN gerekçeleri
 1. **1.1 (A3) ✅ `f8d1839`:** `(tabs)/index.tsx` arama ikonu `/preview` → `/user-search`.
 2. **1.2 (C4) ✅ `25cfcc1` + `5a66edb`:** İki sıcak yol logu silindi (her presence sync'inde string kuruyorlardı); üretimde `console.log/debug/info` `__DEV__` kapısıyla no-op, `warn`/`error` bilerek duruyor. **Babel eklentisi ERTELENDİ:** projede `babel.config.js` yok, sıfırdan yazmak reanimated/worklets yolunu riske atar; dev build turunda (Faz 4) eklenecek.
 3. **1.3 (C2a) ✅ `dcc3a2a` + `eeba834`:** Mesaj tavanı `.slice(-200)` (room.tsx 5 + dm-chat 5 ekleme noktası); `liveMembers.find` → `uyeHaritasi` (`Map<uid, LiveMember>`, 7 arama).
-4. **1.4 (C1) — (a) ✅ `8eb09cd`, (b) ✅ `a4f1271`, (c) SIRADA:** `src/components/Touch.tsx` Pressable sarmalayıcı (`pressed && {opacity:.6, scale:.97}` + android_ripple; `kucul={false}` ile küçülme kapatılabilir). (a) oda alt barı 10 + koltuk 2 + aksiyon satırı 1, (b) `Tabs.tsx` + `BottomNav.tsx` (ikisi de `kucul={false}`), **(c) kalan ~810 yer — toplu regex YAPILMAZ, dalga dalga.**
+4. **1.4 (C1) — (a) ✅ `8eb09cd`, (b) ✅ `a4f1271`, (c) SIRADA:** `src/components/Touch.tsx` Pressable sarmalayıcı (`pressed && {opacity:.6, scale:.97}` + android_ripple; `kucul={false}` ile küçülme kapatılabilir). (a) oda alt barı 10 + koltuk 2 + aksiyon satırı 1, (b) `Tabs.tsx` + `BottomNav.tsx` (ikisi de `kucul={false}`), **(c) ERTELENDİ (4 Eylül, kullanıcı sordu: "yapmak zorunda mıyız?").**
+   Cevap: hayır. Gerekçeler ölçüldü:
+   • **Sayı yanlıştı:** ~810 değil, şu an **388** `Pressable` var (836 eski
+     bir sayımdan kalmış; aradan çok yer kaldırılmış/dönüşmüş).
+   • **Risk site başına küçük ama toplamda büyük:** `Touch` katı bir üst küme,
+     ancak getirdiği `scale: 0.97` bir DÖNÜŞÜM. Mutlak konumlu ya da üstüne
+     katman binen yerlerde (koltuk + `FramePreview`, hediye ızgarası)
+     yerleşimi kaydırabilir; bu oturumda tam o tür hassasiyetlerle uğraşıldı.
+   • **Kazanç site başına küçük:** kimsenin dokunmadığı bir admin düğmesinin
+     basılı geri bildirimi sıfıra yakın değer taşıyor. En çok dokunulan
+     yerler (alt bar, alt navigasyon, koltuklar, aksiyon satırı) ZATEN
+     dalga (a) ve (b)'de geçti.
+   **Doğru sıra:** önce bu oturumun ~20 commit'i cihazda doğrulansın. Sonra
+   istenirse yalnız GÖRÜNÜR kazanç veren yerler için küçük bir dalga.
 5. **1.5 (C2b) — ERTELENDİ (kullanıcı kararı, 4 Eylül):** "bunun acelesi
    yok, çok sonraya sakla."
    Gerekçe doğru: kaydırmada hissedilen bir takılma bildirilmedi ve listelerin
