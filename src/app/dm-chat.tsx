@@ -430,16 +430,24 @@ export default function DMChatScreen() {
               </Pressable>
             </View>
           ) : (
-            <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, alignItems: "center" }}>
+            <View style={styles.bottombar}>
               <View style={styles.inputWrap}>
                 <TextInput value={input} onChangeText={setInput} onSubmitEditing={send} placeholder="Mesajını yaz..." placeholderTextColor={C.dim2} style={styles.input} returnKeyType="send" />
               </View>
+              {/*
+                HEDİYE DÜĞMESİ ODADAKİYLE AYNI. Burada `crown` ikonu ve altın
+                tonlu bir daire vardı; odada ise `gift` ikonu pembe/magenta
+                gradyan dairede duruyor. Aynı işi yapan düğme iki ekranda iki
+                farklı şey gibi görünüyordu — kullanıcının "kopuk" dediği bu.
+              */}
               {FEATURES.dmGift && (
-                <Pressable onPress={() => setGiftOpen(true)} style={styles.giftBtn}>
-                  <Icon name="crown" size={18} color={C.gold2} />
+                <Pressable onPress={() => { haptic.light(); setGiftOpen(true); }} style={styles.hediyeBtn}>
+                  <Gradient colors={["#F9A8D4", "#EC4899", "#BE185D"]} deg={135} style={styles.hediyeIc}>
+                    <Icon name="gift" size={21} color="#FFF1F7" />
+                  </Gradient>
                 </Pressable>
               )}
-              <Pressable onPress={send} style={{ borderRadius: 22, overflow: "hidden" }}>
+              <Pressable onPress={send} disabled={!input.trim()} style={{ borderRadius: 22, overflow: "hidden", opacity: input.trim() ? 1 : 0.4 }}>
                 <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.sendBtn}>
                   <Icon name="send" size={17} sw={2} color="#241A05" />
                 </Gradient>
@@ -505,9 +513,27 @@ const styles = StyleSheet.create({
   // Yatay düzen: görsel + iri adet (odadaki hediye baloncuğuyla aynı dil).
   giftBubble: { flexDirection: "row", alignItems: "center", gap: 13, paddingVertical: 11, paddingHorizontal: 13, borderRadius: 18, backgroundColor: C.kontrol, borderWidth: 1, borderColor: C.gold + "44" },
   karsilikBtn: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", marginTop: 2, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, borderColor: C.gold + "45", backgroundColor: C.gold + "14" },
-  inputWrap: { flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 16, justifyContent: "center" },
-  input: { color: C.text, fontSize: 12.5, fontFamily: "PlusJakartaSans_500Medium", paddingVertical: 11 },
-  giftBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: C.gold + "44", backgroundColor: C.gold + "14", alignItems: "center", justifyContent: "center" },
+  /**
+   * ALT BAR ODA EKRANIYLA HİZALANDI.
+   *
+   * Eskiden adsız bir satır içi stildi ve ölçüleri odadan farklıydı
+   * (gap 10 / yatay dolgu 16, odada 8 / 12) — iki sohbet ekranı yan yana
+   * konunca DM "düzensiz" görünüyordu. Bir de üç eleman üç farklı zemin
+   * kullanıyordu: kutu `C.card` (opak kart rengi), hediye altın, gönder
+   * altın gradyan. Kutu artık odadaki gibi `C.kontrol`.
+   */
+  bottombar: { flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6, alignItems: "center" },
+  inputWrap: {
+    flex: 1, justifyContent: "center", borderRadius: 26, paddingHorizontal: 16,
+    backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.13)",
+  },
+  input: { color: C.text, fontSize: 13, fontFamily: "PlusJakartaSans_500Medium", minWidth: 0, paddingVertical: 10 },
+  // Odadaki hediye düğmesinin birebir aynısı (room.tsx `hediyeBtn`/`hediyeIc`).
+  hediyeBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    shadowColor: "#EC4899", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.45, shadowRadius: 8, elevation: 6,
+  },
+  hediyeIc: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "rgba(255,255,255,.35)" },
   sendBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   blockBar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, marginHorizontal: 16, marginTop: 8, marginBottom: 6, paddingVertical: 13, paddingHorizontal: 14, borderRadius: 14, backgroundColor: C.kart, borderWidth: 1, borderColor: C.line },
 });
