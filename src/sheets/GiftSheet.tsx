@@ -57,8 +57,22 @@ export function GiftSheet({
   const [adetIx, setAdetIx] = useState(0);
   const [adetAcik, setAdetAcik] = useState(false);
   const [hedef, setHedef] = useState(0);
+  /** Tek alıcı varsa "Tümü" anlamsız — o kişiyi seçili başlatıyoruz. */
+  const tekAlici = recipients.length === 1;
   const [altin, setAltin] = useState<number | null>(null);
   const [veri, setVeri] = useState<KatalogHediyesi[] | null>(null);
+
+  /**
+   * TEK ALICI VARSA O SEÇİLİ OLSUN.
+   *
+   * `hedef` 0 ile başlıyor ve 0 = "Tümü". Profil ekranında alıcı listesi tek
+   * kişiden ibaret; kullanıcı ayrıca dokunmadığı sürece "Tümü" seçili kalıyor
+   * ve gönderim `aliciId: undefined` ile çıkıyordu → "Alıcı bulunamadı".
+   * Tek kişilik bağlamda "Tümü" seçeneği zaten gizleniyor (aşağıda).
+   */
+  useEffect(() => {
+    if (tekAlici) setHedef(1);
+  }, [tekAlici]);
 
   useEffect(() => {
     if (!visible || !isSupabaseConfigured) return;
@@ -106,10 +120,12 @@ export function GiftSheet({
             <View style={styles.tutamac} />
 
             <View style={styles.kimeSatiri}>
-              <Pressable onPress={() => { haptic.select(); setHedef(0); }} style={[styles.tumu, hedef === 0 ? { borderColor: C.gold, backgroundColor: C.gold + "1F" } : { borderColor: "rgba(255,255,255,.12)" }]}>
-                <Icon name="users" size={14} color={hedef === 0 ? C.gold2 : C.dim} />
-                <Txt weight="extrabold" size={11.5} color={hedef === 0 ? C.gold2 : C.dim}>Tümü</Txt>
-              </Pressable>
+              {!tekAlici && (
+                <Pressable onPress={() => { haptic.select(); setHedef(0); }} style={[styles.tumu, hedef === 0 ? { borderColor: C.gold, backgroundColor: C.gold + "1F" } : { borderColor: "rgba(255,255,255,.12)" }]}>
+                  <Icon name="users" size={14} color={hedef === 0 ? C.gold2 : C.dim} />
+                  <Txt weight="extrabold" size={11.5} color={hedef === 0 ? C.gold2 : C.dim}>Tümü</Txt>
+                </Pressable>
+              )}
 
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 6 }}>
                 {recipients.map((r, i) => {

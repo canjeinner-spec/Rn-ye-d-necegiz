@@ -13,6 +13,8 @@ import { GiftSheet } from "@/sheets/GiftSheet";
 import { ARON_POSTS, SYSTEM_POSTS } from "@/data/dm";
 import { listAnnouncements, type Announcement } from "@/data/remote/announceRepo";
 import { getBlockStateByPublicId, unblock } from "@/data/remote/blockRepo";
+import { hediyeGonder } from "@/data/remote/hediyeRepo";
+import { getPublicProfile } from "@/data/remote/profileRepo";
 import { getMessages, mapRealtimeMessage, markRead, sendMessage } from "@/data/remote/dmRepo";
 import { type Gift } from "@/data/gifts";
 import { Icon } from "@/icons/Icon";
@@ -42,6 +44,9 @@ function IconBtn({ name, onPress }: { name: "back" | "phone"; onPress?: () => vo
 export default function DMChatScreen() {
   const router = useRouter();
   const peer = useApp((s) => s.activeDM);
+  /** Karşı tarafın sayısal kimliği — hediye göndermek için şart. */
+  const [peerUid, setPeerUid] = useState<number | null>(null);
+  const [hata, setHata] = useState<string | null>(null);
   const dbId = useApp((s) => s.dbId);
   const back = () => router.back();
 
@@ -75,6 +80,8 @@ export default function DMChatScreen() {
     if (!isSupabaseConfigured || !peer?.publicId || peer.official || peer.system) return;
     let alive = true;
     getBlockStateByPublicId(peer.publicId).then((b) => { if (alive) setBlock(b); }).catch(() => {});
+    // Hediye gönderimi sayısal kimlik istiyor; `peer` yalnız publicId taşıyor.
+    getPublicProfile(peer.publicId).then((p) => { if (alive) setPeerUid(p?.id ?? null); }).catch(() => {});
     return () => { alive = false; };
   }, [peer?.publicId, peer?.official, peer?.system]);
 
@@ -123,10 +130,31 @@ export default function DMChatScreen() {
     }
     setMsgs((m) => [...m, { me: true, text: t, time: "Şimdi" }].slice(-MSG_TAVAN));
   };
-  const sendGift = (g: Gift, qty: number) => {
-    haptic.success();
+  /**
+   * DM'den hediye — GERÇEK gönderim (059).
+   *
+   * Eskiden yalnızca yerel bir mesaj ekleniyordu: RPC yok, bakiye düşmüyor,
+   * karşı taraf hiçbir şey almıyordu. Kullanıcıya başarılı görünen bir
+   * yalandı (yol haritası 1.13).
+   *
+   * `peer` sayısal kimlik taşımıyor (yalnız `publicId`), o yüzden alıcı
+   * kimliği ekran açılırken `getPublicProfile` ile bir kez çözülüyor.
+   * Oda dışı gönderim olduğu için `oda_id` NULL gidiyor.
+   */
+  const sendGift = async (g: Gift, qty: number, _kime: string, aliciId?: number, hediyeDbId?: number) => {
     setGiftOpen(false);
-    setMsgs((m) => [...m, { me: true, gift: g, qty, time: "Şimdi" }].slice(-MSG_TAVAN));
+    const hedefId = aliciId ?? peerUid;
+    if (!isSupabaseConfigured) return;
+    if (hedefId == null) { setHata("Alıcı bulunamadı."); return; }
+    if (!hediyeDbId) { setHata("Hediye katalogu yüklenemedi, tekrar dene."); return; }
+    try {
+      await hediyeGonder(hediyeDbId, qty, hedefId, null);
+      haptic.success();
+      setMsgs((m) => [...m, { me: true, gift: g, qty, time: "Şimdi" }].slice(-MSG_TAVAN));
+    } catch (e) {
+      haptic.warning();
+      setHata((e as Error)?.message || "Hediye gönderilemedi");
+    }
   };
 
   if (!peer) {
@@ -303,12 +331,29 @@ export default function DMChatScreen() {
         </KeyboardAware>
       </SafeAreaView>
 
-      <GiftSheet visible={giftOpen} onClose={() => setGiftOpen(false)} recipients={[{ name: peer.name }]} onSend={sendGift} onBakiyeYukle={() => { setGiftOpen(false); router.navigate("/wallet"); }} />
+      <GiftSheet
+        visible={giftOpen}
+        onClose={() => setGiftOpen(false)}
+        // uid GEÇİLİYOR: eskiden yalnız isim vardı, hediye kutusu alıcıyı
+        // tanımlayamıyordu. Henüz çözülmediyse `sendGift` peerUid'e düşer.
+        recipients={[{ name: peer.name, uid: peerUid ?? undefined }]}
+        onSend={sendGift}
+        onBakiyeYukle={() => { setGiftOpen(false); router.navigate("/wallet"); }}
+      />
+
+      {/* Hata bildirimi. `setHata` yazılıyordu ama HİÇ ÇİZİLMİYORDU —
+          gönderim başarısız olsa kullanıcı sebebini göremiyordu. */}
+      {!!hata && (
+        <Pressable onPress={() => setHata(null)} style={styles.hataToast}>
+          <Txt weight="bold" size={12} color="#fff" align="center">{hata}</Txt>
+        </Pressable>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  hataToast: { position: "absolute", left: 24, right: 24, bottom: 96, backgroundColor: "rgba(15,13,21,.96)", borderWidth: 1, borderColor: "rgba(248,113,113,.5)", paddingVertical: 11, paddingHorizontal: 16, borderRadius: 14 },
   root: { flex: 1, backgroundColor: C.bg },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   chatHeader: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: C.line },
