@@ -50,7 +50,15 @@ function Ring({ delay, color }: { delay: number; color: string }) {
   return <Animated.View style={[styles.ring, { borderColor: color }, style]} />;
 }
 
-export function BigGiftOverlay({ gift, qty, sender, onDone }: { gift: Gift; qty: number; sender: string; onDone: () => void }) {
+export function BigGiftOverlay({ gift, qty, sender, onDone, sure }: {
+  gift: Gift; qty: number; sender: string; onDone: () => void;
+  /**
+   * Ekranda kalma suresi (ms). Verilmezse sahnenin kendi suresi kullanilir.
+   * Efekt kuyrugu bunu veriyor: kuyruk uzadikca gosterim kisaliyor, yoksa
+   * kalabalik odada sira dakikalarca surer.
+   */
+  sure?: number;
+}) {
   const scene = sceneFor(gift.id);
   // Tam ekran: ağır dosyalar da burada oynar (tek örnek, tam boy).
   const buyukKaynak = scene.anim?.();
@@ -74,7 +82,7 @@ export function BigGiftOverlay({ gift, qty, sender, onDone }: { gift: Gift; qty:
     bannerOp.value = withDelay(520, withTiming(1, { duration: 320 }));
     bannerY.value = withDelay(520, withSpring(0, { damping: 14 }));
 
-    const t = setTimeout(onDone, scene.duration);
+    const t = setTimeout(onDone, sure ?? scene.duration);
     return () => { clearTimeout(t); sesiBirak?.(); };
   }, []);
 

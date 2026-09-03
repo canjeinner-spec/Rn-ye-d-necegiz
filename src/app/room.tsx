@@ -31,7 +31,8 @@ import { Sheet } from "@/components/Sheet";
 import { Touch } from "@/components/Touch";
 import { Txt } from "@/components/Txt";
 import { ContributionView } from "@/sheets/ContributionView";
-import { sceneFor, TUM_SESLER } from "@/gifts/bigGifts";
+import { TUM_SESLER } from "@/gifts/bigGifts";
+import { gosterimSuresi, kuyrugaEkle, yeniAnahtar, type EfektIsi } from "@/gifts/efektKuyrugu";
 import { giftPng } from "@/gifts/giftPng";
 import { sesleriOnYukle } from "@/lib/hediyeSesi";
 import { GiftSheet } from "@/sheets/GiftSheet";
@@ -917,10 +918,16 @@ export default function RoomScreen() {
   // yasamamak icin oynaticilar onceden kuruluyor.
   useEffect(() => { sesleriOnYukle(TUM_SESLER); }, []);
 
-  const [giftFx, setGiftFx] = useState<(Gift & { qty: number }) | null>(null);
+  /**
+   * Hediye efekti KUYRUGU. Eskiden iki ayri durum vardi (giftFx / bigGift) ve
+   * yeni hediye eskisinin ustune biniyordu. Daha kotusu: zamanlayici hangi
+   * hediyenin gosterildigine BAKMADAN efekti siliyordu, yani A'nin sayaci
+   * B gosterilirken patlayip B'yi dusuruyordu ("hizlica kayboluyor").
+   * Artik sirayla oynuyorlar; politika `gifts/efektKuyrugu.ts`de.
+   */
+  const [kuyruk, setKuyruk] = useState<EfektIsi[]>([]);
   // `sender` EKLENDİ: efekt artık odadaki herkeste oynuyor, "Sen" sabiti
   // karşı tarafta yanlış oluyordu — kimin gönderdiği yayınla geliyor.
-  const [bigGift, setBigGift] = useState<{ gift: Gift; qty: number; sender: string } | null>(null);
 
   /**
    * Hediye efektini oynatan TEK yer. Hem kendi gönderimim hem odadaki
@@ -928,14 +935,41 @@ export default function RoomScreen() {
    * güncellenip diğeri unutulurdu.
    */
   const efektiOynat = useCallback((g: Gift, qty: number, gonderen: string) => {
-    if (g.tier === "legendary") { setBigGift({ gift: g, qty, sender: gonderen }); return; }
-    setGiftFx({ ...g, qty });
-    // Süre sahne manifestinden (bigGifts.ts): Lottie'nin kendi uzunluğu var,
-    // sabit 2400/3000 ms animasyonu yarıda kesiyordu.
-    const sahne = sceneFor(g.id);
-    const dur = sahne.anim ? sahne.duration : g.tier === "epic" ? 3000 : 2400;
-    setTimeout(() => setGiftFx(null), dur);
+    setKuyruk((k) => kuyrugaEkle(k, { anahtar: yeniAnahtar(), gift: g, qty, gonderen }));
   }, []);
+
+  /** Sirasi gelen is. Kuyrugun basi her zaman ekranda olandir. */
+  const aktifEfekt = kuyruk[0] ?? null;
+
+  /**
+   * Isi bitir. ANAHTARA BAKIYOR: gec kalmis bir sayac ya da ikinci bir
+   * `onDone` cagrisi siradaki hediyeyi dusuremesin. Eski koddaki
+   * "hizlica kayboluyor" hatasi tam olarak buydu.
+   */
+  const efektiBitir = useCallback((anahtar: string) => {
+    setKuyruk((k) => (k[0]?.anahtar === anahtar ? k.slice(1) : k));
+  }, []);
+
+  /**
+   * Gosterilen isin BASLAMA ani. Sure kuyruk uzadikca kisaliyor ve bu yeniden
+   * hesaplaniyor; sayaci sifirdan kurmak yerine gecen sureyi dusuyoruz.
+   * Aksi halde her yeni hediye calisan efektin sayacini bastan baslatir ve
+   * efekt ekranda takilip kalirdi.
+   */
+  const basladiRef = useRef({ anahtar: "", zaman: 0 });
+
+  useEffect(() => {
+    if (!aktifEfekt) return;
+    if (basladiRef.current.anahtar !== aktifEfekt.anahtar) {
+      basladiRef.current = { anahtar: aktifEfekt.anahtar, zaman: Date.now() };
+    }
+    // Kuyruk uzadiysa hedef sure kisalmis olabilir; gecen sureyi dusup
+    // kalani bekliyoruz. Zaten gecmisse hemen siradakine geciyor.
+    const hedef = gosterimSuresi(aktifEfekt, kuyruk.length);
+    const kalan = Math.max(0, hedef - (Date.now() - basladiRef.current.zaman));
+    const t = setTimeout(() => efektiBitir(aktifEfekt.anahtar), kalan);
+    return () => clearTimeout(t);
+  }, [aktifEfekt, kuyruk.length, efektiBitir]);
   // Kanal dinleyicisi bunu bağımlılığına ALMADAN çağırabilsin diye ref —
   // `tepkiGosterRef` ile aynı desen. Deps'e eklemek kanalı yeniden kurardı.
   const efektiOynatRef = useRef(efektiOynat);
@@ -2944,9 +2978,21 @@ export default function RoomScreen() {
         </View>
       </CenterModal>
 
-      {giftFx && <GiftFx gift={giftFx} />}
-
-      {bigGift && <BigGiftOverlay gift={bigGift.gift} qty={bigGift.qty} sender={bigGift.sender} onDone={() => setBigGift(null)} />}
+      {/* Kuyrugun yalniz BASI ciziliyor — ust uste binme boyle bitiyor.
+          `key` isin anahtari: her is icin bilesen yeniden kuruluyor, yani
+          animasyon bastan basliyor ve sesi yeniden caliyor. */}
+      {aktifEfekt && (aktifEfekt.gift.tier === "legendary" ? (
+        <BigGiftOverlay
+          key={aktifEfekt.anahtar}
+          gift={aktifEfekt.gift}
+          qty={aktifEfekt.qty}
+          sender={aktifEfekt.gonderen}
+          sure={gosterimSuresi(aktifEfekt, kuyruk.length)}
+          onDone={() => efektiBitir(aktifEfekt.anahtar)}
+        />
+      ) : (
+        <GiftFx key={aktifEfekt.anahtar} gift={{ ...aktifEfekt.gift, qty: aktifEfekt.qty }} />
+      ))}
     </View>
   );
 }
