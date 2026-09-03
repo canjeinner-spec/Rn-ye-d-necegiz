@@ -300,6 +300,19 @@ function ChatRow({
   // kalıyor; balonunu değiştirmek isteyen kuşanılabilir balon alıyor.
   const bubble = m.host ? "host" : m.mod ? "mod" : "plain";
   const balonT = balonTema ? BALON_TEMALARI[balonTema] : null;
+  /**
+   * Balon zemini TEK yerde. Eskiden iki ayri dalda kopyalanmisti; hediye
+   * satiri da kendi kapsulunu ciziyordu, yani kusanilan balon temasi
+   * hediyede hic gorunmuyordu. Artik yazi da hediye de AYNI balonu
+   * paylasiyor — kullanicinin istedigi bu.
+   */
+  const balonStil = balonT
+    ? { backgroundColor: balonT.bg, borderColor: balonT.kenar }
+    : bubble === "host"
+      ? { backgroundColor: "rgba(245,206,110,.14)", borderColor: C.gold + "55" }
+      : bubble === "mod"
+        ? { backgroundColor: "rgba(94,234,212,.12)", borderColor: C.teal + "55" }
+        : { backgroundColor: "rgba(255,255,255,.06)", borderColor: "rgba(255,255,255,.1)" };
   // Değişkene alınıyor: `sceneFor(...).anim` iki ayrı çağrıda TS tarafından
   // daraltılamıyor (koşulda kontrol edilse bile prop'ta `undefined` kalıyor).
   // Sohbet satırı 30px. Lottie DEĞİL, statik PNG: burası bir liste satırı
@@ -324,44 +337,37 @@ function ChatRow({
               idi, yani herkes yalnizca KENDI rozetini goruyordu. */}
           {(m.yetki ?? (isMe && privileged)) && <AuthorityTag size={8} />}
         </View>
-        {/* Hediye satırı: normal baloncuk yerine hediyenin kendi kapsülü.
-            Animasyon birkaç saniyede geçiyordu, sohbette iz kalmıyordu. */}
+        {/* Hediye sohbete DE düşüyor: animasyon birkaç saniyede geçiyor,
+            kimin kime ne gönderdiği kayıt olarak kalmıyordu. */}
         {m.hediye ? (
-          <View style={[styles.hediyeSatiri, { borderColor: m.hediye.renk + "59" }]}>
-            <Gradient colors={[m.hediye.renk + "24", "rgba(255,255,255,.03)"]} deg={110} style={StyleSheet.absoluteFill} />
-            <View style={[styles.hediyeIkon, { borderColor: m.hediye.renk + "4D", backgroundColor: m.hediye.renk + "1A" }]}>
-              {hediyePng ? (
-                <Image source={hediyePng} style={{ width: 30, height: 30 }} contentFit="contain" transition={0} />
-              ) : (
-                <Txt size={17}>{m.hediye.emoji}</Txt>
+          // Hediye ARTIK GONDERENIN BALONUNUN ICINDE. Eskiden kendi
+          // gradyanli kapsulu vardi ve hediye adi + alici iki satir
+          // kapliyordu; sohbette dikkat cekmiyordu. Yeni duzen: gorsel
+          // buyuk, adet iri ve altin. Hediye adini yazmiyoruz, gorsel
+          // zaten soyluyor.
+          <View style={[styles.bubble, styles.hediyeBalonu, balonStil]}>
+            {hediyePng ? (
+              <Image source={hediyePng} style={{ width: 44, height: 44 }} contentFit="contain" transition={0} />
+            ) : (
+              <Txt size={30}>{m.hediye.emoji}</Txt>
+            )}
+            <View style={{ minWidth: 0, flexShrink: 1 }}>
+              <Txt weight="displayBold" size={23} color={C.gold2} style={styles.hediyeAdet}>×{m.hediye.adet}</Txt>
+              {/* Alici KALIYOR: odada sekiz koltuk var ve "Herkese" secenegi
+                  de mevcut, kime gittigi gercek bir bilgi. Ama artik
+                  ikincil — kucuk ve sonuk. */}
+              {!!m.hediye.kime && (
+                <Txt weight="semibold" size={9.5} color={C.dim} numberOfLines={1} style={{ marginTop: -1 }}>
+                  → {m.hediye.kime}
+                </Txt>
               )}
             </View>
-            <View style={{ minWidth: 0, flexShrink: 1 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Txt weight="extrabold" size={12} color="#fff" numberOfLines={1} style={{ flexShrink: 1 }}>{m.hediye.ad}</Txt>
-                <Txt weight="extrabold" size={11.5} color={m.hediye.renk}>×{m.hediye.adet}</Txt>
-              </View>
-              <Txt weight="semibold" size={10} color={C.gold2} numberOfLines={1} style={{ marginTop: 1 }}>
-                → {m.hediye.kime}
-              </Txt>
-            </View>
-          </View>
-        ) : balonT ? (
-          <View style={[styles.bubble, { backgroundColor: balonT.bg, borderColor: balonT.kenar }]}>
-            <Txt weight="semibold" size={12.5} color={balonT.yazi} lh={1.4}>{m.text}</Txt>
           </View>
         ) : (
-          <View
-            style={[
-              styles.bubble,
-              bubble === "host"
-                ? { backgroundColor: "rgba(245,206,110,.14)", borderColor: C.gold + "55" }
-                : bubble === "mod"
-                  ? { backgroundColor: "rgba(94,234,212,.12)", borderColor: C.teal + "55" }
-                  : { backgroundColor: "rgba(255,255,255,.06)", borderColor: "rgba(255,255,255,.1)" },
-            ]}
-          >
-            <Txt size={12.5} color="#EDEBF2" lh={1.4}>{m.text}</Txt>
+          <View style={[styles.bubble, balonStil]}>
+            <Txt weight={balonT ? "semibold" : undefined} size={12.5} color={balonT ? balonT.yazi : "#EDEBF2"} lh={1.4}>
+              {m.text}
+            </Txt>
           </View>
         )}
       </View>
@@ -3113,8 +3119,9 @@ const styles = StyleSheet.create({
   // İçerik kadar geniş: eskiden alignSelf "stretch" idi, kısa bir hediye adı
   // için bile satır sohbetin tamamını kaplıyordu.
   ayrildiCip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: "rgba(255,255,255,.05)" },
-  hediyeSatiri: { flexDirection: "row", alignItems: "center", gap: 9, alignSelf: "flex-start", maxWidth: "82%", paddingVertical: 6, paddingLeft: 6, paddingRight: 12, borderRadius: 14, borderTopLeftRadius: 5, borderWidth: 1, overflow: "hidden" },
-  hediyeIkon: { width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  hediyeBalonu: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 7, paddingHorizontal: 11 },
+  // Hafif egim: rakami bir rozet gibi gosteriyor, duz yazidan ayiriyor.
+  hediyeAdet: { letterSpacing: 0.5, transform: [{ skewX: "-8deg" }] },
   sysNotice: { borderRadius: 14, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12 },
   /** Hoş geldiniz sistem mesajı kapsülü — içeriği kadar geniş, sola yaslı */
   welcomeCapsule: {
