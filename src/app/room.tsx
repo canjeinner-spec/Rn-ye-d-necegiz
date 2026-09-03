@@ -888,17 +888,35 @@ export default function RoomScreen() {
     const bitir = koltuklariDinle(dbId, {
       // Olay yükü yeni satırı zaten taşıyor: sunucuya bir tur daha gitmeden
       // uygula. Ad/foto sonraki tazelemede doluyor.
-      anlik: (satir, silindi) => {
+      anlik: (olaylar) => {
         if (!acik) return;
         setDbKoltuklar((onceki) => {
-          const digerleri = onceki.filter((k) => k.koltukNo !== satir.koltukNo);
-          if (silindi) return digerleri;
-          const eskisi = onceki.find((k) => k.koltukNo === satir.koltukNo);
-          // Aynı kişi oturmaya devam ediyorsa adını/fotoğrafını koru.
-          const korunan = eskisi && eskisi.kullaniciId === satir.kullaniciId
-            ? { ad: eskisi.ad, foto: eskisi.foto, publicId: eskisi.publicId, yetkili: eskisi.yetkili }
-            : {};
-          return [...digerleri, { ...satir, ...korunan }].sort((a, b) => a.koltukNo - b.koltukNo);
+          const harita = new Map(onceki.map((k) => [k.koltukNo, k]));
+          for (const { satir, silindi } of olaylar) {
+            if (silindi) { harita.delete(satir.koltukNo); continue; }
+            const eskisi = harita.get(satir.koltukNo);
+            // Aynı kişi oturmaya devam ediyorsa adını/fotoğrafını koru.
+            const korunan = eskisi && eskisi.kullaniciId === satir.kullaniciId
+              ? { ad: eskisi.ad, foto: eskisi.foto, publicId: eskisi.publicId, yetkili: eskisi.yetkili }
+              : {};
+            harita.set(satir.koltukNo, { ...satir, ...korunan });
+
+            /**
+             * KOLTUK DEĞİŞİMİ — kişi bir koltuğa oturduysa ESKİ koltuğundan
+             * hemen kalksın. Sunucu iki satır güncelliyor ("eski boşaldı",
+             * "yeni doldu"); ikinci olay gecikirse ya da hiç gelmezse kişi
+             * iki koltukta birden görünüyordu. Yeni koltuk her zaman
+             * doğrudur, eskisini beklemeden düşürüyoruz.
+             */
+            if (satir.kullaniciId != null) {
+              for (const [no, k] of harita) {
+                if (no !== satir.koltukNo && k.kullaniciId === satir.kullaniciId) {
+                  harita.set(no, { ...k, kullaniciId: null, ad: null, foto: null, publicId: null, yetkili: false });
+                }
+              }
+            }
+          }
+          return [...harita.values()].sort((a, b) => a.koltukNo - b.koltukNo);
         });
       },
       tazele: yukle,
@@ -1993,26 +2011,38 @@ export default function RoomScreen() {
     ad?: string | null; foto?: string | null; publicId?: string | null; yetkili?: boolean;
   }) => {
     setDbKoltuklar((onceki) => {
-      const digerleri = onceki.filter((k) => k.koltukNo !== p.koltuk);
+      const harita = new Map(onceki.map((k) => [k.koltukNo, k]));
+      const eski = harita.get(p.koltuk);
       if (p.uid == null) {
-        const eski = onceki.find((k) => k.koltukNo === p.koltuk);
         // Koltuk boşaldı: kilidi koru, oturanı sil.
-        return [...digerleri, {
+        harita.set(p.koltuk, {
           koltukNo: p.koltuk, kullaniciId: null, micAcik: true,
           kilitli: eski?.kilitli ?? false, ad: null, foto: null, publicId: null, yetkili: false,
-        }].sort((a, b) => a.koltukNo - b.koltukNo);
+        });
+      } else {
+        harita.set(p.koltuk, {
+          koltukNo: p.koltuk,
+          kullaniciId: p.uid,
+          micAcik: p.mic !== false,
+          kilitli: eski?.kilitli ?? false,
+          ad: p.ad ?? null,
+          foto: p.foto ?? null,
+          publicId: p.publicId ?? null,
+          yetkili: !!p.yetkili,
+        });
+        /**
+         * Kişi ESKİ koltuğundan hemen kalksın — tablo olayı gelmeden.
+         * İpucu yalnız YENİ koltuğu yazıyordu, o yüzden koltuk değiştiren
+         * kişi karşı tarafta bir an İKİ koltukta birden görünüyordu.
+         * (Aynı kural tablo olaylarını uygulayan yerde de var.)
+         */
+        for (const [no, k] of harita) {
+          if (no !== p.koltuk && k.kullaniciId === p.uid) {
+            harita.set(no, { ...k, kullaniciId: null, ad: null, foto: null, publicId: null, yetkili: false });
+          }
+        }
       }
-      const eski = onceki.find((k) => k.koltukNo === p.koltuk);
-      return [...digerleri, {
-        koltukNo: p.koltuk,
-        kullaniciId: p.uid,
-        micAcik: p.mic !== false,
-        kilitli: eski?.kilitli ?? false,
-        ad: p.ad ?? null,
-        foto: p.foto ?? null,
-        publicId: p.publicId ?? null,
-        yetkili: !!p.yetkili,
-      }].sort((a, b) => a.koltukNo - b.koltukNo);
+      return [...harita.values()].sort((a, b) => a.koltukNo - b.koltukNo);
     });
   }, []);
 

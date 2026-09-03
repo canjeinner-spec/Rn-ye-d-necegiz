@@ -996,47 +996,118 @@ export async function koltukKilitle(odaId: number, koltuk: number, kilit: boolea
  * bir "otur" işlemi eski koltuğu boşaltıp yenisini doldurduğu için iki olay
  * üretiyor; tazeleme onları tek okumada birleştiriyor.
  */
+/**
+ * Koltuk tablosunu CANLI dinler.
+ *
+ * ── İKİ SORUN, İKİSİ DE KULLANICIDAN GELDİ ────────────────────────────────
+ *
+ * 1) "1'den 2'ye geçerken ms'lik sekiyor, mikten düşüyor sonra geri oturuyor"
+ *    TEK koltuk değişimi İKİ satır olayı üretiyor: eski koltuk boşalıyor,
+ *    yeni koltuk doluyor. Olaylar tek tek uygulanınca arada kimsenin
+ *    oturmadığı bir kare oluşuyordu. Artık olaylar kısa bir pencerede
+ *    (TOPLAMA_MS) biriktirilip TOPLUCA veriliyor: bir taşınmanın iki satırı
+ *    aynı render'da uygulanıyor, ara kare hiç çizilmiyor.
+ *
+ * 2) "Android'de bazen hiç geçtiğimi görmüyor"
+ *    Kanal koptuğunda yalnızca uyarı basılıyordu, yeniden abone olan kod
+ *    YOKTU. Android soketleri daha agresif kestiği için orada daha sık
+ *    görülüyor. Artık geri çekilmeli yeniden bağlanma var ve her başarılı
+ *    abonelikte tablo BAŞTAN okunuyor — bağlantı kopukken kaçan değişiklikler
+ *    böyle telafi ediliyor.
+ *
+ * `tazele` hâlâ ayrıca çağrılıyor (ad/foto join'i olay yükünde yok).
+ */
+const TOPLAMA_MS = 45;
+const TAZELE_MS = 120;
+const YENIDEN_BAGLAN_TAVAN_MS = 8000;
+
+export type KoltukOlayi = { satir: KoltukSatiri; silindi: boolean };
+
 export function koltuklariDinle(
   odaId: number,
-  isleyiciler: { anlik: (satir: KoltukSatiri, silindi: boolean) => void; tazele: () => void },
+  isleyiciler: { anlik: (olaylar: KoltukOlayi[]) => void; tazele: () => void },
 ): () => void {
   const sb = supabase;
   if (!sb) return () => {};
-  let zamanlayici: ReturnType<typeof setTimeout> | null = null;
-  const ch = sb
-    .channel(benzersizKanalAdi(`oda-koltuk-${odaId}`))
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "oda_koltuklari", filter: `oda_id=eq.${odaId}` },
-      (yuk) => {
-        const silindi = yuk.eventType === "DELETE";
-        const ham = (silindi ? yuk.old : yuk.new) as Partial<KoltukRow> | undefined;
-        if (ham?.koltuk_no != null) {
-          isleyiciler.anlik(
-            {
-              koltukNo: dbdenIstemciye(Number(ham.koltuk_no)),
-              kullaniciId: ham.kullanici_id == null ? null : Number(ham.kullanici_id),
-              micAcik: !ham.susturulmus,
-              kilitli: !!ham.kilitli,
-              // Ad/foto olay yükünde yok; tazeleme dolduruyor.
-              ad: null,
-              foto: null,
-              publicId: null,
-              yetkili: false,
-            },
-            silindi,
-          );
+
+  let kuyruk: KoltukOlayi[] = [];
+  let toplaZaman: ReturnType<typeof setTimeout> | null = null;
+  let tazeleZaman: ReturnType<typeof setTimeout> | null = null;
+  let baglanZaman: ReturnType<typeof setTimeout> | null = null;
+  let kanal: ReturnType<typeof sb.channel> | null = null;
+  let kapandi = false;
+  let deneme = 0;
+
+  const bosalt = () => {
+    toplaZaman = null;
+    if (!kuyruk.length || kapandi) return;
+    const toplu = kuyruk;
+    kuyruk = [];
+    isleyiciler.anlik(toplu);
+  };
+
+  const olayGeldi = (yuk: { eventType: string; new?: unknown; old?: unknown }) => {
+    const silindi = yuk.eventType === "DELETE";
+    const ham = (silindi ? yuk.old : yuk.new) as Partial<KoltukRow> | undefined;
+    if (ham?.koltuk_no != null) {
+      kuyruk.push({
+        satir: {
+          koltukNo: dbdenIstemciye(Number(ham.koltuk_no)),
+          kullaniciId: ham.kullanici_id == null ? null : Number(ham.kullanici_id),
+          micAcik: !ham.susturulmus,
+          kilitli: !!ham.kilitli,
+          // Ad/foto olay yükünde yok; tazeleme dolduruyor.
+          ad: null,
+          foto: null,
+          publicId: null,
+          yetkili: false,
+        },
+        silindi,
+      });
+      if (!toplaZaman) toplaZaman = setTimeout(bosalt, TOPLAMA_MS);
+    }
+    if (tazeleZaman) clearTimeout(tazeleZaman);
+    tazeleZaman = setTimeout(isleyiciler.tazele, TAZELE_MS);
+  };
+
+  const kur = () => {
+    if (kapandi) return;
+    kanal = sb
+      .channel(benzersizKanalAdi(`oda-koltuk-${odaId}`))
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "oda_koltuklari", filter: `oda_id=eq.${odaId}` },
+        olayGeldi as never,
+      )
+      .subscribe((durum) => {
+        if (kapandi) return;
+        if (durum === "SUBSCRIBED") {
+          deneme = 0;
+          // Kopukken kaçan değişiklikleri topla. İlk bağlanmada da zararsız.
+          isleyiciler.tazele();
+          return;
         }
-        if (zamanlayici) clearTimeout(zamanlayici);
-        zamanlayici = setTimeout(isleyiciler.tazele, 120);
-      },
-    )
-    .subscribe((durum) => {
-      if (durum !== "SUBSCRIBED") console.warn(`[koltuk] kanal ${durum}`);
-    });
+        if (durum !== "CHANNEL_ERROR" && durum !== "TIMED_OUT" && durum !== "CLOSED") return;
+        console.warn(`[koltuk] kanal ${durum} — yeniden baglaniyor`);
+        if (baglanZaman) clearTimeout(baglanZaman);
+        const bekle = Math.min(YENIDEN_BAGLAN_TAVAN_MS, 500 * Math.pow(2, deneme++));
+        baglanZaman = setTimeout(() => {
+          baglanZaman = null;
+          if (kapandi) return;
+          if (kanal) { sb.removeChannel(kanal); kanal = null; }
+          kur();
+        }, bekle);
+      });
+  };
+
+  kur();
+
   return () => {
-    if (zamanlayici) clearTimeout(zamanlayici);
-    sb.removeChannel(ch);
+    kapandi = true;
+    if (toplaZaman) clearTimeout(toplaZaman);
+    if (tazeleZaman) clearTimeout(tazeleZaman);
+    if (baglanZaman) clearTimeout(baglanZaman);
+    if (kanal) sb.removeChannel(kanal);
   };
 }
 
