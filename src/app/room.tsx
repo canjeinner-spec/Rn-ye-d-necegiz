@@ -858,6 +858,14 @@ export default function RoomScreen() {
     ad?: string | null; foto?: string | null; publicId?: string | null; yetkili?: boolean;
   }) => void>(() => {});
   const siraTazeleRef = useRef<() => void>(() => {});
+  /**
+   * Kalp atışı — `oda_katilimcilar` satırını taze tutuyor.
+   *
+   * 25 saniyelik zamanlayıcı ARKAPLANDA DURUYOR (iOS ve Android, ikisi de).
+   * Öne dönünce sıradaki tik 25 saniyeye kadar gecikebiliyor ve o aralıkta
+   * satır bayat kalıyor. Ref ile öne dönüşte hemen atıyoruz.
+   */
+  const kalpAtisiRef = useRef<() => void>(() => {});
   const katilimciTazeleRef = useRef<() => void>(() => {});
 
   /** Oda sahibinin koltuğu (-1) — mikrofonu açık mı buradan okunuyor. */
@@ -942,7 +950,10 @@ export default function RoomScreen() {
     odayaKatil(dbId).then(yukle).catch((e) => console.warn("[katilimci] katilamadi:", (e as Error)?.message || e));
     yukle();
     const bitir = odaKatilimcilariniDinle(dbId, yukle);
-    const nabiz = setInterval(() => { odaKalpAtisi(dbId).catch(() => {}); }, 25000);
+    const at = () => { odaKalpAtisi(dbId).catch(() => {}); };
+    // Öne dönünce HEMEN atmak için dışarıdan erişilebilir olmalı.
+    kalpAtisiRef.current = at;
+    const nabiz = setInterval(at, 25000);
     return () => {
       acik = false;
       clearInterval(nabiz);
@@ -1260,13 +1271,33 @@ export default function RoomScreen() {
      * Presence çalışmıyorsa doğru davranış "hiçbir şey gösterme" değil,
      * "tabloya güven". Bozuk taşıyıcı, sağlam kaynağı gölgelememeli.
      */
-    // Süzgeç artık TABLOYA bakıyor (070): presence'a göre çok daha güvenilir.
-    const suzgecGuvenli = odadaSet.size > 0;
+    /**
+     * SÜZGEÇ ARTIK İKİ BAĞIMSIZ KAYNAĞIN BİRDEN "yok" DEMESİNİ İSTİYOR.
+     *
+     * Eskiden tek başına `oda_katilimcilar` yetiyordu. O liste 25 saniyelik
+     * kalp atışıyla besleniyor ve kalp atışı ARKAPLANDA DURUYOR: iki
+     * telefonla test ederken biri hep arkaplanda kalıyor, satırı bayatlıyor
+     * ve kişi odada, mikrofonda olduğu hâlde karşı tarafta KOLTUĞU
+     * SİLİNİYORDU. Kullanıcının tarifi bire bir buydu: host uygulamayı
+     * kapatıp açınca onu hiç görmemiş, çıkıp girince 1-2 kez görmüş, sonra
+     * yine kaybolmuş.
+     *
+     * Koltuğun doğrusu `oda_koltuklari` tablosunda. Bu süzgeç yalnızca
+     * ÇÖKMÜŞ istemcinin tabloda kalan satırını gizlemek için var; çökmüş bir
+     * istemci HEM katılımcı listesinden HEM presence'tan düşer. Tek kaynağın
+     * bayatlaması yetmemeli.
+     *
+     * Aynı hata daha önce presence tek başına kullanılırken de yaşanmış ve
+     * yukarıdaki yorumda anlatılmış — taşıyıcı değişmiş, hata aynı kalmıştı.
+     */
+    const presenceSet = new Set(liveMembers.map((m) => m.uid));
+    const suzgecGuvenli = odadaSet.size > 0 && presenceSet.size > 0;
 
     for (const k of dbKoltuklar) {
       if (k.koltukNo < 0 || k.koltukNo > 7 || k.kullaniciId == null) continue;
       const benMi = k.kullaniciId === myDbId;
-      if (!benMi && suzgecGuvenli && !odadaSet.has(k.kullaniciId)) continue;
+      const kayip = !odadaSet.has(k.kullaniciId) && !presenceSet.has(k.kullaniciId);
+      if (!benMi && suzgecGuvenli && kayip) continue;
       // Kozmetikler (çerçeve/balon) presence'ta taşınıyor — koltuk için kritik
       // değil, geç gelirse yalnız çerçeve geç çizilir.
       const uye = uyeHaritasi.get(k.kullaniciId);
@@ -2134,6 +2165,8 @@ export default function RoomScreen() {
       if (durum === "active") {
         if (zaman) { clearTimeout(zaman); zaman = null; }
         presenceYazRef.current();
+        // Kalp atışı arkaplanda durdu; satır bayat kalmasın diye hemen at.
+        kalpAtisiRef.current();
         // Arkaplandayken kaçan değişiklikleri topla.
         koltukTazeleRef.current();
         siraTazeleRef.current();
