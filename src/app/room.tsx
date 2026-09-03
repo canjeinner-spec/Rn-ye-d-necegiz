@@ -112,6 +112,18 @@ const ARKAPLAN_MS = 20000;
  * Kısa tutuldu: uzun pencere, arada gelen yönetici müdahalesini yutuyor.
  */
 const BEKLEME_MS = 1200;
+/**
+ * Kendimi mikrofondan düşürmeden ÖNCE tabloyu taze okuyup doğrulama süresi.
+ *
+ * NEDEN: aşağıdaki uzlaşma "sunucu beni koltukta görmüyor" derken aslında
+ * YEREL tablo görüntüsüne bakıyor. Koltuk değiştirirken o görüntü bir an
+ * kişiyi hiçbir koltukta göstermiyor (eski satır boşaldı, yeni satır henüz
+ * gelmedi) ve arkaplandan dönüşte olaylar gecikince bu aralık uzuyor.
+ * Doğrulama olmadan istemci kendi kendini mikrofondan indiriyor ve sahte
+ * "Mikrofondan indirildin" uyarısı basıyordu — karşı taraf ise kişiyi
+ * koltukta görmeye devam ediyordu.
+ */
+const DUSURME_ONAY_MS = 900;
 
 /**
  * Giriş duyurusu için pencere. Kanal kopup geri gelirse duyuru yeniden
@@ -984,6 +996,8 @@ export default function RoomScreen() {
     return () => { acik = false; bitir(); };
   }, [isDbRoom, dbId]);
   const [mySeat, setMySeat] = useState<number | null>(koltukBaslangic ? koltukBaslangic.koltuk : null);
+  /** Son "beni düşürmeden önce doğrula" isteğinin zamanı (bkz. DUSURME_ONAY_MS). */
+  const dusurmeOnayRef = useRef(0);
 
   /**
    * Sunucu beni koltukta görmüyorsa yerel iyimser koltuğumu bırak.
@@ -1007,6 +1021,7 @@ export default function RoomScreen() {
     if (benim && benim.koltukNo >= 0 && benim.koltukNo < 8) {
       if (mySeat !== benim.koltukNo) setMySeat(benim.koltukNo);
       if (micOn !== benim.micAcik) setMicOn(benim.micAcik);
+      dusurmeOnayRef.current = 0; // koltuktayım: bir sonraki şüphe sıfırdan doğrulansın
       return;
     }
 
@@ -1029,8 +1044,22 @@ export default function RoomScreen() {
       return () => clearTimeout(t);
     }
 
+    /**
+     * DÜŞÜRMEDEN ÖNCE DOĞRULA. Buraya kadar geldiysek yerel tablo beni
+     * koltukta görmüyor — ama yerel tablo eksik olabilir. Bir kez taze
+     * okuyup tekrar bakıyoruz; okuma beni bulursa yukarıdaki (a) dalı
+     * çalışıp koltuğu geri koyuyor.
+     */
+    if (Date.now() - dusurmeOnayRef.current > DUSURME_ONAY_MS * 3) {
+      dusurmeOnayRef.current = Date.now();
+      koltukTazeleRef.current();
+      const t = setTimeout(() => setUzlasTetik((x) => x + 1), DUSURME_ONAY_MS);
+      return () => clearTimeout(t);
+    }
+
     setMySeat(null);
     setMicOn(false);
+    dusurmeOnayRef.current = 0;
     toast("Mikrofondan indirildin");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dbKoltuklar, isDbRoom, myDbId, mySeat, micOn, uzlasTetik]);
@@ -1316,6 +1345,16 @@ export default function RoomScreen() {
     // Kendi koltuğumu sunucu yankısını beklemeden yerleştir: dokununca koltuk
     // anında dolsun. Sunucu reddederse `sitHere` geri alıyor.
     if (!isMine && mySeat != null && mySeat >= 0 && mySeat < 8) {
+      /**
+       * ÖNCE KENDİMİ DİĞER KOLTUKLARDAN SİL. İyimser koltuk tablonun ÜSTÜNE
+       * yazılıyordu ama tablodaki eski satırım kaldırılmıyordu; koltuk
+       * değiştirirken yeni satır gelene kadar iki koltukta birden
+       * görünüyordum. Olaylar arkaplandan dönüşte toplu gelince bu "aynı anda
+       * 3-4 mikrofonda görünme" hâline dönüşüyordu.
+       */
+      for (let i = 0; i < arr.length; i++) {
+        if (i !== mySeat && arr[i]?.uid != null && arr[i]?.uid === myDbId) arr[i] = null;
+      }
       arr[mySeat] = {
         uid: myDbId ?? undefined,
         name: "Sen",
