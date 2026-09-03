@@ -42,6 +42,24 @@ export type GiftScene = {
   duration: number;
 };
 
+/**
+ * Hediye sesleri URETILDI, indirilmedi — `scripts/hediye-sesi-uret.js`.
+ * Sebep: indirilen bir dosya dinlenmeden yalnizca adina bakilarak secilirdi,
+ * ayrica uygulama markete cikacak ve uretilen ses tamamen bize ait (lisans
+ * takibi ve atif yukumlulugu yok). Begenilmeyen sesi degistirmek o betikte
+ * birkac sayi.
+ */
+const SES = {
+  gul: require("../../assets/gifts/gul.wav"),
+  kedi: require("../../assets/gifts/kedi.wav"),
+  ayicik: require("../../assets/gifts/ayicik.wav"),
+  tavsan: require("../../assets/gifts/tavsan.wav"),
+  kaplan: require("../../assets/gifts/kaplan.wav"),
+  noel: require("../../assets/gifts/noel.wav"),
+  hazine: require("../../assets/gifts/hazine.wav"),
+};
+
+/** Kendi sesi olmayan efsanevi hediyeler icin ortak ses. */
 export const LEGENDARY_SOUND = require("../../assets/gifts/legendary.wav");
 
 /**
@@ -56,13 +74,13 @@ export const LEGENDARY_SOUND = require("../../assets/gifts/legendary.wav");
  * Buradaki altı dosyanın en karmaşığında 5 repeater var, hepsi temiz.
  */
 export const GIFT_SCENES: Record<string, GiftScene> = {
-  ayicik: { anim: () => require("../anim/gifts/ayicik.json"), duration: 4530 },              //  99 KB
-  kedi:   { anim: () => require("../anim/gifts/kedi.json"),   duration: 6000 },              // 148 KB
-  kaplan: { anim: () => require("../anim/gifts/kaplan.json"), duration: 6000 },              // 173 KB
-  hazine: { anim: () => require("../anim/gifts/hazine.json"), duration: 3600, sound: LEGENDARY_SOUND }, // 180 KB
-  gul:    { anim: () => require("../anim/gifts/gul.json"),    duration: 4000 },              // 258 KB
+  ayicik: { anim: () => require("../anim/gifts/ayicik.json"), duration: 4530, sound: SES.ayicik }, //  99 KB
+  kedi:   { anim: () => require("../anim/gifts/kedi.json"),   duration: 6000, sound: SES.kedi },   // 148 KB
+  kaplan: { anim: () => require("../anim/gifts/kaplan.json"), duration: 6000, sound: SES.kaplan }, // 173 KB
+  hazine: { anim: () => require("../anim/gifts/hazine.json"), duration: 3600, sound: SES.hazine }, // 180 KB
+  gul:    { anim: () => require("../anim/gifts/gul.json"),    duration: 4000, sound: SES.gul },    // 258 KB
   // 959 KB ama 30 katman ve sıfır özel özellik: çizmesi ucuz.
-  tavsan: { anim: () => require("../anim/gifts/tavsan.json"), duration: 2000 },              // 959 KB
+  tavsan: { anim: () => require("../anim/gifts/tavsan.json"), duration: 2000, sound: SES.tavsan }, // 959 KB
 
   /**
    * KARE DİZİSİ — vektör değil, Lottie kılığına girmiş bir video: 24 fps'te
@@ -74,7 +92,7 @@ export const GIFT_SCENES: Record<string, GiftScene> = {
    * indirildi: ~24 MB. Zemini de o betik sildi (kaynak WebP'lerde alfa yoktu,
    * koyu temada beyaz kutu olarak çıkıyordu).
    */
-  noel:   { anim: () => require("../anim/gifts/noel.json"),   duration: 4040, sound: LEGENDARY_SOUND }, // 1357 KB
+  noel:   { anim: () => require("../anim/gifts/noel.json"),   duration: 4040, sound: SES.noel },   // 1357 KB
 
   // Efsanevi hediyeler için varsayılan (Lottie'si olmayan).
   _legendary: { sound: LEGENDARY_SOUND, duration: 3600 },

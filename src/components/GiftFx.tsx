@@ -1,3 +1,4 @@
+import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
 import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, {
@@ -107,6 +108,26 @@ export function GiftFx({ gift }: { gift: FxGift }) {
   useEffect(() => {
     pop.value = withSpring(1, { damping: 11, stiffness: 140, mass: 0.8 });
   }, [pop]);
+
+  /**
+   * SES BURADA HIC CALINMIYORDU. `sound` alani yalnizca `BigGiftOverlay`
+   * tarafindan okunuyordu, o da sadece efsanevi hediyelerde aciliyor —
+   * yani normal ve epic hediyelerin sesi manifestte yazsa bile sessiz
+   * kalirdi. Kanca erken donusten ONCE, kosulsuz cagriliyor.
+   */
+  useEffect(() => {
+    let player: ReturnType<typeof createAudioPlayer> | null = null;
+    const ses = sceneFor(gift.id).sound;
+    if (!ses) return;
+    // Sessiz moddaki telefonda da duyulsun — hediye geri bildirimi.
+    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+    try {
+      player = createAudioPlayer(ses);
+      player.volume = 1;
+      player.play();
+    } catch {}
+    return () => { player?.remove(); };
+  }, [gift.id]);
   const popStil = useAnimatedStyle(() => ({
     opacity: pop.value,
     transform: [{ scale: 0.55 + pop.value * 0.45 }],
