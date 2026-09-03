@@ -5,7 +5,18 @@ import { requireSupabase } from "@/lib/supabase";
 // Gerçek DB thread id'leri mock DM_THREADS (1..9) ile çakışmasın diye offset.
 export const DM_ID_OFFSET = 1_000_000_000;
 
-export type DMMessage = { id: number; me: boolean; text: string; time: string };
+/**
+ * `okundu`: satır AÇILMADAN ÖNCEKİ okunma durumu.
+ *
+ * NEDEN VAR: DM'e düşen hediyenin animasyonu yalnız İLK görüşte oynasın
+ * isteniyordu, her ekran açılışında değil. Veritabanında `okunma_tarihi`
+ * baştan beri vardı ama istemciye hiç taşınmıyordu.
+ *
+ * Zamanlama işe yarıyor: `getMessages` `markRead`ten ÖNCE koşuyor, yani
+ * çekilen satırlar okunmamış hâllerini taşıyor. Ekran işaretledikten sonra
+ * bir dahaki açılışta `okundu` true gelir ve animasyon oynamaz.
+ */
+export type DMMessage = { id: number; me: boolean; text: string; time: string; okundu: boolean };
 
 function hhmm(iso: string): string {
   const d = new Date(iso);
@@ -72,11 +83,14 @@ export async function getMessages(convId: number): Promise<DMMessage[]> {
   const me = await getMyProfile();
   const { data, error } = await sb
     .from("dm_mesajlari")
-    .select("id, konusma_id, gonderen_id, icerik, gonderilme_tarihi")
+    .select("id, konusma_id, gonderen_id, icerik, okunma_tarihi, gonderilme_tarihi")
     .eq("konusma_id", convId)
     .order("gonderilme_tarihi", { ascending: true });
   if (error) throw error;
-  return ((data as MesajRow[]) ?? []).map((m) => ({ id: m.id, me: m.gonderen_id === me?.id, text: m.icerik, time: hhmm(m.gonderilme_tarihi) }));
+  return ((data as MesajRow[]) ?? []).map((m) => ({
+    id: m.id, me: m.gonderen_id === me?.id, text: m.icerik,
+    time: hhmm(m.gonderilme_tarihi), okundu: m.okunma_tarihi != null,
+  }));
 }
 
 /** Mesaj gönder; eklenen satırı DMMessage olarak döndürür. */
@@ -91,7 +105,9 @@ export async function sendMessage(convId: number, text: string): Promise<DMMessa
     .single();
   if (error) throw error;
   const row = data as { id: number; gonderilme_tarihi: string };
-  return { id: row.id, me: true, text: text.trim(), time: hhmm(row.gonderilme_tarihi) };
+  // Kendi gönderdiğim mesaj benim için okunmuş sayılır — hediye animasyonu
+  // gönderende değil, ALICIDA oynasın.
+  return { id: row.id, me: true, text: text.trim(), time: hhmm(row.gonderilme_tarihi), okundu: true };
 }
 
 /** Karşı kullanıcı (kullanicilar.id) ile konuşmayı bul ya da oluştur → convId. */
@@ -110,5 +126,6 @@ export async function markRead(convId: number): Promise<void> {
 
 /** Bir DB mesaj satırını (realtime payload) DMMessage'a çevirir. */
 export function mapRealtimeMessage(row: MesajRow, myId: number | null): DMMessage {
-  return { id: row.id, me: row.gonderen_id === myId, text: row.icerik, time: hhmm(row.gonderilme_tarihi) };
+  // Canlı gelen mesaj tanımı gereği YENİ: okunmamış sayılıyor.
+  return { id: row.id, me: row.gonderen_id === myId, text: row.icerik, time: hhmm(row.gonderilme_tarihi), okundu: false };
 }

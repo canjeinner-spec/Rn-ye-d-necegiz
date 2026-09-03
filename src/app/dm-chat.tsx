@@ -15,6 +15,9 @@ import { listAnnouncements, type Announcement } from "@/data/remote/announceRepo
 import { getBlockStateByPublicId, unblock } from "@/data/remote/blockRepo";
 import { hediyeAdHaritasi, hediyeDmCoz, hediyeDmMetni, hediyeGonder, type KatalogHediyesi } from "@/data/remote/hediyeRepo";
 import { giftPng } from "@/gifts/giftPng";
+import { sceneFor } from "@/gifts/bigGifts";
+import { Anim } from "@/components/Anim";
+import { CenterModal } from "@/components/CenterModal";
 import { getPublicProfile } from "@/data/remote/profileRepo";
 import { getMessages, mapRealtimeMessage, markRead, sendMessage } from "@/data/remote/dmRepo";
 import { type Gift } from "@/data/gifts";
@@ -26,7 +29,11 @@ import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
-type Msg = { id?: number; me: boolean; text?: string; gift?: Gift; qty?: number; time: string };
+/**
+ * `okundu` alanı `DMMessage`ten geliyor (dmRepo). Yerel tipe de eklendi,
+ * yoksa hediye animasyonunun "ilk görüşte oyna" kararı okunamaz.
+ */
+type Msg = { id?: number; me: boolean; text?: string; gift?: Gift; qty?: number; time: string; okundu?: boolean };
 
 /**
  * DM dizisi tavanı — room.tsx ile aynı gerekçe: sohbet bir ScrollView ve
@@ -74,6 +81,19 @@ export default function DMChatScreen() {
   );
   const [input, setInput] = useState("");
   const [giftOpen, setGiftOpen] = useState(false);
+  /** Hediye kutusu açılırken seçili gelecek kod ("Karşılık ver"). */
+  const [giftSecim, setGiftSecim] = useState<string | null>(null);
+  /** Hediyeye dokununca açılan tam boy önizleme. */
+  const [onizleme, setOnizleme] = useState<{ kod: string | null; ad: string; emoji: string } | null>(null);
+  /**
+   * Animasyonu OYNAMIŞ hediye mesajlarının id'leri.
+   *
+   * Okunmamış hediye ilk görüşte oynasın isteniyor; ama ekran her yeniden
+   * render olduğunda (yeni mesaj, klavye, tazeleme) baştan oynamamalı.
+   * `okundu` sunucudan gelen tek seferlik bilgi, bu küme ise aynı oturum
+   * içindeki tekrarları engelliyor.
+   */
+  const oynayanlar = useRef<Set<number>>(new Set());
   const [block, setBlock] = useState<{ iBlocked: boolean; blockedByThem: boolean; targetId: number | null } | null>(null);
 
   // Resmi/sistem hesabı → gerçek duyuruları yükle (kanal: system→'sistem', official→'aron')
@@ -305,20 +325,56 @@ export default function DMChatScreen() {
                * düzen her hâlükârda hediye baloncuğu.
                */
               if (cozum) {
+                const kod = katalogSatiri?.kod ?? null;
+                /**
+                 * OKUNMAMIŞ GELEN HEDİYE İLK GÖRÜŞTE OYNAR.
+                 *
+                 * Üç şart birden: mesaj bana geldi, sunucu okunmamış diyor ve
+                 * bu oturumda daha önce oynamadı. Sonuncusu şart — ekran her
+                 * yeniden render olduğunda (yeni mesaj, klavye açıldı,
+                 * kaydırma) animasyon baştan başlamamalı.
+                 */
+                const anim = kod ? sceneFor(kod).anim?.() : undefined;
+                const ilkGorus = !m.me && m.okundu === false && m.id != null && !oynayanlar.current.has(m.id);
+                if (ilkGorus && m.id != null) oynayanlar.current.add(m.id);
                 return (
-                  <View key={i} style={{ alignSelf: m.me ? "flex-end" : "flex-start", maxWidth: "76%" }}>
-                    {/* Odadaki sohbet baloncuğuyla aynı düzen: görsel büyük,
-                        adet iri ve altın. Hediye adı yazılmıyor, görsel
-                        zaten söylüyor. */}
+                  <View key={i} style={{ alignSelf: m.me ? "flex-end" : "flex-start", maxWidth: "80%" }}>
                     <View style={styles.giftBubble}>
-                      {png ? (
-                        <Image source={png} style={{ width: 56, height: 56 }} contentFit="contain" transition={0} />
-                      ) : (
-                        <Txt size={40}>{katalogSatiri?.emoji || "🎁"}</Txt>
-                      )}
-                      <Txt weight="displayBold" size={22} color={C.gold2} style={{ transform: [{ skewX: "-8deg" }] }}>
-                        ×{cozum.adet}
-                      </Txt>
+                      {/* Hediyeye dokunmak ÖNİZLEME açar — kullanıcı kararı:
+                          "karşılık ver'e değil de hediyeye dokunursa
+                          kendisine önizlemesi açılsın". */}
+                      <Pressable
+                        onPress={() => { haptic.light(); setOnizleme({ kod, ad: cozum.ad, emoji: katalogSatiri?.emoji || "🎁" }); }}
+                        style={{ width: 62, height: 62, alignItems: "center", justifyContent: "center" }}
+                      >
+                        {ilkGorus && anim ? (
+                          <Anim kaynak={anim} boyut={62} dongu={false} />
+                        ) : png ? (
+                          <Image source={png} style={{ width: 62, height: 62 }} contentFit="contain" transition={0} />
+                        ) : (
+                          <Txt size={42}>{katalogSatiri?.emoji || "🎁"}</Txt>
+                        )}
+                      </Pressable>
+
+                      <View style={{ flexShrink: 1, gap: 3 }}>
+                        {/* Hediyenin ADI geri geldi (kullanıcı istedi). */}
+                        <Txt weight="extrabold" size={13} color="#fff" numberOfLines={1}>{cozum.ad}</Txt>
+                        <Txt weight="displayBold" size={20} color={C.gold2} style={{ transform: [{ skewX: "-8deg" }] }}>
+                          ×{cozum.adet}
+                        </Txt>
+                        {/* Karşılık ver: hediye kutusu AYNI hediye seçili açılır.
+                            Kendi gönderdiğimde anlamsız, o yüzden yalnız gelende. */}
+                        {!m.me && (
+                          <Pressable
+                            onPress={() => { haptic.light(); setGiftSecim(kod); setGiftOpen(true); }}
+                            hitSlop={6}
+                            style={styles.karsilikBtn}
+                          >
+                            <Icon name="gift" size={12} color={C.gold2} />
+                            <Txt weight="bold" size={11} color={C.gold2}>Karşılık ver</Txt>
+                          </Pressable>
+                        )}
+                      </View>
                     </View>
                     <Txt size={9} color={C.dim2} align="right" style={{ marginTop: 4 }}>{m.time}</Txt>
                   </View>
@@ -388,13 +444,32 @@ export default function DMChatScreen() {
 
       <GiftSheet
         visible={giftOpen}
-        onClose={() => setGiftOpen(false)}
+        onClose={() => { setGiftOpen(false); setGiftSecim(null); }}
         // uid GEÇİLİYOR: eskiden yalnız isim vardı, hediye kutusu alıcıyı
         // tanımlayamıyordu. Henüz çözülmediyse `sendGift` peerUid'e düşer.
         recipients={[{ name: peer.name, uid: peerUid ?? undefined }]}
+        baslangicKod={giftSecim}
         onSend={sendGift}
         onBakiyeYukle={() => { setGiftOpen(false); router.navigate("/wallet"); }}
       />
+
+      {/* Hediye önizlemesi — profil vitrinindekiyle aynı: tam boy, temiz
+          zemin, dokununca kapanır. Lottie'si olmayan hediye emojiyle. */}
+      <CenterModal visible={!!onizleme} onClose={() => setOnizleme(null)}>
+        {!!onizleme && (
+          <Pressable onPress={() => setOnizleme(null)} style={{ alignItems: "center", paddingVertical: 10 }}>
+            {(() => {
+              const a = onizleme.kod ? sceneFor(onizleme.kod).anim?.() : undefined;
+              const p = giftPng(onizleme.kod);
+              if (a) return <Anim kaynak={a} boyut={220} />;
+              if (p) return <Image source={p} style={{ width: 200, height: 200 }} contentFit="contain" />;
+              return <Txt size={110}>{onizleme.emoji}</Txt>;
+            })()}
+            <Txt weight="displayBold" size={17} color="#fff" style={{ marginTop: 8 }}>{onizleme.ad}</Txt>
+            <Txt size={11} color={C.dim2} style={{ marginTop: 6 }}>Kapatmak için dokun</Txt>
+          </Pressable>
+        )}
+      </CenterModal>
 
       {/* Hata bildirimi. `setHata` yazılıyordu ama HİÇ ÇİZİLMİYORDU —
           gönderim başarısız olsa kullanıcı sebebini göremiyordu. */}
@@ -421,7 +496,8 @@ const styles = StyleSheet.create({
   bubble: { paddingVertical: 9, paddingHorizontal: 13, borderRadius: 16 },
   bubbleThem: { alignSelf: "flex-start", maxWidth: "76%", backgroundColor: C.card2, borderWidth: 1, borderColor: C.line, borderTopLeftRadius: 5 },
   // Yatay düzen: görsel + iri adet (odadaki hediye baloncuğuyla aynı dil).
-  giftBubble: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 18, backgroundColor: C.kontrol, borderWidth: 1, borderColor: C.gold + "44" },
+  giftBubble: { flexDirection: "row", alignItems: "center", gap: 13, paddingVertical: 11, paddingHorizontal: 13, borderRadius: 18, backgroundColor: C.kontrol, borderWidth: 1, borderColor: C.gold + "44" },
+  karsilikBtn: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", marginTop: 2, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, borderColor: C.gold + "45", backgroundColor: C.gold + "14" },
   inputWrap: { flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 16, justifyContent: "center" },
   input: { color: C.text, fontSize: 12.5, fontFamily: "PlusJakartaSans_500Medium", paddingVertical: 11 },
   giftBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: C.gold + "44", backgroundColor: C.gold + "14", alignItems: "center", justifyContent: "center" },
