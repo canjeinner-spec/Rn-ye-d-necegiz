@@ -44,7 +44,7 @@ import { type Gift, TIER_RING } from "@/data/gifts";
 import { hediyeGonder, hediyeGonderHerkese } from "@/data/remote/hediyeRepo";
 import { reportRoom } from "@/data/remote/reportRepo";
 import { addXp } from "@/data/remote/xpRepo";
-import { odaSahibi, type OdaSahibi, amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, getRoomMessages, koltugaOtur, koltukKilitle, koltukMicAyarla, koltuklariDinle, koltuklariGetir, koltuktanIndir, koltuktanKalk, type KoltukSatiri, micSirasiGetir, micSirasindanCik, micSirasinaGir, micSirasiniDinle, micSirasiOnayla, odadanAyril, odaKalpAtisi, odaKatilimcilariGetir, odaKatilimcilariniDinle, odayaKatil, type OdaKatilimcisi, logRoomMovement, sendRoomMessage, toScene, ziyaretKaydet, type MicBan } from "@/data/remote/roomsRepo";
+import { odaSahibi, type OdaSahibi, amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, getRoomMessages, koltugaOtur, koltukKilitle, koltukMicAyarla, koltukSustur, koltuklariDinle, koltuklariGetir, koltuktanIndir, koltuktanKalk, type KoltukSatiri, micSirasiGetir, micSirasindanCik, micSirasinaGir, micSirasiniDinle, micSirasiOnayla, odadanAyril, odaKalpAtisi, odaKatilimcilariGetir, odaKatilimcilariniDinle, odayaKatil, type OdaKatilimcisi, logRoomMovement, sendRoomMessage, toScene, ziyaretKaydet, type MicBan } from "@/data/remote/roomsRepo";
 import { BALON_TEMALARI } from "@/data/esyaTemalari";
 import { FramePreview } from "@/components/FramePreview";
 import { GirisEfekti } from "@/components/GirisEfekti";
@@ -2665,9 +2665,39 @@ export default function RoomScreen() {
     }
   };
   const seatActions = (s: Seat) => ({
-    // NOT: "sustur" hâlâ yerel — başkasını susturmak için sunucu tarafı bir
-    // RPC gerekiyor, 069'a girmedi. Ayrı iş olarak duruyor.
-    onMute: () => setSeats((p) => p.map((t) => (t && t.name === s.name ? { ...t, muted: !t.muted } : t))),
+    /**
+     * SUSTUR ARTIK SUNUCUDA (090). Eskiden yalnız `setSeats` ile kendi
+     * ekranındaki diziyi değiştiriyordu: yönetici birini susturduğunu
+     * sanıyor, karşı taraf konuşmaya devam ediyor, odadaki kimse de
+     * değişikliği görmüyordu.
+     *
+     * `onKickMic` ile aynı desen: ipucu şimdi (iki taraf da beklemesin),
+     * tablo olayı biraz sonra onaylıyor, sunucu reddederse tazeleyip geri
+     * alıyoruz.
+     */
+    onMute: () => {
+      if (dbId == null || s.uid == null) return;
+      const yeniSustur = !s.muted;
+      const idx = gosterilenKoltuklar.findIndex((x) => x?.uid === s.uid);
+      if (idx >= 0) {
+        const ipucu = {
+          koltuk: idx, uid: s.uid, mic: !yeniSustur,
+          ad: s.name, foto: s.photo, publicId: s.publicId, yetkili: s.yetki,
+        };
+        koltukIpucuUygula(ipucu);
+        koltukIpucuYolla(ipucu);
+      }
+      koltukSustur(dbId, s.uid, yeniSustur).catch((e) => {
+        const mesaj = (e as Error)?.message || String(e);
+        console.warn("[koltuk] susturulamadi:", mesaj);
+        toast(
+          mesaj.includes("yetkin yok") ? "Bunun için oda yetkilisi olmalısın"
+            : mesaj.includes("Oda sahibinin") ? "Oda sahibinin mikrofonunu kapatamazsın"
+              : "Mikrofon durumu değiştirilemedi",
+        );
+        koltukTazeleRef.current();
+      });
+    },
     // Mikrofondan indirme ARTIK SUNUCUDA. Eskiden `setSeats` ile yalnız
     // yöneticinin ekranında kalkıyordu, karşı tarafta hiçbir şey olmuyordu.
     onKickMic: () => {
@@ -2693,7 +2723,23 @@ export default function RoomScreen() {
     },
   });
   const hostActions = () => ({
-    onMute: () => setHost((h) => (h ? { ...h, muted: !h.muted } : h)),
+    /**
+     * Sahip koltuğunu susturmak da sunucuda (090) — ama YALNIZ platform
+     * yöneticisi yapabiliyor; sunucu kalanları reddediyor. Sahip koltuğu
+     * tabloda 20 numara, o yüzden ipucu yolu (0-7) kullanılmıyor, doğrudan
+     * RPC + tazeleme.
+     */
+    onMute: () => {
+      const uid = gosterilenHost?.uid;
+      if (dbId == null || uid == null) { toast("Oda sahibi bulunamadı"); return; }
+      koltukSustur(dbId, uid, !gosterilenHost?.muted)
+        .then(() => koltukTazeleRef.current())
+        .catch((e) => {
+          const mesaj = (e as Error)?.message || String(e);
+          console.warn("[koltuk] sahip susturulamadi:", mesaj);
+          toast(mesaj.includes("Oda sahibinin") ? "Oda sahibinin mikrofonunu kapatamazsın" : "Bunun için yetkin yok");
+        });
+    },
     // Oda sahibi kendi koltuğundan indirilemez (sunucu da reddediyor).
     onKickMic: () => toast("Oda sahibi kendi koltuğundan indirilemez"),
     onKickRoom: () => {

@@ -291,10 +291,27 @@ arkaplan birikintisini atma, niyet takibi. Ayrıntı `PROJE_DURUMU.md`.
 
 ---
 
-## FAZ 2 — Oda içi yetkilendirme + support rolü (086-089)
+## FAZ 2 — Oda içi yetkilendirme + support rolü (090-093)
 
-### 2.1 — `086_koltuk_sustur.sql` + istemci (B4)
-`koltuk_sustur(p_oda, p_hedef, p_sustur)`: `_oda_moderatoru` kapısı; hedef koltukta değilse sessiz RETURN; koltuk 20 → yalnız `ben_platform_yoneticisi()`; koşullu UPDATE. **Bilinçli sınır:** hedef `koltuk_mic` ile kendini geri açabilir — sustur sosyal uyarı, kalıcı yaptırım `mic_yasak_ver` (028). İstemci: `roomsRepo.koltukSustur`; `seatActions.onMute` → iyimser ipucu + RPC + hatada `koltukTazeleRef`.
+> **NUMARA DÜZELTİLDİ (4 Eylül):** plan 086-089 diyordu ama o numaralar araya
+> giren hediye işine gitti (086 zafer kaldırma, 087 Noel Baba, 088-089 hediye
+> geçmişi). Faz 2 artık 090'dan başlıyor. Yeni dosya açmadan önce
+> `ls db/migrations` ile son numaraya bak.
+
+### 2.1 ✅ — `090_koltuk_sustur.sql` + istemci (B4)
+`koltuk_sustur(p_oda, p_hedef, p_sustur)`: `_oda_moderatoru` kapısı; hedef
+koltukta değilse sessiz RETURN; koltuk 20 → yalnız `ben_platform_yoneticisi()`;
+koşullu UPDATE (durum zaten istenen hâldeyse satıra dokunulmuyor, gereksiz
+realtime olayı üretilmiyor).
+**Bilinçli sınır:** hedef `koltuk_mic` ile kendini geri açabilir — sustur
+sosyal uyarı, kalıcı yaptırım `mic_yasak_ver` (028).
+İstemci: `roomsRepo.koltukSustur`; `seatActions.onMute` iyimser ipucu + RPC +
+hatada `koltukTazeleRef`. **`hostActions.onMute` DE bağlandı** — planda
+yazmıyordu ama o da yereldi (sahip koltuğu 20, ipucu yolu 0-7 olduğu için
+doğrudan RPC + tazeleme).
+**Öncesi:** `onMute` yalnız `setSeats` ile kendi ekranındaki diziyi
+değiştiriyordu; yönetici birini susturduğunu sanıyor, karşı taraf konuşmaya
+devam ediyordu.
 
 ### 2.2 — `087_oda_uyeleri_realtime.sql` + roomRoles canlı tazeleme (B6)
 **postgres_changes** (RoomPanel callback'i değil — asıl sorun HEDEF cihaz). `mic_yasaklari` aboneliği deseninin kopyası. Migration: `REPLICA IDENTITY FULL` + publication'a idempotent ekleme. İstemci: üye yükleyicisi `uyeleriYukle`'ye çıkarılır; `postgres_changes {table:"oda_uyeleri", filter:"oda_id=eq."+dbId}` → tam yeniden okuma.

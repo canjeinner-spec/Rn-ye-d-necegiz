@@ -977,6 +977,20 @@ export async function koltukMicAyarla(odaId: number, acik: boolean): Promise<voi
   if (error) throw error;
 }
 
+/**
+ * BAŞKASINI sustur/aç (090).
+ *
+ * `koltukMicAyarla` KENDİ mikrofonun içindi; başkasını susturmanın sunucu
+ * karşılığı yoktu ve istemci yalnız kendi ekranındaki diziyi değiştiriyordu.
+ * Kapı sunucuda: `_oda_moderatoru` (sahip + yardımcı + platform yöneticisi).
+ * Hedef koltukta değilse sunucu sessizce çıkıyor.
+ */
+export async function koltukSustur(odaId: number, hedefUid: number, sustur: boolean): Promise<void> {
+  const sb = requireSupabase();
+  const { error } = await sb.rpc("koltuk_sustur", { p_oda: odaId, p_hedef: hedefUid, p_sustur: sustur });
+  if (error) throw error;
+}
+
 export async function koltukKilitle(odaId: number, koltuk: number, kilit: boolean): Promise<void> {
   const sb = requireSupabase();
   const { error } = await sb.rpc("koltuk_kilit", { p_oda: odaId, p_koltuk: istemcidenDbye(koltuk), p_kilit: kilit });
