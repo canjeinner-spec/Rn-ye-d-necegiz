@@ -576,7 +576,7 @@ export default function UserProfileScreen() {
         </View>
       </CenterModal>
 
-      <GiftSheet visible={giftOpen} onClose={() => setGiftOpen(false)} recipients={[{ name, uid: profile?.id }]} onSend={sendGift} onBakiyeYukle={() => { setGiftOpen(false); router.navigate("/wallet"); }} />
+      <GiftSheet visible={giftOpen} onClose={() => setGiftOpen(false)} recipients={[{ name, uid: profile?.id, photo }]} onSend={sendGift} onBakiyeYukle={() => { setGiftOpen(false); router.navigate("/wallet"); }} />
 
       {/* Vitrinde bir hediyeye dokununca tam boy önizleme. Izgarada tek kare
           duruyor (performans), burada gerçekten oynuyor. */}

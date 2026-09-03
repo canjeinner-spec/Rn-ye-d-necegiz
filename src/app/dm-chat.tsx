@@ -462,7 +462,11 @@ export default function DMChatScreen() {
         onClose={() => { setGiftOpen(false); setGiftSecim(null); }}
         // uid GEÇİLİYOR: eskiden yalnız isim vardı, hediye kutusu alıcıyı
         // tanımlayamıyordu. Henüz çözülmediyse `sendGift` peerUid'e düşer.
-        recipients={[{ name: peer.name, uid: peerUid ?? undefined }]}
+        // `photo` DE GEÇİLİYOR: `HediyeAlicisi` tipinde alan baştan beri
+        // vardı ama yalnız oda ekranı dolduruyordu. DM ve profilde
+        // geçilmediği için hediye kutusundaki alıcı avatarı boş siluet
+        // çıkıyordu — ad doğru, resim yok.
+        recipients={[{ name: peer.name, uid: peerUid ?? undefined, photo: peer.photo }]}
         baslangicKod={giftSecim}
         onSend={sendGift}
         onBakiyeYukle={() => { setGiftOpen(false); router.navigate("/wallet"); }}
