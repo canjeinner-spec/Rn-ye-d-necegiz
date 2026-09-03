@@ -71,8 +71,23 @@ export function Portrait({
             borderWidth: 2,
             borderColor: ringColor,
           },
+          /**
+           * PARLAKLIK ANDROID'DE KARE ÇIKIYORDU.
+           *
+           * `elevation` gölgesini Android görünümün OUTLINE'ından üretiyor;
+           * görünümün arka planı yoksa outline dikdörtgen bounds olur ve
+           * yuvarlak avatarın etrafında karemsi bir hale görünür. iOS'ta
+           * `shadow*` doğrudan `borderRadius`u izlediği için sorun yok —
+           * kullanıcı bunu "karemsi ama avatar yuvarlak" diye tarif etti.
+           *
+           * Çözüm arka plan vermek: aynı `borderRadius` ile birlikte outline
+           * daire oluyor. Renk `frameBorder` (varsayılan sayfa zemini), yani
+           * görünümde bir değişiklik yapmıyor — fotoğraf ve silüet zaten
+           * üstünü tamamen kapatıyor.
+           */
           glow
             ? {
+                backgroundColor: frameBorder,
                 shadowColor: ring || C.gold,
                 shadowOffset: { width: 0, height: 0 },
                 shadowOpacity: 0.55,

@@ -161,7 +161,14 @@ export function GiftSheet({
                   const on = hedef === i + 1;
                   return (
                     <Pressable key={r.name} onPress={() => { haptic.select(); setHedef(i + 1); }} style={{ alignItems: "center", width: 48 }}>
-                      <View style={[styles.kisi, { borderColor: on ? C.gold : "transparent" }]}>
+                      {/*
+                        ÇİFT HALKA KALDIRILDI. Seçiliyken hem bu sarmalayıcı
+                        altın bir kenarlık çiziyordu hem de `Portrait` kendi
+                        altın halkasını — iç içe iki halka, aralarında 2px
+                        boşluk. Seçimi zaten `Portrait`in halkası ve parlaması
+                        anlatıyor; sarmalayıcı yalnız boşluk bırakıyor.
+                      */}
+                      <View style={styles.kisi}>
                         <Portrait name={r.name} size={38} photo={r.photo} ring={on ? C.gold : "rgba(255,255,255,.16)"} glow={on} />
                       </View>
                       <Txt weight={on ? "extrabold" : "semibold"} size={9} color={on ? C.gold2 : C.dim2} numberOfLines={1} style={{ marginTop: 3, maxWidth: 46 }}>
@@ -290,7 +297,8 @@ const styles = StyleSheet.create({
   tutamac: { alignSelf: "center", width: 38, height: 4, borderRadius: 4, backgroundColor: "rgba(255,255,255,.28)", marginTop: 9 },
   kimeSatiri: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12 },
   tumu: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 9, paddingHorizontal: 13, borderRadius: 999, borderWidth: 1 },
-  kisi: { borderRadius: 999, padding: 2, borderWidth: 2 },
+  // Kenarlik kaldirildi (cift halka); yalniz bosluk birakiyor.
+  kisi: { borderRadius: 999, padding: 3 },
   tabs: { gap: 18, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.07)" },
   tabCizgi: { position: "absolute", left: 0, right: 0, bottom: -1, height: 2.5, borderRadius: 4, backgroundColor: C.gold },
   grid: { flexDirection: "row", flexWrap: "wrap", padding: 12, gap: 6 },
