@@ -29,7 +29,7 @@ import { hediyeDmMetni, hediyeGonder, hediyeVitrini, type VitrinSatiri } from "@
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { Anim } from "@/components/Anim";
-import { sceneFor } from "@/gifts/bigGifts";
+import { kucukKaynak, sceneFor } from "@/gifts/bigGifts";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
@@ -308,7 +308,8 @@ export default function UserProfileScreen() {
                   ) : (
                     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
                       {vitrin.map((v) => {
-                        const anim = v.kod ? sceneFor(v.kod).anim : undefined;
+                        // Vitrin karosu 74px: ağır hediye emojiyle görünür.
+                        const anim = v.kod ? kucukKaynak(v.kod) : undefined;
                         return (
                           <Pressable
                             key={v.hediyeId}
@@ -539,7 +540,8 @@ export default function UserProfileScreen() {
         {!!onizleme && (
           <Pressable onPress={() => setOnizleme(null)} style={{ alignItems: "center", paddingVertical: 8 }}>
             {(() => {
-              const a = onizleme.kod ? sceneFor(onizleme.kod).anim : undefined;
+              // Önizleme 230px ve ekranda tek: ağır dosya da burada oynar.
+              const a = onizleme.kod ? sceneFor(onizleme.kod).anim?.() : undefined;
               return a ? (
                 <Anim kaynak={a} boyut={230} />
               ) : (

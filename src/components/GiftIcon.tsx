@@ -2,7 +2,7 @@ import { StyleSheet, View } from "react-native";
 import Svg, { Defs, Ellipse, RadialGradient, Stop } from "react-native-svg";
 
 import { type Gift, TIER_RING } from "@/data/gifts";
-import { sceneFor } from "@/gifts/bigGifts";
+import { kucukKaynak } from "@/gifts/bigGifts";
 import { Anim } from "./Anim";
 import { Txt } from "./Txt";
 
@@ -17,7 +17,10 @@ import { Txt } from "./Txt";
 export function GiftIcon({ gift, size = 54, oynat = false }: { gift: Gift; size?: number; oynat?: boolean }) {
   const ring = TIER_RING[gift.tier] || TIER_RING.normal;
   const legendary = gift.tier === "legendary";
-  const sahne = sceneFor(gift.id);
+  // Izgara karosu KÜÇÜK yer: ağır hediyelerde Lottie hiç kurulmaz.
+  // Duruk kare çizim döngüsünü durduruyordu ama katman ağacını yine
+  // kuruyordu; 334 katmanlık sahne 50px karoda da tam maliyet veriyordu.
+  const kaynak = kucukKaynak(gift.id);
   return (
     <View
       style={{
@@ -47,9 +50,9 @@ export function GiftIcon({ gift, size = 54, oynat = false }: { gift: Gift; size?
         <Ellipse cx={size / 2} cy={size} rx={size * 0.55} ry={size * 0.5} fill={`url(#gi_${gift.id})`} />
       </Svg>
       <View style={[styles.glint, { top: size * 0.08, left: size * 0.18, width: size * 0.5, height: size * 0.26, borderRadius: size * 0.25 }]} />
-      {sahne.anim ? (
+      {kaynak ? (
         // Kapsülü taşırmasın diye biraz büyük çiziliyor; `contain` kırpmıyor.
-        <Anim kaynak={sahne.anim} boyut={size * 0.92} ilerleme={oynat ? undefined : 0.5} />
+        <Anim kaynak={kaynak} boyut={size * 0.92} ilerleme={oynat ? undefined : 0.5} />
       ) : (
         <Txt size={size * 0.46}>{gift.emoji}</Txt>
       )}

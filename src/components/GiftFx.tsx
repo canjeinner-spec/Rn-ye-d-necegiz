@@ -115,12 +115,15 @@ export function GiftFx({ gift }: { gift: FxGift }) {
   // Hediyenin kendi Lottie animasyonu varsa madalyon/kıvılcım düzeni yerine
   // onu oynatıyoruz. Kendi kompozisyonu var; halkanın içine sokmak kırpıyor.
   const sahne = sceneFor(gift.id);
-  if (sahne.anim) {
+  // Tam ekran efekt: ağır dosya olsa bile GERÇEK animasyon burada oynar.
+  // `anim()` çağrısı JSON'u ilk seferde ayrıştırır, sonrası Metro önbelleği.
+  const kaynak = sahne.anim?.();
+  if (kaynak) {
     return (
       <View style={styles.root} pointerEvents="none">
         <Animated.View entering={FadeIn.duration(300)} exiting={FadeOut} style={styles.dim} />
         <Animated.View style={[{ alignItems: "center", gap: 10 }, popStil]}>
-          <Anim kaynak={sahne.anim} boyut={260} dongu={false} />
+          <Anim kaynak={kaynak} boyut={260} dongu={false} />
           <View style={[styles.kapsul, { borderColor: ring + "66" }]}>
             <Gradient colors={[gift.c1 + "3D", "rgba(10,9,14,.92)"]} deg={120} style={StyleSheet.absoluteFill} />
             <Txt weight="displayBold" size={15} color="#fff" numberOfLines={1}>{gift.name}</Txt>

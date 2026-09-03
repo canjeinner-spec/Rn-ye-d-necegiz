@@ -4,23 +4,48 @@ import type { ComponentProps } from "react";
 /**
  * Hediye sahne manifesti — id (katalogdaki `kod`) → animasyon + ses + süre.
  *
- * ANIMASYON ARTIK LOTTIE. Eskiden burada `svga` alanı vardı ve boştu; SVGA
- * native player gerektirdiği için hiç kullanılamadı. Lottie ise Expo Go'da
- * çalışıyor (`lottie-react-native` Expo'nun paket listesinde), o yüzden
- * hediye efektleri gerçek animasyona bu yoldan geçti.
+ * ANIMASYON LOTTIE. Eskiden `svga` alanı vardı ve boştu; SVGA native player
+ * gerektirdiği için hiç kullanılamadı. Lottie Expo Go'da çalışıyor.
+ *
+ * ── İKİ KURAL, İKİSİ DE ÖLÇÜLMÜŞ ACIDAN GELİYOR ────────────────────────────
+ *
+ * 1) `anim` BİR FONKSİYON, hazır kaynak değil. Eskiden `require(...)` doğrudan
+ *    bu nesnenin içindeydi; nesne modül tepesinde kurulduğu için 7 JSON'un
+ *    TAMAMI (~6.3 MB) uygulama açılırken ayrıştırılıyordu — hiç hediye
+ *    gönderilmese bile. Artık `anim()` çağrılana kadar hiçbiri açılmıyor.
+ *    Metro `require`'ı yine statik görüyor, yani dosya pakete giriyor;
+ *    ertelenen şey AYRIŞTIRMA maliyeti.
+ *
+ * 2) `agir` işaretli hediyeler KÜÇÜK YERLERDE ÇİZİLMEZ. Lottie'nin pahalı
+ *    kısmı oynatma değil, kompozisyonu KURMAK: 334 katmanlık bir sahne
+ *    30 piksellik sohbet satırında da 30 piksellik maliyet vermiyor, tam
+ *    maliyet veriyor. Duruk kare (`ilerleme`) çizim döngüsünü durduruyor
+ *    ama katman ağacını yine kuruyor — o yüzden yetmedi. Ağır hediyeler
+ *    ızgarada/sohbette/vitrinde emojiye düşer, Lottie yalnız tam ekran
+ *    efektte ve büyük önizlemede kurulur.
  *
  * SES: `sound` alanı `require(...)` ile bir ses dosyası bekliyor. Yeni ses
- * eklemek için dosyayı `assets/gifts/` içine koyup buraya `require` ile
- * bağlamak yeterli — `BigGiftOverlay` ve `GiftFx` onu kendisi çalıyor
- * (`expo-audio`, sessiz modda da çalar).
+ * eklemek için dosyayı `assets/gifts/` içine koyup buraya bağlamak yeterli —
+ * `BigGiftOverlay` ve `GiftFx` onu kendisi çalıyor (`expo-audio`, sessiz
+ * modda da çalar).
  */
+export type LottieKaynak = ComponentProps<typeof LottieView>["source"];
+
 export type GiftScene = {
-  /** Ekranda oynayacak Lottie. Yoksa eski kodla çizilen efekt kullanılır. */
-  anim?: ComponentProps<typeof LottieView>["source"];
+  /**
+   * Lottie kaynağını İSTENDİĞİNDE üretir. ÇAĞIRMAK JSON'u ayrıştırır —
+   * varlığını sınamak için çağırma, `animVar(id)` kullan.
+   */
+  anim?: () => LottieKaynak;
   /** `expo-audio` ile çalınacak ses. */
   sound?: number;
   /** Efektin ekranda kalma süresi (ms). */
   duration: number;
+  /**
+   * Dosya küçük yerlerde kurulamayacak kadar ağır (~300 KB üstü ya da
+   * yüzlerce katman). Izgara/sohbet/vitrin emojiye düşer.
+   */
+  agir?: boolean;
 };
 
 export const LEGENDARY_SOUND = require("../../assets/gifts/legendary.wav");
@@ -30,27 +55,30 @@ export const LEGENDARY_SOUND = require("../../assets/gifts/legendary.wav");
  * Boş durum/yükleniyor animasyonları temaya boyanıyor (`scripts/lottie-boya.js`)
  * ama hediyeler öyle değil: gül kırmızı, hazine altın, ayıcık kahverengi
  * olmalı. Altına çevirmek hepsini aynı ve tanınmaz yapardı.
+ *
+ * Yanlarındaki boyutlar `agir` kararının dayanağı — dosya değiştirirsen
+ * boyutu da güncelle.
  */
 export const GIFT_SCENES: Record<string, GiftScene> = {
-  gul:    { anim: require("../anim/gifts/gul.json"),    duration: 4000 },
-  ayicik: { anim: require("../anim/gifts/ayicik.json"), duration: 4530 },
-  kedi:   { anim: require("../anim/gifts/kedi.json"),   duration: 6000 },
-  tavsan: { anim: require("../anim/gifts/tavsan.json"), duration: 2000 },
-  kaplan: { anim: require("../anim/gifts/kaplan.json"), duration: 6000 },
-  hazine: { anim: require("../anim/gifts/hazine.json"), sound: LEGENDARY_SOUND, duration: 3600 },
+  // ── hafif: her yerde çizilebilir ─────────────────────────────────────────
+  ayicik: { anim: () => require("../anim/gifts/ayicik.json"), duration: 4530 },              //  99 KB
+  kedi:   { anim: () => require("../anim/gifts/kedi.json"),   duration: 6000 },              // 148 KB
+  kaplan: { anim: () => require("../anim/gifts/kaplan.json"), duration: 6000 },              // 173 KB
+  hazine: { anim: () => require("../anim/gifts/hazine.json"), duration: 3600, sound: LEGENDARY_SOUND }, // 180 KB
+  gul:    { anim: () => require("../anim/gifts/gul.json"),    duration: 4000 },              // 258 KB
+
+  // ── ağır: yalnız tam ekran efekt + büyük önizleme ────────────────────────
+  tavsan: { anim: () => require("../anim/gifts/tavsan.json"), duration: 2000, agir: true },  // 959 KB
 
   /**
    * EN AĞIR VARLIK — 4.6 MB, 1440x1024, 10.67 sn, 60 fps, 334 katman.
-   *
-   * Dosya sınırımız (Anim.tsx) 100 KB; bu onun 25 katı ve bundle'ı tek
-   * başına ~6.6 MB'dan ~11 MB'a çıkarıyor. Bilinçli kabul edildi: efsanevi
-   * kademede tek bir gösteri parçası. AMA yeni büyük hediyeler pakete
-   * GÖMÜLMEMELİ — hediyeler.animasyon_url kolonu ve Lottie'nin {uri}
-   * kaynağı bunun için var, Storage'dan yüklenmeli.
-   *
-   * Cihazda kare düşerse ilk bakılacak yer burası.
+   * Anim.tsx'teki 100 KB sınırının 46 katı; JS bundle'ı tek başına
+   * ~6.6 MB'dan ~10 MB'a çıkardı. Efsanevi kademede tek gösteri parçası
+   * olarak kabul edildi. BUNDAN SONRAKİ büyük hediyeler pakete gömülmemeli —
+   * `hediyeler.animasyon_url` kolonu ve Lottie'nin {uri} kaynağı bunun için
+   * var, Storage'dan gelmeli.
    */
-  zafer: { anim: require("../anim/gifts/zafer.json"), sound: LEGENDARY_SOUND, duration: 10670 },
+  zafer: { anim: () => require("../anim/gifts/zafer.json"), duration: 10670, sound: LEGENDARY_SOUND, agir: true },
 
   // Efsanevi hediyeler için varsayılan (Lottie'si olmayan).
   _legendary: { sound: LEGENDARY_SOUND, duration: 3600 },
@@ -58,5 +86,21 @@ export const GIFT_SCENES: Record<string, GiftScene> = {
 
 export const sceneFor = (id: string): GiftScene => GIFT_SCENES[id] ?? GIFT_SCENES._legendary;
 
-/** Bu hediyenin kendi Lottie animasyonu var mı? */
+/** Bu hediyenin Lottie'si var mı? JSON'u AYRIŞTIRMAZ. */
 export const animVar = (id: string): boolean => !!GIFT_SCENES[id]?.anim;
+
+/**
+ * Izgara karosu, sohbet satırı, vitrin gibi KÜÇÜK yerlerde Lottie kurulabilir
+ * mi? Ağır dosyalarda `false` — çağıran emojiye düşmeli.
+ */
+export const kucukteCizilir = (id: string): boolean => {
+  const s = GIFT_SCENES[id];
+  return !!s?.anim && !s.agir;
+};
+
+/**
+ * Küçük yerler için kaynak: uygunsa JSON'u yükler, ağırsa `undefined`.
+ * Tam ekran efekt bunu KULLANMAZ, doğrudan `sceneFor(id).anim?.()` çağırır.
+ */
+export const kucukKaynak = (id: string): LottieKaynak | undefined =>
+  kucukteCizilir(id) ? GIFT_SCENES[id].anim!() : undefined;

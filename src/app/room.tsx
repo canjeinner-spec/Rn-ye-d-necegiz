@@ -32,7 +32,7 @@ import { Touch } from "@/components/Touch";
 import { Txt } from "@/components/Txt";
 import { ContributionView } from "@/sheets/ContributionView";
 import { Anim } from "@/components/Anim";
-import { sceneFor } from "@/gifts/bigGifts";
+import { kucukKaynak, sceneFor } from "@/gifts/bigGifts";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { ProfileCard, type ProfileCardUser } from "@/sheets/ProfileCard";
 import { MicQueueSheet } from "@/sheets/MicQueueSheet";
@@ -310,7 +310,8 @@ function ChatRow({
   const balonT = balonTema ? BALON_TEMALARI[balonTema] : null;
   // Değişkene alınıyor: `sceneFor(...).anim` iki ayrı çağrıda TS tarafından
   // daraltılamıyor (koşulda kontrol edilse bile prop'ta `undefined` kalıyor).
-  const hediyeAnim = m.hediye?.kod ? sceneFor(m.hediye.kod).anim : undefined;
+  // Sohbet satırı 30px — en küçük yer. Ağır hediye burada emojiye düşer.
+  const hediyeAnim = m.hediye?.kod ? kucukKaynak(m.hediye.kod) : undefined;
   return (
     <View style={{ flexDirection: "row", gap: 9, alignItems: "flex-start" }}>
       {/* Sohbette çerçeve YOK: 30px avatarda halka okunmuyor, satırı

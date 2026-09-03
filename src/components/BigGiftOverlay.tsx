@@ -52,6 +52,8 @@ function Ring({ delay, color }: { delay: number; color: string }) {
 
 export function BigGiftOverlay({ gift, qty, sender, onDone }: { gift: Gift; qty: number; sender: string; onDone: () => void }) {
   const scene = sceneFor(gift.id);
+  // Tam ekran: ağır dosyalar da burada oynar (tek örnek, tam boy).
+  const buyukKaynak = scene.anim?.();
   const dim = useSharedValue(0);
   const flash = useSharedValue(0);
   const emblem = useSharedValue(0);
@@ -134,11 +136,11 @@ export function BigGiftOverlay({ gift, qty, sender, onDone }: { gift: Gift; qty:
 
         {/* Emblem: çıplak 108px emoji yerine hediyenin renklerinden madalyon */}
         <Animated.View style={[styles.emblem, { shadowColor: gift.c1 }, emblemStyle]}>
-          {scene.anim ? (
+          {buyukKaynak ? (
             // Hediyenin kendi Lottie'si varsa madalyon YOK — animasyon
             // kendi kompozisyonuyla gelir, halkanın içine hapsetmek onu
             // küçültür ve kenarlarını kırpar.
-            <Anim kaynak={scene.anim} boyut={300} dongu={false} />
+            <Anim kaynak={buyukKaynak} boyut={300} dongu={false} />
           ) : (
           <Gradient colors={[gift.c1, gift.c2, gift.c1]} deg={135} style={styles.emblemHalka}>
             <View style={styles.emblemIc}>
