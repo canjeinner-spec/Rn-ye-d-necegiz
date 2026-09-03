@@ -204,7 +204,42 @@ export async function hediyeVitrini(kullaniciId: number): Promise<VitrinSatiri[]
 }
 
 /** Hediye mesajının DM'de taşındığı biçim: "🎁 Gül ×2". */
+/**
+ * DM'e düşen hediye mesajının METNİ.
+ *
+ * Hediye ayrı bir mesaj TÜRÜ değil, düz metin olarak gidiyor — `dm_mesajlari`
+ * yalnız metin taşıyor. Bu yüzden alıcı tarafta hediyeyi tanımanın tek yolu
+ * metni çözmek; ÇÖZÜCÜ DE HEMEN AŞAĞIDA duruyor ki biçim değişirse ikisi
+ * birlikte görünsün.
+ */
 export const hediyeDmMetni = (ad: string, adet: number) => `🎁 ${ad} ×${adet}`;
+
+/** `hediyeDmMetni`nin tersi. Hediye mesajı değilse `null`. */
+export function hediyeDmCoz(metin: string): { ad: string; adet: number } | null {
+  const m = metin.match(/^🎁 (.+) ×(d+)$/);
+  if (!m) return null;
+  const adet = Number(m[2]);
+  if (!Number.isFinite(adet) || adet < 1) return null;
+  return { ad: m[1].trim(), adet };
+}
+
+/**
+ * Hediye ADI -> katalog satırı. Metinde yalnız ad taşındığı için görseli
+ * bulmanın yolu bu; katalog bir kez okunup modülde tutuluyor.
+ *
+ * Ad eşleşmezse (katalogdan kalkmış eski bir hediye) çağıran metne düşer —
+ * mesaj yine okunur kalır.
+ */
+let _adHaritasi: Map<string, KatalogHediyesi> | null = null;
+export async function hediyeAdHaritasi(): Promise<Map<string, KatalogHediyesi>> {
+  if (_adHaritasi) return _adHaritasi;
+  const h = new Map<string, KatalogHediyesi>();
+  try {
+    for (const k of await katalog()) h.set(k.ad, k);
+  } catch { /* katalog okunamazsa metne düşülür */ }
+  _adHaritasi = h;
+  return h;
+}
 
 export type KatkiSatiri = {
   sira: number; kullaniciId: number; ad: string;

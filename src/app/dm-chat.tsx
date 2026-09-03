@@ -13,7 +13,8 @@ import { GiftSheet } from "@/sheets/GiftSheet";
 import { ARON_POSTS, SYSTEM_POSTS } from "@/data/dm";
 import { listAnnouncements, type Announcement } from "@/data/remote/announceRepo";
 import { getBlockStateByPublicId, unblock } from "@/data/remote/blockRepo";
-import { hediyeDmMetni, hediyeGonder } from "@/data/remote/hediyeRepo";
+import { hediyeAdHaritasi, hediyeDmCoz, hediyeDmMetni, hediyeGonder, type KatalogHediyesi } from "@/data/remote/hediyeRepo";
+import { giftPng } from "@/gifts/giftPng";
 import { getPublicProfile } from "@/data/remote/profileRepo";
 import { getMessages, mapRealtimeMessage, markRead, sendMessage } from "@/data/remote/dmRepo";
 import { type Gift } from "@/data/gifts";
@@ -49,6 +50,15 @@ export default function DMChatScreen() {
   const [hata, setHata] = useState<string | null>(null);
   const dbId = useApp((s) => s.dbId);
   const back = () => router.back();
+
+  /**
+   * Hediye adı -> katalog satırı. Hediye DM'e düz METİN olarak gidiyor
+   * ("🎁 Gül ×1"), yani mesajda hediyenin kodu yok. Görseli çizebilmek için
+   * adı katalogdan çözüyoruz. Katalog okunamazsa harita boş kalır ve mesaj
+   * eskisi gibi metin olarak görünür — akış kırılmıyor.
+   */
+  const [hediyeAdlari, setHediyeAdlari] = useState<Map<string, KatalogHediyesi>>(new Map());
+  useEffect(() => { hediyeAdHaritasi().then(setHediyeAdlari).catch(() => {}); }, []);
 
   const convId = peer?.convId;
   const isRealDM = !!convId && isSupabaseConfigured;
@@ -280,8 +290,28 @@ export default function DMChatScreen() {
           </View>
 
           <ScrollView ref={scrollRef} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })} contentContainerStyle={{ padding: 16, gap: 9 }} showsVerticalScrollIndicator={false}>
-            {msgs.map((m, i) =>
-              m.gift ? (
+            {msgs.map((m, i) => {
+              // Metni hediye olarak çözmeyi dene; çözülemezse normal baloncuk.
+              const cozum = m.text ? hediyeDmCoz(m.text) : null;
+              const katalogSatiri = cozum ? hediyeAdlari.get(cozum.ad) : undefined;
+              const png = giftPng(katalogSatiri?.kod);
+              if (cozum && png) {
+                return (
+                  <View key={i} style={{ alignSelf: m.me ? "flex-end" : "flex-start", maxWidth: "76%" }}>
+                    {/* Odadaki sohbet baloncuğuyla aynı düzen: görsel büyük,
+                        adet iri ve altın. Hediye adı yazılmıyor, görsel
+                        zaten söylüyor. */}
+                    <View style={styles.giftBubble}>
+                      <Image source={png} style={{ width: 56, height: 56 }} contentFit="contain" transition={0} />
+                      <Txt weight="displayBold" size={22} color={C.gold2} style={{ transform: [{ skewX: "-8deg" }] }}>
+                        ×{cozum.adet}
+                      </Txt>
+                    </View>
+                    <Txt size={9} color={C.dim2} align="right" style={{ marginTop: 4 }}>{m.time}</Txt>
+                  </View>
+                );
+              }
+              return m.gift ? (
                 <View key={i} style={{ alignSelf: m.me ? "flex-end" : "flex-start", maxWidth: "76%" }}>
                   <View style={styles.giftBubble}>
                     <Txt size={34}>{m.gift.emoji}</Txt>
@@ -305,8 +335,8 @@ export default function DMChatScreen() {
                   <Txt size={12.5} color={C.text} lh={1.5}>{m.text}</Txt>
                   <Txt size={9} color={C.dim2} align="right" style={{ marginTop: 4 }}>{m.time}</Txt>
                 </View>
-              )
-            )}
+              );
+            })}
           </ScrollView>
 
           {block?.blockedByThem ? (
@@ -377,7 +407,8 @@ const styles = StyleSheet.create({
   csBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingVertical: 15, borderRadius: 999 },
   bubble: { paddingVertical: 9, paddingHorizontal: 13, borderRadius: 16 },
   bubbleThem: { alignSelf: "flex-start", maxWidth: "76%", backgroundColor: C.card2, borderWidth: 1, borderColor: C.line, borderTopLeftRadius: 5 },
-  giftBubble: { alignItems: "center", gap: 6, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 18, backgroundColor: "rgba(124,58,237,.14)", borderWidth: 1, borderColor: C.gold + "44" },
+  // Yatay düzen: görsel + iri adet (odadaki hediye baloncuğuyla aynı dil).
+  giftBubble: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 18, backgroundColor: C.kontrol, borderWidth: 1, borderColor: C.gold + "44" },
   inputWrap: { flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 16, justifyContent: "center" },
   input: { color: C.text, fontSize: 12.5, fontFamily: "PlusJakartaSans_500Medium", paddingVertical: 11 },
   giftBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: C.gold + "44", backgroundColor: C.gold + "14", alignItems: "center", justifyContent: "center" },
