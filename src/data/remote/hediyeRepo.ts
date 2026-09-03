@@ -169,6 +169,35 @@ export async function hediyeGonderHerkese(
   };
 }
 
+export type KatkiSatiri = {
+  sira: number; kullaniciId: number; ad: string;
+  publicId: string | null; foto: string | null; toplam: number;
+};
+
+/**
+ * Odaya yapılan hediye katkısı — son `saat` saat (083).
+ *
+ * `ContributionView` bunu okumadan önce uydurma bir dizi dağıtıyordu
+ * (`seed7 = [90,48,32,...]`), yani sıralama da rakamlar da sahteydi.
+ * Veri baştan beri `hediye_gecmisi`de duruyordu, eksik olan okuma yoluydu.
+ */
+export async function odaKatki(odaId: number, saat: number): Promise<KatkiSatiri[]> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("oda_katki", { p_oda: odaId, p_saat: saat });
+  if (error) {
+    if (yokSay(error)) return [];
+    throw error;
+  }
+  return ((data as Record<string, unknown>[]) ?? []).map((r) => ({
+    sira: Number(r.sira ?? 0),
+    kullaniciId: Number(r.kullanici_id ?? 0),
+    ad: String(r.ad ?? "Kullanıcı"),
+    publicId: r.public_id ? String(r.public_id) : null,
+    foto: r.foto ? String(r.foto) : null,
+    toplam: Number(r.toplam ?? 0),
+  }));
+}
+
 /** Gerçek bakiyelerim (kullanicilar üzerindeki cache kolonları). */
 export async function bakiyem(): Promise<Bakiyem | null> {
   const sb = requireSupabase();

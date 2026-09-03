@@ -2771,7 +2771,7 @@ export default function RoomScreen() {
 
       {contribOpen && (
         <ContributionView
-          occupants={occupants}
+          odaId={dbId ?? null}
           host={room.host}
           onClose={() => setContribOpen(false)}
           onOpenUser={(name) => { setContribOpen(false); openByName(name); }}

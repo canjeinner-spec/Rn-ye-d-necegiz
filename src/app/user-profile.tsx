@@ -25,6 +25,7 @@ import { getVisitorCount, recordVisit } from "@/data/remote/visitRepo";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { FEATURES } from "@/lib/features";
+import { hediyeGonder } from "@/data/remote/hediyeRepo";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { GiftSheet } from "@/sheets/GiftSheet";
@@ -157,7 +158,29 @@ export default function UserProfileScreen() {
     }
   };
   const sendRequest = () => { haptic.success(); setFriend("pending"); setAddOpen(false); setAddMsg(""); };
-  const sendGift = (g: Gift, qty: number) => { haptic.success(); setGiftOpen(false); flash(`${g.name} ×${qty} gönderildi!`); };
+  /**
+   * Profilden hediye — GERÇEK gönderim (059).
+   *
+   * Eskiden burada yalnızca `flash("gönderildi!")` vardı: hiçbir RPC
+   * çağrılmıyordu, bakiye düşmüyordu, karşı taraf hiçbir şey almıyordu.
+   * Kullanıcıya BAŞARILI diyen bir yalandı (yol haritası 1.13'ün tarif
+   * ettiği "sahte başarı"). Oda dışı gönderim olduğu için `oda_id` NULL
+   * gidiyor; muhasebe yine `hediye_gonder_fn` trigger'ında.
+   */
+  const sendGift = async (g: Gift, qty: number, _kime: string, aliciId?: number, hediyeDbId?: number) => {
+    setGiftOpen(false);
+    if (!isSupabaseConfigured) { flash("Bağlantı yok."); return; }
+    if (aliciId == null) { flash("Alıcı bulunamadı."); return; }
+    if (!hediyeDbId) { flash("Hediye katalogu yüklenemedi, tekrar dene."); return; }
+    try {
+      await hediyeGonder(hediyeDbId, qty, aliciId, null);
+      haptic.success();
+      flash(`${g.name} ×${qty} gönderildi`);
+    } catch (e) {
+      haptic.warning();
+      flash((e as Error)?.message || "Hediye gönderilemedi");
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -264,11 +287,10 @@ export default function UserProfileScreen() {
                       <Icon name="chev" size={13} color={C.gold2} />
                     </View>
                   </Pressable>
-                  <View style={{ flexDirection: "row", marginTop: 12 }}>
-                    <Txt size={11} color={C.dim}>Normal Hediyeler: </Txt>
-                    <Txt weight="bold" size={11} color={C.text}>4.926</Txt>
-                    <Txt size={11} color={C.dim}> toplandı</Txt>
-                  </View>
+                  {/* "4.926 toplandı" SABİT bir uydurmaydı — herkesin
+                      profilinde aynı sayı görünüyordu. Gerçek toplam
+                      `hediye_gecmisi`den okunabilir ama o ayrı bir RPC;
+                      uydurma sayı göstermektense hiç göstermiyoruz. */}
                 </View>
               )}
             </View>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Animated, { SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,41 +9,58 @@ import { DiamondBadge } from "@/components/Coins";
 import { Portrait } from "@/components/Portrait";
 import { RolePill } from "@/components/RolePill";
 import { Txt } from "@/components/Txt";
-import { type Seat } from "@/data/seed";
+import { odaKatki, type KatkiSatiri } from "@/data/remote/hediyeRepo";
 import { Icon } from "@/icons/Icon";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
+/** Sekme sırası → sorgulanacak saat penceresi. */
+const PENCERE = [24, 168] as const;
+
 export function ContributionView({
-  occupants,
+  odaId,
   host,
   onClose,
   onOpenUser,
 }: {
-  occupants: Seat[];
+  /** Gerçek oda kimliği. Yoksa (demo oda) liste boş kalır. */
+  odaId?: number | null;
   host: string;
   onClose: () => void;
   onOpenUser: (name: string) => void;
 }) {
   const insets = useSafeAreaInsets();
-  const { userName, userPhoto, role } = useApp();
+  const { userName, userPhoto, role, dbId } = useApp();
   const privileged = role !== "user";
-  const [tab, setTab] = useState(1);
+  const [tab, setTab] = useState(0);
+  const [liste, setListe] = useState<KatkiSatiri[] | null>(null);
 
-  const names = occupants.map((o) => o.name).filter((n) => n && n !== "Sen");
-  const seed7 = [90, 48, 32, 21, 14, 9, 6, 3];
-  const seed24 = [12, 7, 4, 2, 1];
-  const build = (seed: number[]) =>
-    names
-      .map((n, i) => ({ name: n, val: seed[i] !== undefined ? seed[i] : Math.max(0, 5 - i) }))
-      .filter((x) => x.val > 0)
-      .sort((a, b) => b.val - a.val);
-  const list = tab === 1 ? build(seed7) : build(seed24);
-  const total = list.reduce((s, x) => s + x.val, 0);
+  /**
+   * GERÇEK VERİ (083). Eskiden burada uydurma bir dizi vardı:
+   *     const seed7  = [90, 48, 32, 21, 14, 9, 6, 3];
+   *     const seed24 = [12, 7, 4, 2, 1];
+   * ...ve odadaki kişilere sırayla dağıtılıyordu. Yani sıralama da, rakamlar
+   * da, "Katkın" değeri de sahteydi; kim ne gönderdiyse hiç etkisi yoktu.
+   * Veri baştan beri `hediye_gecmisi`de duruyordu, eksik olan okuma yoluydu.
+   */
+  useEffect(() => {
+    if (odaId == null) { setListe([]); return; }
+    let alive = true;
+    setListe(null);
+    odaKatki(odaId, PENCERE[tab])
+      .then((k) => { if (alive) setListe(k); })
+      .catch(() => { if (alive) setListe([]); });
+    return () => { alive = false; };
+  }, [odaId, tab]);
+
+  const list = liste ?? [];
+  const total = list.reduce((s, x) => s + x.toplam, 0);
   const top = list[0];
   const rest = list.slice(1);
-  const myVal = tab === 1 ? 7 : 2;
+  const benim = dbId != null ? list.find((x) => x.kullaniciId === dbId) : undefined;
+  const myVal = benim?.toplam ?? 0;
+  const mySira = benim?.sira;
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
@@ -74,43 +91,46 @@ export function ContributionView({
                   <Txt size={15}>🏆</Txt>
                   <Txt weight="displayBold" size={14} color="#fff">{total}</Txt>
                 </View>
-                <Txt weight="semibold" size={11.5} color={C.dim}>Güncelleme: 21:44</Txt>
+                {/* Sabit "21:44" yaziyordu. Pencere zaten sekmeden belli. */}
+                <Txt weight="semibold" size={11.5} color={C.dim}>
+                  {tab === 0 ? "Son 24 saat" : "Son 7 gün"}
+                </Txt>
               </View>
 
               {top ? (
                 <>
                   <View style={{ alignItems: "center", paddingTop: 22, paddingBottom: 8 }}>
-                    <Pressable onPress={() => onOpenUser(top.name)} style={{ alignItems: "center" }}>
+                    <Pressable onPress={() => onOpenUser(top.ad)} style={{ alignItems: "center" }}>
                       <Txt size={30} style={{ marginBottom: -14, zIndex: 2 }}>👑</Txt>
-                      <Portrait name={top.name} size={96} ring={C.gold} glow />
+                      <Portrait name={top.ad} size={96} ring={C.gold} glow photo={top.foto || undefined} />
                       <View style={styles.top1}>
                         <Txt weight="displayBold" size={13} color="#7C2D12" style={{ letterSpacing: 0.5 }}>TOP.1</Txt>
                       </View>
                     </Pressable>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 18 }}>
-                      <Txt weight="displayBold" size={17} color="#fff">{top.name}</Txt>
+                      <Txt weight="displayBold" size={17} color="#fff">{top.ad}</Txt>
                       <Badge type="vip" size={17} />
                     </View>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 8 }}>
                       <Txt size={12} color={C.dim}>Katkıda Bulundu:</Txt>
                       <DiamondBadge size={15} />
-                      <Txt weight="displayBold" size={15} color={C.gold2}>{top.val}</Txt>
+                      <Txt weight="displayBold" size={15} color={C.gold2}>{top.toplam}</Txt>
                     </View>
                   </View>
 
                   <View style={{ paddingTop: 8 }}>
                     {rest.map((r, i) => (
-                      <Pressable key={r.name} onPress={() => onOpenUser(r.name)} style={styles.rankRow}>
-                        <Txt weight="displayBold" size={15} color={i < 2 ? C.gold2 : C.dim} style={{ width: 18 }}>{i + 2}</Txt>
-                        <Portrait name={r.name} size={42} ring="rgba(255,255,255,.14)" online />
+                      <Pressable key={r.kullaniciId} onPress={() => onOpenUser(r.ad)} style={styles.rankRow}>
+                        <Txt weight="displayBold" size={15} color={i < 2 ? C.gold2 : C.dim} style={{ width: 18 }}>{r.sira}</Txt>
+                        <Portrait name={r.ad} size={42} ring="rgba(255,255,255,.14)" photo={r.foto || undefined} />
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                            <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{r.name}</Txt>
-                            {r.name === host && <RolePill type="host" />}
+                            <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{r.ad}</Txt>
+                            {r.ad === host && <RolePill type="host" />}
                           </View>
                           <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
                             <DiamondBadge size={13} />
-                            <Txt weight="extrabold" size={12} color={C.gold2}>{r.val}</Txt>
+                            <Txt weight="extrabold" size={12} color={C.gold2}>{r.toplam}</Txt>
                           </View>
                         </View>
                       </Pressable>
@@ -118,12 +138,16 @@ export function ContributionView({
                   </View>
                 </>
               ) : (
-                <Txt size={12.5} color={C.dim} align="center" style={{ paddingVertical: 70 }}>Bu dönemde henüz katkı yok.</Txt>
+                <Txt size={12.5} color={C.dim} align="center" style={{ paddingVertical: 70 }}>
+                  {liste === null ? "Yükleniyor…" : "Bu dönemde henüz katkı yok."}
+                </Txt>
               )}
             </ScrollView>
 
             <View style={[styles.myRank, { paddingBottom: 14 + insets.bottom }]}>
-              <Txt weight="displayBold" size={14} color={C.dim} style={{ width: 18 }}>—</Txt>
+              <Txt weight="displayBold" size={14} color={mySira ? C.gold2 : C.dim} style={{ width: 18 }}>
+                {mySira ?? "—"}
+              </Txt>
               <Portrait name="Sen" size={42} ring={C.gold} photo={userPhoto || undefined} />
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
