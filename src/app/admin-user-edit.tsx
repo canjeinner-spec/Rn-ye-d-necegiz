@@ -1,7 +1,7 @@
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CenterModal } from "@/components/CenterModal";
@@ -10,6 +10,7 @@ import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
+import { Yukleniyor } from "@/components/Yukleniyor";
 import {
   accountBan, accountUnban, changeEmail, changePublicId, freezeAsset, getActionHistory,
   getUserDetail, getUserHaklar, grantBalance, micBan, micUnban, resetPassword, setPlatformRole,
@@ -279,7 +280,7 @@ export default function AdminUserEdit() {
         )}
 
         {loading ? (
-          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={C.gold} /></View>
+          <Yukleniyor tamEkran yazi="Kullanıcı yükleniyor" />
         ) : err || !d ? (
           <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 30 }}>
             <Icon name="warn" size={26} color="#FB7185" />

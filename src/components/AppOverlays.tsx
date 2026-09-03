@@ -1,7 +1,8 @@
 import { usePathname, useRouter } from "expo-router";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Yukleniyor } from "@/components/Yukleniyor";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { AccountBanBlock } from "./AccountBanBlock";
@@ -30,7 +31,7 @@ export function AppOverlays() {
     console.log("[acilis] ORTU acik — yasak kontrolu bekleniyor");
     return (
       <View style={styles.cover}>
-        <ActivityIndicator color={C.gold} />
+        <Yukleniyor yazi="Hazırlanıyor" boyut={150} />
       </View>
     );
   }

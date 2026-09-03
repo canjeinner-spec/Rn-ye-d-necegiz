@@ -3,13 +3,14 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CenterModal } from "@/components/CenterModal";
 import { PNG_BADGE_IMG } from "@/components/PngBadge";
 import { ROOM_BADGE_IMG } from "@/components/RoomBadges";
 import { BosDurum } from "@/components/BosDurum";
+import { Yukleniyor } from "@/components/Yukleniyor";
 import { Txt } from "@/components/Txt";
 import BOS_KUTU from "@/anim/bos-kutu.json";
 import { equipBadge, getMyBadgeProgress, unequipBadge, type RozetIlerleme } from "@/data/remote/badgeRepo";
@@ -174,7 +175,7 @@ export default function BadgesScreen() {
         </View>
 
         {liste === null ? (
-          <View style={styles.orta}><ActivityIndicator color={C.gold} /></View>
+          <Yukleniyor tamEkran yazi="Rozetler yükleniyor" />
         ) : hata ? (
           <View style={styles.orta}>
             <Txt size={12.5} color={C.dim} align="center">{hata}</Txt>

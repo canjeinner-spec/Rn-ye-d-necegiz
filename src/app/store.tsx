@@ -7,6 +7,7 @@ import { CoinBadge } from "@/components/Coins";
 import { EsyaOnizleme } from "@/components/EsyaOnizleme";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
+import { Yukleniyor } from "@/components/Yukleniyor";
 import { NADIRLIK } from "@/data/esyaTemalari";
 import { katalog, satinAl, type Esya, type EsyaTip } from "@/data/remote/esyaRepo";
 import { esyalarim } from "@/data/remote/esyaRepo";
@@ -118,7 +119,7 @@ export default function StoreScreen() {
 
         <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
           {urunler === null ? (
-            <View style={{ paddingVertical: 54 }}><ActivityIndicator color={C.dim} /></View>
+            <Yukleniyor dolgu={30} boyut={110} yazi="Mağaza yükleniyor" />
           ) : liste.length === 0 ? (
             <View style={{ alignItems: "center", paddingVertical: 50, gap: 10 }}>
               <View style={styles.bosIkon}><Icon name="bank" size={20} color={C.dim2} /></View>

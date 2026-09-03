@@ -2,12 +2,13 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
+import { Yukleniyor } from "@/components/Yukleniyor";
 import {
   changeRoomPublicId, getActionHistory, getRoomForEdit, setRoomCover, setRoomFlagged, updateRoom,
   type AdminAction, type AdminRoomEdit,
@@ -130,7 +131,7 @@ export default function AdminRoomEdit() {
         </View>
 
         {loading ? (
-          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={C.gold} /></View>
+          <Yukleniyor tamEkran yazi="Oda yükleniyor" />
         ) : err || !r ? (
           <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 30 }}>
             <Icon name="warn" size={26} color="#FB7185" />

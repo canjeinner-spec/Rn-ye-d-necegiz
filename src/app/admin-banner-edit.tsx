@@ -7,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BANNER_ORAN } from "@/components/EventBanners";
 import { Txt } from "@/components/Txt";
+import { Yukleniyor } from "@/components/Yukleniyor";
 import {
   createBanner, getBanner, updateBanner,
   type BannerIcerik, type BannerMadde, type BannerSablon,
@@ -112,7 +113,7 @@ export default function AdminBannerEdit() {
         </View>
 
         {loading ? (
-          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={C.gold} /></View>
+          <Yukleniyor tamEkran yazi="Banner yükleniyor" />
         ) : (
           <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {!!note && <View style={styles.note}><Txt weight="bold" size={11.5} color={C.gold2} align="center">{note}</Txt></View>}

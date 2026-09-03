@@ -1,13 +1,14 @@
 import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Portrait } from "@/components/Portrait";
 import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
 import { BosDurum } from "@/components/BosDurum";
+import { Yukleniyor } from "@/components/Yukleniyor";
 import { Txt } from "@/components/Txt";
 import BOS_KUTU from "@/anim/bos-kutu.json";
 
@@ -265,9 +266,7 @@ export default function MyRoomHub() {
           </View>
 
           {list === null ? (
-            <View style={{ paddingVertical: 54 }}>
-              <ActivityIndicator color={C.dim} />
-            </View>
+            <Yukleniyor dolgu={30} boyut={110} />
           ) : list.length > 0 ? (
             list.map((r) => (
               <RoomCard

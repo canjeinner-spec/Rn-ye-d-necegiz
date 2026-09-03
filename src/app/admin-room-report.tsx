@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
+import { Yukleniyor } from "@/components/Yukleniyor";
 import { getReport, setReportStatus, type ReportRow } from "@/data/remote/reportRepo";
 import { getRoomReportDetail, type RoomReportDetail } from "@/data/remote/roomsRepo";
 import { Icon } from "@/icons/Icon";
@@ -79,7 +80,7 @@ export default function AdminRoomReportScreen() {
         </View>
 
         {loading ? (
-          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={C.gold} /></View>
+          <Yukleniyor tamEkran yazi="Rapor yükleniyor" />
         ) : err ? (
           <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 30 }}>
             <Icon name="warn" size={26} color="#FB7185" />

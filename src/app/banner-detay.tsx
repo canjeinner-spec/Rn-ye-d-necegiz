@@ -1,11 +1,12 @@
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AronMark } from "@/components/AronMark";
 import { Txt } from "@/components/Txt";
+import { Yukleniyor } from "@/components/Yukleniyor";
 import { getBanner, type Banner, type BannerSablon } from "@/data/remote/announceRepo";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
@@ -53,7 +54,7 @@ export default function BannerDetay() {
         </View>
 
         {loading ? (
-          <View style={styles.center}><ActivityIndicator color={t.accent} /></View>
+          <Yukleniyor tamEkran />
         ) : !banner ? (
           <View style={styles.center}>
             <Icon name="mega" size={26} color={C.dim2} />

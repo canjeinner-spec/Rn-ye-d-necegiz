@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { EsyaOnizleme } from "@/components/EsyaOnizleme";
 import { Tabs } from "@/components/Tabs";
 import { BosDurum } from "@/components/BosDurum";
+import { Yukleniyor } from "@/components/Yukleniyor";
 import { Txt } from "@/components/Txt";
 import BOS_KUTU from "@/anim/bos-kutu.json";
 import { NADIRLIK } from "@/data/esyaTemalari";
@@ -149,7 +150,7 @@ export default function InventoryScreen() {
           </View>
 
           {esyalar === null ? (
-            <View style={{ paddingVertical: 54 }}><ActivityIndicator color={C.dim} /></View>
+            <Yukleniyor dolgu={30} boyut={110} yazi="Eşyaların yükleniyor" />
           ) : liste.length === 0 ? (
             <BosDurum anim={BOS_KUTU} dolgu={30} animBoyut={130} alt={BOS_METIN[tip]}>
               {/* Uygulamadaki tek "boş durumdan aksiyona" yolu — korunuyor. */}

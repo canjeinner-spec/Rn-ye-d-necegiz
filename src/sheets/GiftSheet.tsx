@@ -1,6 +1,6 @@
 import { BlurView } from "expo-blur";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Animated, { FadeIn, FadeOut, SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -8,6 +8,7 @@ import { CoinBadge } from "@/components/Coins";
 import { GiftIcon } from "@/components/GiftIcon";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
+import { Yukleniyor } from "@/components/Yukleniyor";
 import { GIFTS, GIFT_TABS, TIER_RING, type Gift } from "@/data/gifts";
 import { bakiyem, katalog, type KatalogHediyesi } from "@/data/remote/hediyeRepo";
 import { Icon } from "@/icons/Icon";
@@ -132,7 +133,7 @@ export function GiftSheet({
 
             <ScrollView style={{ maxHeight: 300 }} contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
               {veri === null && isSupabaseConfigured ? (
-                <View style={{ width: "100%", paddingVertical: 40 }}><ActivityIndicator color={C.dim} /></View>
+                <Yukleniyor dolgu={26} boyut={96} yazi="Hediyeler yükleniyor" style={{ width: "100%" }} />
               ) : (
                 liste.map((k) => {
                   const on = sel === k.kod;
