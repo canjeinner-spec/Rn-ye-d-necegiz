@@ -31,7 +31,10 @@ export function ContributionView({
   onOpenUser: (name: string) => void;
 }) {
   const insets = useSafeAreaInsets();
-  const { userName, userPhoto, role, dbId } = useApp();
+  const userName = useApp((s) => s.userName);
+  const userPhoto = useApp((s) => s.userPhoto);
+  const role = useApp((s) => s.role);
+  const dbId = useApp((s) => s.dbId);
   const privileged = role !== "user";
   const [tab, setTab] = useState(0);
   const [liste, setListe] = useState<KatkiSatiri[] | null>(null);

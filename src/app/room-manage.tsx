@@ -61,7 +61,13 @@ function Satir({ icon, tint, baslik, deger, onPress }: { icon: IconName; tint: s
 
 export default function RoomManageScreen() {
   const router = useRouter();
-  const { roomName, roomAnnounce, roomLocked, setRoomName, setRoomAnnounce, setRoomLocked, setRoomPass } = useApp();
+  const roomName = useApp((s) => s.roomName);
+  const roomAnnounce = useApp((s) => s.roomAnnounce);
+  const roomLocked = useApp((s) => s.roomLocked);
+  const setRoomName = useApp((s) => s.setRoomName);
+  const setRoomAnnounce = useApp((s) => s.setRoomAnnounce);
+  const setRoomLocked = useApp((s) => s.setRoomLocked);
+  const setRoomPass = useApp((s) => s.setRoomPass);
   const kickedUsers = useApp((s) => s.kickedUsers);
   const unkickFromRoom = useApp((s) => s.unkickFromRoom);
   const currentRoom = useApp((s) => s.currentRoom);

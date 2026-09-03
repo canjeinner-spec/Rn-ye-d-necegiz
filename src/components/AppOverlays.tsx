@@ -14,7 +14,25 @@ export function AppOverlays() {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const { inRoom, currentRoom, broadcast, enterRoom, clearBroadcast, leaveRoom, girisAdayi, odayaGirDene, girisIptal } = useApp();
+  /**
+   * ALAN ALAN ABONE. Burası UYGULAMANIN HER EKRANININ üstünde duruyor
+   * (küçültülmüş oda şeridi, efsanevi hediye duyurusu, giriş perdesi,
+   * hesap yasağı bloğu). Seçicisiz `useApp()` TÜM store'a abone oluyordu:
+   * 45 saniyede bir çalışan hesap yasağı yoklaması, biri odaya girip
+   * çıktığında güncellenen oda listesi, XP değişimi — hepsi bu bileşeni ve
+   * dolayısıyla üstünde durduğu ekranı yeniden çizdiriyordu.
+   *
+   * Aynı düzeltme `room.tsx`te daha önce yapılmıştı; kalan 11 yer de geçti.
+   */
+  const inRoom = useApp((s) => s.inRoom);
+  const currentRoom = useApp((s) => s.currentRoom);
+  const broadcast = useApp((s) => s.broadcast);
+  const enterRoom = useApp((s) => s.enterRoom);
+  const clearBroadcast = useApp((s) => s.clearBroadcast);
+  const leaveRoom = useApp((s) => s.leaveRoom);
+  const girisAdayi = useApp((s) => s.girisAdayi);
+  const odayaGirDene = useApp((s) => s.odayaGirDene);
+  const girisIptal = useApp((s) => s.girisIptal);
   const hesapYasak = useApp((s) => s.hesapYasak);
   const session = useApp((s) => s.session);
   const banChecked = useApp((s) => s.banChecked);

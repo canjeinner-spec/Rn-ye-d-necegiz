@@ -45,7 +45,25 @@ export default function ProfileTab() {
   const altPayi = useIcerikAltPayi();
   const router = useRouter();
   const [ozelIdInfo, setOzelIdInfo] = useState(false);
-  const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, betaTester, ozelId, ozelIdTip, ozelIdTema, kusanilanRozet, kusanili, role, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
+  const userName = useApp((s) => s.userName);
+  const userBio = useApp((s) => s.userBio);
+  const userPhoto = useApp((s) => s.userPhoto);
+  const userLevel = useApp((s) => s.userLevel);
+  const setUserPhoto = useApp((s) => s.setUserPhoto);
+  const isStreamer = useApp((s) => s.isStreamer);
+  const betaTester = useApp((s) => s.betaTester);
+  const ozelId = useApp((s) => s.ozelId);
+  const ozelIdTip = useApp((s) => s.ozelIdTip);
+  const ozelIdTema = useApp((s) => s.ozelIdTema);
+  const kusanilanRozet = useApp((s) => s.kusanilanRozet);
+  const kusanili = useApp((s) => s.kusanili);
+  const role = useApp((s) => s.role);
+  const hideProfile = useApp((s) => s.hideProfile);
+  const setHideProfile = useApp((s) => s.setHideProfile);
+  const publicId = useApp((s) => s.publicId);
+  const dbId = useApp((s) => s.dbId);
+  const loadProfile = useApp((s) => s.loadProfile);
+  const session = useApp((s) => s.session);
 
   // Cache-first sayaçlar: son bilinen değeri ANINDA göster (persist), arkada tazele.
   const { data: followCounts } = useCachedResource<{ followers: number; following: number }>(

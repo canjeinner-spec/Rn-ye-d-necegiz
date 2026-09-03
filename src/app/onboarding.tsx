@@ -58,7 +58,12 @@ function GoldButton({ label, disabled, loading, onPress }: { label: string; disa
 
 export default function Onboarding() {
   const router = useRouter();
-  const { girisYapildi, profilEksik, setGirisYapildi, setUserName, setUserPhoto, loadProfile } = useApp();
+  const girisYapildi = useApp((s) => s.girisYapildi);
+  const profilEksik = useApp((s) => s.profilEksik);
+  const setGirisYapildi = useApp((s) => s.setGirisYapildi);
+  const setUserName = useApp((s) => s.setUserName);
+  const setUserPhoto = useApp((s) => s.setUserPhoto);
+  const loadProfile = useApp((s) => s.loadProfile);
 
   const [step, setStep] = useState<Step>("home");
   const [busy, setBusy] = useState(false);

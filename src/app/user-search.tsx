@@ -18,7 +18,7 @@ import { C } from "@/theme/colors";
 
 export default function UserSearchScreen() {
   const router = useRouter();
-  const { odayaGirDene } = useApp();
+  const odayaGirDene = useApp((s) => s.odayaGirDene);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<PublicProfile[]>([]);
   const [loading, setLoading] = useState(false);

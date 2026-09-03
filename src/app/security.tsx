@@ -55,7 +55,8 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
 
 export default function SecurityScreen() {
   const router = useRouter();
-  const { signOutApp, deleteAccountApp } = useApp();
+  const signOutApp = useApp((s) => s.signOutApp);
+  const deleteAccountApp = useApp((s) => s.deleteAccountApp);
   const user = useApp((s) => s.session?.user);
   const email = user?.email ?? "";
 

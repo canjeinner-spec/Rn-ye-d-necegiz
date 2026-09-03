@@ -26,7 +26,10 @@ import { Gradient } from "@/theme/Gradient";
  *     Artık önce DB, sonra ekran.
  */
 export function EditProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const { userName, userBio, setUserName, setUserBio } = useApp();
+  const userName = useApp((s) => s.userName);
+  const userBio = useApp((s) => s.userBio);
+  const setUserName = useApp((s) => s.setUserName);
+  const setUserBio = useApp((s) => s.setUserBio);
   const [n, setN] = useState(userName);
   const [b, setB] = useState(userBio);
   const [saving, setSaving] = useState(false);

@@ -52,7 +52,12 @@ function SectionTitle({ children }: { children: ReactNode }) {
 // Özel ID kimliği: tip seç (Premium kart 1-5 hane / Kapsül 6-7 hane) →
 // istediğin ID'yi gir → tema seç → profil önizlemesi → Onayla → store'a yaz.
 function KapsulBolumu() {
-  const { ozelId, ozelIdTip, ozelIdTema, setOzelIdKimlik, betaTester, premiumHak } = useApp();
+  const ozelId = useApp((s) => s.ozelId);
+  const ozelIdTip = useApp((s) => s.ozelIdTip);
+  const ozelIdTema = useApp((s) => s.ozelIdTema);
+  const setOzelIdKimlik = useApp((s) => s.setOzelIdKimlik);
+  const betaTester = useApp((s) => s.betaTester);
+  const premiumHak = useApp((s) => s.premiumHak);
   const claimed = ozelId != null && ozelIdTip != null && ozelIdTema != null;
   // Yetki (entitlement): kapsül → beta veya premium hak; premium → yalnız premium hak.
   const kapsulYetki = betaTester || premiumHak;
@@ -254,7 +259,7 @@ function KapsulBolumu() {
 
 export default function SpecialIdScreen() {
   const router = useRouter();
-  const { publicId } = useApp();
+  const publicId = useApp((s) => s.publicId);
   const [tab, setTab] = useState(0);
 
   return (

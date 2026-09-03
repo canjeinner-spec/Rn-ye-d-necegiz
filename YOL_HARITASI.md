@@ -157,7 +157,16 @@ Yapılanların commit listesi ve bilinçli olarak ATLANANLARIN gerekçeleri
      kendi mesaj akışı var. Oda sahnesi tohumu ayrı bir iş — koltuk verisi
      bayat gösterilirse "hayalet koltuk" sınıfı hatalara kapı açar, ki bu
      oturumda tam onlarla uğraşıldı.
-10. **1.10 (C9):** Selector'süz 12 `useApp()` → alan bazlı (önce `AppOverlays.tsx`, `profile.tsx`); `banPollTimer` değişmedikçe yazmaz.
+10. **1.10 (C9) ✅ — 11 çağrı alan bazlı seçime geçti:**
+    Selector'süz `useApp()` TÜM store'a abone oluyor; herhangi bir alan
+    değişince bileşen yeniden çiziliyordu. En kritiği `AppOverlays`:
+    uygulamanın HER ekranının üstünde duruyor, yani hesap yasağı yoklaması
+    ya da oda listesi güncellemesi üstündeki ekranı da yeniden çizdiriyordu.
+    Aynı düzeltme `room.tsx`te daha önce yapılmıştı; kalan hepsi geçti
+    (profile, my-room, onboarding, room-manage, security, special-id ×2,
+    user-search, AppOverlays, ContributionView, EditProfileSheet).
+    **`banPollTimer` notu geçersiz:** o mağaza durumu değil, modül
+    değişkeni — `set()` çağırmıyor, dolayısıyla zaten render tetiklemiyor.
 11. **1.11 (C8) ✅ — klavye sarmalayıcı + alt payı:**
     • **"16 dosya" RAKAMI YANLIŞTI.** `TextInput` içeren 14 dosya vardı ama
       `Sheet` ve `CenterModal` bileşenlerinin İKİSİ DE zaten

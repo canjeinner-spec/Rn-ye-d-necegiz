@@ -98,7 +98,12 @@ function RoomCard({ room, altYazi, onPress }: { room: OdamOdasi; altYazi?: strin
 
 export default function MyRoomHub() {
   const router = useRouter();
-  const { myRoom, userName, userPhoto, createMyRoom, odayaGirDene, session } = useApp();
+  const myRoom = useApp((s) => s.myRoom);
+  const userName = useApp((s) => s.userName);
+  const userPhoto = useApp((s) => s.userPhoto);
+  const createMyRoom = useApp((s) => s.createMyRoom);
+  const odayaGirDene = useApp((s) => s.odayaGirDene);
+  const session = useApp((s) => s.session);
   const [tab, setTab] = useState(0);
   const [creating, setCreating] = useState(false);
 
