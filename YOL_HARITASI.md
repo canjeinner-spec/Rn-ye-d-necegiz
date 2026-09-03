@@ -37,7 +37,7 @@
 
 ## Migration düzeni
 
-Konu başına dosya (tek büyük dosya değil). Faz 0 → 072-079 ✅ yazıldı, Faz 2 → 080-083, Faz 4 → 084+. Hepsi idempotent; `REVOKE ... FROM PUBLIC, anon` + `SET search_path = public, pg_temp`. Enum eklemesi (082) TEK BAŞINA ayrı turda (025 dersi). Her migration öncesi `db/SEMA_DOKUMU.md`.
+Konu başına dosya (tek büyük dosya değil). Faz 0 → 072-079 ✅, para/hediye işi → 080-085 ✅ (planda yoktu, araya girdi). **Faz 2 artık 086'dan, Faz 4 090'dan başlıyor.** Yeni dosya açmadan önce `ls db/migrations` ile son numarayı GÖR — plandaki numara tutmayabilir. Hepsi idempotent; `REVOKE ... FROM PUBLIC, anon` + `SET search_path = public, pg_temp`. Enum eklemesi (088) TEK BAŞINA ayrı turda (025 dersi). Her migration öncesi `db/SEMA_DOKUMU.md`.
 
 ---
 
@@ -98,18 +98,18 @@ Yapılanların commit listesi ve bilinçli olarak ATLANANLARIN gerekçeleri
 
 ---
 
-## FAZ 2 — Oda içi yetkilendirme + support rolü (080-083)
+## FAZ 2 — Oda içi yetkilendirme + support rolü (086-089)
 
-### 2.1 — `080_koltuk_sustur.sql` + istemci (B4)
+### 2.1 — `086_koltuk_sustur.sql` + istemci (B4)
 `koltuk_sustur(p_oda, p_hedef, p_sustur)`: `_oda_moderatoru` kapısı; hedef koltukta değilse sessiz RETURN; koltuk 20 → yalnız `ben_platform_yoneticisi()`; koşullu UPDATE. **Bilinçli sınır:** hedef `koltuk_mic` ile kendini geri açabilir — sustur sosyal uyarı, kalıcı yaptırım `mic_yasak_ver` (028). İstemci: `roomsRepo.koltukSustur`; `seatActions.onMute` → iyimser ipucu + RPC + hatada `koltukTazeleRef`.
 
-### 2.2 — `081_oda_uyeleri_realtime.sql` + roomRoles canlı tazeleme (B6)
+### 2.2 — `087_oda_uyeleri_realtime.sql` + roomRoles canlı tazeleme (B6)
 **postgres_changes** (RoomPanel callback'i değil — asıl sorun HEDEF cihaz). `mic_yasaklari` aboneliği deseninin kopyası. Migration: `REPLICA IDENTITY FULL` + publication'a idempotent ekleme. İstemci: üye yükleyicisi `uyeleriYukle`'ye çıkarılır; `postgres_changes {table:"oda_uyeleri", filter:"oda_id=eq."+dbId}` → tam yeniden okuma.
 
-### 2.3 — `082_support_rol_enum.sql` (TEK BAŞINA — 025 dersi)
+### 2.3 — `088_support_rol_enum.sql` (TEK BAŞINA — 025 dersi)
 Yalnız `ALTER TYPE ekonomi_rolu ADD VALUE IF NOT EXISTS 'support';`. SEMA_DOKUMU enum satırı güncellenir.
 
-### 2.4 — `083_support_yetkileri.sql`
+### 2.4 — `089_support_yetkileri.sql`
 `ben_destek_veya_yonetici()`; `sikayetler` select/update politikaları bu kapıya; `destek_kullanici_getir` (e-posta YOK, bakiye YOK); `admin_oda_getir` kapısı genişler (salt okuma); `kisiye_mesaj_gonder`/`odaya_mesaj_gonder` genişler; duyuru/banner DOKUNULMAZ. Support'a kapalı kalanlar dosya sonunda liste.
 
 ### 2.5 — İstemci rol modeli (EN KRİTİK okuyucu taraması)
@@ -152,9 +152,9 @@ NullRtc ile tam regresyon turu; `tsc` temiz; app.json Expo Go açılışını bo
 9. **4.9** `updates.tsx` içeriği; `security.tsx` ↔ `oturumlar/login_history` (canlıda doğrulanır).
 
 ### Para akışları (kullanıcı kararı: betada GERÇEK)
-10. **4.10** `withdraw.tsx` → gerçek: hardcoded `MY_ID`/`EARNINGS` gerçek veriye; çekim talebi `withdrawal_requests` (`084_cekim_talebi.sql`, mevcut RPC SEMA_DOKUMU'ndan teyit); admin talep listesi/karar ekranı.
-11. **4.11** `diamond-load.tsx` → gerçek IAP (`expo-iap`; **dev build ŞART**); makbuz doğrulama Edge Function + `satin_almalar` + elmas bakiye RPC (085). **Canlıda:** mağaza ürün tanımları, sandbox hesapları.
-12. **4.12** `vip.tsx` → gerçek VIP satın alma (gerekiyorsa 086).
+10. **4.10** `withdraw.tsx` → gerçek: hardcoded `MY_ID`/`EARNINGS` gerçek veriye; çekim talebi `withdrawal_requests` (`090_cekim_talebi.sql`, mevcut RPC SEMA_DOKUMU'ndan teyit); admin talep listesi/karar ekranı.
+11. **4.11** `diamond-load.tsx` → gerçek IAP (`expo-iap`; **dev build ŞART**); makbuz doğrulama Edge Function + `satin_almalar` + elmas bakiye RPC (091). **Canlıda:** mağaza ürün tanımları, sandbox hesapları.
+12. **4.12** `vip.tsx` → gerçek VIP satın alma (gerekiyorsa 092).
 13. **4.13** `referral.tsx` → referans kaydı + ödül RPC (çift ödül koruması 074 deseniyle).
 14. **4.14** DM/profil hediyesi → `hediye_gonder_v2`; `features.ts` bayrakları geri açılır.
 

@@ -1260,14 +1260,29 @@ Dosyanın sonunda **isteğe bağlı** ve kendini bir kez çalıştıran (iki kez
 
 ### ⚠️ Çalıştırılmayı bekleyen migration'lar
 
-Canlı veritabanı **2 Eylül'de** yoklandı (`pg_proc` sorgusuyla).
+> **BU TABLO KANIT DEĞİLDİR.** Aynı hata iki kez yapıldı: buradaki
+> "çalıştırılacak" satırına bakılıp kullanıcıya "SQL'i çalıştırmamışsın"
+> denildi, oysa çalıştırılmıştı (önce 080, sonra 083+084). Tablo elle
+> güncelleniyor ve kullanıcı SQL'i sohbete yapıştırıldığı anda çalıştırıyor,
+> yani not her zaman gerçeğin gerisinde.
+>
+> **Kural:** bir migration'ın çalışmadığını İDDİA ETME. Ya `pg_proc`
+> sorgusuyla ölç, ya ekrandaki davranışa bak (ör. katkı listesi doluysa
+> `oda_katki` vardır — istemcide sahte yedek YOK, 083 onları silmişti),
+> ya da kullanıcıya sor.
 
 | Dosya | Durum |
 |---|---|
-| `072`-`079` (Faz 0 mantık+kararlılık seti) | ❌ **ÇALIŞTIRILACAK** — sırayla 072→079, hepsi idempotent. İstemci hazır: 078 çalışana kadar sohbet DB yazımı sessizce düşer (broadcast etkilenmez), 079 çalışana kadar sayaç sadece yazılmamış olur |
-| `053_admin_oda_kapak.sql` | ❌ eksik → yönetim panelindeki kapak düğmeleri hata verir |
-| `067` · `068` · `069` · `070` · `071` | ✅ uygulandı, fonksiyonlar canlıda doğrulandı |
 | 001-066 | ✅ uygulandı |
+| `067` · `068` · `069` · `070` · `071` | ✅ uygulandı, fonksiyonlar canlıda doğrulandı |
+| `072`-`079` (Faz 0 mantık+kararlılık seti) | ✅ `SON_072_079.sql` ile çalıştırıldı — Metro log'unda tek bir `[sohbet-db]` hatası yok |
+| `080_para_sistemi_birlestirme.sql` | ✅ çalıştırıldı |
+| `081_hediye_herkese.sql` | ✅ çalıştırıldı |
+| `082_hediye_katalogu_lottie.sql` | ✅ çalıştırıldı (42P10'dan sonra, kısmi indeks düzeltmesiyle) |
+| `083_oda_katki.sql` | ✅ çalıştırıldı — kullanıcı katkı listesini ekranda görüyor |
+| `084_hediye_vitrini.sql` | ✅ çalıştırıldı — vitrin ekranda dolu geliyor |
+| `085_hediye_katalogu_yeni.sql` | ❌ **SIRADAKİ** — 7 hediyelik katalog (kedi/tavşan/kaplan/zafer eklendi). Çalışana kadar yeni dördü hediye kutusunda görünmez |
+| `053_admin_oda_kapak.sql` | ❓ teyit edilmedi — eksikse yönetim panelindeki kapak düğmeleri hata verir. İddia etmeden önce ölç |
 
 **Faz 0 seti ne düzeltiyor (özet):** 072 yardımcının sunucuda reddedilmesi
 (yanlış rol sözlüğü) · 073 koltuk/onay yarışları (sessiz ezme → 'Koltuk dolu.')
