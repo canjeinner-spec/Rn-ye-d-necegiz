@@ -142,7 +142,25 @@ Yapılanların commit listesi ve bilinçli olarak ATLANANLARIN gerekçeleri
      yüklenip `PRESET_AVATARS` doldurulacak. Koddan yapılamaz.
 9. **1.9 (C7):** `useCachedResource` yaygınlaştırma (store, inventory, badges, visitors, user-profile, dm-chat); oda sahnesine oda-id bazlı cache seed.
 10. **1.10 (C9):** Selector'süz 12 `useApp()` → alan bazlı (önce `AppOverlays.tsx`, `profile.tsx`); `banPollTimer` değişmedikçe yazmaz.
-11. **1.11 (C8):** KeyboardAware eksik 16 dosya; `paddingBottom:110/120` sabitleri inset tabanlı ortak değere.
+11. **1.11 (C8) ✅ — klavye sarmalayıcı + alt payı:**
+    • **"16 dosya" RAKAMI YANLIŞTI.** `TextInput` içeren 14 dosya vardı ama
+      `Sheet` ve `CenterModal` bileşenlerinin İKİSİ DE zaten
+      `KeyboardAware` içeriyordu; modal/sheet içindeki bütün input'lar
+      kapsanmış durumdaydı. Gerçekten açıkta kalan 8 SAYFA vardı, hepsi
+      sarmalandı: admin-banner-edit (8 input), admin-mesaj, admin-broadcast,
+      special-id, admin, friends, user-search, feed.
+      Dokunulmayan 6 dosya (agency-panel, room-manage, security,
+      user-profile, CouponSheet, SecuritySheet) tek tek doğrulandı —
+      input'ları modal/sheet içinde.
+    • **ALT PAYI SABİTLERİ GÜVENLİ ALANI HESABA KATMIYORDU.** Beş sekme
+      ekranı `paddingBottom: 110` ya da `120` yazıyordu; alt navigasyon ise
+      `bottom: 0`da durup kendi payını `12 + insets.bottom` ile alıyor.
+      Ana ekran çentikli telefonda gereken pay ~122 iken içerik 110'da
+      kalıyordu — listenin son satırı navigasyonun arkasında görünmüyordu.
+      `theme/olculer.ts` + `useIcerikAltPayi()` (88 ölçülmüş nav yüksekliği
+      + güvenli alan + nefes payı).
+      `user-profile` HARİÇ: sekme ekranı değil, alt navigasyonu yok; oradaki
+      110 kendi alt çubuğu için.
 12. **1.12 (A4/A5) — zemin hizalama ✅, `Kart` bileşeni YAPILMADI:**
    `src/theme/Zemin.tsx` oluşturuldu, **17 dosya** ona bağlandı.
    • **Sekiz ekran kendi tonunu uydurmuştu:** referral yeşil (#0A2A1E),

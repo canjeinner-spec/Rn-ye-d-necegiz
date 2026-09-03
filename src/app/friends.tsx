@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
 import { Tabs } from "@/components/Tabs";
 import { BosDurum } from "@/components/BosDurum";
@@ -63,139 +64,141 @@ export default function FriendsScreen() {
       {/* Zemin yeşildi (#0A2A1E) — uygulamanın siyah-altınına çekildi. */}
       <Zemin />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-            <Icon name="back" size={16} color={C.text} />
-          </Pressable>
-          <View style={{ flex: 1, alignItems: "center" }}>
-            <Txt weight="displayBold" size={16} color="#fff">Arkadaşlar</Txt>
+        <KeyboardAware>
+          <View style={styles.header}>
+            <Pressable onPress={() => router.back()} style={styles.iconBtn}>
+              <Icon name="back" size={16} color={C.text} />
+            </Pressable>
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Txt weight="displayBold" size={16} color="#fff">Arkadaşlar</Txt>
+            </View>
+            <View style={{ width: 34 }} />
           </View>
-          <View style={{ width: 34 }} />
-        </View>
 
-        {/* Kendi kopya sekme çubuğu vardı; uygulamanın ortak Tabs'ı */}
-        <Tabs
-          items={["Arkadaşlar", reqs.length > 0 ? `İstekler (${reqs.length})` : "İstekler"]}
-          active={tab}
-          set={setTab}
-          fill
-          pad={16}
-        />
+          {/* Kendi kopya sekme çubuğu vardı; uygulamanın ortak Tabs'ı */}
+          <Tabs
+            items={["Arkadaşlar", reqs.length > 0 ? `İstekler (${reqs.length})` : "İstekler"]}
+            active={tab}
+            set={setTab}
+            fill
+            pad={16}
+          />
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 24 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          {tab === 0 ? (
-            <>
-              <View style={styles.search}>
-                <Icon name="search" size={15} color={C.dim2} />
-                <TextInput value={q} onChangeText={setQ} placeholder="Arkadaş ara" placeholderTextColor={C.dim2} style={styles.searchInput} />
-                {!!q && (
-                  <Pressable onPress={() => setQ("")} hitSlop={8}>
-                    <Icon name="x" size={14} color={C.dim} />
-                  </Pressable>
-                )}
-              </View>
-
-              {/* Sayılar düz bir gri satırdı; ayırıcılı cam şerit oldu. */}
-              <View style={styles.ozet}>
-                <View style={styles.ozetKol}>
-                  <Txt weight="displayBold" size={16} color="#fff">{friends.length}</Txt>
-                  <Txt weight="semibold" size={9} color={C.dim2} style={{ marginTop: 2, letterSpacing: 0.3 }}>ARKADAŞ</Txt>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 24 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            {tab === 0 ? (
+              <>
+                <View style={styles.search}>
+                  <Icon name="search" size={15} color={C.dim2} />
+                  <TextInput value={q} onChangeText={setQ} placeholder="Arkadaş ara" placeholderTextColor={C.dim2} style={styles.searchInput} />
+                  {!!q && (
+                    <Pressable onPress={() => setQ("")} hitSlop={8}>
+                      <Icon name="x" size={14} color={C.dim} />
+                    </Pressable>
+                  )}
                 </View>
-                <View style={styles.ozetAyirici} />
-                <View style={styles.ozetKol}>
-                  <Txt weight="displayBold" size={16} color="#6EE7B7">{onlineCount}</Txt>
-                  <Txt weight="semibold" size={9} color={C.dim2} style={{ marginTop: 2, letterSpacing: 0.3 }}>ÇEVRİMİÇİ</Txt>
-                </View>
-              </View>
 
-              {filtered.length > 0 ? (
-                <View style={styles.group}>
-                  {filtered.map((f, i) => (
-                    <View key={f.name + i}>
-                      {i > 0 && <View style={styles.divider} />}
-                      {/* Satırın tamamı basılabilir: sohbet küçük bir ikondu,
-                          satıra dokununca hiçbir şey olmuyordu. */}
-                      <Pressable onPress={() => openChat(f)} style={styles.row}>
-                        <Portrait name={f.name} size={46} online={f.online} ring={f.online ? C.green : undefined} />
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                            <Txt weight="extrabold" size={13.5} color={C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{f.name}</Txt>
-                            <View style={styles.lvHap}>
-                              <Txt weight="extrabold" size={9.5} color="#5EEAD4">LV.{f.lv}</Txt>
+                {/* Sayılar düz bir gri satırdı; ayırıcılı cam şerit oldu. */}
+                <View style={styles.ozet}>
+                  <View style={styles.ozetKol}>
+                    <Txt weight="displayBold" size={16} color="#fff">{friends.length}</Txt>
+                    <Txt weight="semibold" size={9} color={C.dim2} style={{ marginTop: 2, letterSpacing: 0.3 }}>ARKADAŞ</Txt>
+                  </View>
+                  <View style={styles.ozetAyirici} />
+                  <View style={styles.ozetKol}>
+                    <Txt weight="displayBold" size={16} color="#6EE7B7">{onlineCount}</Txt>
+                    <Txt weight="semibold" size={9} color={C.dim2} style={{ marginTop: 2, letterSpacing: 0.3 }}>ÇEVRİMİÇİ</Txt>
+                  </View>
+                </View>
+
+                {filtered.length > 0 ? (
+                  <View style={styles.group}>
+                    {filtered.map((f, i) => (
+                      <View key={f.name + i}>
+                        {i > 0 && <View style={styles.divider} />}
+                        {/* Satırın tamamı basılabilir: sohbet küçük bir ikondu,
+                            satıra dokununca hiçbir şey olmuyordu. */}
+                        <Pressable onPress={() => openChat(f)} style={styles.row}>
+                          <Portrait name={f.name} size={46} online={f.online} ring={f.online ? C.green : undefined} />
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                              <Txt weight="extrabold" size={13.5} color={C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{f.name}</Txt>
+                              <View style={styles.lvHap}>
+                                <Txt weight="extrabold" size={9.5} color="#5EEAD4">LV.{f.lv}</Txt>
+                              </View>
+                            </View>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
+                              <View style={[styles.durumNokta, { backgroundColor: f.online ? "#6EE7B7" : C.dim2 }]} />
+                              <Txt weight="semibold" size={10.5} color={f.online ? "#6EE7B7" : C.dim2}>{f.last}</Txt>
                             </View>
                           </View>
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
-                            <View style={[styles.durumNokta, { backgroundColor: f.online ? "#6EE7B7" : C.dim2 }]} />
-                            <Txt weight="semibold" size={10.5} color={f.online ? "#6EE7B7" : C.dim2}>{f.last}</Txt>
+                          <View style={styles.chatBtn}>
+                            <Icon name="chat" size={16} color={C.gold2} />
+                          </View>
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <BosDurum
+                    anim={BOS_KUTU}
+                    baslik={q ? "Arkadaş bulunamadı" : "Henüz arkadaşın yok"}
+                    alt={q ? `"${q}" ile eşleşen bir arkadaşın yok.` : "Odalarda tanıştığın kişilere arkadaşlık isteği gönderebilirsin."}
+                  />
+                )}
+              </>
+            ) : reqs.length > 0 ? (
+              /* İstekler ayrı kartlar. Önceden tek grup içinde ayırıcılıydı ve
+                 butonlar marginLeft:60 ile içeriden başlıyordu — sağa kaçmış,
+                 hizasız duruyorlardı. */
+              <View style={{ gap: 12 }}>
+                {reqs.map((r, i) => (
+                  <View key={r.name + i} style={styles.reqKart}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                      <Portrait name={r.name} size={48} ring={C.gold + "66"} />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                          <Txt weight="extrabold" size={14} color={C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{r.name}</Txt>
+                          <View style={styles.lvHap}>
+                            <Txt weight="extrabold" size={9.5} color="#5EEAD4">LV.{r.lv}</Txt>
                           </View>
                         </View>
-                        <View style={styles.chatBtn}>
-                          <Icon name="chat" size={16} color={C.gold2} />
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
+                          <Icon name="cal" size={10} color={C.dim2} />
+                          <Txt weight="semibold" size={10.5} color={C.dim2}>{r.when}</Txt>
                         </View>
+                      </View>
+                    </View>
+
+                    {r.note && (
+                      <View style={styles.notKutu}>
+                        <Txt size={12} color={C.text} lh={1.5} style={{ fontStyle: "italic" }}>{r.note}</Txt>
+                      </View>
+                    )}
+
+                    <View style={{ flexDirection: "row", gap: 10, marginTop: 13 }}>
+                      <Pressable onPress={() => reject(i)} style={[styles.reqBtn, { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1.5, borderColor: "rgba(255,255,255,.14)" }]}>
+                        <Icon name="x" size={15} color={C.dim} />
+                        <Txt weight="extrabold" size={12.5} color={C.dim}>Reddet</Txt>
+                      </Pressable>
+                      <Pressable onPress={() => accept(i)} style={{ flex: 1.3, borderRadius: 13, overflow: "hidden" }}>
+                        <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.reqBtn}>
+                          <Icon name="check" size={15} color="#241A05" sw={3} />
+                          <Txt weight="extrabold" size={12.5} color="#241A05">Kabul Et</Txt>
+                        </Gradient>
                       </Pressable>
                     </View>
-                  ))}
-                </View>
-              ) : (
-                <BosDurum
-                  anim={BOS_KUTU}
-                  baslik={q ? "Arkadaş bulunamadı" : "Henüz arkadaşın yok"}
-                  alt={q ? `"${q}" ile eşleşen bir arkadaşın yok.` : "Odalarda tanıştığın kişilere arkadaşlık isteği gönderebilirsin."}
-                />
-              )}
-            </>
-          ) : reqs.length > 0 ? (
-            /* İstekler ayrı kartlar. Önceden tek grup içinde ayırıcılıydı ve
-               butonlar marginLeft:60 ile içeriden başlıyordu — sağa kaçmış,
-               hizasız duruyorlardı. */
-            <View style={{ gap: 12 }}>
-              {reqs.map((r, i) => (
-                <View key={r.name + i} style={styles.reqKart}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                    <Portrait name={r.name} size={48} ring={C.gold + "66"} />
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        <Txt weight="extrabold" size={14} color={C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{r.name}</Txt>
-                        <View style={styles.lvHap}>
-                          <Txt weight="extrabold" size={9.5} color="#5EEAD4">LV.{r.lv}</Txt>
-                        </View>
-                      </View>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }}>
-                        <Icon name="cal" size={10} color={C.dim2} />
-                        <Txt weight="semibold" size={10.5} color={C.dim2}>{r.when}</Txt>
-                      </View>
-                    </View>
                   </View>
-
-                  {r.note && (
-                    <View style={styles.notKutu}>
-                      <Txt size={12} color={C.text} lh={1.5} style={{ fontStyle: "italic" }}>{r.note}</Txt>
-                    </View>
-                  )}
-
-                  <View style={{ flexDirection: "row", gap: 10, marginTop: 13 }}>
-                    <Pressable onPress={() => reject(i)} style={[styles.reqBtn, { flex: 1, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1.5, borderColor: "rgba(255,255,255,.14)" }]}>
-                      <Icon name="x" size={15} color={C.dim} />
-                      <Txt weight="extrabold" size={12.5} color={C.dim}>Reddet</Txt>
-                    </Pressable>
-                    <Pressable onPress={() => accept(i)} style={{ flex: 1.3, borderRadius: 13, overflow: "hidden" }}>
-                      <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.reqBtn}>
-                        <Icon name="check" size={15} color="#241A05" sw={3} />
-                        <Txt weight="extrabold" size={12.5} color="#241A05">Kabul Et</Txt>
-                      </Gradient>
-                    </Pressable>
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <BosDurum
-              anim={BOS_KUTU}
-              baslik="Bekleyen istek yok"
-              alt="Sana arkadaşlık isteği gelirse burada görünür."
-            />
-          )}
-        </ScrollView>
+                ))}
+              </View>
+            ) : (
+              <BosDurum
+                anim={BOS_KUTU}
+                baslik="Bekleyen istek yok"
+                alt="Sana arkadaşlık isteği gelirse burada görünür."
+              />
+            )}
+          </ScrollView>
+        </KeyboardAware>
       </SafeAreaView>
 
       {!!toast && (

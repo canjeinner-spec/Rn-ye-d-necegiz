@@ -34,12 +34,15 @@ import { EditProfileSheet } from "@/sheets/EditProfileSheet";
 import { ProfileInfoSheet, type InfoMode } from "@/sheets/ProfileInfoSheet";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
+import { useIcerikAltPayi } from "@/theme/olculer";
 import { Gradient } from "@/theme/Gradient";
 
 type MenuItem = { ic: IconName; g1: string; g2: string; t: string; s?: string; r?: string; onPress: () => void };
 
 
 export default function ProfileTab() {
+  // Alt navigasyonun altında kalmasın — güvenli alan dahil (theme/olculer).
+  const altPayi = useIcerikAltPayi();
   const router = useRouter();
   const [ozelIdInfo, setOzelIdInfo] = useState(false);
   const { userName, userBio, userPhoto, userLevel, setUserPhoto, isStreamer, betaTester, ozelId, ozelIdTip, ozelIdTema, kusanilanRozet, kusanili, role, hideProfile, setHideProfile, publicId, dbId, loadProfile, session } = useApp();
@@ -146,7 +149,7 @@ export default function ProfileTab() {
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: altPayi }} showsVerticalScrollIndicator={false}>
         {/* Kapak — mor/kahve karışımı yerine temanın siyah-altını: karanlık
             zemin + köşede altın hale + alt kenarda ince altın çizgi. */}
         <View style={styles.cover}>

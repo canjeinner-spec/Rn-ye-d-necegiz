@@ -22,6 +22,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
+import { useIcerikAltPayi } from "@/theme/olculer";
 import { Gradient } from "@/theme/Gradient";
 
 const QUICK: { ic: IconName; t: string; g1: string; g2: string; badge?: number; route?: string; flag?: boolean }[] = [
@@ -45,6 +46,8 @@ function kisaZaman(at: number) {
 }
 
 export default function DmTab() {
+  // Alt navigasyonun altında kalmasın — güvenli alan dahil (theme/olculer).
+  const altPayi = useIcerikAltPayi();
   const router = useRouter();
   const setActiveDM = useApp((s) => s.setActiveDM);
   const session = useApp((s) => s.session);
@@ -151,7 +154,7 @@ export default function DmTab() {
 
         <Tabs items={["Tümü", "Okunmamış", "Online"]} active={tab} set={setTab} />
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 6, paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 6, paddingBottom: altPayi }} showsVerticalScrollIndicator={false}>
           {filtered.map((d) => (
             <Pressable key={d.id} onPress={() => openChat(d)} onLongPress={() => { haptic.medium(); setActionFor(d); }} style={styles.threadRow}>
               <Avatar d={d} />

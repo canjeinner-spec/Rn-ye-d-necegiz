@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
@@ -71,135 +72,137 @@ export default function AdminScreen() {
       {/* Zemin kahverengiydi (#241B0A); uygulamanın siyah-altınına çekildi. */}
       <Zemin />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-            <Icon name="back" size={16} color={C.text} />
-          </Pressable>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Icon name="gear" size={17} color={C.gold} />
-            <Txt weight="displayBold" size={16} color="#fff">Yönetim</Txt>
-          </View>
-        </View>
-
-        {/* Özet ve Duyuru & Banner sekmelere değil ekranın geneline ait;
-            sekme çubuğunun ALTINDA duruyorlardı ve sekme değişince
-            değişmedikleri için o sekmenin parçasıymış gibi görünüyorlardı.
-            Artık sekmelerin üstündeler. */}
-        <View style={{ paddingHorizontal: 18, paddingTop: 10 }}>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <View style={[styles.statCard, counts && counts.bekleyen > 0 ? { borderColor: `${C.red}47`, backgroundColor: `${C.red}0F` } : null]}>
-              <Txt weight="displayBold" size={22} color={counts && counts.bekleyen > 0 ? "#FB7185" : C.text}>{counts?.bekleyen ?? "—"}</Txt>
-              <Txt weight="bold" size={10} color={C.dim} style={{ marginTop: 3, letterSpacing: 0.3 }}>BEKLEYEN RAPOR</Txt>
-            </View>
-            <View style={styles.statCard}>
-              <Txt weight="displayBold" size={22} color={C.text}>{counts?.kullanici ?? "—"}</Txt>
-              <Txt weight="bold" size={10} color={C.dim} style={{ marginTop: 3, letterSpacing: 0.3 }}>KAYITLI KULLANICI</Txt>
+        <KeyboardAware>
+          <View style={styles.header}>
+            <Pressable onPress={() => router.back()} style={styles.iconBtn}>
+              <Icon name="back" size={16} color={C.text} />
+            </Pressable>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Icon name="gear" size={17} color={C.gold} />
+              <Txt weight="displayBold" size={16} color="#fff">Yönetim</Txt>
             </View>
           </View>
 
-          <Pressable onPress={() => { haptic.light(); router.navigate("/admin-duyuru"); }} style={styles.launchRow}>
-            <View style={[styles.rowIcon, { backgroundColor: `${C.gold}1A`, borderWidth: 1, borderColor: `${C.gold}3D` }]}><Icon name="mega" size={16} color={C.gold} /></View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Txt weight="extrabold" size={13} color={C.text}>Duyuru & Banner</Txt>
-              <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>Herkese duyuru gönder · banner ekle/sil</Txt>
-            </View>
-            <Icon name="chev" size={15} color={C.dim2} />
-          </Pressable>
-        </View>
-
-        {/* Kendi kopya sekme çubuğu vardı; uygulamanın ortak Tabs'ı */}
-        <Tabs items={["Raporlar", "Kullanıcı"]} active={mainTab} set={setMainTab} fill pad={18} />
-
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 28 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {mainTab === 0 ? (
-            <>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5, flex: 1 }}>RAPORLAR</Txt>
-                {(["Bekleyen", "Tümü"] as const).map((t, i) => (
-                  <Pressable key={t} onPress={() => { haptic.select(); setRepTab(i); }} style={[styles.chip, repTab === i && { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` }]}>
-                    <Txt weight="bold" size={10.5} color={repTab === i ? C.gold2 : C.dim}>{t}</Txt>
-                  </Pressable>
-                ))}
+          {/* Özet ve Duyuru & Banner sekmelere değil ekranın geneline ait;
+              sekme çubuğunun ALTINDA duruyorlardı ve sekme değişince
+              değişmedikleri için o sekmenin parçasıymış gibi görünüyorlardı.
+              Artık sekmelerin üstündeler. */}
+          <View style={{ paddingHorizontal: 18, paddingTop: 10 }}>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={[styles.statCard, counts && counts.bekleyen > 0 ? { borderColor: `${C.red}47`, backgroundColor: `${C.red}0F` } : null]}>
+                <Txt weight="displayBold" size={22} color={counts && counts.bekleyen > 0 ? "#FB7185" : C.text}>{counts?.bekleyen ?? "—"}</Txt>
+                <Txt weight="bold" size={10} color={C.dim} style={{ marginTop: 3, letterSpacing: 0.3 }}>BEKLEYEN RAPOR</Txt>
               </View>
+              <View style={styles.statCard}>
+                <Txt weight="displayBold" size={22} color={C.text}>{counts?.kullanici ?? "—"}</Txt>
+                <Txt weight="bold" size={10} color={C.dim} style={{ marginTop: 3, letterSpacing: 0.3 }}>KAYITLI KULLANICI</Txt>
+              </View>
+            </View>
 
-              {shown.length === 0 ? (
-                <View style={styles.empty}>
-                  <Icon name="check" size={18} sw={2.5} color={C.green} />
-                  <Txt size={11.5} color={C.dim} style={{ flex: 1 }} lh={1.4}>{repTab === 0 ? "Bekleyen rapor yok — her şey yolunda." : "Henüz hiç rapor yok."}</Txt>
+            <Pressable onPress={() => { haptic.light(); router.navigate("/admin-duyuru"); }} style={styles.launchRow}>
+              <View style={[styles.rowIcon, { backgroundColor: `${C.gold}1A`, borderWidth: 1, borderColor: `${C.gold}3D` }]}><Icon name="mega" size={16} color={C.gold} /></View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Txt weight="extrabold" size={13} color={C.text}>Duyuru & Banner</Txt>
+                <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>Herkese duyuru gönder · banner ekle/sil</Txt>
+              </View>
+              <Icon name="chev" size={15} color={C.dim2} />
+            </Pressable>
+          </View>
+
+          {/* Kendi kopya sekme çubuğu vardı; uygulamanın ortak Tabs'ı */}
+          <Tabs items={["Raporlar", "Kullanıcı"]} active={mainTab} set={setMainTab} fill pad={18} />
+
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 28 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {mainTab === 0 ? (
+              <>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <Txt weight="bold" size={10.5} color={C.dim} style={{ letterSpacing: 0.5, flex: 1 }}>RAPORLAR</Txt>
+                  {(["Bekleyen", "Tümü"] as const).map((t, i) => (
+                    <Pressable key={t} onPress={() => { haptic.select(); setRepTab(i); }} style={[styles.chip, repTab === i && { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` }]}>
+                      <Txt weight="bold" size={10.5} color={repTab === i ? C.gold2 : C.dim}>{t}</Txt>
+                    </Pressable>
+                  ))}
                 </View>
-              ) : (
-                <View style={styles.group}>
-                  {shown.map((r, i) => (
-                    <View key={r.id}>
-                      {i > 0 && <View style={styles.divider} />}
-                      <View style={styles.row}>
-                        <View style={[styles.rowIcon, { backgroundColor: r.tip === "kullanici" ? "rgba(251,113,133,.12)" : `${C.purple2}1A` }]}>
-                          <Icon name={r.tip === "kullanici" ? "blockuser" : "door"} size={15} color={r.tip === "kullanici" ? "#FB7185" : C.purple2} />
-                        </View>
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                            <Txt weight="extrabold" size={12.5} color={C.text} numberOfLines={1}>{r.hedef}</Txt>
-                            <Txt weight="bold" size={10.5} color="#FB7185">{r.neden}</Txt>
-                            {r.durum === "incelendi" && <View style={styles.donePill}><Txt weight="extrabold" size={8.5} color={C.green}>İNCELENDİ</Txt></View>}
+
+                {shown.length === 0 ? (
+                  <View style={styles.empty}>
+                    <Icon name="check" size={18} sw={2.5} color={C.green} />
+                    <Txt size={11.5} color={C.dim} style={{ flex: 1 }} lh={1.4}>{repTab === 0 ? "Bekleyen rapor yok — her şey yolunda." : "Henüz hiç rapor yok."}</Txt>
+                  </View>
+                ) : (
+                  <View style={styles.group}>
+                    {shown.map((r, i) => (
+                      <View key={r.id}>
+                        {i > 0 && <View style={styles.divider} />}
+                        <View style={styles.row}>
+                          <View style={[styles.rowIcon, { backgroundColor: r.tip === "kullanici" ? "rgba(251,113,133,.12)" : `${C.purple2}1A` }]}>
+                            <Icon name={r.tip === "kullanici" ? "blockuser" : "door"} size={15} color={r.tip === "kullanici" ? "#FB7185" : C.purple2} />
                           </View>
-                          {!!r.detay && <Txt size={10.5} color={C.dim} lh={1.4} style={{ marginTop: 2 }}>{r.detay}</Txt>}
-                          <Txt size={9.5} color={C.dim2} style={{ marginTop: 3 }}>{r.raporlayan} raporladı · {zaman(r.at)}</Txt>
-                          <View style={{ flexDirection: "row", gap: 6, marginTop: 7, flexWrap: "wrap" }}>
-                            {r.durum === "bekliyor" && (
-                              <Pressable onPress={() => markReviewed(r)} style={[styles.actChip, { backgroundColor: `${C.green}14`, borderColor: `${C.green}44` }]}>
-                                <Icon name="check" size={11} sw={2.5} color={C.green} /><Txt weight="bold" size={10} color={C.green}>İncelendi</Txt>
-                              </Pressable>
-                            )}
-                            {r.tip === "kullanici" && r.hedefKullaniciId != null && (
-                              <Pressable onPress={() => openUser(r.hedefKullaniciId as number)} style={styles.actChip}>
-                                <Icon name="user" size={11} color={C.gold} /><Txt weight="bold" size={10} color={C.gold}>Detay</Txt>
-                              </Pressable>
-                            )}
-                            {r.tip === "oda" && r.hedefOdaId != null && (
-                              <Pressable onPress={() => openRoomReport(r)} style={styles.actChip}>
-                                <Icon name="eye" size={11} color={C.gold} /><Txt weight="bold" size={10} color={C.gold}>Detay</Txt>
-                              </Pressable>
-                            )}
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                              <Txt weight="extrabold" size={12.5} color={C.text} numberOfLines={1}>{r.hedef}</Txt>
+                              <Txt weight="bold" size={10.5} color="#FB7185">{r.neden}</Txt>
+                              {r.durum === "incelendi" && <View style={styles.donePill}><Txt weight="extrabold" size={8.5} color={C.green}>İNCELENDİ</Txt></View>}
+                            </View>
+                            {!!r.detay && <Txt size={10.5} color={C.dim} lh={1.4} style={{ marginTop: 2 }}>{r.detay}</Txt>}
+                            <Txt size={9.5} color={C.dim2} style={{ marginTop: 3 }}>{r.raporlayan} raporladı · {zaman(r.at)}</Txt>
+                            <View style={{ flexDirection: "row", gap: 6, marginTop: 7, flexWrap: "wrap" }}>
+                              {r.durum === "bekliyor" && (
+                                <Pressable onPress={() => markReviewed(r)} style={[styles.actChip, { backgroundColor: `${C.green}14`, borderColor: `${C.green}44` }]}>
+                                  <Icon name="check" size={11} sw={2.5} color={C.green} /><Txt weight="bold" size={10} color={C.green}>İncelendi</Txt>
+                                </Pressable>
+                              )}
+                              {r.tip === "kullanici" && r.hedefKullaniciId != null && (
+                                <Pressable onPress={() => openUser(r.hedefKullaniciId as number)} style={styles.actChip}>
+                                  <Icon name="user" size={11} color={C.gold} /><Txt weight="bold" size={10} color={C.gold}>Detay</Txt>
+                                </Pressable>
+                              )}
+                              {r.tip === "oda" && r.hedefOdaId != null && (
+                                <Pressable onPress={() => openRoomReport(r)} style={styles.actChip}>
+                                  <Icon name="eye" size={11} color={C.gold} /><Txt weight="bold" size={10} color={C.gold}>Detay</Txt>
+                                </Pressable>
+                              )}
+                            </View>
                           </View>
                         </View>
                       </View>
-                    </View>
-                  ))}
+                    ))}
+                  </View>
+                )}
+              </>
+            ) : (
+              <>
+                <View style={styles.search}>
+                  <Icon name="search" size={15} color={C.dim2} />
+                  <TextInput value={q} onChangeText={setQ} autoCapitalize="none" placeholder="İsim veya ID ara" placeholderTextColor={C.dim2} style={styles.searchInput} />
+                  {searching ? <ActivityIndicator size="small" color={C.dim} /> : !!q && <Pressable onPress={() => setQ("")}><Icon name="x" size={14} color={C.dim} /></Pressable>}
                 </View>
-              )}
-            </>
-          ) : (
-            <>
-              <View style={styles.search}>
-                <Icon name="search" size={15} color={C.dim2} />
-                <TextInput value={q} onChangeText={setQ} autoCapitalize="none" placeholder="İsim veya ID ara" placeholderTextColor={C.dim2} style={styles.searchInput} />
-                {searching ? <ActivityIndicator size="small" color={C.dim} /> : !!q && <Pressable onPress={() => setQ("")}><Icon name="x" size={14} color={C.dim} /></Pressable>}
-              </View>
-              {results.length > 0 ? (
-                <View style={[styles.group, { marginTop: 12 }]}>
-                  {results.map((u, i) => (
-                    <View key={u.public_id}>
-                      {i > 0 && <View style={styles.divider} />}
-                      <Pressable onPress={() => openUser(u.id)} style={styles.userRow}>
-                        <Portrait name={u.kullanici_adi} size={44} photo={u.profil_resmi || undefined} ring={u.ekonomi_rolu !== "user" ? C.gold : undefined} />
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{u.kullanici_adi}</Txt>
-                          <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>ID: {u.ozel_id || u.public_id}{u.seviye_id ? ` · LV.${u.seviye_id}` : ""}</Txt>
-                        </View>
-                        <Icon name="chev" size={15} color={C.dim2} />
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-              ) : q.trim().length >= 2 && !searching ? (
-                <Txt size={12} color={C.dim} align="center" style={{ paddingVertical: 40 }}>Eşleşen kullanıcı yok.</Txt>
-              ) : (
-                <Txt size={11.5} color={C.dim2} align="center" style={{ paddingVertical: 40 }}>İsim ya da ID ile kullanıcı ara; işlem için dokun.</Txt>
-              )}
-            </>
-          )}
+                {results.length > 0 ? (
+                  <View style={[styles.group, { marginTop: 12 }]}>
+                    {results.map((u, i) => (
+                      <View key={u.public_id}>
+                        {i > 0 && <View style={styles.divider} />}
+                        <Pressable onPress={() => openUser(u.id)} style={styles.userRow}>
+                          <Portrait name={u.kullanici_adi} size={44} photo={u.profil_resmi || undefined} ring={u.ekonomi_rolu !== "user" ? C.gold : undefined} />
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{u.kullanici_adi}</Txt>
+                            <Txt size={10.5} color={C.dim} style={{ marginTop: 2 }}>ID: {u.ozel_id || u.public_id}{u.seviye_id ? ` · LV.${u.seviye_id}` : ""}</Txt>
+                          </View>
+                          <Icon name="chev" size={15} color={C.dim2} />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                ) : q.trim().length >= 2 && !searching ? (
+                  <Txt size={12} color={C.dim} align="center" style={{ paddingVertical: 40 }}>Eşleşen kullanıcı yok.</Txt>
+                ) : (
+                  <Txt size={11.5} color={C.dim2} align="center" style={{ paddingVertical: 40 }}>İsim ya da ID ile kullanıcı ara; işlem için dokun.</Txt>
+                )}
+              </>
+            )}
 
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAware>
       </SafeAreaView>
     </View>
   );

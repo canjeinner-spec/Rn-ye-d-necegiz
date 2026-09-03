@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeOut, Layout } from "react-native-reanimated";
 
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { AuthorityTag } from "@/components/AuthorityTag";
 import { Badge } from "@/components/Badge";
 import { Portrait } from "@/components/Portrait";
@@ -22,6 +23,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
+import { useIcerikAltPayi } from "@/theme/olculer";
 import { Gradient } from "@/theme/Gradient";
 
 type UserPost = Extract<FeedPost, { type: "user" }>;
@@ -46,6 +48,8 @@ function SendBtn({ disabled, onPress, size = 34 }: { disabled: boolean; onPress:
 }
 
 export default function FeedScreen() {
+  // Alt navigasyonun altında kalmasın — güvenli alan dahil (theme/olculer).
+  const altPayi = useIcerikAltPayi();
   const router = useRouter();
   const userPhoto = useApp((s) => s.userPhoto);
   const userName = useApp((s) => s.userName);
@@ -236,235 +240,237 @@ export default function FeedScreen() {
   return (
     <View style={styles.root}>
       <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
-        <View style={styles.header}>
-          <View style={{ width: 34 }} />
-          <Txt weight="displayBold" size={17} color="#fff" style={{ letterSpacing: 0.5 }}>Akış</Txt>
-          <Pressable onPress={() => { haptic.light(); router.navigate("/notifications"); }} style={styles.iconBtn}>
-            <Icon name="bell" size={18} color={C.text} />
-            {notifUnread > 0 && (
-              <View style={styles.bellBadge}>
-                <Txt weight="extrabold" size={8.5} color="#fff">{notifUnread > 99 ? "99+" : notifUnread}</Txt>
+        <KeyboardAware>
+          <View style={styles.header}>
+            <View style={{ width: 34 }} />
+            <Txt weight="displayBold" size={17} color="#fff" style={{ letterSpacing: 0.5 }}>Akış</Txt>
+            <Pressable onPress={() => { haptic.light(); router.navigate("/notifications"); }} style={styles.iconBtn}>
+              <Icon name="bell" size={18} color={C.text} />
+              {notifUnread > 0 && (
+                <View style={styles.bellBadge}>
+                  <Txt weight="extrabold" size={8.5} color="#fff">{notifUnread > 99 ? "99+" : notifUnread}</Txt>
+                </View>
+              )}
+            </Pressable>
+          </View>
+
+          <Tabs items={["Akış", "Takip Edilen"]} active={tab} set={setTab} />
+
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: altPayi }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+            {/* Composer */}
+            {!composer ? (
+              <Pressable onPress={() => setComposer(true)} style={styles.composerTrigger}>
+                <Portrait name="Sen" size={38} photo={userPhoto || undefined} />
+                <Txt size={13} color={C.dim2} style={{ flex: 1 }}>Bir şeyler paylaş…</Txt>
+                <View style={styles.shareChip}>
+                  <Icon name="evStar" size={13} color={C.gold2} />
+                  <Txt weight="extrabold" size={11.5} color={C.gold2}>Paylaş</Txt>
+                </View>
+              </Pressable>
+            ) : (
+              <View style={styles.composerCard}>
+                <View style={{ flexDirection: "row", gap: 11 }}>
+                  <Portrait name="Sen" size={38} photo={userPhoto || undefined} />
+                  <TextInput value={text} onChangeText={setText} maxLength={200} multiline autoFocus placeholder="Ne paylaşmak istersin?" placeholderTextColor={C.dim2} style={styles.composerInput} />
+                </View>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, paddingLeft: 49 }}>
+                  <Txt size={10} color={C.dim2}>{text.length}/200</Txt>
+                  <View style={{ flex: 1 }} />
+                  <Pressable onPress={() => { setComposer(false); setText(""); }} style={{ paddingVertical: 8, paddingHorizontal: 12 }}>
+                    <Txt weight="bold" size={12} color={C.dim}>İptal</Txt>
+                  </Pressable>
+                  <Pressable onPress={share} disabled={!text.trim() || sharing} style={{ borderRadius: 999, overflow: "hidden", opacity: text.trim() && !sharing ? 1 : 0.45 }}>
+                    <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 8, paddingHorizontal: 18 }}>
+                      <Txt weight="extrabold" size={12.5} color="#241A05">{sharing ? "Paylaşılıyor…" : "Paylaş"}</Txt>
+                    </Gradient>
+                  </Pressable>
+                </View>
               </View>
             )}
-          </Pressable>
-        </View>
 
-        <Tabs items={["Akış", "Takip Edilen"]} active={tab} set={setTab} />
-
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 110 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
-          {/* Composer */}
-          {!composer ? (
-            <Pressable onPress={() => setComposer(true)} style={styles.composerTrigger}>
-              <Portrait name="Sen" size={38} photo={userPhoto || undefined} />
-              <Txt size={13} color={C.dim2} style={{ flex: 1 }}>Bir şeyler paylaş…</Txt>
-              <View style={styles.shareChip}>
-                <Icon name="evStar" size={13} color={C.gold2} />
-                <Txt weight="extrabold" size={11.5} color={C.gold2}>Paylaş</Txt>
-              </View>
-            </Pressable>
-          ) : (
-            <View style={styles.composerCard}>
-              <View style={{ flexDirection: "row", gap: 11 }}>
-                <Portrait name="Sen" size={38} photo={userPhoto || undefined} />
-                <TextInput value={text} onChangeText={setText} maxLength={200} multiline autoFocus placeholder="Ne paylaşmak istersin?" placeholderTextColor={C.dim2} style={styles.composerInput} />
-              </View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, paddingLeft: 49 }}>
-                <Txt size={10} color={C.dim2}>{text.length}/200</Txt>
-                <View style={{ flex: 1 }} />
-                <Pressable onPress={() => { setComposer(false); setText(""); }} style={{ paddingVertical: 8, paddingHorizontal: 12 }}>
-                  <Txt weight="bold" size={12} color={C.dim}>İptal</Txt>
-                </Pressable>
-                <Pressable onPress={share} disabled={!text.trim() || sharing} style={{ borderRadius: 999, overflow: "hidden", opacity: text.trim() && !sharing ? 1 : 0.45 }}>
-                  <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 8, paddingHorizontal: 18 }}>
-                    <Txt weight="extrabold" size={12.5} color="#241A05">{sharing ? "Paylaşılıyor…" : "Paylaş"}</Txt>
-                  </Gradient>
-                </Pressable>
-              </View>
-            </View>
-          )}
-
-          {posts.map((p) =>
-            p.type === "system" ? (
-              <View key={p.id} style={styles.postCard}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                  <Gradient colors={["#F5CE6E", "#B45309"]} deg={135} style={styles.sysIcon}>
-                    <Icon name="crown" size={18} color="#3A2A05" />
-                  </Gradient>
-                  <View style={{ flex: 1 }}>
-                    <Txt weight="extrabold" size={13} color={C.gold2}>{p.who}</Txt>
-                    <Txt size={10} color={C.dim2} style={{ marginTop: 1 }}>{p.when}</Txt>
+            {posts.map((p) =>
+              p.type === "system" ? (
+                <View key={p.id} style={styles.postCard}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                    <Gradient colors={["#F5CE6E", "#B45309"]} deg={135} style={styles.sysIcon}>
+                      <Icon name="crown" size={18} color="#3A2A05" />
+                    </Gradient>
+                    <View style={{ flex: 1 }}>
+                      <Txt weight="extrabold" size={13} color={C.gold2}>{p.who}</Txt>
+                      <Txt size={10} color={C.dim2} style={{ marginTop: 1 }}>{p.when}</Txt>
+                    </View>
                   </View>
-                </View>
-                <Txt size={12.5} color={C.text} lh={1.5} style={{ marginVertical: 10 }}>
-                  <Txt weight="extrabold" size={12.5} color={C.text}>{p.title}</Txt> {p.body}
-                </Txt>
-                <Gradient colors={[p.spotlight.c1, p.spotlight.c2]} deg={110} style={styles.spotlight}>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Txt weight="displayBold" size={15} color="#fff">{p.spotlight.name}</Txt>
-                    <Txt weight="bold" size={11} color="rgba(255,255,255,.9)" style={{ marginTop: 3 }}>{p.spotlight.sub}</Txt>
-                  </View>
-                  <Portrait name={p.spotlight.name} size={44} ring="rgba(255,255,255,.6)" />
-                </Gradient>
-              </View>
-            ) : (
-              <Animated.View key={p.id} layout={Layout.duration(200)} style={styles.postCard}>
-                {p.pinned && (
-                  <View style={styles.pinBadge}>
-                    <Icon name="pin" size={11} color={C.gold2} />
-                    <Txt weight="bold" size={10} color={C.gold2}>Sabitlenmiş</Txt>
-                  </View>
-                )}
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
-                  <Pressable onPress={() => openProfile(p)} style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 11, minWidth: 0 }}>
-                    <Portrait name={p.who} size={42} online photo={p.mine ? userPhoto || undefined : p.photo} />
+                  <Txt size={12.5} color={C.text} lh={1.5} style={{ marginVertical: 10 }}>
+                    <Txt weight="extrabold" size={12.5} color={C.text}>{p.title}</Txt> {p.body}
+                  </Txt>
+                  <Gradient colors={[p.spotlight.c1, p.spotlight.c2]} deg={110} style={styles.spotlight}>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        <Txt weight="extrabold" size={13} color={p.mine ? C.gold2 : C.text}>{p.mine ? userName : p.who}</Txt>
-                        {p.mine && privileged && <AuthorityTag size={8} />}
-                        {p.vip && <Badge type="vip" size={15} />}
-                        <Txt weight="extrabold" size={10} color="#5EEAD4">LV.{p.lv}</Txt>
+                      <Txt weight="displayBold" size={15} color="#fff">{p.spotlight.name}</Txt>
+                      <Txt weight="bold" size={11} color="rgba(255,255,255,.9)" style={{ marginTop: 3 }}>{p.spotlight.sub}</Txt>
+                    </View>
+                    <Portrait name={p.spotlight.name} size={44} ring="rgba(255,255,255,.6)" />
+                  </Gradient>
+                </View>
+              ) : (
+                <Animated.View key={p.id} layout={Layout.duration(200)} style={styles.postCard}>
+                  {p.pinned && (
+                    <View style={styles.pinBadge}>
+                      <Icon name="pin" size={11} color={C.gold2} />
+                      <Txt weight="bold" size={10} color={C.gold2}>Sabitlenmiş</Txt>
+                    </View>
+                  )}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
+                    <Pressable onPress={() => openProfile(p)} style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 11, minWidth: 0 }}>
+                      <Portrait name={p.who} size={42} online photo={p.mine ? userPhoto || undefined : p.photo} />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                          <Txt weight="extrabold" size={13} color={p.mine ? C.gold2 : C.text}>{p.mine ? userName : p.who}</Txt>
+                          {p.mine && privileged && <AuthorityTag size={8} />}
+                          {p.vip && <Badge type="vip" size={15} />}
+                          <Txt weight="extrabold" size={10} color="#5EEAD4">LV.{p.lv}</Txt>
+                        </View>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 }}>
+                          <Txt size={10} color={C.dim2}>{p.when}</Txt>
+                          <Txt size={10} color={C.dim2}>·</Txt>
+                          <ScopeLine scope={p.scope} size={10} />
+                        </View>
                       </View>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 }}>
-                        <Txt size={10} color={C.dim2}>{p.when}</Txt>
-                        <Txt size={10} color={C.dim2}>·</Txt>
-                        <ScopeLine scope={p.scope} size={10} />
+                    </Pressable>
+                    {(p.mine || privileged) && (
+                      <Pressable onPress={() => setMenuPost(p)} style={{ padding: 6 }}>
+                        <Icon name="dots" size={18} color={C.dim2} />
+                      </Pressable>
+                    )}
+                  </View>
+
+                  {editId === p.id ? (
+                    <View style={{ marginTop: 11 }}>
+                      <TextInput value={editText} onChangeText={setEditText} maxLength={200} multiline autoFocus style={styles.editInput} />
+                      <View style={{ flexDirection: "row", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
+                        <Pressable onPress={() => setEditId(null)} style={{ paddingVertical: 8, paddingHorizontal: 14 }}>
+                          <Txt weight="bold" size={12} color={C.dim}>İptal</Txt>
+                        </Pressable>
+                        <Pressable onPress={() => saveEdit(p.id)} style={{ borderRadius: 10, overflow: "hidden" }}>
+                          <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 8, paddingHorizontal: 18 }}>
+                            <Txt weight="extrabold" size={12.5} color="#241A05">Kaydet</Txt>
+                          </Gradient>
+                        </Pressable>
                       </View>
                     </View>
-                  </Pressable>
-                  {(p.mine || privileged) && (
-                    <Pressable onPress={() => setMenuPost(p)} style={{ padding: 6 }}>
-                      <Icon name="dots" size={18} color={C.dim2} />
+                  ) : (
+                    <Pressable onPress={() => setOpenCmt(openCmt === p.id ? null : p.id)}>
+                      <Txt size={13} color={C.text} lh={1.55} style={{ marginTop: 11 }}>{p.body}</Txt>
                     </Pressable>
                   )}
-                </View>
 
-                {editId === p.id ? (
-                  <View style={{ marginTop: 11 }}>
-                    <TextInput value={editText} onChangeText={setEditText} maxLength={200} multiline autoFocus style={styles.editInput} />
-                    <View style={{ flexDirection: "row", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
-                      <Pressable onPress={() => setEditId(null)} style={{ paddingVertical: 8, paddingHorizontal: 14 }}>
-                        <Txt weight="bold" size={12} color={C.dim}>İptal</Txt>
-                      </Pressable>
-                      <Pressable onPress={() => saveEdit(p.id)} style={{ borderRadius: 10, overflow: "hidden" }}>
-                        <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ paddingVertical: 8, paddingHorizontal: 18 }}>
-                          <Txt weight="extrabold" size={12.5} color="#241A05">Kaydet</Txt>
-                        </Gradient>
-                      </Pressable>
-                    </View>
-                  </View>
-                ) : (
-                  <Pressable onPress={() => setOpenCmt(openCmt === p.id ? null : p.id)}>
-                    <Txt size={13} color={C.text} lh={1.55} style={{ marginTop: 11 }}>{p.body}</Txt>
-                  </Pressable>
-                )}
-
-                {p.room && (
-                  <Pressable onPress={() => p.room && joinRoom(p.room.id)} style={styles.roomCard}>
-                    <View style={styles.roomThumb}><Scene kind="club" /></View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                        <Icon name="mic" size={12} color={C.gold2} />
-                        <Txt weight="extrabold" size={9.5} color={C.gold2} style={{ letterSpacing: 0.3 }}>CANLI ODA</Txt>
-                      </View>
-                      <Txt weight="extrabold" size={13} color="#fff" numberOfLines={1} style={{ marginTop: 3 }}>{p.room.name}</Txt>
-                      <Txt size={10} color={C.dim} style={{ marginTop: 1 }}>ID: {p.room.id}</Txt>
-                    </View>
-                    <View style={styles.joinChip}>
-                      <Txt weight="extrabold" size={11} color={C.gold2}>Katıl</Txt>
-                      <Icon name="chev" size={13} color={C.gold2} />
-                    </View>
-                  </Pressable>
-                )}
-
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 }}>
-                  <Pressable onPress={() => toggleLike(p.id)} style={[styles.actionChip, liked[p.id] && { backgroundColor: "#FB718514", borderColor: "#FB718544" }]}>
-                    <Icon name="heart" size={15} color={liked[p.id] ? "#FB7185" : C.dim} fill={liked[p.id] ? "#FB7185" : "none"} />
-                    <Txt weight="bold" size={11.5} color={liked[p.id] ? "#FB7185" : C.dim}>{p.likes}</Txt>
-                  </Pressable>
-                  <Pressable onPress={() => setOpenCmt(openCmt === p.id ? null : p.id)} style={[styles.actionChip, openCmt === p.id && { backgroundColor: C.gold + "14", borderColor: C.gold + "44" }]}>
-                    <Icon name="chat" size={15} color={openCmt === p.id ? C.gold2 : C.dim} />
-                    <Txt weight="bold" size={11.5} color={openCmt === p.id ? C.gold2 : C.dim}>{totalComments(p)}</Txt>
-                  </Pressable>
-                  <View style={{ flex: 1 }} />
-                  <Pressable onPress={() => sharePost(p)} style={styles.actionChip}>
-                    <Icon name="share" size={15} color={C.dim} />
-                  </Pressable>
-                </View>
-
-                {openCmt === p.id && (
-                  <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} style={styles.comments}>
-                    {p.comments.map((c, ci) => (
-                      <View key={ci} style={{ marginTop: ci ? 12 : 0 }}>
-                        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 9 }}>
-                          <Pressable onPress={() => goProfile(c.publicId, c.who, c.mine)}>
-                            <Portrait name={c.who} size={28} photo={c.mine ? userPhoto || undefined : c.photo} />
-                          </Pressable>
-                          <View style={{ flex: 1, minWidth: 0 }}>
-                            <View style={styles.cmtBubble}>
-                              <Txt weight="extrabold" size={11.5} color={c.mine ? C.gold2 : C.text} onPress={() => goProfile(c.publicId, c.who, c.mine)}>{c.mine ? userName : c.who}</Txt>
-                              <Txt size={12} color={C.text} lh={1.4} style={{ marginTop: 1 }}>{c.text}</Txt>
-                            </View>
-                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 5, paddingLeft: 12 }}>
-                              <Pressable onPress={() => { setReplyTo(replyTo && replyTo.pid === p.id && replyTo.ci === ci ? null : { pid: p.id, ci }); setReplyText(""); }} style={styles.cmtActionBtn}>
-                                <Txt weight="bold" size={10} color={C.dim2}>Yanıtla</Txt>
-                              </Pressable>
-                              {(c.mine || p.mine) && (
-                                <Pressable onPress={() => delComment(p.id, ci)} style={styles.cmtActionBtn}>
-                                  <Txt weight="bold" size={10} color={C.dim2}>Sil</Txt>
-                                </Pressable>
-                              )}
-                            </View>
-                          </View>
+                  {p.room && (
+                    <Pressable onPress={() => p.room && joinRoom(p.room.id)} style={styles.roomCard}>
+                      <View style={styles.roomThumb}><Scene kind="club" /></View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                          <Icon name="mic" size={12} color={C.gold2} />
+                          <Txt weight="extrabold" size={9.5} color={C.gold2} style={{ letterSpacing: 0.3 }}>CANLI ODA</Txt>
                         </View>
-                        {c.replies.map((r, ri) => (
-                          <View key={ri} style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 8, paddingLeft: 30 }}>
-                            <Pressable onPress={() => goProfile(r.publicId, r.who, r.mine)}>
-                              <Portrait name={r.who} size={24} photo={r.mine ? userPhoto || undefined : r.photo} />
+                        <Txt weight="extrabold" size={13} color="#fff" numberOfLines={1} style={{ marginTop: 3 }}>{p.room.name}</Txt>
+                        <Txt size={10} color={C.dim} style={{ marginTop: 1 }}>ID: {p.room.id}</Txt>
+                      </View>
+                      <View style={styles.joinChip}>
+                        <Txt weight="extrabold" size={11} color={C.gold2}>Katıl</Txt>
+                        <Icon name="chev" size={13} color={C.gold2} />
+                      </View>
+                    </Pressable>
+                  )}
+
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 }}>
+                    <Pressable onPress={() => toggleLike(p.id)} style={[styles.actionChip, liked[p.id] && { backgroundColor: "#FB718514", borderColor: "#FB718544" }]}>
+                      <Icon name="heart" size={15} color={liked[p.id] ? "#FB7185" : C.dim} fill={liked[p.id] ? "#FB7185" : "none"} />
+                      <Txt weight="bold" size={11.5} color={liked[p.id] ? "#FB7185" : C.dim}>{p.likes}</Txt>
+                    </Pressable>
+                    <Pressable onPress={() => setOpenCmt(openCmt === p.id ? null : p.id)} style={[styles.actionChip, openCmt === p.id && { backgroundColor: C.gold + "14", borderColor: C.gold + "44" }]}>
+                      <Icon name="chat" size={15} color={openCmt === p.id ? C.gold2 : C.dim} />
+                      <Txt weight="bold" size={11.5} color={openCmt === p.id ? C.gold2 : C.dim}>{totalComments(p)}</Txt>
+                    </Pressable>
+                    <View style={{ flex: 1 }} />
+                    <Pressable onPress={() => sharePost(p)} style={styles.actionChip}>
+                      <Icon name="share" size={15} color={C.dim} />
+                    </Pressable>
+                  </View>
+
+                  {openCmt === p.id && (
+                    <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} style={styles.comments}>
+                      {p.comments.map((c, ci) => (
+                        <View key={ci} style={{ marginTop: ci ? 12 : 0 }}>
+                          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 9 }}>
+                            <Pressable onPress={() => goProfile(c.publicId, c.who, c.mine)}>
+                              <Portrait name={c.who} size={28} photo={c.mine ? userPhoto || undefined : c.photo} />
                             </Pressable>
                             <View style={{ flex: 1, minWidth: 0 }}>
                               <View style={styles.cmtBubble}>
-                                <Txt weight="extrabold" size={11} color={r.mine ? C.gold2 : C.text} onPress={() => goProfile(r.publicId, r.who, r.mine)}>{r.mine ? userName : r.who}</Txt>
-                                <Txt size={11.5} color={C.text} lh={1.4} style={{ marginTop: 1 }}>{r.text}</Txt>
+                                <Txt weight="extrabold" size={11.5} color={c.mine ? C.gold2 : C.text} onPress={() => goProfile(c.publicId, c.who, c.mine)}>{c.mine ? userName : c.who}</Txt>
+                                <Txt size={12} color={C.text} lh={1.4} style={{ marginTop: 1 }}>{c.text}</Txt>
                               </View>
                               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 5, paddingLeft: 12 }}>
-                                <Pressable onPress={() => { setReplyTo({ pid: p.id, ci }); setReplyText(`@${r.mine ? userName : r.who} `); }} hitSlop={6} style={styles.cmtActionBtn}>
+                                <Pressable onPress={() => { setReplyTo(replyTo && replyTo.pid === p.id && replyTo.ci === ci ? null : { pid: p.id, ci }); setReplyText(""); }} style={styles.cmtActionBtn}>
                                   <Txt weight="bold" size={10} color={C.dim2}>Yanıtla</Txt>
                                 </Pressable>
-                                {(r.mine || p.mine) && (
-                                  <Pressable onPress={() => delReply(p.id, ci, ri)} hitSlop={6} style={styles.cmtActionBtn}>
+                                {(c.mine || p.mine) && (
+                                  <Pressable onPress={() => delComment(p.id, ci)} style={styles.cmtActionBtn}>
                                     <Txt weight="bold" size={10} color={C.dim2}>Sil</Txt>
                                   </Pressable>
                                 )}
                               </View>
                             </View>
                           </View>
-                        ))}
-                        {replyTo && replyTo.pid === p.id && replyTo.ci === ci && (
-                          <Animated.View entering={FadeIn.duration(150)} style={[styles.composeBar, { marginTop: 8, marginLeft: 30 }]}>
-                            <Portrait name="Sen" size={22} photo={userPhoto || undefined} />
-                            <TextInput value={replyText} onChangeText={setReplyText} autoFocus placeholder={`${c.who} kişisine yanıt…`} placeholderTextColor={C.dim2} style={styles.replyInput} />
-                            <SendBtn disabled={!replyText.trim()} onPress={() => addReply(p.id, ci)} size={28} />
-                          </Animated.View>
-                        )}
+                          {c.replies.map((r, ri) => (
+                            <View key={ri} style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 8, paddingLeft: 30 }}>
+                              <Pressable onPress={() => goProfile(r.publicId, r.who, r.mine)}>
+                                <Portrait name={r.who} size={24} photo={r.mine ? userPhoto || undefined : r.photo} />
+                              </Pressable>
+                              <View style={{ flex: 1, minWidth: 0 }}>
+                                <View style={styles.cmtBubble}>
+                                  <Txt weight="extrabold" size={11} color={r.mine ? C.gold2 : C.text} onPress={() => goProfile(r.publicId, r.who, r.mine)}>{r.mine ? userName : r.who}</Txt>
+                                  <Txt size={11.5} color={C.text} lh={1.4} style={{ marginTop: 1 }}>{r.text}</Txt>
+                                </View>
+                                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 5, paddingLeft: 12 }}>
+                                  <Pressable onPress={() => { setReplyTo({ pid: p.id, ci }); setReplyText(`@${r.mine ? userName : r.who} `); }} hitSlop={6} style={styles.cmtActionBtn}>
+                                    <Txt weight="bold" size={10} color={C.dim2}>Yanıtla</Txt>
+                                  </Pressable>
+                                  {(r.mine || p.mine) && (
+                                    <Pressable onPress={() => delReply(p.id, ci, ri)} hitSlop={6} style={styles.cmtActionBtn}>
+                                      <Txt weight="bold" size={10} color={C.dim2}>Sil</Txt>
+                                    </Pressable>
+                                  )}
+                                </View>
+                              </View>
+                            </View>
+                          ))}
+                          {replyTo && replyTo.pid === p.id && replyTo.ci === ci && (
+                            <Animated.View entering={FadeIn.duration(150)} style={[styles.composeBar, { marginTop: 8, marginLeft: 30 }]}>
+                              <Portrait name="Sen" size={22} photo={userPhoto || undefined} />
+                              <TextInput value={replyText} onChangeText={setReplyText} autoFocus placeholder={`${c.who} kişisine yanıt…`} placeholderTextColor={C.dim2} style={styles.replyInput} />
+                              <SendBtn disabled={!replyText.trim()} onPress={() => addReply(p.id, ci)} size={28} />
+                            </Animated.View>
+                          )}
+                        </View>
+                      ))}
+                      <View style={[styles.composeBar, { marginTop: p.comments.length ? 14 : 0 }]}>
+                        <Portrait name="Sen" size={26} photo={userPhoto || undefined} />
+                        <TextInput value={cmtText} onChangeText={setCmtText} placeholder="Yorum yaz…" placeholderTextColor={C.dim2} style={styles.cmtInput} />
+                        <SendBtn disabled={!cmtText.trim()} onPress={() => addComment(p.id)} size={32} />
                       </View>
-                    ))}
-                    <View style={[styles.composeBar, { marginTop: p.comments.length ? 14 : 0 }]}>
-                      <Portrait name="Sen" size={26} photo={userPhoto || undefined} />
-                      <TextInput value={cmtText} onChangeText={setCmtText} placeholder="Yorum yaz…" placeholderTextColor={C.dim2} style={styles.cmtInput} />
-                      <SendBtn disabled={!cmtText.trim()} onPress={() => addComment(p.id)} size={32} />
-                    </View>
-                  </Animated.View>
-                )}
-              </Animated.View>
-            )
-          )}
-        </ScrollView>
+                    </Animated.View>
+                  )}
+                </Animated.View>
+              )
+            )}
+          </ScrollView>
 
-        {toast !== "" && (
-          <View style={styles.toast}>
-            <Txt weight="bold" size={12} color="#fff">{toast}</Txt>
-          </View>
-        )}
+          {toast !== "" && (
+            <View style={styles.toast}>
+              <Txt weight="bold" size={12} color="#fff">{toast}</Txt>
+            </View>
+          )}
+        </KeyboardAware>
       </SafeAreaView>
 
       {/* Post aksiyon menüsü */}

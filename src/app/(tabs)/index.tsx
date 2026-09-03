@@ -23,6 +23,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
+import { useIcerikAltPayi } from "@/theme/olculer";
 // Boş oda listesi animasyonu. Renkleri scripts/lottie-boya.js ile temaya
 // boyandı (özgün dosya açık tema için siyah konturluydu, #08080C üstünde
 // tamamen kayboluyordu).
@@ -164,6 +165,8 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
 type CanliVarlik = { sayilar: Map<number, number>; hazir: boolean };
 
 export default function Home() {
+  // Alt navigasyonun altında kalmasın — güvenli alan dahil (theme/olculer).
+  const altPayi = useIcerikAltPayi();
   const router = useRouter();
   const odayaGirDene = useApp((s) => s.odayaGirDene);
   const role = useApp((s) => s.role);
@@ -360,7 +363,7 @@ export default function Home() {
           </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ paddingBottom: altPayi }} showsVerticalScrollIndicator={false}>
           <EventBanners />
           {/* Sekmeler banner'ın ÜSTÜNDEYDİ; artık banner ile oda listesinin
               arasında, yani filtrelediği listenin hemen başında duruyor. */}

@@ -3,6 +3,7 @@ import { type ReactNode, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { KopyaBtn } from "@/components/KopyaBtn";
 import { OzelIdGosterim, OzelIdKart as OzelIdKartView } from "@/components/OzelId";
 import { PremiumBanner, PREMIUM_FRAMES } from "@/components/PremiumBanner";
@@ -263,68 +264,70 @@ export default function SpecialIdScreen() {
       <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
       <Gradient colors={[C.gold + "24", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-            <Icon name="back" size={16} color={C.text} />
-          </Pressable>
-          <View style={{ flex: 1, alignItems: "center" }}>
-            <Txt weight="displayBold" size={17} color="#fff">Özel ID</Txt>
+        <KeyboardAware>
+          <View style={styles.header}>
+            <Pressable onPress={() => router.back()} style={styles.iconBtn}>
+              <Icon name="back" size={16} color={C.text} />
+            </Pressable>
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Txt weight="displayBold" size={17} color="#fff">Özel ID</Txt>
+            </View>
+            <View style={{ width: 34 }} />
           </View>
-          <View style={{ width: 34 }} />
-        </View>
 
-        {/* Sekmeler: iki bitişik gradyan buton yerine kayan alt çizgi */}
-        <Tabs items={["Özel ID Havuzu", "Zenginler"]} active={tab} set={setTab} fill pad={16} />
+          {/* Sekmeler: iki bitişik gradyan buton yerine kayan alt çizgi */}
+          <Tabs items={["Özel ID Havuzu", "Zenginler"]} active={tab} set={setTab} fill pad={16} />
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-          {tab === 0 ? (
-            <>
-              <SectionTitle>HESABIM</SectionTitle>
-              <View style={styles.profileCard}>
-                <Gradient colors={[C.gold + "16", "transparent"]} deg={160} style={StyleSheet.absoluteFill} pointerEvents="none" />
-                <View style={styles.cardSheen} pointerEvents="none" />
-                <View style={{ alignItems: "center" }}>
-                  <Txt weight="bold" size={10} color={C.dim} style={{ letterSpacing: 0.6 }}>HESAP ID'M</Txt>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 6 }}>
-                    <Txt weight="displayBold" size={22} color="#fff" style={{ letterSpacing: 1 }}>{publicId || "—"}</Txt>
-                    <KopyaBtn deger={publicId} size={13} />
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+            {tab === 0 ? (
+              <>
+                <SectionTitle>HESABIM</SectionTitle>
+                <View style={styles.profileCard}>
+                  <Gradient colors={[C.gold + "16", "transparent"]} deg={160} style={StyleSheet.absoluteFill} pointerEvents="none" />
+                  <View style={styles.cardSheen} pointerEvents="none" />
+                  <View style={{ alignItems: "center" }}>
+                    <Txt weight="bold" size={10} color={C.dim} style={{ letterSpacing: 0.6 }}>HESAP ID'M</Txt>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 6 }}>
+                      <Txt weight="displayBold" size={22} color="#fff" style={{ letterSpacing: 1 }}>{publicId || "—"}</Txt>
+                      <KopyaBtn deger={publicId} size={13} />
+                    </View>
                   </View>
+                  <View style={styles.profileDivider} />
+                  {/* Buradaki dört kutuluk "Bu Ay Yüklenen Altın / Bu Ayki Seviye /
+                      Sıralama" tablosu tamamen yer tutucuydu (hep 0 ve "Yok");
+                      besleyecek bir veri kaynağı yok, kaldırıldı. */}
+                  <KapsulBolumu />
                 </View>
-                <View style={styles.profileDivider} />
-                {/* Buradaki dört kutuluk "Bu Ay Yüklenen Altın / Bu Ayki Seviye /
-                    Sıralama" tablosu tamamen yer tutucuydu (hep 0 ve "Yok");
-                    besleyecek bir veri kaynağı yok, kaldırıldı. */}
-                <KapsulBolumu />
-              </View>
 
-              <Pressable onPress={() => { haptic.light(); router.navigate("/diamond-load"); }} style={{ marginTop: 14, borderRadius: 16, overflow: "hidden" }}>
-                <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.uploadBtn}>
-                  <Txt weight="extrabold" size={13.5} color="#3A2A05">Yükleme Yap</Txt>
-                </Gradient>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <View style={{ marginTop: 18, marginBottom: 16 }}>
-                <TierBanner label="Süper Özel ID" />
-              </View>
-              <View style={{ paddingHorizontal: 52 }}>
-                <ThroneCard id={THRONE_SUPER.id} name={THRONE_SUPER.name} big />
-              </View>
+                <Pressable onPress={() => { haptic.light(); router.navigate("/diamond-load"); }} style={{ marginTop: 14, borderRadius: 16, overflow: "hidden" }}>
+                  <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.uploadBtn}>
+                    <Txt weight="extrabold" size={13.5} color="#3A2A05">Yükleme Yap</Txt>
+                  </Gradient>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <View style={{ marginTop: 18, marginBottom: 16 }}>
+                  <TierBanner label="Süper Özel ID" />
+                </View>
+                <View style={{ paddingHorizontal: 52 }}>
+                  <ThroneCard id={THRONE_SUPER.id} name={THRONE_SUPER.name} big />
+                </View>
 
-              <View style={{ marginTop: 26, marginBottom: 18 }}>
-                <TierBanner label="2. Seviye Özel ID" />
-              </View>
-              <View style={styles.throneGrid}>
-                {THRONE_T2.map((e) => (
-                  <View key={e.id} style={{ width: "47%" }}>
-                    <ThroneCard id={e.id} name={e.name} />
-                  </View>
-                ))}
-              </View>
-            </>
-          )}
-        </ScrollView>
+                <View style={{ marginTop: 26, marginBottom: 18 }}>
+                  <TierBanner label="2. Seviye Özel ID" />
+                </View>
+                <View style={styles.throneGrid}>
+                  {THRONE_T2.map((e) => (
+                    <View key={e.id} style={{ width: "47%" }}>
+                      <ThroneCard id={e.id} name={e.name} />
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+          </ScrollView>
+        </KeyboardAware>
       </SafeAreaView>
     </View>
   );

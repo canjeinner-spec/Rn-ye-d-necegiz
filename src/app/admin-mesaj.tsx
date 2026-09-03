@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import {
@@ -110,116 +111,118 @@ export default function AdminMesaj() {
     <View style={s.root}>
       <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        <View style={s.header}>
-          <Pressable onPress={() => router.back()} style={s.iconBtn}><Icon name="back" size={16} color={C.text} /></Pressable>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Icon name={tip === "kisi" ? "user" : "users"} size={17} color={C.gold} /><Txt weight="displayBold" size={16} color="#fff">{baslikMetin}</Txt>
-          </View>
-        </View>
-
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 32 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {!!note && <View style={s.note}><Txt weight="bold" size={11.5} color={C.gold2} align="center">{note}</Txt></View>}
-
-          {/* Hedef */}
-          <Txt weight="bold" size={10.5} color={C.dim} style={s.lbl}>{tip === "kisi" ? "KİM" : "HANGİ ODA"}</Txt>
-          {hedef ? (
-            <View style={styles.hedefRow}>
-              <Portrait name={hedef.ad} size={38} photo={hedef.foto} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{hedef.ad}</Txt>
-                {!!hedef.alt && <Txt size={10.5} color={C.dim} numberOfLines={1}>{hedef.alt}</Txt>}
-              </View>
-              <Pressable onPress={() => { setHedef(null); setQ(""); }} style={styles.clearBtn}><Txt weight="bold" size={10.5} color={C.dim}>Değiştir</Txt></Pressable>
+        <KeyboardAware>
+          <View style={s.header}>
+            <Pressable onPress={() => router.back()} style={s.iconBtn}><Icon name="back" size={16} color={C.text} /></Pressable>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Icon name={tip === "kisi" ? "user" : "users"} size={17} color={C.gold} /><Txt weight="displayBold" size={16} color="#fff">{baslikMetin}</Txt>
             </View>
-          ) : (
-            <>
-              <View style={styles.search}>
-                <Icon name="search" size={15} color={C.dim2} />
-                <TextInput value={q} onChangeText={setQ} autoCapitalize="none" placeholder={tip === "kisi" ? "İsim veya ID ara" : "Oda adı veya ID ara"} placeholderTextColor={C.dim2} style={styles.searchInput} />
-                {searching ? <ActivityIndicator size="small" color={C.dim} /> : !!q && <Pressable onPress={() => setQ("")}><Icon name="x" size={14} color={C.dim} /></Pressable>}
-              </View>
-              {results.length > 0 && (
-                <View style={[s.group, { marginTop: 10 }]}>
-                  {results.map((r, i) => (
-                    <View key={r.id}>
-                      {i > 0 && <View style={s.divider} />}
-                      <Pressable onPress={() => { haptic.light(); setHedef(r); setResults([]); }} style={styles.resRow}>
-                        <Portrait name={r.ad} size={34} photo={r.foto} />
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <Txt weight="extrabold" size={12.5} color={C.text} numberOfLines={1}>{r.ad}</Txt>
-                          {!!r.alt && <Txt size={10.5} color={C.dim} numberOfLines={1}>{r.alt}</Txt>}
-                        </View>
-                        <Icon name="chev" size={15} color={C.dim2} />
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </>
-          )}
-
-          {/* Tür */}
-          <Txt weight="bold" size={10.5} color={C.dim} style={s.lbl}>TÜR</Txt>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            {([["mesaj", "Mesaj", C.gold2], ["uyari", "Uyarı", "#FB7185"]] as const).map(([k, ad, col]) => {
-              const on = tur === k;
-              return (
-                <Pressable key={k} onPress={() => setTur(k)} style={[styles.turChip, on && { backgroundColor: col + "18", borderColor: col + "66" }]}>
-                  <Icon name={k === "uyari" ? "flag" : "mega"} size={14} color={on ? col : C.dim} />
-                  <Txt weight="bold" size={11.5} color={on ? col : C.dim}>{ad}</Txt>
-                </Pressable>
-              );
-            })}
           </View>
 
-          {/* Kanal (yalnız kişi) */}
-          {tip === "kisi" && (
-            <>
-              <Txt weight="bold" size={10.5} color={C.dim} style={s.lbl}>KANAL (DM RESMÎ HESABI)</Txt>
-              <View style={{ flexDirection: "row", gap: 6 }}>
-                {(["aron", "sistem"] as const).map((k) => (
-                  <Pressable key={k} onPress={() => setKanal(k)} style={[s.chip, kanal === k && { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` }]}>
-                    <Txt weight="bold" size={10.5} color={kanal === k ? C.gold2 : C.dim}>{k === "aron" ? "Aron (Resmî)" : "Sistem"}</Txt>
-                  </Pressable>
-                ))}
-              </View>
-            </>
-          )}
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 32 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {!!note && <View style={s.note}><Txt weight="bold" size={11.5} color={C.gold2} align="center">{note}</Txt></View>}
 
-          {/* Mesaj */}
-          <Txt weight="bold" size={10.5} color={C.dim} style={s.lbl}>{tur === "uyari" ? "UYARI" : "MESAJ"}</Txt>
-          <View style={s.group}><View style={{ padding: 12, gap: 10 }}>
-            <TextInput value={baslik} onChangeText={setBaslik} placeholder="Başlık" placeholderTextColor={C.dim2} style={s.input} />
-            <TextInput value={icerik} onChangeText={setIcerik} placeholder={tur === "uyari" ? "Uyarı metni" : "Mesaj metni"} placeholderTextColor={C.dim2} multiline style={[s.input, { minHeight: 90, textAlignVertical: "top" }]} />
-            {tip === "kisi" && (
-              <>
-                <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-                  <Pressable disabled={busy} onPress={pickFoto} style={[s.chip, { flexDirection: "row", gap: 5 }]}>
-                    <Icon name="camera" size={12} color={C.gold2} /><Txt weight="bold" size={10.5} color={C.gold2}>{foto ? "Foto değiştir" : "Foto ekle (ops.)"}</Txt>
-                  </Pressable>
-                  {!!foto && <Pressable onPress={() => setFoto(null)}><Icon name="x" size={14} color="#FB7185" /></Pressable>}
+            {/* Hedef */}
+            <Txt weight="bold" size={10.5} color={C.dim} style={s.lbl}>{tip === "kisi" ? "KİM" : "HANGİ ODA"}</Txt>
+            {hedef ? (
+              <View style={styles.hedefRow}>
+                <Portrait name={hedef.ad} size={38} photo={hedef.foto} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{hedef.ad}</Txt>
+                  {!!hedef.alt && <Txt size={10.5} color={C.dim} numberOfLines={1}>{hedef.alt}</Txt>}
                 </View>
-                {!!foto && <View style={s.preview}><Image source={{ uri: foto }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /></View>}
+                <Pressable onPress={() => { setHedef(null); setQ(""); }} style={styles.clearBtn}><Txt weight="bold" size={10.5} color={C.dim}>Değiştir</Txt></Pressable>
+              </View>
+            ) : (
+              <>
+                <View style={styles.search}>
+                  <Icon name="search" size={15} color={C.dim2} />
+                  <TextInput value={q} onChangeText={setQ} autoCapitalize="none" placeholder={tip === "kisi" ? "İsim veya ID ara" : "Oda adı veya ID ara"} placeholderTextColor={C.dim2} style={styles.searchInput} />
+                  {searching ? <ActivityIndicator size="small" color={C.dim} /> : !!q && <Pressable onPress={() => setQ("")}><Icon name="x" size={14} color={C.dim} /></Pressable>}
+                </View>
+                {results.length > 0 && (
+                  <View style={[s.group, { marginTop: 10 }]}>
+                    {results.map((r, i) => (
+                      <View key={r.id}>
+                        {i > 0 && <View style={s.divider} />}
+                        <Pressable onPress={() => { haptic.light(); setHedef(r); setResults([]); }} style={styles.resRow}>
+                          <Portrait name={r.ad} size={34} photo={r.foto} />
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Txt weight="extrabold" size={12.5} color={C.text} numberOfLines={1}>{r.ad}</Txt>
+                            {!!r.alt && <Txt size={10.5} color={C.dim} numberOfLines={1}>{r.alt}</Txt>}
+                          </View>
+                          <Icon name="chev" size={15} color={C.dim2} />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </>
             )}
-            <View style={s.switchRow}>
-              <View style={{ flex: 1 }}>
-                <Txt weight="bold" size={12} color={C.text}>Bildirim olarak da gönder</Txt>
-                <Txt size={10} color={C.dim} style={{ marginTop: 1 }}>{tip === "kisi" ? "Kişinin bildirim çanına düşer" : "Oda sahibinin bildirim çanına düşer"}</Txt>
-              </View>
-              <Switch value={bildirim} onValueChange={setBildirim} trackColor={{ true: C.gold, false: "rgba(255,255,255,.15)" }} thumbColor="#fff" />
-            </View>
-          </View></View>
 
-          <Pressable disabled={!canSend} onPress={send} style={[s.sendBtn, { opacity: canSend ? 1 : 0.45 }, tur === "uyari" && { backgroundColor: "#FB7185" }]}>
-            {busy ? <ActivityIndicator color="#241A05" /> : <><Icon name="send" size={14} color="#241A05" /><Txt weight="extrabold" size={13} color="#241A05">{tur === "uyari" ? "Uyarı Gönder" : "Mesaj Gönder"}</Txt></>}
-          </Pressable>
-          <Txt size={9.5} color={C.dim2} lh={1.4} style={{ marginTop: 10 }}>
-            {tip === "kisi"
-              ? `Kişinin DM'deki ${kanal === "aron" ? "Aron (resmî)" : "Sistem"} hesabında${bildirim ? " ve bildirim çanında" : ""} görünür.`
-              : `Oda sahibine iletilir${bildirim ? " (bildirimli)" : ""}; o an odada olanlar canlı sistem baloncuğu görür.`}
-          </Txt>
-        </ScrollView>
+            {/* Tür */}
+            <Txt weight="bold" size={10.5} color={C.dim} style={s.lbl}>TÜR</Txt>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {([["mesaj", "Mesaj", C.gold2], ["uyari", "Uyarı", "#FB7185"]] as const).map(([k, ad, col]) => {
+                const on = tur === k;
+                return (
+                  <Pressable key={k} onPress={() => setTur(k)} style={[styles.turChip, on && { backgroundColor: col + "18", borderColor: col + "66" }]}>
+                    <Icon name={k === "uyari" ? "flag" : "mega"} size={14} color={on ? col : C.dim} />
+                    <Txt weight="bold" size={11.5} color={on ? col : C.dim}>{ad}</Txt>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Kanal (yalnız kişi) */}
+            {tip === "kisi" && (
+              <>
+                <Txt weight="bold" size={10.5} color={C.dim} style={s.lbl}>KANAL (DM RESMÎ HESABI)</Txt>
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  {(["aron", "sistem"] as const).map((k) => (
+                    <Pressable key={k} onPress={() => setKanal(k)} style={[s.chip, kanal === k && { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}44` }]}>
+                      <Txt weight="bold" size={10.5} color={kanal === k ? C.gold2 : C.dim}>{k === "aron" ? "Aron (Resmî)" : "Sistem"}</Txt>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {/* Mesaj */}
+            <Txt weight="bold" size={10.5} color={C.dim} style={s.lbl}>{tur === "uyari" ? "UYARI" : "MESAJ"}</Txt>
+            <View style={s.group}><View style={{ padding: 12, gap: 10 }}>
+              <TextInput value={baslik} onChangeText={setBaslik} placeholder="Başlık" placeholderTextColor={C.dim2} style={s.input} />
+              <TextInput value={icerik} onChangeText={setIcerik} placeholder={tur === "uyari" ? "Uyarı metni" : "Mesaj metni"} placeholderTextColor={C.dim2} multiline style={[s.input, { minHeight: 90, textAlignVertical: "top" }]} />
+              {tip === "kisi" && (
+                <>
+                  <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+                    <Pressable disabled={busy} onPress={pickFoto} style={[s.chip, { flexDirection: "row", gap: 5 }]}>
+                      <Icon name="camera" size={12} color={C.gold2} /><Txt weight="bold" size={10.5} color={C.gold2}>{foto ? "Foto değiştir" : "Foto ekle (ops.)"}</Txt>
+                    </Pressable>
+                    {!!foto && <Pressable onPress={() => setFoto(null)}><Icon name="x" size={14} color="#FB7185" /></Pressable>}
+                  </View>
+                  {!!foto && <View style={s.preview}><Image source={{ uri: foto }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /></View>}
+                </>
+              )}
+              <View style={s.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Txt weight="bold" size={12} color={C.text}>Bildirim olarak da gönder</Txt>
+                  <Txt size={10} color={C.dim} style={{ marginTop: 1 }}>{tip === "kisi" ? "Kişinin bildirim çanına düşer" : "Oda sahibinin bildirim çanına düşer"}</Txt>
+                </View>
+                <Switch value={bildirim} onValueChange={setBildirim} trackColor={{ true: C.gold, false: "rgba(255,255,255,.15)" }} thumbColor="#fff" />
+              </View>
+            </View></View>
+
+            <Pressable disabled={!canSend} onPress={send} style={[s.sendBtn, { opacity: canSend ? 1 : 0.45 }, tur === "uyari" && { backgroundColor: "#FB7185" }]}>
+              {busy ? <ActivityIndicator color="#241A05" /> : <><Icon name="send" size={14} color="#241A05" /><Txt weight="extrabold" size={13} color="#241A05">{tur === "uyari" ? "Uyarı Gönder" : "Mesaj Gönder"}</Txt></>}
+            </Pressable>
+            <Txt size={9.5} color={C.dim2} lh={1.4} style={{ marginTop: 10 }}>
+              {tip === "kisi"
+                ? `Kişinin DM'deki ${kanal === "aron" ? "Aron (resmî)" : "Sistem"} hesabında${bildirim ? " ve bildirim çanında" : ""} görünür.`
+                : `Oda sahibine iletilir${bildirim ? " (bildirimli)" : ""}; o an odada olanlar canlı sistem baloncuğu görür.`}
+            </Txt>
+          </ScrollView>
+        </KeyboardAware>
       </SafeAreaView>
     </View>
   );

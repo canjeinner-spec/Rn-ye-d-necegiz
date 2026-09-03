@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { KeyboardAware } from "@/components/KeyboardAware";
 import { BANNER_ORAN } from "@/components/EventBanners";
 import { Txt } from "@/components/Txt";
 import { Yukleniyor } from "@/components/Yukleniyor";
@@ -107,81 +108,83 @@ export default function AdminBannerEdit() {
     <View style={styles.root}>
       <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.iconBtn}><Icon name="back" size={16} color={C.text} /></Pressable>
-          <Txt weight="displayBold" size={16} color="#fff">{editId ? "Banner Düzenle" : "Yeni Banner"}</Txt>
-        </View>
+        <KeyboardAware>
+          <View style={styles.header}>
+            <Pressable onPress={() => router.back()} style={styles.iconBtn}><Icon name="back" size={16} color={C.text} /></Pressable>
+            <Txt weight="displayBold" size={16} color="#fff">{editId ? "Banner Düzenle" : "Yeni Banner"}</Txt>
+          </View>
 
-        {loading ? (
-          <Yukleniyor tamEkran yazi="Banner yükleniyor" />
-        ) : (
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {!!note && <View style={styles.note}><Txt weight="bold" size={11.5} color={C.gold2} align="center">{note}</Txt></View>}
+          {loading ? (
+            <Yukleniyor tamEkran yazi="Banner yükleniyor" />
+          ) : (
+            <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {!!note && <View style={styles.note}><Txt weight="bold" size={11.5} color={C.gold2} align="center">{note}</Txt></View>}
 
-            {/* Şablon seçimi */}
-            <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>ŞABLON</Txt>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              {SABLONLAR.map((s) => {
-                const on = sablon === s.k;
-                return (
-                  <Pressable key={s.k} onPress={() => setSablon(s.k)} style={[styles.sablonChip, on && { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}55` }]}>
-                    <Icon name={s.ic} size={16} color={on ? C.gold2 : C.dim} />
-                    <Txt weight="bold" size={11} color={on ? C.gold2 : C.dim} style={{ marginTop: 5 }}>{s.ad}</Txt>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {/* Banner (oda listesi görünümü) */}
-            <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>BANNER (LİSTE ÜSTÜ)</Txt>
-            <View style={styles.group}><View style={{ padding: 12, gap: 10 }}>
-              <TextInput value={baslik} onChangeText={setBaslik} placeholder="Başlık" placeholderTextColor={C.dim2} style={styles.input} />
-              <TextInput value={aciklama} onChangeText={setAciklama} placeholder="Kısa açıklama (banner altı)" placeholderTextColor={C.dim2} style={styles.input} />
-              <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-                <Pressable disabled={busy} onPress={pickFoto} style={[styles.chip, { flexDirection: "row", gap: 5 }]}>
-                  <Icon name="camera" size={12} color={C.gold2} /><Txt weight="bold" size={10.5} color={C.gold2}>{foto ? "Foto değiştir" : "Foto ekle (ops.)"}</Txt>
-                </Pressable>
-                {!!foto && <Pressable onPress={() => setFoto(null)}><Icon name="x" size={14} color="#FB7185" /></Pressable>}
+              {/* Şablon seçimi */}
+              <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>ŞABLON</Txt>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {SABLONLAR.map((s) => {
+                  const on = sablon === s.k;
+                  return (
+                    <Pressable key={s.k} onPress={() => setSablon(s.k)} style={[styles.sablonChip, on && { backgroundColor: `${C.gold}14`, borderColor: `${C.gold}55` }]}>
+                      <Icon name={s.ic} size={16} color={on ? C.gold2 : C.dim} />
+                      <Txt weight="bold" size={11} color={on ? C.gold2 : C.dim} style={{ marginTop: 5 }}>{s.ad}</Txt>
+                    </Pressable>
+                  );
+                })}
               </View>
-              <Txt size={9.5} color={C.dim2} lh={1.4}>Önerilen ölçü 1680×480 (7:2). Önizleme banner'da göreceğinin birebir aynısı.</Txt>
-              {!!foto && <View style={styles.preview}><Image source={{ uri: foto }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /></View>}
-            </View></View>
 
-            {/* Açılır sayfa içeriği */}
-            <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>AÇILIR SAYFA İÇERİĞİ</Txt>
-            <View style={styles.group}><View style={{ padding: 12, gap: 10 }}>
-              <TextInput value={altBaslik} onChangeText={setAltBaslik} placeholder="Alt başlık (hero)" placeholderTextColor={C.dim2} style={styles.input} />
-              <TextInput value={rozet} onChangeText={setRozet} placeholder={`Rozet — boş bırakılırsa "${sablonRozet}"`} placeholderTextColor={C.dim2} style={styles.input} />
-              <TextInput value={giris} onChangeText={setGiris} placeholder="Giriş paragrafı" placeholderTextColor={C.dim2} multiline style={[styles.input, { minHeight: 76, textAlignVertical: "top" }]} />
-            </View></View>
-
-            {/* Maddeler */}
-            <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>MADDELER / BÖLÜMLER ({maddeler.length})</Txt>
-            {maddeler.map((m, i) => (
-              <View key={i} style={[styles.group, { marginBottom: 10 }]}><View style={{ padding: 12, gap: 8 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                  <Txt weight="bold" size={10} color={C.dim2}>MADDE {i + 1}</Txt>
-                  <Pressable onPress={() => removeMadde(i)} hitSlop={8} style={styles.delBtn}><Icon name="trash" size={12} color="#FB7185" /></Pressable>
+              {/* Banner (oda listesi görünümü) */}
+              <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>BANNER (LİSTE ÜSTÜ)</Txt>
+              <View style={styles.group}><View style={{ padding: 12, gap: 10 }}>
+                <TextInput value={baslik} onChangeText={setBaslik} placeholder="Başlık" placeholderTextColor={C.dim2} style={styles.input} />
+                <TextInput value={aciklama} onChangeText={setAciklama} placeholder="Kısa açıklama (banner altı)" placeholderTextColor={C.dim2} style={styles.input} />
+                <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+                  <Pressable disabled={busy} onPress={pickFoto} style={[styles.chip, { flexDirection: "row", gap: 5 }]}>
+                    <Icon name="camera" size={12} color={C.gold2} /><Txt weight="bold" size={10.5} color={C.gold2}>{foto ? "Foto değiştir" : "Foto ekle (ops.)"}</Txt>
+                  </Pressable>
+                  {!!foto && <Pressable onPress={() => setFoto(null)}><Icon name="x" size={14} color="#FB7185" /></Pressable>}
                 </View>
-                <TextInput value={m.baslik} onChangeText={(t) => setMadde(i, { baslik: t })} placeholder="Madde başlığı" placeholderTextColor={C.dim2} style={styles.input} />
-                <TextInput value={m.aciklama ?? ""} onChangeText={(t) => setMadde(i, { aciklama: t })} placeholder="Madde açıklaması (ops.)" placeholderTextColor={C.dim2} multiline style={[styles.input, { minHeight: 54, textAlignVertical: "top" }]} />
+                <Txt size={9.5} color={C.dim2} lh={1.4}>Önerilen ölçü 1680×480 (7:2). Önizleme banner'da göreceğinin birebir aynısı.</Txt>
+                {!!foto && <View style={styles.preview}><Image source={{ uri: foto }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={160} /></View>}
               </View></View>
-            ))}
-            <Pressable onPress={addMadde} style={styles.addBtn}>
-              <Icon name="plus" size={14} sw={2.5} color={C.gold2} /><Txt weight="extrabold" size={12.5} color={C.gold2}>Madde Ekle</Txt>
-            </Pressable>
 
-            {/* Kapanış */}
-            <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>KAPANIŞ</Txt>
-            <View style={styles.group}><View style={{ padding: 12 }}>
-              <TextInput value={kapanis} onChangeText={setKapanis} placeholder="Kapanış notu (ops.)" placeholderTextColor={C.dim2} multiline style={[styles.input, { minHeight: 64, textAlignVertical: "top" }]} />
-            </View></View>
+              {/* Açılır sayfa içeriği */}
+              <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>AÇILIR SAYFA İÇERİĞİ</Txt>
+              <View style={styles.group}><View style={{ padding: 12, gap: 10 }}>
+                <TextInput value={altBaslik} onChangeText={setAltBaslik} placeholder="Alt başlık (hero)" placeholderTextColor={C.dim2} style={styles.input} />
+                <TextInput value={rozet} onChangeText={setRozet} placeholder={`Rozet — boş bırakılırsa "${sablonRozet}"`} placeholderTextColor={C.dim2} style={styles.input} />
+                <TextInput value={giris} onChangeText={setGiris} placeholder="Giriş paragrafı" placeholderTextColor={C.dim2} multiline style={[styles.input, { minHeight: 76, textAlignVertical: "top" }]} />
+              </View></View>
 
-            <Pressable disabled={busy || !baslik.trim()} onPress={save} style={[styles.saveBtn, { opacity: !busy && baslik.trim() ? 1 : 0.45 }]}>
-              {busy ? <ActivityIndicator color="#241A05" /> : <><Icon name="send" size={14} color="#241A05" /><Txt weight="extrabold" size={13} color="#241A05">{editId ? "Kaydet" : "Banner Oluştur"}</Txt></>}
-            </Pressable>
-          </ScrollView>
-        )}
+              {/* Maddeler */}
+              <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>MADDELER / BÖLÜMLER ({maddeler.length})</Txt>
+              {maddeler.map((m, i) => (
+                <View key={i} style={[styles.group, { marginBottom: 10 }]}><View style={{ padding: 12, gap: 8 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Txt weight="bold" size={10} color={C.dim2}>MADDE {i + 1}</Txt>
+                    <Pressable onPress={() => removeMadde(i)} hitSlop={8} style={styles.delBtn}><Icon name="trash" size={12} color="#FB7185" /></Pressable>
+                  </View>
+                  <TextInput value={m.baslik} onChangeText={(t) => setMadde(i, { baslik: t })} placeholder="Madde başlığı" placeholderTextColor={C.dim2} style={styles.input} />
+                  <TextInput value={m.aciklama ?? ""} onChangeText={(t) => setMadde(i, { aciklama: t })} placeholder="Madde açıklaması (ops.)" placeholderTextColor={C.dim2} multiline style={[styles.input, { minHeight: 54, textAlignVertical: "top" }]} />
+                </View></View>
+              ))}
+              <Pressable onPress={addMadde} style={styles.addBtn}>
+                <Icon name="plus" size={14} sw={2.5} color={C.gold2} /><Txt weight="extrabold" size={12.5} color={C.gold2}>Madde Ekle</Txt>
+              </Pressable>
+
+              {/* Kapanış */}
+              <Txt weight="bold" size={10.5} color={C.dim} style={styles.lbl}>KAPANIŞ</Txt>
+              <View style={styles.group}><View style={{ padding: 12 }}>
+                <TextInput value={kapanis} onChangeText={setKapanis} placeholder="Kapanış notu (ops.)" placeholderTextColor={C.dim2} multiline style={[styles.input, { minHeight: 64, textAlignVertical: "top" }]} />
+              </View></View>
+
+              <Pressable disabled={busy || !baslik.trim()} onPress={save} style={[styles.saveBtn, { opacity: !busy && baslik.trim() ? 1 : 0.45 }]}>
+                {busy ? <ActivityIndicator color="#241A05" /> : <><Icon name="send" size={14} color="#241A05" /><Txt weight="extrabold" size={13} color="#241A05">{editId ? "Kaydet" : "Banner Oluştur"}</Txt></>}
+              </Pressable>
+            </ScrollView>
+          )}
+        </KeyboardAware>
       </SafeAreaView>
     </View>
   );

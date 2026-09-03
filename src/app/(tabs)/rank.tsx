@@ -24,6 +24,7 @@ import { haptic } from "@/lib/haptics";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
+import { useIcerikAltPayi } from "@/theme/olculer";
 import { Gradient } from "@/theme/Gradient";
 
 /** Derece renkleri — altın / gümüş / bronz. */
@@ -156,6 +157,8 @@ function KisiListesi({ veri, bos, bas }: { veri: SiraKisi[]; bos: React.ReactNod
 /* ── Ekran ───────────────────────────────────────────────────────────────── */
 
 export default function RankTab() {
+  // Alt navigasyonun altında kalmasın — güvenli alan dahil (theme/olculer).
+  const altPayi = useIcerikAltPayi();
   const router = useRouter();
   const odayaGirDene = useApp((s) => s.odayaGirDene);
   const [tab, setTab] = useState(0);
@@ -237,7 +240,7 @@ export default function RankTab() {
           </View>
         )}
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: altPayi }} showsVerticalScrollIndicator={false}>
           {/* ---- Zenginlik: en çok hediye gönderenler ---- */}
           {tab === 0 && (
             <KisiListesi
