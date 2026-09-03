@@ -102,7 +102,14 @@ export function BigGiftOverlay({ gift, qty, sender, onDone }: { gift: Gift; qty:
       </Animated.View>
 
       <View style={styles.center} pointerEvents="none">
-        {/* dönen ışık huzmeleri */}
+        {/* Dönen ışık huzmeleri, halkalar ve kıvılcımlar YALNIZ Lottie'si
+            OLMAYAN hediyelerde. Kullanıcı kararı: "arkasındaki sarımsı
+            parlak şeyi kaldır, sadece kendisi olsun animasyonun". Hediyenin
+            kendi kompozisyonu varsa bu süsler onun üstüne biniyor ve
+            renklerini bozuyordu. Karartma ve alttaki bilgi şeridi kalıyor:
+            biri odayı gizliyor, diğeri kimin ne gönderdiğini söylüyor. */}
+        {!buyukKaynak && (
+        <>
         <Animated.View style={[styles.beamWrap, beamStyle]}>
           <Svg width={460} height={460} viewBox="0 0 100 100">
             <Defs>
@@ -133,9 +140,14 @@ export function BigGiftOverlay({ gift, qty, sender, onDone }: { gift: Gift; qty:
             <Particle i={i} c={i % 2 ? gift.c1 : "#FDE68A"} />
           </View>
         ))}
+        </>
+        )}
 
         {/* Emblem: çıplak 108px emoji yerine hediyenin renklerinden madalyon */}
-        <Animated.View style={[styles.emblem, { shadowColor: gift.c1 }, emblemStyle]}>
+        {/* Gölge de süs: hediyenin c1 renginde, yarıçapı 34 ve opaklığı 0.9 —
+            zafer'de bu altın sarısı (#FFE647) bir hale demek ve animasyonun
+            tam arkasına biniyordu. Kendi Lottie'si olanda kapalı. */}
+        <Animated.View style={[styles.emblem, !buyukKaynak && { shadowColor: gift.c1 }, emblemStyle]}>
           {buyukKaynak ? (
             // Hediyenin kendi Lottie'si varsa madalyon YOK — animasyon
             // kendi kompozisyonuyla gelir, halkanın içine hapsetmek onu
@@ -167,7 +179,8 @@ export function BigGiftOverlay({ gift, qty, sender, onDone }: { gift: Gift; qty:
         </View>
       </Animated.View>
 
-      <Animated.View style={[StyleSheet.absoluteFill, styles.flash, flashStyle]} pointerEvents="none" />
+      {/* Beyaz patlama da süs: kendi animasyonu olan hediyede kapalı. */}
+      {!buyukKaynak && <Animated.View style={[StyleSheet.absoluteFill, styles.flash, flashStyle]} pointerEvents="none" />}
     </View>
   );
 }

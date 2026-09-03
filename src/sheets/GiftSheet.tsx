@@ -9,7 +9,7 @@ import { GiftIcon } from "@/components/GiftIcon";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
 import { Yukleniyor } from "@/components/Yukleniyor";
-import { GIFTS, GIFT_TABS, TIER_RING, type Gift } from "@/data/gifts";
+import { GIFTS, GIFT_TABS, type Gift } from "@/data/gifts";
 import { bakiyem, katalog, type KatalogHediyesi } from "@/data/remote/hediyeRepo";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
@@ -159,14 +159,15 @@ export function GiftSheet({
               ) : (
                 liste.map((k) => {
                   const on = sel === k.kod;
-                  const ton = TIER_RING[k.kademe] || C.gold;
                   return (
                     <Pressable
                       key={k.kod}
                       onPress={() => { haptic.select(); setSel(k.kod); }}
-                      style={[styles.hucre, on ? { borderColor: ton, backgroundColor: ton + "16" } : { borderColor: "rgba(255,255,255,.06)" }]}
+                      // Kenarlık YOK: karolar çıplak dursun, görseli çerçevelemesin.
+                      // Seçim tek işaretle anlatılıyor — yumuşak zemin.
+                      style={[styles.hucre, on && styles.hucreSecili]}
                     >
-                      <GiftIcon gift={giftYap(k)} size={50} oynat={on} />
+                      <GiftIcon gift={giftYap(k)} size={58} oynat={on} />
                       <Txt weight="bold" size={9.5} color={on ? "#fff" : C.text} numberOfLines={1} align="center" style={{ marginTop: 5, maxWidth: 72 }}>
                         {k.ad}
                       </Txt>
@@ -256,7 +257,8 @@ const styles = StyleSheet.create({
   tabs: { gap: 18, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.07)" },
   tabCizgi: { position: "absolute", left: 0, right: 0, bottom: -1, height: 2.5, borderRadius: 4, backgroundColor: C.gold },
   grid: { flexDirection: "row", flexWrap: "wrap", padding: 12, gap: 6 },
-  hucre: { width: "23%", alignItems: "center", paddingVertical: 10, borderRadius: 14, borderWidth: 1 },
+  hucre: { width: "23%", alignItems: "center", paddingVertical: 10, borderRadius: 14 },
+  hucreSecili: { backgroundColor: "rgba(255,255,255,.08)" },
   adetKutu: { position: "absolute", right: 100, bottom: 74, flexDirection: "row", gap: 6, padding: 6, borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: "rgba(16,15,22,.97)" },
   adetSecim: { paddingVertical: 8, paddingHorizontal: 11, borderRadius: 11, borderWidth: 1, borderColor: "transparent" },
   alt: { flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,.07)" },

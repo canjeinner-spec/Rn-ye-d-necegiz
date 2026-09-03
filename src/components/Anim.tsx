@@ -55,6 +55,13 @@ export function Anim({ kaynak, boyut = 140, dongu = true, hiz = 1, ilerleme, sty
         loop={durukKare ? false : dongu}
         speed={hiz}
         progress={durukKare ? ilerleme : undefined}
+        // ANDROID'DE MERGE PATH: lottie-android bunu VARSAYILAN OLARAK
+        // KAPALI tutuyor. Kapalıyken çıkarma/kesişim uygulanmaz ve şekil
+        // dolu boyanır — zafer'in kale ağı bu yüzden bembeyaz çıkıyordu
+        // (o dosyada 40 merge path var). Açmak doğru çizimi veriyor;
+        // Lottie belgeleri karmaşık dosyalarda yavaşlatabileceğini söylüyor,
+        // o yüzden ağır dosyalar zaten yalnız tam ekranda çiziliyor.
+        enableMergePathsAndroidForKitKatAndAbove
         resizeMode="contain"
         style={{ width: "100%", height: "100%" }}
       />
