@@ -28,7 +28,8 @@ import { FEATURES } from "@/lib/features";
 import { hediyeDmMetni, hediyeGonder, hediyeVitrini, type VitrinSatiri } from "@/data/remote/hediyeRepo";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
-import { GiftIcon } from "@/components/GiftIcon";
+import { Anim } from "@/components/Anim";
+import { sceneFor } from "@/gifts/bigGifts";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
@@ -63,6 +64,8 @@ export default function UserProfileScreen() {
   const [roomCount, setRoomCount] = useState<number | null>(null);
   /** Aldığı hediyeler, hediye başına toplanmış (084). null = yükleniyor. */
   const [vitrin, setVitrin] = useState<VitrinSatiri[] | null>(null);
+  /** Vitrinde dokunulan hediye — tam boy oynatilir. */
+  const [onizleme, setOnizleme] = useState<VitrinSatiri | null>(null);
   useEffect(() => {
     if (!isSupabaseConfigured || !params.publicId) return;
     let alive = true;
@@ -287,8 +290,48 @@ export default function UserProfileScreen() {
               </View>
               {FEATURES.profileGift && (
                 <View style={{ padding: 16, paddingBottom: 0 }}>
-                  <Txt weight="extrabold" size={13.5} color={C.text} style={{ marginBottom: 10 }}>Hediye</Txt>
-                  <Pressable onPress={() => { haptic.light(); setGiftOpen(true); }} style={styles.giftCard}>
+                  <Txt weight="extrabold" size={13.5} color={C.text} style={{ marginBottom: 12 }}>Hediye</Txt>
+
+                  {/*
+                    VİTRİN (084) — kişi hangi hediyeden kaç tane almış.
+                    Kaynak `hediye_gecmisi`: oda içi, DM ve profil
+                    gönderimlerinin hepsi buraya toplanıyor.
+
+                    Madalyon/halka YOK. Lottie kendi kompozisyonuyla ve
+                    saydam zeminiyle geliyor; daire içine almak hem kırpıyor
+                    hem gereksiz çerçeve ekliyordu.
+                  */}
+                  {vitrin === null ? (
+                    <Txt size={11.5} color={C.dim2}>Yükleniyor…</Txt>
+                  ) : vitrin.length === 0 ? (
+                    <Txt size={11.5} color={C.dim2}>Henüz hediye almadı.</Txt>
+                  ) : (
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                      {vitrin.map((v) => {
+                        const anim = v.kod ? sceneFor(v.kod).anim : undefined;
+                        return (
+                          <Pressable
+                            key={v.hediyeId}
+                            onPress={() => { haptic.light(); setOnizleme(v); }}
+                            style={styles.vitrinKutu}
+                          >
+                            {anim ? (
+                              <Anim kaynak={anim} boyut={74} ilerleme={0.5} />
+                            ) : (
+                              <View style={{ height: 74, justifyContent: "center" }}>
+                                <Txt size={42}>{v.emoji}</Txt>
+                              </View>
+                            )}
+                            <Txt weight="bold" size={10} color={C.dim} numberOfLines={1} style={{ maxWidth: 76 }}>{v.ad}</Txt>
+                            <Txt weight="extrabold" size={11.5} color={C.gold2}>×{v.adet}</Txt>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {/* Gönder butonu vitrinin ALTINDA — önce ne aldığı görünsün. */}
+                  <Pressable onPress={() => { haptic.light(); setGiftOpen(true); }} style={[styles.giftCard, { marginTop: 14 }]}>
                     <View style={styles.giftIcon}>
                       <Icon name="crown" size={17} color={C.gold2} />
                     </View>
@@ -299,31 +342,6 @@ export default function UserProfileScreen() {
                       <Icon name="chev" size={13} color={C.gold2} />
                     </View>
                   </Pressable>
-                  {/*
-                    VİTRİN (084) — kişi hangi hediyeden kaç tane almış.
-                    Eskiden burada sabit "Normal Hediyeler: 4.926 toplandı"
-                    yazıyordu; herkesin profilinde aynı uydurma rakamdı.
-                    Kaynak `hediye_gecmisi`, yani oda içi + DM + profil
-                    gönderimlerinin hepsi buraya toplanıyor.
-                  */}
-                  {vitrin === null ? (
-                    <Txt size={11.5} color={C.dim2} style={{ marginTop: 12 }}>Yükleniyor…</Txt>
-                  ) : vitrin.length === 0 ? (
-                    <Txt size={11.5} color={C.dim2} style={{ marginTop: 12 }}>Henüz hediye almadı.</Txt>
-                  ) : (
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 }}>
-                      {vitrin.map((v) => (
-                        <View key={v.hediyeId} style={styles.vitrinKutu}>
-                          <GiftIcon
-                            gift={{ id: v.kod ?? String(v.hediyeId), emoji: v.emoji, name: v.ad, price: 0, c1: v.renk1, c2: v.renk2, tier: v.kademe }}
-                            size={44}
-                          />
-                          <Txt weight="bold" size={9.5} color={C.dim} numberOfLines={1} style={{ marginTop: 5, maxWidth: 54 }}>{v.ad}</Txt>
-                          <Txt weight="extrabold" size={11} color={C.gold2}>×{v.adet}</Txt>
-                        </View>
-                      ))}
-                    </View>
-                  )}
                 </View>
               )}
             </View>
@@ -514,6 +532,29 @@ export default function UserProfileScreen() {
       </CenterModal>
 
       <GiftSheet visible={giftOpen} onClose={() => setGiftOpen(false)} recipients={[{ name, uid: profile?.id }]} onSend={sendGift} onBakiyeYukle={() => { setGiftOpen(false); router.navigate("/wallet"); }} />
+
+      {/* Vitrinde bir hediyeye dokununca tam boy önizleme. Izgarada tek kare
+          duruyor (performans), burada gerçekten oynuyor. */}
+      <CenterModal visible={!!onizleme} onClose={() => setOnizleme(null)}>
+        {!!onizleme && (
+          <Pressable onPress={() => setOnizleme(null)} style={{ alignItems: "center", paddingVertical: 8 }}>
+            {(() => {
+              const a = onizleme.kod ? sceneFor(onizleme.kod).anim : undefined;
+              return a ? (
+                <Anim kaynak={a} boyut={230} />
+              ) : (
+                <Txt size={110}>{onizleme.emoji}</Txt>
+              );
+            })()}
+            <Txt weight="displayBold" size={17} color="#fff" style={{ marginTop: 6 }}>{onizleme.ad}</Txt>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 8 }}>
+              <Txt size={12} color={C.dim}>Toplam</Txt>
+              <Txt weight="displayBold" size={16} color={C.gold2}>×{onizleme.adet}</Txt>
+            </View>
+            <Txt size={10.5} color={C.dim2} style={{ marginTop: 10 }}>Kapatmak için dokun</Txt>
+          </Pressable>
+        )}
+      </CenterModal>
     </View>
   );
 }
@@ -534,7 +575,7 @@ const styles = StyleSheet.create({
   bilgiSatir: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 13 },
   giftCard: { flexDirection: "row", alignItems: "center", borderRadius: 16, paddingVertical: 15, paddingHorizontal: 16, backgroundColor: "rgba(124,58,237,.12)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)" },
   giftIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: `${C.gold}1A`, borderWidth: 1, borderColor: `${C.gold}40`, marginRight: 11 },
-  vitrinKutu: { width: 62, alignItems: "center" },
+  vitrinKutu: { width: 84, alignItems: "center", paddingVertical: 4 },
   menu: { position: "absolute", right: 14, borderRadius: 14, overflow: "hidden", minWidth: 150, backgroundColor: "#1C1A24", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
   menuItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, paddingHorizontal: 14 },
   actionBar: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 18, paddingTop: 12, backgroundColor: "rgba(10,10,15,.95)" },
