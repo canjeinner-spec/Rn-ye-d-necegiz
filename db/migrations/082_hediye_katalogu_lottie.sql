@@ -28,7 +28,7 @@ VALUES
     ('gul',    'Gül',             'Hediye',   500, 1, TRUE, '🌹', '#FDA4AF', '#9F1239', 'normal'),
     ('ayicik', 'Şanslı Ayıcık',   'Hediye',  5000, 2, TRUE, '🧸', '#FCD34D', '#B45309', 'epic'),
     ('hazine', 'Hazine Sandığı',  'Hediye', 50000, 3, TRUE, '💰', '#FDE68A', '#B45309', 'legendary')
-ON CONFLICT (kod) DO UPDATE SET
+ON CONFLICT (kod) WHERE kod IS NOT NULL DO UPDATE SET
     ad          = EXCLUDED.ad,
     kategori    = EXCLUDED.kategori,
     birim_fiyat = EXCLUDED.birim_fiyat,
