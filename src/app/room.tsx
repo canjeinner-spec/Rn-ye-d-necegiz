@@ -998,6 +998,12 @@ export default function RoomScreen() {
   // `tepkiGosterRef` ile aynı desen. Deps'e eklemek kanalı yeniden kurardı.
   const efektiOynatRef = useRef(efektiOynat);
   efektiOynatRef.current = efektiOynat;
+  // Kanal dinleyicisi efsanevi seridi de aciyor. Ikisi de ref uzerinden:
+  // bagimliliga koymak kanali yeniden kurardi (tepkiGosterRef ile ayni desen).
+  const odaRef = useRef(room);
+  odaRef.current = room;
+  const fireBroadcastRef = useRef(fireBroadcast);
+  fireBroadcastRef.current = fireBroadcast;
   const [panelOpen, setPanelOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   /** Alt bar: ikon satırı mı, yazma satırı mı. */
@@ -1094,13 +1100,20 @@ export default function RoomScreen() {
       chanRef.current.send({
         type: "broadcast",
         event: "hediye",
-        payload: { cihaz: CIHAZ, gift: g, qty, sender: userName },
+        payload: { cihaz: CIHAZ, gift: g, qty, sender: userName, foto: userPhoto || undefined, alici: recipient },
       });
     }
 
     efektiOynat(g, qty, "Sen");
     // Uygulama geneli efsanevi şeridi (16.5 sn) ayrı bir şey; odayla sınırlı değil.
-    if (g.tier === "legendary" && room) fireBroadcast({ sender: "Sen", recipient, qty, room, gift: g });
+    // Seritte GERCEK ad ve fotograf: "Sen" sabiti serit uygulama genelinde
+    // gorundugu icin yanlisti, fotograf ise hic tasinmiyordu.
+    if (g.tier === "legendary" && room) {
+      fireBroadcast({
+        sender: userName, senderPhoto: userPhoto, recipient, qty, room,
+        gift: { tier: g.tier, emoji: g.emoji, name: g.name, kod: g.id },
+      });
+    }
   };
 
   /**
@@ -1545,10 +1558,20 @@ export default function RoomScreen() {
 
     // Başkasının gönderdiği hediye — efekti burada oynuyor.
     ch.on("broadcast", { event: "hediye" }, ({ payload }) => {
-      const p = payload as { cihaz?: string; gift?: Gift; qty?: number; sender?: string };
+      const p = payload as { cihaz?: string; gift?: Gift; qty?: number; sender?: string; foto?: string; alici?: string };
       // Kendi yayınımın echo'su: efekti zaten yerel oynattım.
       if (!alive || !p.gift || p.cihaz === CIHAZ) return;
-      efektiOynatRef.current(p.gift, p.qty ?? 1, p.sender || "Kullanıcı");
+      const kim = p.sender || "Kullanıcı";
+      efektiOynatRef.current(p.gift, p.qty ?? 1, kim);
+      // Efsanevi şerit ODADAKİ HERKESE. Eskiden yalnız gönderende açılıyordu,
+      // yani "global" şerit aslında tek kişilikti.
+      if (p.gift.tier === "legendary" && odaRef.current) {
+        fireBroadcastRef.current({
+          sender: kim, senderPhoto: p.foto ?? null, recipient: p.alici,
+          qty: p.qty ?? 1, room: odaRef.current,
+          gift: { tier: p.gift.tier, emoji: p.gift.emoji, name: p.gift.name, kod: p.gift.id },
+        });
+      }
     });
 
     // Yönetici sistem mesajı / uyarısı — o an içeridekilere canlı baloncuk.

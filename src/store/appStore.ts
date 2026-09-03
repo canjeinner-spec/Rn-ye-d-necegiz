@@ -16,10 +16,17 @@ import { benzersizKanalAdi, isSupabaseConfigured, supabase } from "@/lib/supabas
 
 export type BroadcastData = {
   sender: string;
+  /**
+   * Gonderenin profil fotografi. YOKTU: serit `Portrait`e photo vermedigi
+   * icin herkeste bas harfe dusuyordu — kullanici "o anki avatarim yok"
+   * diye bildirdi.
+   */
+  senderPhoto?: string | null;
   recipient?: string;
   qty: number;
   room: Room;
-  gift: { tier: "normal" | "rare" | "epic" | "legendary"; emoji: string; name: string };
+  /** `kod` serittteki gercek hediye gorselini bulmak icin (giftPng). */
+  gift: { tier: "normal" | "rare" | "epic" | "legendary"; emoji: string; name: string; kod?: string };
 };
 
 export type UserRole = "user" | "developer" | "super_admin";

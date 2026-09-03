@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 import { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
@@ -14,6 +15,7 @@ import { Icon } from "@/icons/Icon";
 import { type BroadcastData } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
+import { giftPng } from "@/gifts/giftPng";
 import { Portrait } from "./Portrait";
 import { Txt } from "./Txt";
 
@@ -35,6 +37,7 @@ const KALMA_MS = 4200;
 export function GlobalBroadcast({ data, onGo, top = 52 }: { data: BroadcastData; onGo: () => void; top?: number }) {
   const ring = TIER_RING[data.gift.tier] || C.gold;
   const efsane = data.gift.tier === "legendary";
+  const seritGorsel = giftPng(data.gift.kod);
 
   const x = useSharedValue(420);
   const o = useSharedValue(0);
@@ -60,7 +63,7 @@ export function GlobalBroadcast({ data, onGo, top = 52 }: { data: BroadcastData;
           <Gradient colors={[ring + "2E", "rgba(12,11,16,.94)"]} deg={110} style={StyleSheet.absoluteFill} />
 
           <View style={{ width: 34, height: 34 }}>
-            <Portrait name={data.sender} size={34} ring={ring} glow />
+            <Portrait name={data.sender} size={34} photo={data.senderPhoto || undefined} ring={ring} glow />
           </View>
 
           <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
@@ -75,7 +78,12 @@ export function GlobalBroadcast({ data, onGo, top = 52 }: { data: BroadcastData;
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
               <View style={[styles.hediyeIkon, { borderColor: ring + "4D", backgroundColor: ring + "1A" }]}>
-                <Txt size={11}>{data.gift.emoji}</Txt>
+                {/* Gercek gorsel — emoji yalniz PNG'si olmayan hediyede. */}
+                {seritGorsel ? (
+                  <Image source={seritGorsel} style={{ width: 15, height: 15 }} contentFit="contain" transition={0} />
+                ) : (
+                  <Txt size={11}>{data.gift.emoji}</Txt>
+                )}
               </View>
               <Txt weight="bold" size={10.5} color="rgba(255,255,255,.82)" numberOfLines={1} style={{ flexShrink: 1 }}>
                 {data.gift.name}
