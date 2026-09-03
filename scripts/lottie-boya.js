@@ -14,7 +14,8 @@
  *   Sonra esleyip yaz (eski=yeni, # opsiyonel, buyuk/kucuk harf farketmez):
  *     node scripts/lottie-boya.js girdi.json cikti.json 000000=8E8C99 FFFFFF=131319
  *
- * NE OKUR: dolgu (fl), kontur (st), gradyan (gf/gs) duraklari ve
+ * NE OKUR: `assets` (prekompozisyonlar) VE `layers` altinda dolgu (fl),
+ * kontur (st), gradyan (gf/gs) duraklari ve
  * zemin katmani (ty:1) rengi. Animasyonlu renk (a:1) varsa UYARIR ve
  * dokunmaz — o dosyayi elle bakmak gerekir.
  */
@@ -60,7 +61,11 @@ const arg = process.argv.slice(2);
 if (arg[0] === "--liste") {
   const j = JSON.parse(fs.readFileSync(arg[1], "utf8"));
   const say = new Map(), uyari = [];
-  gez(j.layers, (h) => { say.set(h, (say.get(h) || 0) + 1); return null; }, uyari);
+  const topla = (h) => { say.set(h, (say.get(h) || 0) + 1); return null; };
+  // assets: prekompozisyonlar. Renklerin buyuk kismi burada olabilir —
+  // gezilmezse sessizce atlanir (konfeti renkleri boyle kacmisti).
+  gez(j.assets, topla, uyari);
+  gez(j.layers, topla, uyari);
   console.log(`${arg[1]}  ${j.w}x${j.h}  ${((j.op - j.ip) / j.fr).toFixed(2)}sn  ${(j.assets || []).length} varlik`);
   [...say.entries()].sort((a, b) => b[1] - a[1]).forEach(([h, n]) => console.log(`  ${h}  ${String(n).padStart(3)} yer`));
   uyari.forEach((u) => console.log("  UYARI:", u));
@@ -83,11 +88,13 @@ for (const e of eslesmeler) {
 
 const j = JSON.parse(fs.readFileSync(girdi, "utf8"));
 const sayac = new Map(), uyari = [];
-gez(j.layers, (h) => {
+const uygula = (h) => {
   const y = harita.get(h);
   if (y) sayac.set(h, (sayac.get(h) || 0) + 1);
   return y || null;
-}, uyari);
+};
+gez(j.assets, uygula, uyari);   // prekompozisyonlar once
+gez(j.layers, uygula, uyari);
 
 fs.writeFileSync(cikti, JSON.stringify(j));
 console.log(`${girdi} -> ${cikti}`);

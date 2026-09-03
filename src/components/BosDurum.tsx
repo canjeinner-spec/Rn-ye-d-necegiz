@@ -1,4 +1,4 @@
-import { type ComponentProps } from "react";
+import { type ComponentProps, type ReactNode } from "react";
 import type LottieView from "lottie-react-native";
 import { StyleSheet, View } from "react-native";
 
@@ -22,7 +22,8 @@ import { Txt } from "./Txt";
  */
 
 type Props = {
-  baslik: string;
+  /** Başlıksız da kullanılabilir: bazı ekranlarda metin tek cümle. */
+  baslik?: string;
   alt?: string;
   /** Lottie kaynağı. Verilirse ikon yerine bu çizilir. */
   anim?: ComponentProps<typeof LottieView>["source"];
@@ -30,11 +31,17 @@ type Props = {
   ikon?: IconName;
   /** Animasyonun kutu kenarı. */
   animBoyut?: number;
+  /** Kart zemini (wallet.tsx gibi kutu içinde duran boş durumlar için). */
+  kart?: boolean;
+  /** Dikey dolgu. Ekrandan ekrana değişiyordu: 34 / 44 / 54. */
+  dolgu?: number;
+  /** Metnin altına eklenecek şey — envanterdeki "Mağazaya git" gibi. */
+  children?: ReactNode;
 };
 
-export function BosDurum({ baslik, alt, anim, ikon = "mic", animBoyut = 150 }: Props) {
+export function BosDurum({ baslik, alt, anim, ikon = "mic", animBoyut = 150, kart = false, dolgu, children }: Props) {
   return (
-    <View style={styles.sar}>
+    <View style={[styles.sar, kart && styles.kart, dolgu !== undefined && { paddingVertical: dolgu }]}>
       {anim ? (
         // Boş ekran ikincil bir andır; hız biraz düşük, dikkat çalmasın.
         <Anim kaynak={anim} boyut={animBoyut} hiz={0.8} />
@@ -43,20 +50,35 @@ export function BosDurum({ baslik, alt, anim, ikon = "mic", animBoyut = 150 }: P
           <Icon name={ikon} size={20} color={C.gold} />
         </View>
       )}
-      <Txt weight="displayBold" size={14} color="#fff" style={{ marginTop: anim ? 2 : 12 }}>
-        {baslik}
-      </Txt>
+      {!!baslik && (
+        <Txt weight="displayBold" size={14} color="#fff" style={{ marginTop: anim ? 2 : 12 }}>
+          {baslik}
+        </Txt>
+      )}
       {!!alt && (
-        <Txt size={11.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 6, maxWidth: 260 }}>
+        <Txt
+          size={baslik ? 11.5 : 12.5}
+          color={C.dim}
+          align="center"
+          lh={1.5}
+          style={{ marginTop: baslik ? 6 : anim ? 4 : 12, maxWidth: 260 }}
+        >
           {alt}
         </Txt>
       )}
+      {children}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   sar: { alignItems: "center", paddingVertical: 44, paddingHorizontal: 18 },
+  kart: {
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,.03)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,.07)",
+  },
   ikon: {
     width: 52,
     height: 52,
