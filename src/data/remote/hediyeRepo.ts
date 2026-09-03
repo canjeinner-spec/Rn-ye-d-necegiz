@@ -216,7 +216,8 @@ export const hediyeDmMetni = (ad: string, adet: number) => `🎁 ${ad} ×${adet}
 
 /** `hediyeDmMetni`nin tersi. Hediye mesajı değilse `null`. */
 export function hediyeDmCoz(metin: string): { ad: string; adet: number } | null {
-  const m = metin.match(/^🎁 (.+) ×(d+)$/);
+  // `×` U+00D7; eski/farklı istemciler düz "x" yazmış olabilir, ikisi de kabul.
+  const m = metin.trim().match(/^🎁\s+(.+?)\s*[×x]\s*(\d+)$/i);
   if (!m) return null;
   const adet = Number(m[2]);
   if (!Number.isFinite(adet) || adet < 1) return null;

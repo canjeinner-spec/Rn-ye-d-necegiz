@@ -295,14 +295,27 @@ export default function DMChatScreen() {
               const cozum = m.text ? hediyeDmCoz(m.text) : null;
               const katalogSatiri = cozum ? hediyeAdlari.get(cozum.ad) : undefined;
               const png = giftPng(katalogSatiri?.kod);
-              if (cozum && png) {
+              /**
+               * ÇÖZÜLDÜYSE HEDİYE BALONCUĞU — görsel bulunamasa bile.
+               *
+               * Önce `cozum && png` şartı vardı; katalog haritası yüklenmeden
+               * ya da hediye katalogdan kalkmışsa mesaj ham metne düşüyordu
+               * ("🎁 Gül ×1"), ki düzeltmeye çalıştığımız şey buydu. Artık
+               * görsel yoksa katalogdaki emoji, o da yoksa 🎁 çiziliyor;
+               * düzen her hâlükârda hediye baloncuğu.
+               */
+              if (cozum) {
                 return (
                   <View key={i} style={{ alignSelf: m.me ? "flex-end" : "flex-start", maxWidth: "76%" }}>
                     {/* Odadaki sohbet baloncuğuyla aynı düzen: görsel büyük,
                         adet iri ve altın. Hediye adı yazılmıyor, görsel
                         zaten söylüyor. */}
                     <View style={styles.giftBubble}>
-                      <Image source={png} style={{ width: 56, height: 56 }} contentFit="contain" transition={0} />
+                      {png ? (
+                        <Image source={png} style={{ width: 56, height: 56 }} contentFit="contain" transition={0} />
+                      ) : (
+                        <Txt size={40}>{katalogSatiri?.emoji || "🎁"}</Txt>
+                      )}
                       <Txt weight="displayBold" size={22} color={C.gold2} style={{ transform: [{ skewX: "-8deg" }] }}>
                         ×{cozum.adet}
                       </Txt>
