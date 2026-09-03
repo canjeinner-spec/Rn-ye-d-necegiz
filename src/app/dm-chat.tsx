@@ -13,7 +13,7 @@ import { GiftSheet } from "@/sheets/GiftSheet";
 import { ARON_POSTS, SYSTEM_POSTS } from "@/data/dm";
 import { listAnnouncements, type Announcement } from "@/data/remote/announceRepo";
 import { getBlockStateByPublicId, unblock } from "@/data/remote/blockRepo";
-import { hediyeGonder } from "@/data/remote/hediyeRepo";
+import { hediyeDmMetni, hediyeGonder } from "@/data/remote/hediyeRepo";
 import { getPublicProfile } from "@/data/remote/profileRepo";
 import { getMessages, mapRealtimeMessage, markRead, sendMessage } from "@/data/remote/dmRepo";
 import { type Gift } from "@/data/gifts";
@@ -150,7 +150,19 @@ export default function DMChatScreen() {
     try {
       await hediyeGonder(hediyeDbId, qty, hedefId, null);
       haptic.success();
-      setMsgs((m) => [...m, { me: true, gift: g, qty, time: "Şimdi" }].slice(-MSG_TAVAN));
+      // Hediye sohbete KALICI olarak düşsün. Eskiden yalnız yerel bir
+      // baloncuk ekleniyordu: karşı taraf görmüyordu, çık-gir yapınca
+      // kayboluyordu. Dönen mesajın id'si var, realtime echo'su elenir.
+      if (convId) {
+        try {
+          const msg = await sendMessage(convId, hediyeDmMetni(g.name, qty));
+          setMsgs((m) => (m.some((x) => x.id === msg.id) ? m : [...m, msg].slice(-MSG_TAVAN)));
+        } catch {
+          setMsgs((m) => [...m, { me: true, gift: g, qty, time: "Şimdi" }].slice(-MSG_TAVAN));
+        }
+      } else {
+        setMsgs((m) => [...m, { me: true, gift: g, qty, time: "Şimdi" }].slice(-MSG_TAVAN));
+      }
     } catch (e) {
       haptic.warning();
       setHata((e as Error)?.message || "Hediye gönderilemedi");

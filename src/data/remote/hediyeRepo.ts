@@ -169,6 +169,43 @@ export async function hediyeGonderHerkese(
   };
 }
 
+export type VitrinSatiri = {
+  hediyeId: number; kod: string | null; ad: string; emoji: string;
+  renk1: string; renk2: string; kademe: Kademe; adet: number; deger: number;
+};
+
+/**
+ * Kişinin ALDIĞI hediyeler, hediye başına toplanmış (084).
+ *
+ * Nereden gönderildiğine bakmaz: oda içi, DM ve profil gönderimlerinin
+ * hepsi `hediye_gecmisi`ne düşüyor (059'daki tek yol).
+ *
+ * Profilde eskiden sabit "4.926 toplandı" yazıyordu — herkesin profilinde
+ * aynı uydurma rakam.
+ */
+export async function hediyeVitrini(kullaniciId: number): Promise<VitrinSatiri[]> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("hediye_vitrini", { p_kullanici: kullaniciId });
+  if (error) {
+    if (yokSay(error)) return [];
+    throw error;
+  }
+  return ((data as Record<string, unknown>[]) ?? []).map((r) => ({
+    hediyeId: Number(r.hediye_id ?? 0),
+    kod: r.kod ? String(r.kod) : null,
+    ad: String(r.ad ?? "Hediye"),
+    emoji: String(r.emoji ?? "🎁"),
+    renk1: String(r.renk1 ?? "#FDE68A"),
+    renk2: String(r.renk2 ?? "#B45309"),
+    kademe: (String(r.kademe ?? "normal") as Kademe),
+    adet: Number(r.adet ?? 0),
+    deger: Number(r.deger ?? 0),
+  }));
+}
+
+/** Hediye mesajının DM'de taşındığı biçim: "🎁 Gül ×2". */
+export const hediyeDmMetni = (ad: string, adet: number) => `🎁 ${ad} ×${adet}`;
+
 export type KatkiSatiri = {
   sira: number; kullaniciId: number; ad: string;
   publicId: string | null; foto: string | null; toplam: number;

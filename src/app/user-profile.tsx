@@ -16,7 +16,7 @@ import { Txt } from "@/components/Txt";
 import { DM_THREADS, type DMThread } from "@/data/dm";
 import { type Gift } from "@/data/gifts";
 import { block, getBlockState, unblock } from "@/data/remote/blockRepo";
-import { getOrCreateConversation } from "@/data/remote/dmRepo";
+import { getOrCreateConversation, sendMessage } from "@/data/remote/dmRepo";
 import { follow, getFollowState, unfollow } from "@/data/remote/followRepo";
 import { getPublicProfile, type PublicProfile } from "@/data/remote/profileRepo";
 import { getUserRoomCount } from "@/data/remote/roomsRepo";
@@ -25,9 +25,10 @@ import { getVisitorCount, recordVisit } from "@/data/remote/visitRepo";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { FEATURES } from "@/lib/features";
-import { hediyeGonder } from "@/data/remote/hediyeRepo";
+import { hediyeDmMetni, hediyeGonder, hediyeVitrini, type VitrinSatiri } from "@/data/remote/hediyeRepo";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
+import { GiftIcon } from "@/components/GiftIcon";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
@@ -60,6 +61,8 @@ export default function UserProfileScreen() {
   const [followingCount, setFollowingCount] = useState<number | null>(null);
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [roomCount, setRoomCount] = useState<number | null>(null);
+  /** Aldığı hediyeler, hediye başına toplanmış (084). null = yükleniyor. */
+  const [vitrin, setVitrin] = useState<VitrinSatiri[] | null>(null);
   useEffect(() => {
     if (!isSupabaseConfigured || !params.publicId) return;
     let alive = true;
@@ -67,6 +70,8 @@ export default function UserProfileScreen() {
       if (!alive) return;
       setProfile(p);
       if (p) {
+        // Vitrin: oda içi + DM + profil gönderimlerinin hepsi buraya toplanır.
+        hediyeVitrini(p.id).then((v) => { if (alive) setVitrin(v); }).catch(() => { if (alive) setVitrin([]); });
         if (!self) recordVisit(p.id).catch(() => {}); // kendi önizlemende ziyaret sayma
         getFollowState(p.id).then((s) => {
           if (!alive) return;
@@ -176,6 +181,13 @@ export default function UserProfileScreen() {
       await hediyeGonder(hediyeDbId, qty, aliciId, null);
       haptic.success();
       flash(`${g.name} ×${qty} gönderildi`);
+      // Hediye karşı tarafın DM'ine de düşsün — henüz konuşma yoksa açılır.
+      // Muhasebe yukarıda bitti; bu satır başarısız olsa bile hediye gitti,
+      // o yüzden hatası kullanıcıyı korkutmasın diye yutuluyor.
+      try {
+        const conv = await getOrCreateConversation(aliciId);
+        await sendMessage(conv, hediyeDmMetni(g.name, qty));
+      } catch { /* DM'e düşmediyse hediye yine de gönderildi */ }
     } catch (e) {
       haptic.warning();
       flash((e as Error)?.message || "Hediye gönderilemedi");
@@ -287,10 +299,31 @@ export default function UserProfileScreen() {
                       <Icon name="chev" size={13} color={C.gold2} />
                     </View>
                   </Pressable>
-                  {/* "4.926 toplandı" SABİT bir uydurmaydı — herkesin
-                      profilinde aynı sayı görünüyordu. Gerçek toplam
-                      `hediye_gecmisi`den okunabilir ama o ayrı bir RPC;
-                      uydurma sayı göstermektense hiç göstermiyoruz. */}
+                  {/*
+                    VİTRİN (084) — kişi hangi hediyeden kaç tane almış.
+                    Eskiden burada sabit "Normal Hediyeler: 4.926 toplandı"
+                    yazıyordu; herkesin profilinde aynı uydurma rakamdı.
+                    Kaynak `hediye_gecmisi`, yani oda içi + DM + profil
+                    gönderimlerinin hepsi buraya toplanıyor.
+                  */}
+                  {vitrin === null ? (
+                    <Txt size={11.5} color={C.dim2} style={{ marginTop: 12 }}>Yükleniyor…</Txt>
+                  ) : vitrin.length === 0 ? (
+                    <Txt size={11.5} color={C.dim2} style={{ marginTop: 12 }}>Henüz hediye almadı.</Txt>
+                  ) : (
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 }}>
+                      {vitrin.map((v) => (
+                        <View key={v.hediyeId} style={styles.vitrinKutu}>
+                          <GiftIcon
+                            gift={{ id: v.kod ?? String(v.hediyeId), emoji: v.emoji, name: v.ad, price: 0, c1: v.renk1, c2: v.renk2, tier: v.kademe }}
+                            size={44}
+                          />
+                          <Txt weight="bold" size={9.5} color={C.dim} numberOfLines={1} style={{ marginTop: 5, maxWidth: 54 }}>{v.ad}</Txt>
+                          <Txt weight="extrabold" size={11} color={C.gold2}>×{v.adet}</Txt>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
               )}
             </View>
@@ -501,6 +534,7 @@ const styles = StyleSheet.create({
   bilgiSatir: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 13 },
   giftCard: { flexDirection: "row", alignItems: "center", borderRadius: 16, paddingVertical: 15, paddingHorizontal: 16, backgroundColor: "rgba(124,58,237,.12)", borderWidth: 1, borderColor: "rgba(255,255,255,.1)" },
   giftIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: `${C.gold}1A`, borderWidth: 1, borderColor: `${C.gold}40`, marginRight: 11 },
+  vitrinKutu: { width: 62, alignItems: "center" },
   menu: { position: "absolute", right: 14, borderRadius: 14, overflow: "hidden", minWidth: 150, backgroundColor: "#1C1A24", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
   menuItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, paddingHorizontal: 14 },
   actionBar: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 18, paddingTop: 12, backgroundColor: "rgba(10,10,15,.95)" },
