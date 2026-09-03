@@ -938,9 +938,31 @@ export default function RoomScreen() {
     setGiftOpen(false);
 
     // GERÇEK gönderim (059): altın düşer, alıcının kazancı yazılır, komisyon
-    // platform havuzuna gider — hepsi DB trigger'ında. Katalog kimliği (dbId)
-    // yoksa ya da demo odadaysak eskisi gibi yalnızca gösteri oynar.
-    if (isDbRoom && aliciId != null && hediyeDbId) {
+    // platform havuzuna gider — hepsi DB trigger'ında.
+    //
+    // SAHTE BAŞARI KAPATILDI (kullanıcı bildirdi: "hediye gönderince
+    // bakiyeden düşmüyor"). Eskiden koşul tutmazsa hiçbir şey söylenmeden
+    // animasyon oynuyordu — yani hediye BEDAVA gidiyordu. İki delik vardı:
+    //
+    //   1. `hediyeDbId` yok: GiftSheet, DB kataloğu boş dönerse yerel sabite
+    //      düşüyor ve orada `dbId: 0` var (`secili.dbId || undefined`).
+    //      Katalog bir kez yüklenemezse bütün hediyeler bedavaya iniyordu.
+    //   2. `aliciId` yok: "Herkese" seçeneğinde alıcı uid'i yok. Tek RPC ile
+    //      herkese gönderim yapılamıyor, o yüzden hiç gönderilmiyordu.
+    //
+    // Gerçek odada artık gönderemiyorsak DÜRÜSTÇE söylüyoruz. Demo odada
+    // (isDbRoom false) gösteri aynen kalıyor, orada para zaten yok.
+    if (isDbRoom) {
+      if (aliciId == null) {
+        haptic.warning();
+        toast("Herkese hediye şimdilik gönderilemiyor — bir kişi seç.");
+        return;
+      }
+      if (!hediyeDbId) {
+        haptic.warning();
+        toast("Hediye katalogu yüklenemedi, tekrar dene.");
+        return;
+      }
       try {
         await hediyeGonder(hediyeDbId, qty, aliciId, dbId ?? null);
       } catch (e) {
