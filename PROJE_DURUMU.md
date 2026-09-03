@@ -632,6 +632,7 @@ kesin karar vermek.*
 
 ### ⚠️ AÇIK KALAN (bu oturumda dokunulmadı)
 
+- ~~087 çalıştırılmadı~~ — çalıştırıldı (4 Eylül), katalog aktif.
 - **`ARKAPLAN_MS = 20000`** — uygulama arkaplanda 20 saniye kalınca odadan
   otomatik düşürülüyor. İki telefonla test ederken diğerine 20 sn'den fazla
   bakmak yeterli: sunucu artık kişiyi odada görmüyor, mikrofon daveti "odada
@@ -1373,7 +1374,7 @@ Dosyanın sonunda **isteğe bağlı** ve kendini bir kez çalıştıran (iki kez
 | `084_hediye_vitrini.sql` | ✅ çalıştırıldı — vitrin ekranda dolu geliyor |
 | `085_hediye_katalogu_yeni.sql` | ⏭️ **ATLANABİLİR** — 087 aynı işi kapsıyor (katalogun tamamını yazıyor) |
 | `086_hediye_zafer_kaldir.sql` | ⏭️ **ATLANABİLİR** — 087 zaten zafer'i listeye almıyor |
-| `087_hediye_noel_baba.sql` | ❓ **ÇALIŞTIRILDI MI, TEYİT EDİLMEDİ** — 7 hediyelik katalog (Noel Baba dahil). Çalışmadıysa yeni hediyeler kutuda görünmez. Tek başına yeterli: 085+086'nın işini de yapar |
+| `087_hediye_noel_baba.sql` | ✅ çalıştırıldı (kullanıcı teyit etti, 4 Eylül) — 7 hediyelik katalog aktif |
 | `053_admin_oda_kapak.sql` | ❓ teyit edilmedi — eksikse yönetim panelindeki kapak düğmeleri hata verir. İddia etmeden önce ölç |
 
 **Faz 0 seti ne düzeltiyor (özet):** 072 yardımcının sunucuda reddedilmesi

@@ -96,8 +96,7 @@ KARARLILIGI (alti ayri kok sebep).
 Ayrinti icin `PROJE_DURUMU.md` §10 — orada oturum bolumu ve acik kalanlar var.
 Plan icin `YOL_HARITASI.md` (Faz 1 maddeleri 1.17-1.22 eklendi).
 
-**Bekleyen:** `db/migrations/087_hediye_noel_baba.sql` calistirildi mi teyit
-edilmedi; Faz 0 iki cihaz duman testi hala yapilmadi; `ARKAPLAN_MS = 20000`
+**Bekleyen:** Faz 0 iki cihaz duman testi hala yapilmadi; `ARKAPLAN_MS = 20000`
 (arkaplanda 20 sn sonra odadan dusme) kullanici onayi bekliyor.
 
 Uc yeni betik: `scripts/lottie-denetle.js`, `scripts/lottie-png.js`,
