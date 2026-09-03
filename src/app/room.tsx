@@ -28,6 +28,7 @@ import { RoomBadges } from "@/components/RoomBadges";
 import { RolePill } from "@/components/RolePill";
 import { Scene } from "@/components/Scene";
 import { Sheet } from "@/components/Sheet";
+import { Touch } from "@/components/Touch";
 import { Txt } from "@/components/Txt";
 import { ContributionView } from "@/sheets/ContributionView";
 import { GiftSheet } from "@/sheets/GiftSheet";
@@ -192,18 +193,18 @@ function SeatItem({
     // WePlay: dolgusuz halka + iri artı. Zemin halkanın içinden görünür,
     // koltuklar sahnede ağırlık yapmaz.
     return (
-      <Pressable style={styles.seat} onPress={onPress}>
+      <Touch style={styles.seat} onPress={onPress}>
         <View style={[styles.emptySeat, { width: KOLTUK, height: KOLTUK, borderRadius: KOLTUK / 2, borderColor: locked ? C.gold + "99" : C.gold + "52" }]}>
           <Icon name={locked ? "lock" : "plus"} size={Math.round(KOLTUK * (locked ? 0.34 : 0.5))} sw={locked ? 2 : 1.8} color={locked ? C.gold : C.dim} />
         </View>
         {locked && <Txt weight="semibold" size={10} color={C.gold}>Kilitli</Txt>}
-      </Pressable>
+      </Touch>
     );
   }
   const isMe = seat.name === "Sen";
   const ring = seat.host ? C.gold : seat.mod ? C.teal : seat.speaking ? C.teal : seat.ring || "rgba(255,255,255,.16)";
   return (
-    <Pressable style={styles.seat} onPress={onPress}>
+    <Touch style={styles.seat} onPress={onPress}>
       <View>
         {seat.speaking && <SpeakingRing />}
         <View style={{ width: KOLTUK, height: KOLTUK }}>
@@ -235,7 +236,7 @@ function SeatItem({
         {isMe ? userName : seat.name}
       </Txt>
       {seat.yetki && <AuthorityTag size={8} />}
-    </Pressable>
+    </Touch>
   );
 }
 
@@ -380,12 +381,12 @@ function SystemBanner({ roomName }: { roomName: string }) {
 
 function ActionRow({ icon, color, label, onPress }: { icon: IconName; color: string; label: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={styles.actionBtn}>
+    <Touch onPress={onPress} style={styles.actionBtn}>
       <Icon name={icon} size={18} color={color} />
       <Txt weight="extrabold" size={13.5} color={color} style={{ flex: 1 }}>
         {label}
       </Txt>
-    </Pressable>
+    </Touch>
   );
 }
 
@@ -2340,9 +2341,9 @@ export default function RoomScreen() {
           {yaziyor ? (
             <View style={styles.bottombar}>
               {/* Birine seslenmek için — imleç zaten kutuda, @ yazıp devam eder */}
-              <Pressable onPress={() => setInput((t) => (t.endsWith("@") ? t : t + "@"))} style={styles.barYuvarlak}>
+              <Touch onPress={() => setInput((t) => (t.endsWith("@") ? t : t + "@"))} style={styles.barYuvarlak}>
                 <Txt weight="extrabold" size={17} color="rgba(255,255,255,.9)">@</Txt>
-              </Pressable>
+              </Touch>
               <View style={styles.inputWrap}>
                 <TextInput
                   value={input}
@@ -2356,67 +2357,67 @@ export default function RoomScreen() {
                   returnKeyType="send"
                 />
               </View>
-              <Pressable onPress={() => send()} disabled={!input.trim()} style={{ opacity: input.trim() ? 1 : 0.4 }}>
+              <Touch onPress={() => send()} disabled={!input.trim()} style={{ opacity: input.trim() ? 1 : 0.4 }}>
                 <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.gonderBtn}>
                   <Icon name="send" size={17} color="#241A05" />
                 </Gradient>
-              </Pressable>
+              </Touch>
             </View>
           ) : (
             <View style={styles.bottombar}>
               {/* Hoparlör yerinde kalır; koltuktaysan sağına mikrofon ve emoji eklenir,
                   "Yaz …" hapı da yuvarlak sohbet düğmesine küçülür. */}
-              <Pressable
+              <Touch
                 onPress={() => { setSpeakerOn((v) => !v); toast(speakerOn ? "Ses kapatıldı" : "Ses açıldı"); }}
                 style={styles.barYuvarlak}
               >
                 <Icon name="mega" size={20} color={speakerOn ? "#fff" : C.dim2} />
-              </Pressable>
+              </Touch>
 
               {oturuyorum && (
-                <Pressable onPress={toggleMyMic} style={styles.barYuvarlak}>
+                <Touch onPress={toggleMyMic} style={styles.barYuvarlak}>
                   <Icon name={micOn ? "mic" : "micoff"} size={20} color={micOn ? C.gold2 : "#fff"} />
-                </Pressable>
+                </Touch>
               )}
 
               {oturuyorum && (
-                <Pressable onPress={() => { haptic.light(); setEmojiAcik((v) => !v); }} style={styles.barYuvarlak}>
+                <Touch onPress={() => { haptic.light(); setEmojiAcik((v) => !v); }} style={styles.barYuvarlak}>
                   <Txt size={19}>{emojiAcik ? "×" : "🙂"}</Txt>
-                </Pressable>
+                </Touch>
               )}
 
               {oturuyorum ? (
-                <Pressable onPress={() => { haptic.light(); setYaziyor(true); }} style={styles.barYuvarlak}>
+                <Touch onPress={() => { haptic.light(); setYaziyor(true); }} style={styles.barYuvarlak}>
                   <Icon name="chat" size={19} color="#fff" />
-                </Pressable>
+                </Touch>
               ) : (
-                <Pressable onPress={() => { haptic.light(); setYaziyor(true); }} style={styles.yazHap}>
+                <Touch onPress={() => { haptic.light(); setYaziyor(true); }} style={styles.yazHap}>
                   <Icon name="chat" size={15} color="rgba(255,255,255,.75)" />
                   <Txt weight="semibold" size={13} color="rgba(255,255,255,.55)">Yaz …</Txt>
-                </Pressable>
+                </Touch>
               )}
 
               {oturuyorum && <View style={{ flex: 1 }} />}
 
-              <Pressable onPress={() => { haptic.light(); setAraclarOpen(true); }} style={styles.barYuvarlak}>
+              <Touch onPress={() => { haptic.light(); setAraclarOpen(true); }} style={styles.barYuvarlak}>
                 <Icon name="menu" size={20} color="#fff" />
-              </Pressable>
+              </Touch>
 
-              <Pressable onPress={() => { haptic.light(); setQueueOpen(true); }} style={styles.barYuvarlak}>
+              <Touch onPress={() => { haptic.light(); setQueueOpen(true); }} style={styles.barYuvarlak}>
                 <Icon name="hand" size={19} color={myRaised ? C.gold2 : "#fff"} />
                 {isDbRoom && micQueue.length > 0 && (
                   <View style={styles.barRozet}>
                     <Txt weight="extrabold" size={9} color="#241A05">{micQueue.length}</Txt>
                   </View>
                 )}
-              </Pressable>
+              </Touch>
 
               {FEATURES.roomGift && (
-                <Pressable onPress={() => setGiftOpen(true)} style={styles.hediyeBtn}>
+                <Touch onPress={() => setGiftOpen(true)} style={styles.hediyeBtn}>
                   <Gradient colors={["#F9A8D4", "#EC4899", "#BE185D"]} deg={135} style={styles.hediyeIc}>
                     <Icon name="gift" size={21} color="#FFF1F7" />
                   </Gradient>
-                </Pressable>
+                </Touch>
               )}
             </View>
           )}
