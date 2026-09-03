@@ -16,6 +16,7 @@ import BOS_KUTU from "@/anim/bos-kutu.json";
 import { equipBadge, getMyBadgeProgress, unequipBadge, type RozetIlerleme } from "@/data/remote/badgeRepo";
 import { useApp } from "@/store/appStore";
 import { Icon } from "@/icons/Icon";
+import { getCached, setCached } from "@/lib/cache";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
@@ -116,7 +117,13 @@ function RozetKutu({ r, kusanili, onPress }: { r: RozetIlerleme; kusanili: boole
 
 export default function BadgesScreen() {
   const router = useRouter();
-  const [liste, setListe] = useState<RozetIlerleme[] | null>(null);
+  /**
+   * ÖNBELLEKTEN TOHUMLA. Ekran her açılışta sıfırdan yükleniyordu; rozet
+   * sayfası profilden sık açılıyor ve her seferinde boş→dolu titremesi
+   * oluyordu. Son liste anında çiziliyor, arkada tazeleniyor.
+   * (Önbellek çıkışta siliniyor — bkz. `cacheTemizle`.)
+   */
+  const [liste, setListe] = useState<RozetIlerleme[] | null>(() => getCached<RozetIlerleme[]>("rozet:ilerleme") ?? null);
   const [hata, setHata] = useState<string | null>(null);
   const [secili, setSecili] = useState<RozetIlerleme | null>(null);
   const [islemde, setIslemde] = useState(false);
@@ -147,7 +154,7 @@ export default function BadgesScreen() {
       if (!isSupabaseConfigured) { setListe([]); return; }
       let alive = true;
       getMyBadgeProgress()
-        .then((r) => { if (alive) { setListe(r); setHata(null); } })
+        .then((r) => { if (alive) { setListe(r); setCached("rozet:ilerleme", r, true); setHata(null); } })
         .catch((e) => { if (alive) { setListe([]); setHata(e?.message || "Rozetler yüklenemedi."); } });
       return () => { alive = false; };
     }, []),

@@ -13,6 +13,7 @@ import { katalog, satinAl, type Esya, type EsyaTip } from "@/data/remote/esyaRep
 import { esyalarim } from "@/data/remote/esyaRepo";
 import { getMyBalance } from "@/data/remote/walletRepo";
 import { Icon } from "@/icons/Icon";
+import { getCached, setCached } from "@/lib/cache";
 import { haptic } from "@/lib/haptics";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { C } from "@/theme/colors";
@@ -35,7 +36,12 @@ const SEKMELER: [EsyaTip, string][] = [
 export default function StoreScreen() {
   const router = useRouter();
   const [tabIx, setTabIx] = useState(0);
-  const [urunler, setUrunler] = useState<Esya[] | null>(null);
+  /**
+   * Önbellekten tohumla. Katalog nadiren değişiyor ama mağaza her açılışta
+   * sıfırdan yükleniyordu; profil → mağaza gidip gelmek her seferinde
+   * bekleme demekti.
+   */
+  const [urunler, setUrunler] = useState<Esya[] | null>(() => getCached<Esya[]>("esya:katalog") ?? null);
   const [sahip, setSahip] = useState<Set<string>>(new Set());
   const [altin, setAltin] = useState<number | null>(null);
   const [alinan, setAlinan] = useState<string | null>(null); // işlemdeki eşya
@@ -52,6 +58,8 @@ export default function StoreScreen() {
         getMyBalance().catch(() => null),
       ]);
       setUrunler(k);
+      setCached("esya:katalog", k, true);
+      setCached("esya:benim", ben, true); // envanter ekranı da bunu kullanıyor
       setSahip(new Set(ben.filter((e) => e.bitis == null || e.bitis > Date.now()).map((e) => e.id)));
       if (bakiye) setAltin(bakiye.altin);
     } catch (e) {

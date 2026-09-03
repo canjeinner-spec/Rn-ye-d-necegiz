@@ -12,6 +12,7 @@ import BOS_KUTU from "@/anim/bos-kutu.json";
 import { NADIRLIK } from "@/data/esyaTemalari";
 import { cikar, esyalarim, kusan, type EsyaTip, type SahipEsya } from "@/data/remote/esyaRepo";
 import { Icon } from "@/icons/Icon";
+import { getCached, setCached } from "@/lib/cache";
 import { haptic } from "@/lib/haptics";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { useApp } from "@/store/appStore";
@@ -53,7 +54,8 @@ export default function InventoryScreen() {
   const kusanilanlariYenile = useApp((s) => s.kusanilanlariYenile);
 
   const [tabIx, setTabIx] = useState(0);
-  const [esyalar, setEsyalar] = useState<SahipEsya[] | null>(null);
+  /** Önbellekten tohumla — envanter her açılışta sıfırdan yükleniyordu. */
+  const [esyalar, setEsyalar] = useState<SahipEsya[] | null>(() => getCached<SahipEsya[]>("esya:benim") ?? null);
   const [islemde, setIslemde] = useState<string | null>(null);
   const [yenileniyor, setYenileniyor] = useState(false);
 
@@ -62,7 +64,9 @@ export default function InventoryScreen() {
   const yukle = useCallback(async () => {
     if (!isSupabaseConfigured) { setEsyalar([]); return; }
     try {
-      setEsyalar(await esyalarim());
+      const r = await esyalarim();
+      setEsyalar(r);
+      setCached("esya:benim", r, true);
     } catch (e) {
       console.warn("[esyalarim]", (e as Error)?.message || e);
       setEsyalar([]);

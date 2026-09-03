@@ -11,7 +11,7 @@ import { benimKusanilanlarim, BOS_KUSANILI, type Kusanili } from "@/data/remote/
 import { createRoom, getMyRoom, listRooms } from "@/data/remote/roomsRepo";
 import { listPosts } from "@/data/remote/feedRepo";
 import { addXp } from "@/data/remote/xpRepo";
-import { prefetch, setCached } from "@/lib/cache";
+import { cacheTemizle, prefetch, setCached } from "@/lib/cache";
 import { benzersizKanalAdi, isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export type BroadcastData = {
@@ -378,6 +378,7 @@ export const useApp = create<AppState>((set, get) => ({
       if (ban) {
         stopBanEnforcement();
         await signOut().catch(() => {});
+        cacheTemizle(); // yasaklı hesabın verisi cihazda kalmasın
         set({
           hesapYasak: ban,
           banChecked: true,
@@ -464,6 +465,10 @@ export const useApp = create<AppState>((set, get) => ({
     } catch {
       // ignore
     }
+    // Önbellek kullanıcıya özel veri tutuyor (ziyaretçiler, envanter,
+    // rozetler). Silinmezse aynı telefonda başka hesapla girildiğinde
+    // öncekinin verisi bir an görünür.
+    cacheTemizle();
     set({
       session: null,
       girisYapildi: false,

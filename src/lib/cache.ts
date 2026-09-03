@@ -23,6 +23,23 @@ export function setCached<T>(key: string, value: T, persist = false): void {
   if (persist) AsyncStorage.setItem(PREFIX + key, JSON.stringify(value)).catch(() => {});
 }
 
+/**
+ * TÜM önbelleği siler — bellek ve kalıcı (AsyncStorage) taraf.
+ *
+ * NEDEN GEREKLİ: önbellek kullanıcıya özel veri tutuyor (ziyaretçiler,
+ * envanter, rozetler, bakiye). Çıkışta temizlenmiyordu; aynı telefonda
+ * başka bir hesapla girildiğinde ÖNCEKİ kullanıcının verisi bir an
+ * görünüyordu — "cache-first" davranışı gereği ekran onu ANINDA çiziyor.
+ * Anahtarları kullanıcıya göre isimlendirmek de olurdu ama o zaman her yeni
+ * anahtarda aynı şeyi hatırlamak gerekir; çıkışta silmek tek yerde durur.
+ */
+export function cacheTemizle(): void {
+  mem.clear();
+  AsyncStorage.getAllKeys()
+    .then((k) => AsyncStorage.multiRemove(k.filter((x) => x.startsWith(PREFIX))))
+    .catch(() => { /* sessiz — bellek zaten temizlendi */ });
+}
+
 /** Arka planda veriyi çekip cache'i doldurur (başlangıç prefetch'i için). */
 export async function prefetch<T>(key: string, fetcher: () => Promise<T>, persist = false): Promise<void> {
   try { setCached(key, await fetcher(), persist); } catch { /* sessiz */ }

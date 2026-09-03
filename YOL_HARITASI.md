@@ -140,7 +140,23 @@ Yapılanların commit listesi ve bilinçli olarak ATLANANLARIN gerekçeleri
        yüklemezse üretilmiş avatar geliyor.
    • **KALAN CANLI İŞ:** hazır avatarlar için kendi Storage kovamıza görsel
      yüklenip `PRESET_AVATARS` doldurulacak. Koddan yapılamaz.
-9. **1.9 (C7):** `useCachedResource` yaygınlaştırma (store, inventory, badges, visitors, user-profile, dm-chat); oda sahnesine oda-id bazlı cache seed.
+9. **1.9 (C7) — kısmen ✅:**
+   • **ÖNCE BİR SIZINTI KAPATILDI.** Önbellek kullanıcıya özel veri tutuyor
+     (ziyaretçiler, envanter, rozetler) ama ÇIKIŞTA TEMİZLENMİYORDU ve
+     anahtarlar kullanıcıya göre isimlendirilmemişti. Aynı telefonda başka
+     hesapla girildiğinde öncekinin verisi bir an görünüyordu —
+     "cache-first" gereği ekran onu ANINDA çiziyor. `cacheTemizle()` eklendi
+     ve `signOutApp` + hesap yasağı dalında çağrılıyor. Bunu yapmadan
+     önbelleği yaymak sızıntıyı büyütürdü.
+   • **store / inventory / badges** önbellekten tohumlanıyor (persist).
+     Üçü de her açılışta sıfırdan yükleniyordu; profil → mağaza → envanter
+     gidip gelmek her seferinde bekleme demekti.
+   • **visitors DOKUNULMADI:** zaten elle cache-first yapıyor ve çalışıyor.
+   • **user-profile / dm-chat ve oda sahnesi tohumu YAPILMADI.** user-profile
+     her ziyarette taze olmalı (takip sayısı, engel durumu); dm-chat'in
+     kendi mesaj akışı var. Oda sahnesi tohumu ayrı bir iş — koltuk verisi
+     bayat gösterilirse "hayalet koltuk" sınıfı hatalara kapı açar, ki bu
+     oturumda tam onlarla uğraşıldı.
 10. **1.10 (C9):** Selector'süz 12 `useApp()` → alan bazlı (önce `AppOverlays.tsx`, `profile.tsx`); `banPollTimer` değişmedikçe yazmaz.
 11. **1.11 (C8) ✅ — klavye sarmalayıcı + alt payı:**
     • **"16 dosya" RAKAMI YANLIŞTI.** `TextInput` içeren 14 dosya vardı ama
