@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { BosDurum } from "@/components/BosDurum";
 import { Eq } from "@/components/Eq";
 import { EventBanners } from "@/components/EventBanners";
 import { Portrait } from "@/components/Portrait";
@@ -22,6 +23,10 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
+// Boş oda listesi animasyonu. Renkleri scripts/lottie-boya.js ile temaya
+// boyandı (özgün dosya açık tema için siyah konturluydu, #08080C üstünde
+// tamamen kayboluyordu).
+import BOS_KUTU from "@/anim/bos-kutu.json";
 import { Gradient } from "@/theme/Gradient";
 
 /**
@@ -337,30 +342,30 @@ export default function Home() {
             {rooms.length > 0 ? (
               rooms.map((r) => <RoomRow key={r.id} room={r} onPress={() => onRoomPress(r)} />)
             ) : (
-              /* Sekmeler artık gerçekten filtreliyor → sonuç boş olabilir */
-              <View style={styles.bos}>
-                <View style={styles.bosIkon}>
-                  <Icon name="mic" size={20} color={C.gold} />
-                </View>
-                <Txt weight="displayBold" size={14} color="#fff" style={{ marginTop: 12 }}>
-                  {tab === 4
+              /* Sekmeler artık gerçekten filtreliyor → sonuç boş olabilir.
+                 Görsel BosDurum'a taşındı (aynı kalıp rank.tsx ve wallet.tsx'te
+                 de kopyalanmıştı); metinler burada kalıyor, sekmeye bağlılar. */
+              <BosDurum
+                anim={BOS_KUTU}
+                baslik={
+                  tab === 4
                     ? "Boş oda yok"
                     : tab === 3
                       ? "Henüz resmî oda yok"
                       : tab === 2
                         ? "Yeni açılan oda yok"
-                        : "Şu an açık oda yok"}
-                </Txt>
-                <Txt size={11.5} color={C.dim} align="center" lh={1.5} style={{ marginTop: 6, maxWidth: 250 }}>
-                  {tab === 4
+                        : "Şu an açık oda yok"
+                }
+                alt={
+                  tab === 4
                     ? "Kurulu her odanın içinde birileri var. Kimse kalmayan odalar buraya düşer."
                     : tab === 3
                       ? "Resmî odalar açıldığında burada listelenir."
                       : tab === 2
                         ? `Son ${YENI_ODA_GUN} günde açılmış bir oda yok.`
-                        : "İçinde kimse olmayan odalar \"Boş\" sekmesinde. Kilitli, yasaklı ve işlem görmüş odalar hiç listelenmez."}
-                </Txt>
-              </View>
+                        : "İçinde kimse olmayan odalar \"Boş\" sekmesinde. Kilitli, yasaklı ve işlem görmüş odalar hiç listelenmez."
+                }
+              />
             )}
           </View>
         </ScrollView>
@@ -397,8 +402,6 @@ const styles = StyleSheet.create({
   crest: { position: "absolute", right: 2, top: 0, bottom: 0, justifyContent: "center", opacity: 0.85 },
   cover: { width: 62, height: 62, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
   lockTag: { position: "absolute", top: 4, right: 4, width: 18, height: 18, borderRadius: 9, backgroundColor: "rgba(0,0,0,.55)", alignItems: "center", justifyContent: "center" },
-  bos: { alignItems: "center", paddingVertical: 44, paddingHorizontal: 18 },
-  bosIkon: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: C.gold + "1A", borderWidth: 1, borderColor: C.gold + "3D" },
   livePill: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 4, paddingHorizontal: 11, borderRadius: 999 },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#fff" },
 });
