@@ -4,9 +4,12 @@
 > + 1 tasarım ajanı, kullanıcı onaylı) uygulama planı. Hangi fazda
 > olduğumuz `PROJE_DURUMU.md` §10'un başında; burası planın kendisi.
 >
-> **DURUM (2 Eylül akşam):** Faz 0 kod tarafı ✅ bitti (13 commit).
-> Bekleyen: `db/migrations/SON_072_079.sql` canlıda çalıştırılacak → Faz 0
-> duman testi (iki cihaz) → geçerse Faz 1.
+> **DURUM (3 Eylül):** Faz 0 kod tarafı ✅ bitti (13 commit). Faz 1'de
+> 1.1 → 1.4b ✅ bitti (7 commit, `f8d1839` → `a4f1271`).
+> **HÂLÂ BEKLEYEN (kullanıcıda):** `db/migrations/SON_072_079.sql` canlıda
+> çalıştırılacak → Faz 0 duman testi (iki cihaz). Faz 1 kodu bundan bağımsız
+> olduğu için paralel ilerledi, ama Faz 0'ın kapattığı hatalar canlıda hâlâ
+> AÇIK ve Faz 1'in cihaz doğrulaması da o tura bağlı.
 
 ## Kullanıcının verdiği kararlar
 
@@ -57,16 +60,18 @@ Konu başına dosya (tek büyük dosya değil). Faz 0 → 072-079 ✅ yazıldı,
 
 ---
 
-## FAZ 1 — Native his + performans (migration yok)
+## FAZ 1 — Native his + performans (migration yok) — 1.1 → 1.4b ✅
 
-Sıra "riski küçük / kazancı büyük"; her madde ayrı commit(ler):
+Sıra "riski küçük / kazancı büyük"; her madde ayrı commit(ler).
+Yapılanların commit listesi ve bilinçli olarak ATLANANLARIN gerekçeleri
+`PROJE_DURUMU.md` §10'da; burası planın kendisi.
 
-1. **1.1 (A3):** `(tabs)/index.tsx` arama ikonu `/preview` → `/user-search`.
-2. **1.2 (C4):** Sıcak yol logları silinir (room.tsx her sync'teki string join, presenceYaz logu); kalan ~80 `console.*` `__DEV__` kapısına; `babel-plugin-transform-remove-console` (prod).
-3. **1.3 (C2a):** Mesaj tavanı `.slice(-200)` (room.tsx append noktaları + dm-chat); `liveMembers.find` → `Map<uid,member>`.
-4. **1.4 (C1):** `src/components/Touch.tsx` Pressable sarmalayıcı (`pressed && {opacity:.6, scale:.97}` + android_ripple). Dalga dalga: (a) oda alt barı+koltuk/sheet, (b) sekmeler, (c) kalanlar. 396'lık toplu regex YAPILMAZ.
+1. **1.1 (A3) ✅ `f8d1839`:** `(tabs)/index.tsx` arama ikonu `/preview` → `/user-search`.
+2. **1.2 (C4) ✅ `25cfcc1` + `5a66edb`:** İki sıcak yol logu silindi (her presence sync'inde string kuruyorlardı); üretimde `console.log/debug/info` `__DEV__` kapısıyla no-op, `warn`/`error` bilerek duruyor. **Babel eklentisi ERTELENDİ:** projede `babel.config.js` yok, sıfırdan yazmak reanimated/worklets yolunu riske atar; dev build turunda (Faz 4) eklenecek.
+3. **1.3 (C2a) ✅ `dcc3a2a` + `eeba834`:** Mesaj tavanı `.slice(-200)` (room.tsx 5 + dm-chat 5 ekleme noktası); `liveMembers.find` → `uyeHaritasi` (`Map<uid, LiveMember>`, 7 arama).
+4. **1.4 (C1) — (a) ✅ `8eb09cd`, (b) ✅ `a4f1271`, (c) SIRADA:** `src/components/Touch.tsx` Pressable sarmalayıcı (`pressed && {opacity:.6, scale:.97}` + android_ripple; `kucul={false}` ile küçülme kapatılabilir). (a) oda alt barı 10 + koltuk 2 + aksiyon satırı 1, (b) `Tabs.tsx` + `BottomNav.tsx` (ikisi de `kucul={false}`), **(c) kalan ~810 yer — toplu regex YAPILMAZ, dalga dalga.**
 5. **1.5 (C2b):** FlatList geçişleri — ekran başına commit+test: önce oda sohbeti (inverted; iki-cihaz testi ŞART), sonra index, dm, notifications, rank, oda kullanıcı listesi; feed yalnız dış liste.
-6. **1.6 (C3):** `ChatRow`/`SeatItem` `React.memo` (AYNI dosyada — **room.tsx bölme bu fazda YAPILMAZ**, beta sonrası ayrı iş); `Portrait.tsx` SVG yalnız `!photo` iken.
+6. **1.6 (C3) — ÖNCE YENİDEN YAPILANDIRMA GEREKİYOR:** `React.memo` şu hâliyle İŞE YARAMAZ — `ChatRow`'a geçilen `onSelfPress`/`onTapUser` düz arrow const (room.tsx:2065, :2100), her render'da yeni kimlik alıyorlar. `useCallback` ile sarmak `openChatUserCard`'ın geniş kapanışı (`occupants`, `MY_ROLE`, `isDbRoom`, `dbId`, `davetBaslat`, `uyeHaritasi`, `seatActions`) yüzünden bayat kapanış riski; ayrıca `uyeHaritasi` her presence sync'inde değişip memo'yu tam gerektiği anda geçersiz kılıyor. **Doğru çözüm:** `ChatRow`'a `uid` geçip aramayı sabit bir işleyicinin içine almak. (AYNI dosyada — **room.tsx bölme bu fazda YAPILMAZ**.) Ayrıca `Portrait.tsx` SVG yalnız `!photo` iken.
 7. **1.7 (C5):** `Sheet.tsx` → `BottomSheetModal` (26 modal sürükle-kapat; her sheet elle doğrulanır); `(tabs)/_layout` `freezeOnBlur: true`.
 8. **1.8 (C6):** expo-image `transition`+`cachePolicy`(+`recyclingKey`); pravatar sökümü: `people.ts` → yerel asset; `onboarding.ts` 6 PRESET avatar → kendi Storage bucket URL'leri (**yükleme canlıda**).
 9. **1.9 (C7):** `useCachedResource` yaygınlaştırma (store, inventory, badges, visitors, user-profile, dm-chat); oda sahnesine oda-id bazlı cache seed.

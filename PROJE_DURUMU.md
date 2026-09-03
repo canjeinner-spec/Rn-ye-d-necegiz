@@ -507,11 +507,11 @@ Editor'ünde çalıştırır; birleşik: `HEPSI_020_046.sql`):
 
 ## 10) Şu An Kaldığımız Yer
 
-> **Son güncelleme: 2 Eylül 2026 (akşam)** · Dal `claude/metro-recovery-1xc2kq`
+> **Son güncelleme: 3 Eylül 2026** · Dal `claude/metro-recovery-1xc2kq`
 > · **origin'e PUSH EDİLMEDİ** · güncel commit için `git log --oneline -15`
 > (şema dökümü için `db/SEMA_DOKUMU.md`)
 
-### 🟢 EN GÜNCEL: FAZLI YOL HARİTASI — Faz 0 kodu bitti, SQL + duman testi bekliyor
+### 🟢 EN GÜNCEL: FAZLI YOL HARİTASI — Faz 1 başladı (1.1 → 1.4b bitti)
 
 **Plan dosyası: `YOL_HARITASI.md`** (repo kökü) — A'dan Z'ye analiz (3 keşif
 ajanı + tasarım ajanı) sonrası kullanıcı onaylı 5 fazlı plan. Kararlar
@@ -519,17 +519,60 @@ ajanı + tasarım ajanı) sonrası kullanıcı onaylı 5 fazlı plan. Kararlar
 DM/profil hediyesi bayrakla kapatılıp Faz 4'te gerçek) o dosyanın başında.
 
 **Nerede kaldık:**
+
 - **Faz 0 (mantık + kararlılık) — KOD ✅** 13 commit (`0170a86` → `0ef7dc3`),
-  `tsc` temiz. Migration'lar 072-079 yazıldı, birleşik `SON_072_079.sql`
-  hazır. Metro temiz önbellekle yeniden başlatıldı, tünel ayakta.
-- **Sıradaki adım (kullanıcı):** `db/migrations/SON_072_079.sql`'i Supabase
-  SQL Editor'da çalıştır (tek yapıştırma; enum yok, hepsi idempotent).
-  Kullanıcı dosya açamıyorsa içeriği sohbete yapıştır.
-- **Sonra:** Faz 0 iki-cihaz duman testi (`YOL_HARITASI.md` Faz 0 sonu, 6
-  madde). Geçmeden Faz 1'e geçilmez. Test sırasında Metro logu okunur
-  (`scratchpad/metro2.log` — tahmin değil kanıt).
-- **Sonra:** Faz 1 (native his): 1.1 arama ikonu → 1.2 loglar → 1.3 mesaj
-  tavanı → 1.4 Touch sarmalayıcı → … (sıra planda).
+  `tsc` temiz. Migration'lar 072-079 yazıldı, birleşik `SON_072_079.sql` hazır.
+
+- **⛔ FAZ 0 HÂLÂ CANLIYA UYGULANMADI — iki iş kullanıcıda, ikisi de duruyor:**
+  1. `db/migrations/SON_072_079.sql` Supabase SQL Editor'da çalıştırılacak
+     (tek yapıştırma; enum yok, hepsi idempotent). Dosya açılamıyorsa içerik
+     sohbete yapıştırılır.
+  2. Sonra Faz 0 iki-cihaz duman testi (`YOL_HARITASI.md` Faz 0 sonu, 6 madde).
+     Metro logu okunur (`scratchpad/metro2.log` — tahmin değil kanıt).
+
+  **Bu yapılana kadar 072-079'un kapattığı hatalar canlıda AÇIK:** yardımcı
+  sunucuda hâlâ reddediliyor, koltuk yarışı hâlâ sessizce eziyor, çift ödül
+  hâlâ mümkün, e-posta hâlâ her super_admin'e görünüyor, oda sohbeti hâlâ
+  kalıcı değil.
+
+- **Faz 1 (native his) — 1.1 → 1.4b ✅** 7 commit (`f8d1839` → `a4f1271`).
+  Doğrulama: `tsc --noEmit` temiz + `expo export --platform web` başarılı
+  (1769 modül, bütün rotalar üretildi). **Cihazda görsel doğrulama YOK.**
+
+  | Adım | Commit | Ne yapıldı |
+  |---|---|---|
+  | 1.1 ✅ | `f8d1839` | Oda listesi arama ikonu `/preview` (bileşen galerisi) yerine `/user-search`'e gidiyor. |
+  | 1.2a ✅ | `25cfcc1` | room.tsx'te her presence sync'inde string kuran iki teşhis logu silindi (11 satır). |
+  | 1.2b ✅ | `5a66edb` | `_layout.tsx`'te `if (!__DEV__)` kapısı — üretimde `console.log/debug/info` no-op. `warn`/`error` bilerek duruyor. |
+  | 1.3a ✅ | `dcc3a2a` | Sohbet dizilerine 200 mesaj tavanı (room.tsx 5 ekleme noktası + dm-chat 5). |
+  | 1.3b ✅ | `eeba834` | `liveMembers.find` → `uyeHaritasi` (`Map<uid, LiveMember>`); 7 arama çevrildi. |
+  | 1.4a ✅ | `8eb09cd` | **YENİ `src/components/Touch.tsx`** + oda alt barı (10), koltuklar (2), aksiyon satırı (1). |
+  | 1.4b ✅ | `a4f1271` | `Tabs.tsx` + `BottomNav.tsx` → `Touch` (`kucul={false}`). |
+
+- **BİLİNÇLİ OLARAK YAPILMAYANLAR (sebepleriyle):**
+  - **1.4c (kalan ~810 Pressable):** toplu regex plan gereği YASAK, dalga dalga
+    ve elle doğrulanarak yapılacak. Sonraki dalga: sohbet satırı avatar/isim
+    dokunuşları (room.tsx 296/301) ve en çok kullanılan ekranlar.
+  - **1.5 (FlatList geçişleri):** planın kendisi "oda sohbeti önce, iki-cihaz
+    testi ŞART" diyor. Cihaz doğrulaması olmadan `inverted` FlatList'e geçmek
+    tam da "bir yeri yapıp bir yeri bozmak" riski. Faz 0 duman testinden sonra.
+  - **1.6 (`React.memo`):** ÖLÇÜLDÜ, şu hâliyle İŞE YARAMAZ. `ChatRow`'a
+    `onSelfPress={openMyCard}` ve `onTapUser={openChatUserCard}` geçiliyor;
+    ikisi de düz arrow const (room.tsx:2065 ve :2100), yani HER render'da yeni
+    kimlik alıyorlar ve memo hiçbir şeyi durduramaz. Düzgün yapmak
+    `useCallback` ister; `openChatUserCard` `occupants`, `MY_ROLE`, `isDbRoom`,
+    `dbId`, `davetBaslat`, `uyeHaritasi` ve `seatActions` üzerine kapanıyor —
+    bağımlılık listesini cihaz doğrulaması olmadan kurmak bayat kapanış riski.
+    Ayrıca `uyeHaritasi` her presence sync'inde değiştiği için memo'nun en
+    gerekli olduğu anda zaten geçersizleşir. Gerçek çözüm: `ChatRow`'a `uid`
+    geçip aramayı sabit bir işleyicinin içine almak. Faz 1 sonuna bırakıldı.
+  - **1.2'nin babel eklentisi:** projede `babel.config.js` YOK (SDK 54
+    `babel-preset-expo`'yu kendisi uyguluyor ve worklets eklentisini de
+    ekliyor). Sıfırdan yazmak reanimated + expo-router yolunu riske atar,
+    kazancı yalnız üretim bundle'ında. Dev build turunda (Faz 4) eklenecek.
+
+- **Sıradaki:** önce Faz 0'ın iki bekleyen işi (SQL + duman testi). Sonra
+  Faz 1'in kalanı: 1.4c dalgaları → 1.5 → 1.6 → 1.7 …
 
 **Faz 0'ın kapattıkları (kısa):** yardımcının sunucuda reddedilmesi (072,
 "mantık hatası var gibi" hissinin ana kaynağı) · koltuk/onay yarışları (073)
