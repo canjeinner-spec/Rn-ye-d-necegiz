@@ -362,18 +362,25 @@ export default function DMChatScreen() {
                         <Txt weight="displayBold" size={20} color={C.gold2} style={{ transform: [{ skewX: "-8deg" }] }}>
                           ×{cozum.adet}
                         </Txt>
-                        {/* Karşılık ver: hediye kutusu AYNI hediye seçili açılır.
-                            Kendi gönderdiğimde anlamsız, o yüzden yalnız gelende. */}
-                        {!m.me && (
-                          <Pressable
-                            onPress={() => { haptic.light(); setGiftSecim(kod); setGiftOpen(true); }}
-                            hitSlop={6}
-                            style={styles.karsilikBtn}
-                          >
-                            <Icon name="gift" size={12} color={C.gold2} />
-                            <Txt weight="bold" size={11} color={C.gold2}>Karşılık ver</Txt>
-                          </Pressable>
-                        )}
+                        {/*
+                          Hediye kutusunu AYNI hediye seçili açar.
+
+                          Önce yalnız GELEN hediyede çiziliyordu ("kendi
+                          hediyene karşılık vermek anlamsız"). Ama kullanıcı
+                          kendi gönderdiğine bakıp düğmeyi arayınca ortaya
+                          çıktı ki orada da bir işe yarıyor: aynı hediyeyi
+                          tekrar yollamak. İkisi de var, etiket duruma göre.
+                        */}
+                        <Pressable
+                          onPress={() => { haptic.light(); setGiftSecim(kod); setGiftOpen(true); }}
+                          hitSlop={6}
+                          style={styles.karsilikBtn}
+                        >
+                          <Icon name="gift" size={12} color={C.gold2} />
+                          <Txt weight="bold" size={11} color={C.gold2}>
+                            {m.me ? "Tekrar gönder" : "Karşılık ver"}
+                          </Txt>
+                        </Pressable>
                       </View>
                     </View>
                     <Txt size={9} color={C.dim2} align="right" style={{ marginTop: 4 }}>{m.time}</Txt>
