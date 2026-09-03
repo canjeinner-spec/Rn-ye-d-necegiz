@@ -24,6 +24,12 @@ import type { ComponentProps } from "react";
  *    ızgarada/sohbette/vitrinde emojiye düşer, Lottie yalnız tam ekran
  *    efektte ve büyük önizlemede kurulur.
  *
+ *    ÖLÇÜT DOSYA BOYUTU DEĞİL, KARMAŞIKLIK. İlk denemede tavşan (959 KB)
+ *    salt boyutuna bakılarak ağır sayıldı ve emojiye düştü; oysa 30 katmanı
+ *    var ve tek bir desteklenmeyen özelliği yok — çizmesi ucuz, maliyeti
+ *    yalnız bir kerelik ayrıştırma. Karar katman sayısına ve efekt/blend
+ *    mode/matte yüküne bakar. Şu an tek ağır dosya zafer.
+ *
  * SES: `sound` alanı `require(...)` ile bir ses dosyası bekliyor. Yeni ses
  * eklemek için dosyayı `assets/gifts/` içine koyup buraya bağlamak yeterli —
  * `BigGiftOverlay` ve `GiftFx` onu kendisi çalıyor (`expo-audio`, sessiz
@@ -67,8 +73,10 @@ export const GIFT_SCENES: Record<string, GiftScene> = {
   hazine: { anim: () => require("../anim/gifts/hazine.json"), duration: 3600, sound: LEGENDARY_SOUND }, // 180 KB
   gul:    { anim: () => require("../anim/gifts/gul.json"),    duration: 4000 },              // 258 KB
 
+  // 959 KB ama 30 katman ve sıfır özel özellik: çizmesi ucuz, ağır DEĞİL.
+  tavsan: { anim: () => require("../anim/gifts/tavsan.json"), duration: 2000 },              // 959 KB
+
   // ── ağır: yalnız tam ekran efekt + büyük önizleme ────────────────────────
-  tavsan: { anim: () => require("../anim/gifts/tavsan.json"), duration: 2000, agir: true },  // 959 KB
 
   /**
    * EN AĞIR VARLIK — 4.6 MB, 1440x1024, 10.67 sn, 60 fps, 334 katman.

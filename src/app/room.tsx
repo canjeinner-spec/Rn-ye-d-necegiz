@@ -927,7 +927,28 @@ export default function RoomScreen() {
   const [reportDone, setReportDone] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftFx, setGiftFx] = useState<(Gift & { qty: number }) | null>(null);
-  const [bigGift, setBigGift] = useState<{ gift: Gift; qty: number } | null>(null);
+  // `sender` EKLENDİ: efekt artık odadaki herkeste oynuyor, "Sen" sabiti
+  // karşı tarafta yanlış oluyordu — kimin gönderdiği yayınla geliyor.
+  const [bigGift, setBigGift] = useState<{ gift: Gift; qty: number; sender: string } | null>(null);
+
+  /**
+   * Hediye efektini oynatan TEK yer. Hem kendi gönderimim hem odadaki
+   * başkasının yayını buradan geçiyor; iki ayrı kopya olsaydı biri
+   * güncellenip diğeri unutulurdu.
+   */
+  const efektiOynat = useCallback((g: Gift, qty: number, gonderen: string) => {
+    if (g.tier === "legendary") { setBigGift({ gift: g, qty, sender: gonderen }); return; }
+    setGiftFx({ ...g, qty });
+    // Süre sahne manifestinden (bigGifts.ts): Lottie'nin kendi uzunluğu var,
+    // sabit 2400/3000 ms animasyonu yarıda kesiyordu.
+    const sahne = sceneFor(g.id);
+    const dur = sahne.anim ? sahne.duration : g.tier === "epic" ? 3000 : 2400;
+    setTimeout(() => setGiftFx(null), dur);
+  }, []);
+  // Kanal dinleyicisi bunu bağımlılığına ALMADAN çağırabilsin diye ref —
+  // `tepkiGosterRef` ile aynı desen. Deps'e eklemek kanalı yeniden kurardı.
+  const efektiOynatRef = useRef(efektiOynat);
+  efektiOynatRef.current = efektiOynat;
   const [panelOpen, setPanelOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   /** Alt bar: ikon satırı mı, yazma satırı mı. */
@@ -1013,21 +1034,24 @@ export default function RoomScreen() {
       chanRef.current.send({
         type: "broadcast",
         event: "chat",
-        payload: { uid: myDbId, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined, text: "", time: saat, hediye },
+        payload: { uid: myDbId, cihaz: CIHAZ, name: userName, photo: userPhoto || undefined, publicId: myPublicId || undefined, text: "", time: saat, hediye },
       });
     }
 
-    if (g.tier === "legendary") {
-      setBigGift({ gift: g, qty });
-      if (room) fireBroadcast({ sender: "Sen", recipient, qty, room, gift: g });
-      return;
+    // EFEKT ARTIK ODADAKİ HERKESE GİDİYOR. Eskiden yalnız gönderende
+    // oynuyordu: karşı taraf sohbete düşen kapsülü görüyordu ama animasyonu
+    // hiç görmüyordu. Sohbet yayınıyla aynı kanal, ayrı olay.
+    if (isDbRoom && chanRef.current) {
+      chanRef.current.send({
+        type: "broadcast",
+        event: "hediye",
+        payload: { cihaz: CIHAZ, gift: g, qty, sender: userName },
+      });
     }
-    setGiftFx({ ...g, qty });
-    // Süre artık sahne manifestinden (bigGifts.ts): Lottie'nin kendi uzunluğu
-    // var, sabit 2400/3000 ms animasyonu yarıda kesiyordu.
-    const sahne = sceneFor(g.id);
-    const dur = sahne.anim ? sahne.duration : g.tier === "epic" ? 3000 : 2400;
-    setTimeout(() => setGiftFx(null), dur);
+
+    efektiOynat(g, qty, "Sen");
+    // Uygulama geneli efsanevi şeridi (16.5 sn) ayrı bir şey; odayla sınırlı değil.
+    if (g.tier === "legendary" && room) fireBroadcast({ sender: "Sen", recipient, qty, room, gift: g });
   };
 
   /**
@@ -1481,6 +1505,14 @@ export default function RoomScreen() {
       const p = payload as { uid?: number; emoji?: string };
       if (!alive || p.uid == null || !p.emoji || p.uid === myDbId) return;
       tepkiGosterRef.current(p.uid, p.emoji);
+    });
+
+    // Başkasının gönderdiği hediye — efekti burada oynuyor.
+    ch.on("broadcast", { event: "hediye" }, ({ payload }) => {
+      const p = payload as { cihaz?: string; gift?: Gift; qty?: number; sender?: string };
+      // Kendi yayınımın echo'su: efekti zaten yerel oynattım.
+      if (!alive || !p.gift || p.cihaz === CIHAZ) return;
+      efektiOynatRef.current(p.gift, p.qty ?? 1, p.sender || "Kullanıcı");
     });
 
     // Yönetici sistem mesajı / uyarısı — o an içeridekilere canlı baloncuk.
@@ -2937,7 +2969,7 @@ export default function RoomScreen() {
 
       {giftFx && <GiftFx gift={giftFx} />}
 
-      {bigGift && <BigGiftOverlay gift={bigGift.gift} qty={bigGift.qty} sender="Sen" onDone={() => setBigGift(null)} />}
+      {bigGift && <BigGiftOverlay gift={bigGift.gift} qty={bigGift.qty} sender={bigGift.sender} onDone={() => setBigGift(null)} />}
     </View>
   );
 }
