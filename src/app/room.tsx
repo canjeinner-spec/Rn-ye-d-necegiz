@@ -131,6 +131,19 @@ const MSG_TAVAN = 200;
 const { width: EKRAN } = Dimensions.get("window");
 const KOLTUK = Math.round((EKRAN / 4) * 0.583);
 const SAHIP_KOLTUK = Math.round(KOLTUK * 1.15);
+/**
+ * Koltuk hücresinin avatarın ALTINDA ayırdığı yer — isim satırı ve yetki
+ * rozeti için, KOLTUK DOLU OLMASA DA.
+ *
+ * NEDEN SABİT: hücre yüksekliği içeriğe bırakılınca dolu koltuk (avatar +
+ * isim + "Yetkili" rozeti) boş koltuktan çok daha uzun oluyor ve flex satırı
+ * onun boyuna çekiyordu. Üst sıraya biri mikrofona çıkınca iki sıra
+ * birbirinden ayrılıyor, ızgara bozuk görünüyordu. Yer her zaman ayrılırsa
+ * sıralar her durumda aynı hizada kalıyor.
+ *
+ * 6 (boşluk) + 12 (isim) + 6 (boşluk) + 16 (rozet) = 40.
+ */
+const KOLTUK_ETIKET = 40;
 
 const ROOM_REPORT: { ic: IconName; t: string }[] = [
   { ic: "adult", t: "Uygunsuz / 18+ içerik" },
@@ -255,6 +268,55 @@ function SeatItem({
       </Txt>
       {seat.yetki && <AuthorityTag size={8} />}
     </Touch>
+  );
+}
+
+/**
+ * Klavye açıkken sahnenin yerini alan TEK SATIRLIK şerit.
+ *
+ * NEDEN VAR: klavye açılınca mikrofon ızgarası tamamen gizleniyordu ve
+ * kullanıcı bunu haklı olarak "bayağı sorunlu" buldu — yazarken kimin
+ * mikrofonda olduğunu göremiyorsun.
+ *
+ * Ama hepsini göstermek de mümkün değil, hesap tutmuyor: sahne yaklaşık
+ * 300pt (sahip koltuğu + iki sıra + boşluklar), üst bar ~90pt, yazı kutusu
+ * ~60pt; klavye ~330pt alınca sohbete neredeyse hiç yer kalmıyor. Eski
+ * çözüm bir uca (hepsini gizle), doğru çözüm ortaya düşüyor: yalnız DOLU
+ * mikrofonlar, küçük ve tek sırada, ~54pt. Boş koltuklar zaten yazarken
+ * bilgi taşımıyor.
+ *
+ * Dokunma davranışı sahnedekiyle aynı — kişi kartı açılıyor.
+ */
+function MiniSahne({ host, koltuklar, userPhoto, onBas }: {
+  host: Seat | null;
+  koltuklar: (Seat | null)[];
+  userPhoto: string | null;
+  onBas: (s: Seat) => void;
+}) {
+  const dolu = koltuklar.filter((s): s is Seat => !!s);
+  // Sahip başta; koltuktaysa iki kez çizilmesin.
+  const liste = host ? [host, ...dolu.filter((s) => s.uid == null || s.uid !== host.uid)] : dolu;
+  if (!liste.length) return null;
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.miniSahne}
+      contentContainerStyle={{ gap: 10, paddingHorizontal: 16, alignItems: "center" }}
+    >
+      {liste.map((s, i) => (
+        <Pressable key={s.uid ?? "k" + i} onPress={() => onBas(s)}>
+          <Portrait
+            name={s.name}
+            size={38}
+            photo={s.name === "Sen" ? userPhoto || undefined : s.photo}
+            muted={s.muted}
+            ring={s.host ? C.gold : s.mod ? C.teal : s.speaking ? C.teal : "rgba(255,255,255,.16)"}
+            glow={s.speaking}
+          />
+        </Pressable>
+      ))}
+    </ScrollView>
   );
 }
 
@@ -2449,7 +2511,14 @@ export default function RoomScreen() {
             </View>
           </View>
 
-          {!klavyeAcik && (
+          {klavyeAcik ? (
+            <MiniSahne
+              host={gosterilenHost}
+              koltuklar={gosterilenKoltuklar}
+              userPhoto={userPhoto}
+              onBas={tapOccupant}
+            />
+          ) : (
           <View style={styles.stage}>
             {(gosterilenHost || isMine) && (
               <Pressable onPress={() => { if (isMine) openMyCard(); else if (gosterilenHost) tapOccupant(gosterilenHost); }} style={styles.hostSeat}>
@@ -3123,10 +3192,17 @@ const styles = StyleSheet.create({
   // WePlay'de ızgaranın yatay dolgusu yok: sütunlar tam ekranın dörtte biri.
   // Dolgu koydukça sütun daralıyor, aynı çaptaki koltuk sıkışık görünüyordu.
   stage: { paddingTop: 10, paddingBottom: 10 },
+  // Klavye acikken sahnenin yerini alan serit — sabit yukseklik sart,
+  // yatay ScrollView icerigine gore buyurse sohbeti yer.
+  miniSahne: { height: 54, flexGrow: 0, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.06)" },
   hostSeat: { alignItems: "center", marginBottom: 18 },
-  // rowGap 22 -> 44: olculen WePlay satir arasi 133px = 44pt idi, bizimki
-  // 67px = 22pt. Izgara bu yuzden sikisik duruyordu.
-  grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 44 },
+  /**
+   * Halkadan halkaya ölçülen WePlay boşluğu 133px = 44pt idi.
+   * Hücre artık altında `KOLTUK_ETIKET` (40) kadar sabit yer ayırdığı için
+   * görünen boşluk = 40 + rowGap. Hedefi tutturmak için rowGap = 4.
+   * (rowGap 44 bırakılsaydı boşluk 84pt olurdu.)
+   */
+  grid: { flexDirection: "row", flexWrap: "wrap", rowGap: 4 },
   // Alt bar — WePlay/Yalla düzeni: yuvarlak düğmeler + ortada "Yaz …" hapı.
   barYuvarlak: {
     width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center",
@@ -3215,7 +3291,7 @@ const styles = StyleSheet.create({
   },
   reportCard: { backgroundColor: "#181620", borderRadius: 24, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
   reportDetailInput: { backgroundColor: C.card, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 14, color: C.text, fontSize: 12.5, height: 84, textAlignVertical: "top" },
-  seat: { width: "25%", alignItems: "center", gap: 6 },
+  seat: { width: "25%", height: KOLTUK + KOLTUK_ETIKET, alignItems: "center", justifyContent: "flex-start", gap: 6 },
   emptySeat: { borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   seatLock: { position: "absolute", bottom: -2, right: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: "#0A0A0F", borderWidth: 1, borderColor: C.gold + "66", alignItems: "center", justifyContent: "center" },
   speakRing: { position: "absolute", top: -7, left: -7, right: -7, bottom: -7, borderRadius: 999, borderWidth: 2, borderColor: C.teal },
