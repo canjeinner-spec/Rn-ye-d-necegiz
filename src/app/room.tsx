@@ -347,6 +347,97 @@ function MiniSahne({ host, koltuklar, userPhoto, onBas }: {
   );
 }
 
+/**
+ * Odadaki bir kişi — ÜÇ KAYNAĞIN BİRLEŞİMİ.
+ *
+ * Kaynaklar tek başına güvenilmez: `oda_katilimcilar` arkaplanda bayatlıyor,
+ * presence soket kopunca boşalıyor, koltuk tablosu yalnız mikrofondakileri
+ * biliyor. Üçünü birleştirmek hem listeyi hem SAYIYI tutarlı yapıyor —
+ * kullanıcı "o da kararsız, bazen saymıyor bazen sayıyor" demişti; sebebi
+ * rozetin üç kaynağın en büyüğünü, sayfa başlığının ise tek kaynağı
+ * göstermesiydi.
+ */
+type OdaKisisi = {
+  uid: number;
+  name: string;
+  photo?: string;
+  publicId?: string;
+  yetkili?: boolean;
+  cerceve?: string | null;
+  /** -1 sahip koltuğu, 0-7 normal koltuk, null = dinleyici */
+  koltuk: number | null;
+  micAcik: boolean;
+};
+
+/**
+ * Kullanıcı listesi satırı.
+ *
+ * Referans (WePlay) iki satırlı ve HER SATIRDA AYNI alanlar var; bizimki
+ * kart zeminli, tek satırlık ve kişiye göre değişiyordu — kullanıcının
+ * "tutarsız" dediği buydu. Yeni düzen: solda çerçeveli avatar, sağda iki
+ * sabit satır (ad + rol rozetleri / mikrofon durumu), aralarda ince ayırıcı.
+ * Kart zemini kaldırıldı; referansta da satırlar ayırıcıyla bölünüyor.
+ */
+function KullaniciSatiri({ k, rol, benMi, benimAdim, benimFotom, onBas, onDavet }: {
+  k: OdaKisisi;
+  rol?: "host" | "mod";
+  benMi: boolean;
+  benimAdim: string;
+  benimFotom: string | null;
+  onBas: () => void;
+  onDavet?: () => void;
+}) {
+  const koltukta = k.koltuk != null;
+  const halka = rol === "host" ? C.gold : rol === "mod" ? C.teal : "rgba(255,255,255,.14)";
+  return (
+    <Pressable onPress={onBas} style={styles.listeSatiri}>
+      <View style={{ width: 46, height: 46 }}>
+        <Portrait
+          name={k.name}
+          size={46}
+          photo={benMi ? benimFotom || undefined : k.photo}
+          ring={k.cerceve ? "transparent" : halka}
+          glow={!k.cerceve && !!rol}
+        />
+        {!!k.cerceve && <FramePreview id={k.cerceve} size={46} />}
+      </View>
+
+      <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <Txt weight="extrabold" size={13} color={rol === "host" ? C.gold2 : "#fff"} numberOfLines={1} style={{ flexShrink: 1 }}>
+            {benMi ? benimAdim : k.name}
+          </Txt>
+          {rol && <RolePill type={rol} />}
+          {k.yetkili && <AuthorityTag size={8} />}
+        </View>
+
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Icon
+            name={koltukta ? (k.micAcik ? "mic" : "micoff") : "users"}
+            size={12}
+            color={koltukta ? (k.micAcik ? C.teal : C.dim2) : C.dim2}
+          />
+          <Txt weight="semibold" size={10.5} color={koltukta ? (k.micAcik ? C.teal : C.dim2) : C.dim}>
+            {k.koltuk === -1
+              ? "Sahip koltuğu"
+              : koltukta
+                ? `${(k.koltuk ?? 0) + 1}. mikrofon${k.micAcik ? "" : " · sessiz"}`
+                : "Dinliyor"}
+          </Txt>
+        </View>
+      </View>
+
+      {onDavet && (
+        <Pressable onPress={onDavet} hitSlop={6} style={styles.listeDavet}>
+          <Icon name="hand" size={13} color={C.gold2} />
+          <Txt weight="bold" size={11} color={C.gold2}>Davet</Txt>
+        </Pressable>
+      )}
+      <Icon name="chev" size={13} color={C.dim2} />
+    </Pressable>
+  );
+}
+
 /** Odadaki canlı üye — presence yükünden (kuşanılan eşyalar + koltuk dahil). */
 type LiveMember = {
   uid: number;
@@ -1576,7 +1667,48 @@ export default function RoomScreen() {
     () => dbKoltuklar.filter((k) => k.kullaniciId != null).length,
     [dbKoltuklar],
   );
-  const crowdCount = isDbRoom ? Math.max(odadakiler.length, koltuktakiSayi) : occupants.length;
+  /**
+   * ODADAKİLERİN TEK LİSTESİ — üç kaynağın birleşimi.
+   *
+   * Hiçbiri tek başına yeterli değil: `odadakiler` (katılımcı tablosu)
+   * arkaplanda bayatlıyor, `liveMembers` (presence) soket kopunca boşalıyor,
+   * `dbKoltuklar` yalnız mikrofondakileri biliyor. Birleşim hem listeyi hem
+   * sayıyı sabitliyor.
+   *
+   * Sıra: sahip → yardımcılar/koltuktakiler (koltuk numarasına göre) →
+   * dinleyiciler (ada göre).
+   */
+  const odaListesi = useMemo<OdaKisisi[]>(() => {
+    const h = new Map<number, OdaKisisi>();
+    const koy = (uid: number, v: Partial<OdaKisisi>) => {
+      const eski = h.get(uid) ?? { uid, name: "Kullanıcı", koltuk: null, micAcik: true };
+      const yeni = { ...eski };
+      for (const [alan, deger] of Object.entries(v)) {
+        if (deger !== undefined && deger !== null && deger !== "") (yeni as Record<string, unknown>)[alan] = deger;
+      }
+      h.set(uid, yeni);
+    };
+    for (const m of odadakiler) koy(m.uid, { name: m.name, photo: m.photo, publicId: m.publicId, yetkili: m.yetkili });
+    for (const m of liveMembers) koy(m.uid, { name: m.name, photo: m.photo, publicId: m.publicId, cerceve: m.cerceve, yetkili: m.yetki });
+    // Koltuk tablosu EN SON: koltuk/mikrofon doğrusu orada.
+    for (const k of dbKoltuklar) {
+      if (k.kullaniciId == null) continue;
+      koy(k.kullaniciId, {
+        name: k.ad ?? undefined, photo: k.foto ?? undefined, publicId: k.publicId ?? undefined,
+        yetkili: k.yetkili || undefined, koltuk: k.koltukNo, micAcik: k.micAcik,
+      });
+    }
+    if (myDbId != null) {
+      koy(myDbId, {
+        name: userName, photo: userPhoto ?? undefined, publicId: myPublicId ?? undefined,
+        cerceve: kusanili.cerceve, yetkili: privileged || undefined,
+      });
+    }
+    const sira = (k: OdaKisisi) => (k.koltuk === -1 ? -1 : k.koltuk != null ? k.koltuk : 99);
+    return [...h.values()].sort((a, b) => sira(a) - sira(b) || a.name.localeCompare(b.name, "tr"));
+  }, [odadakiler, liveMembers, dbKoltuklar, myDbId, userName, userPhoto, myPublicId, kusanili.cerceve, privileged]);
+
+  const crowdCount = isDbRoom ? Math.max(odaListesi.length, koltuktakiSayi) : occupants.length;
 
   // Oda ayarları CANLI (039): sahip tema/kapak/isim/duyuru değiştirince odadakiler
   // yeniden girmeden görsün. (Herkese açık oda; kilitli odada RLS gereği yalnız sahip.)
@@ -2608,6 +2740,23 @@ export default function RoomScreen() {
         : undefined,
     });
   };
+  /**
+   * Listeden birine dokunma — KART açılıyor, profile GİTMİYOR.
+   *
+   * Eskiden `router.navigate("/user-profile...")` çağrılıyordu: odadan
+   * çıkıp profil ekranına atıyordu. Kullanıcı kararı: kart açılsın; oda
+   * içinde kalıp davet/sustur/yasakla gibi işleri oradan yapabilesin.
+   */
+  const listeKisiAc = (k: OdaKisisi) => {
+    setUserList(false);
+    if (k.uid === myDbId) { openMyCard(); return; }
+    if (k.koltuk != null && k.koltuk >= 0 && k.koltuk < 8) {
+      const oturan = gosterilenKoltuklar[k.koltuk];
+      if (oturan) { tapOccupant(oturan); return; }
+    }
+    openChatUserCard({ name: k.name, uid: k.uid, photo: k.photo, publicId: k.publicId, text: "", time: "" });
+  };
+
   const openByName = (name: string) => {
     if (name === "Sen") { openMyCard(); return; }
     const s = occupants.find((o) => o.name === name);
@@ -2701,7 +2850,8 @@ export default function RoomScreen() {
                   ))}
                 </View>
                 <Pressable onPress={() => setUserList(true)} style={styles.countBadge}>
-                  <Icon name="user" size={12} color="rgba(255,255,255,.7)" />
+                  {/* `user` tek kişi siluetiydi; liste düğmesi için `users` doğru. */}
+                  <Icon name="users" size={13} color="rgba(255,255,255,.7)" />
                   <Txt weight="extrabold" size={9} color="#fff">{crowdCount}</Txt>
                 </Pressable>
               </View>
@@ -2952,78 +3102,60 @@ export default function RoomScreen() {
       </Modal>
 
       <Sheet visible={userList} onClose={() => setUserList(false)} maxHeightRatio={0.72}>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <Txt weight="displayBold" size={16} color="#fff">Odadaki Kullanıcılar</Txt>
-          <Pill bg="rgba(255,255,255,.07)" color={C.dim} border={C.line}>{(isDbRoom ? odadakiler.length : occupants.length)} kişi</Pill>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <Icon name="users" size={16} color={C.gold2} />
+          <Txt weight="displayBold" size={16} color="#fff">Odadakiler</Txt>
+          {/* Sayı BAŞLIKTA da aynı kaynaktan. Eskiden başlık `odadakiler.length`,
+              üstteki rozet ise üç kaynağın en büyüğünü gösteriyordu; ikisi
+              birbirini tutmuyordu. */}
+          <Txt weight="extrabold" size={16} color={C.gold2}>{isDbRoom ? odaListesi.length : occupants.length}</Txt>
+          <View style={{ flex: 1 }} />
+          <Pressable
+            onPress={() => { haptic.light(); katilimciTazeleRef.current(); koltukTazeleRef.current(); }}
+            hitSlop={8}
+            style={styles.listeYenile}
+          >
+            <Txt weight="bold" size={11} color={C.dim}>Yenile</Txt>
+          </Pressable>
         </View>
-        <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ gap: 4 }}>
+
+        <ScrollView style={{ maxHeight: 440 }} contentContainerStyle={{ paddingBottom: 6 }}>
           {isDbRoom
-            ? odadakiler.map((m) => {
-                const isMe = m.uid === myDbId;
-                const rol = roomRoles.get(m.uid);
+            ? odaListesi.map((k) => {
+                const benMi = k.uid === myDbId;
+                const rol = roomRoles.get(k.uid);
+                // Davet yalnız yetkiliye ve KOLTUKTA OLMAYANA gösteriliyor.
+                const davetEdilebilir = !benMi && (MY_ROLE === "host" || MY_ROLE === "mod") && k.koltuk == null;
                 return (
-                  <Pressable
-                    key={m.uid}
-                    onPress={() => {
-                      setUserList(false);
-                      if (isMe) openMyCard();
-                      else if (m.publicId) router.navigate(`/user-profile?publicId=${encodeURIComponent(m.publicId)}&name=${encodeURIComponent(m.name)}`);
-                    }}
-                    style={styles.userRow}
-                  >
-                    <Portrait
-                      name={m.name}
-                      size={40}
-                      ring={rol === "host" ? C.gold : rol === "mod" ? C.teal : "rgba(255,255,255,.14)"}
-                      glow={!!rol}
-                      online
-                      photo={isMe ? userPhoto || undefined : m.photo}
-                    />
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        <Txt weight="extrabold" size={12.5} color={rol === "host" ? C.gold2 : C.text}>{isMe ? userName : m.name}</Txt>
-                        {rol && <RolePill type={rol} />}
-                        {isMe && privileged && <AuthorityTag size={8} />}
-                      </View>
-                      <Txt weight="semibold" size={10} color={C.green} style={{ marginTop: 3 }}>Odada</Txt>
-                    </View>
-                    {/* Davetin tek girişi sohbetteki mesaj kartıydı: hiç yazmamış
-                        birini davet etmek mümkün değildi. Asıl beklenen yer burası. */}
-                    {!isMe && isDbRoom && (MY_ROLE === "host" || MY_ROLE === "mod")
-                      && !dbKoltuklar.some((k) => k.kullaniciId === m.uid) && (
-                      <Pressable
-                        onPress={() => { setUserList(false); davetBaslat(m.uid, m.name); }}
-                        hitSlop={6}
-                        style={styles.listeDavet}
-                      >
-                        <Icon name="hand" size={13} color={C.gold2} />
-                        <Txt weight="bold" size={11} color={C.gold2}>Davet</Txt>
-                      </Pressable>
-                    )}
-                    <Icon name="chev" size={13} color={C.dim2} />
-                  </Pressable>
+                  <KullaniciSatiri
+                    key={k.uid}
+                    k={k}
+                    rol={rol}
+                    benMi={benMi}
+                    benimAdim={userName}
+                    benimFotom={userPhoto}
+                    onBas={() => listeKisiAc(k)}
+                    onDavet={davetEdilebilir ? () => { setUserList(false); davetBaslat(k.uid, k.name); } : undefined}
+                  />
                 );
               })
-            : occupants.map((s) => {
-                const isMe = s.name === "Sen";
-                return (
-                  <Pressable key={s.name} onPress={() => { setUserList(false); tapOccupant(s); }} style={styles.userRow}>
-                    <Portrait name={s.name} size={40} ring={s.host ? C.gold : s.mod ? C.teal : "rgba(255,255,255,.14)"} glow={s.host || s.mod} online photo={isMe ? userPhoto || undefined : undefined} />
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        <Txt weight="extrabold" size={12.5} color={C.text}>{isMe ? userName : s.name}</Txt>
-                        {s.host && <RolePill type="host" />}
-                        {s.mod && !s.host && <RolePill type="mod" />}
-                        {isMe && privileged && <AuthorityTag size={8} />}
-                      </View>
-                      <Txt weight="semibold" size={10} color={s.muted ? C.dim2 : C.green} style={{ marginTop: 3 }}>
-                        {s.muted ? "🔇 Sessiz" : "🎙️ Konuşuyor"}
-                      </Txt>
-                    </View>
-                    <Icon name="chev" size={13} color={C.dim2} />
-                  </Pressable>
-                );
-              })}
+            : occupants.map((o) => (
+                <KullaniciSatiri
+                  key={o.name}
+                  k={{
+                    uid: -1, name: o.name, koltuk: 0, micAcik: !o.muted,
+                    photo: o.name === "Sen" ? userPhoto || undefined : undefined,
+                  }}
+                  rol={o.host ? "host" : o.mod ? "mod" : undefined}
+                  benMi={o.name === "Sen"}
+                  benimAdim={userName}
+                  benimFotom={userPhoto}
+                  onBas={() => { setUserList(false); tapOccupant(o); }}
+                />
+              ))}
+          {isDbRoom && odaListesi.length === 0 && (
+            <Txt size={12} color={C.dim2} align="center" style={{ paddingVertical: 24 }}>Odada kimse görünmüyor</Txt>
+          )}
         </ScrollView>
       </Sheet>
 
@@ -3506,7 +3638,17 @@ const styles = StyleSheet.create({
   toastKatman: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
   toast: { backgroundColor: "rgba(15,13,21,.96)", borderWidth: 1, borderColor: C.gold + "66", paddingVertical: 15, paddingHorizontal: 24, borderRadius: 20, maxWidth: "80%" },
   actionBtn: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "rgba(255,255,255,.05)", borderWidth: 1, borderColor: "rgba(255,255,255,.08)", borderRadius: 14, padding: 14, marginTop: 8 },
-  userRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 10, borderRadius: 14, backgroundColor: "rgba(255,255,255,.03)" },
+  /**
+   * Liste satırı: kart zemini YOK, ince ayırıcı VAR.
+   * Kart zeminli satırlar yan yana gelince ızgara gibi görünüyor ve rozetler
+   * hizasını kaybediyordu; referansta da satırlar ayırıcıyla bölünüyor.
+   */
+  listeYenile: { paddingVertical: 5, paddingHorizontal: 11, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },
+  listeSatiri: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    paddingVertical: 11, paddingHorizontal: 4,
+    borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.06)",
+  },
   bigCircle: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.08)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)" },
   exitOverlay: { flex: 1, alignItems: "center", justifyContent: "center" },
   exitDim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(8,8,12,.55)" },
