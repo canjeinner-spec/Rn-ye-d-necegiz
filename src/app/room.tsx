@@ -1042,6 +1042,28 @@ export default function RoomScreen() {
     // oturduğunda `mySeat` set edildiği için o yol düzgün
     // görünüyordu — aradaki fark buydu.
     if (benim && benim.koltukNo >= 0 && benim.koltukNo < 8) {
+      /**
+       * KENDİ İSTEĞİMİN YANKISINI BEKLERKEN GERİ ZIPLATMA.
+       *
+       * Kullanıcının tarifi: "geç diyorum, avatarım tam o mikrofonda
+       * beliriyor, kayboluyor, sonra düzgünce geçiyor."
+       *
+       * Sebebi buydu: 1'den 2'ye geçerken yerel `mySeat` hemen 2 oluyor ama
+       * tablo bir süre daha ESKİ satırı (koltuk 1) taşıyor. Bu dal koşulsuz
+       * çalıştığı için beni 1'e geri alıyordu; tablo güncellenince tekrar
+       * 2'ye. Ekranda beliren-kaybolan-yerleşen sekme tam olarak buydu.
+       *
+       * Aşağıdaki (b) dalında bu pencere zaten vardı, burada YOKTU.
+       * Yalnızca "kendi koltuğum var + tablo başka koltuk diyor + isteğim
+       * çok yeni" durumunda erteliyoruz. Sunucunun beni gerçekten taşıdığı
+       * durumlar (sıra onayı, davet, yönetici müdahalesi) `mySeat` null
+       * olduğu ya da pencere dolduğu için aynen uygulanıyor.
+       */
+      const gecenA = Date.now() - sonKoltukIstegiRef.current;
+      if (mySeat !== null && mySeat !== benim.koltukNo && gecenA < BEKLEME_MS) {
+        const t = setTimeout(() => setUzlasTetik((x) => x + 1), BEKLEME_MS - gecenA + 50);
+        return () => clearTimeout(t);
+      }
       if (mySeat !== benim.koltukNo) setMySeat(benim.koltukNo);
       if (micOn !== benim.micAcik) setMicOn(benim.micAcik);
       dusurmeOnayRef.current = 0; // koltuktayım: bir sonraki şüphe sıfırdan doğrulansın
