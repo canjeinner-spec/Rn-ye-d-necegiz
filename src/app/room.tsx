@@ -276,6 +276,8 @@ function ChatRow({
   userPhoto,
   privileged,
   balonTema,
+  cerceve,
+  rol,
   onSelfPress,
   onTapUser,
   onTapHediye,
@@ -286,13 +288,23 @@ function ChatRow({
   privileged: boolean;
   /** Gönderenin kuşandığı sohbet balonu teması (056) */
   balonTema?: string | null;
+  /** Gönderenin kuşandığı çerçeve — avatarın etrafında çiziliyor. */
+  cerceve?: string | null;
+  /**
+   * Yazanın ODADAKİ rolü. Yayından DEĞİL, `roomRoles` haritasından geliyor:
+   * rolü yükün içinde taşımak gönderenin "ben sahibim" diye yalan
+   * söyleyebilmesi demekti. Oda sahibi rozeti bu yüzden hiç görünmüyordu —
+   * yayın `yetki` taşıyordu ama `host`/`mod` taşımıyordu.
+   */
+  rol?: "host" | "mod" | null;
   /** Sohbetteki hediyeye dokunulunca — kutuyu o hediye seçili açar. */
   onTapHediye?: (kod: string) => void;
   onSelfPress: () => void;
   onTapUser?: (m: ChatMsg) => void;
 }) {
   if (m.sys) return <SystemNotice m={m} />;
-  const role = m.host ? ("host" as const) : m.mod ? ("mod" as const) : null;
+  // Yetkili kaynak `rol`; eski yerel mesajlar icin m.host/m.mod yedek.
+  const role = rol ?? (m.host ? ("host" as const) : m.mod ? ("mod" as const) : null);
   const isMe = !!m.myOwn || m.name === "Sen";
   const displayName = isMe ? userName : m.name;
   const tap = () => (isMe ? onSelfPress() : onTapUser?.(m));
@@ -301,7 +313,7 @@ function ChatRow({
   // varsayılan. Altın balon kendi yazdığını okunmaz derecede öne çıkarıyordu
   // ve iki platformda farklı bir his veriyordu. Altın rengi yalnız isimde
   // kalıyor; balonunu değiştirmek isteyen kuşanılabilir balon alıyor.
-  const bubble = m.host ? "host" : m.mod ? "mod" : "plain";
+  const bubble = role === "host" ? "host" : role === "mod" ? "mod" : "plain";
   const balonT = balonTema ? BALON_TEMALARI[balonTema] : null;
   /**
    * Balon zemini TEK yerde. Eskiden iki ayri dalda kopyalanmisti; hediye
@@ -323,15 +335,25 @@ function ChatRow({
   const hediyePng = giftPng(m.hediye?.kod);
   return (
     <View style={{ flexDirection: "row", gap: 9, alignItems: "flex-start" }}>
-      {/* Sohbette çerçeve YOK: 30px avatarda halka okunmuyor, satırı
-          kalabalıklaştırıyordu. Çerçeve mikrofonda ve kullanıcı kartında. */}
+      {/* ÇERÇEVE SOHBETTE DE ÇİZİLİYOR (kullanıcı kararı). Önceden
+          "30px avatarda halka okunmuyor" diye atlanmıştı; mağazadan çerçeve
+          alan kişinin onu sohbette görememesi satın almayı görünmez
+          kılıyordu. Avatar 30'dan 34'e çıkarıldı ki halka okunabilsin. */}
       <Pressable onPress={tap}>
-        <Portrait name={m.name} size={30} photo={isMe ? userPhoto || undefined : m.photo} />
+        <View style={{ width: 34, height: 34 }}>
+          <Portrait
+            name={m.name}
+            size={34}
+            photo={isMe ? userPhoto || undefined : m.photo}
+            ring={cerceve ? "transparent" : undefined}
+          />
+          {!!cerceve && <FramePreview id={cerceve} size={34} />}
+        </View>
       </Pressable>
       <View style={{ flex: 1, minWidth: 0, alignItems: "flex-start" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
           <Pressable onPress={tap}>
-            <Txt weight="extrabold" size={11.5} color={balonT ? balonT.ad : m.host ? C.gold : m.mod ? C.teal : isMe ? C.gold2 : "rgba(255,255,255,.7)"}>
+            <Txt weight="extrabold" size={11.5} color={balonT ? balonT.ad : role === "host" ? C.gold : role === "mod" ? C.teal : isMe ? C.gold2 : "rgba(255,255,255,.7)"}>
               {displayName}
             </Txt>
           </Pressable>
@@ -2503,6 +2525,8 @@ export default function RoomScreen() {
                     userPhoto={userPhoto}
                     privileged={privileged}
                     balonTema={m.myOwn ? kusanili.balon : uyeler?.balon}
+                    cerceve={m.myOwn ? kusanili.cerceve : uyeler?.cerceve}
+                    rol={m.uid != null ? roomRoles.get(m.uid) ?? null : null}
                     onSelfPress={openMyCard}
                     onTapUser={openChatUserCard}
                     onTapHediye={hediyeyeDokunuldu}
