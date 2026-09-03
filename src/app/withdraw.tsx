@@ -8,6 +8,7 @@ import { DiamondBadge } from "@/components/Coins";
 import { KeyboardAware } from "@/components/KeyboardAware";
 import { Portrait } from "@/components/Portrait";
 import { Txt } from "@/components/Txt";
+import { YakindaNotu } from "@/components/YakindaNotu";
 import { ID_DIRECTORY, SELF_FEE, USD_TO_DIAMOND } from "@/data/withdraw";
 import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
@@ -55,7 +56,17 @@ export default function WithdrawScreen() {
 
   const ileri = () => { haptic.light(); setAdim((a) => a + 1); };
   const geri = () => { haptic.light(); setAdim((a) => Math.max(0, a - 1)); };
-  const gonder = () => { haptic.success(); setDone(true); };
+  /**
+   * SAHTE BAŞARI KALDIRILDI. Burası `haptic.success()` çalıp "Çekim
+   * tamamlandı, $X karşılığı N elmas gönderildi" diyordu. Hiçbir şey
+   * gönderilmiyordu: ne RPC vardı ne `withdrawal_requests` kaydı; ekrandaki
+   * `EARNINGS`, `MY_ID` ve `ID_DIRECTORY` sabit örneklerdi.
+   *
+   * Para söz konusuyken sahte başarı en kötü hata türü — kullanıcı parasını
+   * çektiğini sanır. Akış ve tasarım DURUYOR (Faz 4.10'da gerçeğe bağlanacak),
+   * yalnız sonuç ekranı doğruyu söylüyor.
+   */
+  const gonder = () => { haptic.warning(); setDone(true); };
 
   // ---- Başarı ekranı (modal değil, tam ekran) ------------------------------
   if (done) {
@@ -64,12 +75,14 @@ export default function WithdrawScreen() {
         <Zemin />
         <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
           <Animated.View entering={FadeIn.duration(260)} style={styles.basariSarma}>
-            <View style={styles.basariIkon}>
-              <Icon name="check" size={34} sw={3} color="#241A05" />
+            <View style={styles.uyariIkon}>
+              <Icon name="warn" size={32} color={C.gold2} />
             </View>
-            <Txt weight="displayBold" size={20} color="#fff" align="center" style={{ marginTop: 18 }}>Çekim tamamlandı</Txt>
-            <Txt size={12.5} color={C.dim} align="center" lh={1.55} style={{ marginTop: 8, maxWidth: 280 }}>
-              ${netUSD.toFixed(2)} karşılığı {netElmas.toLocaleString("tr-TR")} elmas {found?.name ?? "hesaba"} gönderildi.
+            <Txt weight="displayBold" size={20} color="#fff" align="center" style={{ marginTop: 18 }}>Çekim henüz açık değil</Txt>
+            <Txt size={12.5} color={C.dim} align="center" lh={1.55} style={{ marginTop: 8, maxWidth: 290 }}>
+              Kazanç çekme sistemi devreye alınmadı. Talebin KAYDEDİLMEDİ ve
+              hesabından hiçbir tutar düşülmedi. Aşağıdaki döküm, sistem
+              açıldığında nasıl hesaplanacağını gösteriyor.
             </Txt>
 
             <View style={styles.basariKart}>
@@ -79,9 +92,9 @@ export default function WithdrawScreen() {
               <Satir etiket="Hesaba geçen" deger={`${netElmas.toLocaleString("tr-TR")} elmas`} renk="#67E8F9" kalin />
             </View>
 
-            <Pressable onPress={() => router.back()} style={styles.anaBtnSarma}>
+            <Pressable onPress={() => setDone(false)} style={styles.anaBtnSarma}>
               <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.anaBtn}>
-                <Txt weight="extrabold" size={13.5} color="#241A05">Tamam</Txt>
+                <Txt weight="extrabold" size={13.5} color="#241A05">Anladım</Txt>
               </Gradient>
             </Pressable>
           </Animated.View>
@@ -122,7 +135,11 @@ export default function WithdrawScreen() {
             {/* ---------------------------------------------------- 1) TUTAR */}
             {adim === 0 && (
               <>
-                <View style={styles.kazancKart}>
+                {/* Uyarı EN BAŞTA: kullanıcı üç adımı doldurduktan SONRA
+                    "aslında çalışmıyor" demek, sahte başarıdan biraz daha az
+                    kötü olurdu — baştan söylemek doğrusu. */}
+                <YakindaNotu metin="Çekim sistemi henüz açık değil. Buradaki kazanç ve bakiye rakamları örnektir; talep oluşturulmaz." />
+                <View style={[styles.kazancKart, { marginTop: 14 }]}>
                   <Gradient colors={[C.gold + "1F", "rgba(255,255,255,.02)"]} deg={150} style={StyleSheet.absoluteFill} />
                   <Txt weight="bold" size={10} color={C.gold2} style={{ letterSpacing: 0.8 }}>ÇEKİLEBİLİR KAZANÇ</Txt>
                   <Txt weight="displayBold" size={30} color="#fff" style={{ marginTop: 6 }}>${EARNINGS.toFixed(2)}</Txt>
@@ -339,6 +356,6 @@ const styles = StyleSheet.create({
   anaBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15 },
 
   basariSarma: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 26 },
-  basariIkon: { width: 68, height: 68, borderRadius: 34, alignItems: "center", justifyContent: "center", backgroundColor: C.gold2 },
+  uyariIkon: { width: 68, height: 68, borderRadius: 34, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.gold + "45", backgroundColor: C.gold + "14" },
   basariKart: { alignSelf: "stretch", marginTop: 22, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.10)", backgroundColor: "rgba(255,255,255,.04)" },
 });

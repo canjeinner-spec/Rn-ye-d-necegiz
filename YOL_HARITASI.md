@@ -115,7 +115,21 @@ Yapılanların commit listesi ve bilinçli olarak ATLANANLARIN gerekçeleri
      renkleri banner TÜRÜNE göre veri odaklı vurgu (duyuru/etkinlik),
      sayfa zemini değil — değiştirmek banner kimliğini bozardı.
    • `Kart` bileşeni HENÜZ YOK; plandaki ikinci yarı duruyor.
-13. **1.13 (A2):** Sahte başarılar kaldırılır — `withdraw.tsx` ve `diamond-load.tsx` yalanı yerine geçici dürüst durum (Faz 4'te gerçeğe bağlanana kadar); `features.ts` `profileGift`/`dmGift` → `false`.
+13. **1.13 (A2) — sahte başarılar kaldırıldı ✅:**
+   • `diamond-load` düğmeye basınca **"Satın alma başarılı! N elmas hesabına
+     eklendi"** diyordu; `withdraw` **"Çekim tamamlandı, $X karşılığı N elmas
+     gönderildi"** diyordu. İkisi de tek satırdan ibaretti: `setDone(true)`.
+     Ne ödeme, ne sunucu, ne bakiye. Para söz konusuyken sahte başarı en kötü
+     hata türü — kullanıcı ödediğini ya da parasını çektiğini sanır.
+   • **Ekranlar SİLİNMEDİ**, tasarım Faz 4.10/4.11'de gerçeğe bağlanacak.
+     Sonuç ekranları dürüst duruma çevrildi ve `YakindaNotu` bileşeni
+     eklendi. Uyarı EN BAŞTA: üç adım doldurtup sonunda "aslında çalışmıyor"
+     demek, sahte başarıdan biraz daha az kötü olurdu.
+   • `haptic.success()` → `haptic.warning()`: titreşim de yalan söylüyordu.
+   • **`profileGift`/`dmGift` `false` YAPILMADI** — plan yazıldığında
+     bağlı değillerdi, ama 3 Eylül'de gerçeğe bağlandılar (`hediyeGonder`,
+     bakiyeden gerçekten düşüyor). Kapatmak çalışan bir özelliği söndürmek
+     olurdu. `features.ts` içindeki eskimiş not düzeltildi.
 
 **Plana SONRADAN eklenenler (3 Eylül, kullanıcı isteğiyle).** Üçü de Faz 1'in
 "native his" başlığına ait; numaralandırma bozulmasın diye sona eklendi:

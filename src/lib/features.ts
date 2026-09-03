@@ -12,6 +12,8 @@
  *                                  kuşanılan çerçeve/balon/giriş odada çalışır
  *     hediye gönderme (roomGift) → hediyeRepo (059): temel şemadaki
  *                                  hediye_gonder tetikleyicisi; komisyon %30
+ *     dmGift / profileGift       → hediyeRepo (3 Eylül): profil ve DM'den
+ *                                  gönderim gerçekten bakiyeden düşüyor
  *     agency-panel (yayıncı)     → hediye_gecmisi'nden saatlik/günlük kazanç
  *     rank sekmesi               → siralamaRepo (060): zenginlik/cazibe/odalar
  *     görevler + günlük giriş    → gorevRepo (061): ilerleme sunucuda türetilir
@@ -21,11 +23,15 @@
  *     vip                        → sabit paket listesi
  *     gift-history               → sabit geçmiş
  *     friends / events           → data/friends.ts, data/events.ts (sabit)
- *     dmGift / profileGift       → animasyon oynar ama RPC'ye bağlı değil
- *                                  (alıcının dbId'si o ekranlarda yok)
  *     giftCoupon                 → kupon doğrulaması yok
- *     withdraw                   → akış gerçek, rakamlar örnek; çekim talebi
- *                                  withdrawal_requests'e yazılmıyor
+ *     withdraw                   → akış ve tasarım duruyor, GERÇEK DEĞİL:
+ *                                  rakamlar sabit örnek, çekim talebi
+ *                                  withdrawal_requests'e yazılmıyor.
+ *                                  4 Eylül: sahte "Çekim tamamlandı" ekranı
+ *                                  kaldırıldı, ekran artık doğruyu söylüyor
+ *     diamond-load               → satın alma YOK (expo-iap + dev build
+ *                                  gerekiyor, Faz 4.11). 4 Eylül: sahte
+ *                                  "Satın alma başarılı" ekranı kaldırıldı
  *     ajans / yayıncı sıralaması → tablolar duruyor, tek kayıt yok
  */
 export const FEATURES = {
