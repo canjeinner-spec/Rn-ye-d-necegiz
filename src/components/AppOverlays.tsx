@@ -28,7 +28,6 @@ export function AppOverlays() {
   // kullanıcı bir an bile oda listesini görmesin; kontrol bitince ya blok
   // (yukarıda) ya da örtü kalkıp uygulama görünür.
   if (session && !banChecked) {
-    console.log("[acilis] ORTU acik — yasak kontrolu bekleniyor");
     return (
       <View style={styles.cover}>
         <Yukleniyor yazi="Hazırlanıyor" boyut={150} />

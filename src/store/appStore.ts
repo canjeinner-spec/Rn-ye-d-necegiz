@@ -175,12 +175,30 @@ let sonAuthUid: string | null = null;
 let banChannel: ReturnType<NonNullable<typeof supabase>["channel"]> | null = null;
 let watchedBanDbId: number | null = null;
 let banPollTimer: ReturnType<typeof setInterval> | null = null;
-const BAN_POLL_MS = 5000;
+/** Yoklama geri çağrısı — arkaplandan dönünce yeniden kurmak için saklanır. */
+let banYoklamaGeriCagri: (() => void) | null = null;
+/** Uçuştaki yasak kontrolü — eş zamanlı çağrılar buna bağlanır. */
+let banKontrolUcusta: Promise<boolean> | null = null;
+/**
+ * Yoklama sıklığı — 5 sn'den 45 sn'ye çıkarıldı.
+ *
+ * ÖLÇÜM (metro2.log, tek oturum): 1574 satırlık logun 562'si bu yoklamaydı
+ * ve 45 çağrı "Network request failed" ile düştü. Realtime kanalları da o
+ * dalgalanmada kopuyordu — giriş efektini bozan "[oda] kanal CLOSED" ve
+ * "track timed out" satırlarının zemini buydu.
+ *
+ * Yasağı ANINDA yakalayan şey zaten hesap_yasaklari üstündeki Realtime
+ * aboneliği; bu yoklama onun kaçırma ihtimaline karşı GARANTİ katmanı.
+ * Garanti katmanının 5 saniyede bir ağa çıkması gereksiz. Ayrıca uygulama
+ * ön plana her geldiğinde de kontrol ediliyor (AppState "active").
+ */
+const BAN_POLL_MS = 45000;
 /** Yasak kontrolünün en fazla bekleyeceği süre — açılış örtüsü kilitlenmesin. */
 const BAN_CHECK_TIMEOUT_MS = 5000;
 
 function startBanEnforcement(dbId: number, onChange: () => void) {
   if (!supabase) return;
+  banYoklamaGeriCagri = onChange;
   // (1) Realtime — anında
   if (watchedBanDbId !== dbId) {
     if (banChannel) { supabase.removeChannel(banChannel); banChannel = null; }
@@ -197,14 +215,27 @@ function startBanEnforcement(dbId: number, onChange: () => void) {
       )
       .subscribe();
   }
-  // (2) Yoklama — garanti (Realtime kaçırırsa en geç ~10sn'de yakalar)
-  if (!banPollTimer) banPollTimer = setInterval(onChange, BAN_POLL_MS);
+  // (2) Yoklama — garanti (Realtime kaçırırsa yakalar). Arkaplandayken
+  // çalışmaz: orada kimse ekranı görmüyor ve ön plana dönünce AppState
+  // dinleyicisi zaten hemen bir kontrol tetikliyor.
+  banYoklamaKur();
+}
+
+/** Yoklama zamanlayıcısını kurar (yalnız ön plandayken anlamlı). */
+function banYoklamaKur() {
+  if (banPollTimer || !banYoklamaGeriCagri) return;
+  banPollTimer = setInterval(banYoklamaGeriCagri, BAN_POLL_MS);
+}
+/** Zamanlayıcıyı durdurur ama Realtime aboneliğini bozmaz (arkaplana geçiş). */
+function banYoklamaDurdur() {
+  if (banPollTimer) { clearInterval(banPollTimer); banPollTimer = null; }
 }
 function stopBanEnforcement() {
   if (supabase && banChannel) supabase.removeChannel(banChannel);
   banChannel = null;
   watchedBanDbId = null;
-  if (banPollTimer) { clearInterval(banPollTimer); banPollTimer = null; }
+  banYoklamaDurdur();
+  banYoklamaGeriCagri = null;
 }
 
 export const useApp = create<AppState>((set, get) => ({
@@ -288,7 +319,14 @@ export const useApp = create<AppState>((set, get) => ({
     // AppState olmayabilir → guard.
     if (RNAppState?.addEventListener) {
       RNAppState.addEventListener("change", (s) => {
-        if (s === "active" && get().session) get().enforceAccountBan();
+        if (s === "active") {
+          // Ön plana dönüş: önce bir kez kontrol, sonra yoklamayı geri kur.
+          if (get().session) get().enforceAccountBan();
+          banYoklamaKur();
+        } else {
+          // Arkaplanda ağa çıkmanın anlamı yok; zamanlayıcı duruyor.
+          banYoklamaDurdur();
+        }
       });
     }
   },
@@ -297,6 +335,12 @@ export const useApp = create<AppState>((set, get) => ({
   banChecked: false,
   clearHesapYasak: () => set({ hesapYasak: null }),
   enforceAccountBan: async () => {
+    // AYNI ANDA TEK ÇAĞRI. Bu fonksiyonu dört yer tetikliyor: önyükleme,
+    // onAuthChange (Supabase aynı kullanıcı için INITIAL_SESSION ve
+    // TOKEN_REFRESHED'i tekrar tekrar yayıyor), AppState ve yoklama.
+    // Birleştirmeyince aynı RPC üst üste ağa çıkıyordu.
+    if (banKontrolUcusta) return banKontrolUcusta;
+    banKontrolUcusta = (async () => {
     try {
       // Bu çağrı örtüyü kaldıran tek şey; askıda kalırsa uygulama açılışta
       // kilitleniyordu. Zaman aşımıyla yarıştırıyoruz — süre dolarsa "yasak
@@ -307,7 +351,13 @@ export const useApp = create<AppState>((set, get) => ({
         getMyAccountBan(),
         new Promise<null>((resolve) => setTimeout(() => resolve(null), BAN_CHECK_TIMEOUT_MS)),
       ]);
-      console.log(`[acilis] yasak kontrolu bitti (${Date.now() - t0}ms) ban=${ban ? "VAR" : "yok"}`);
+      // Log yalnızca ANLAMLI olduğunda: ilk kontrol, yasak durumu değişimi
+      // ya da yavaş yanıt. Eskiden her turda basıyordu; tek oturumda 562
+      // satır ediyor ve asıl arızaları görünmez hale getiriyordu.
+      const sure = Date.now() - t0;
+      if (!get().banChecked || !!ban !== !!get().hesapYasak || sure > 1500) {
+        console.log(`[acilis] yasak kontrolu bitti (${sure}ms) ban=${ban ? "VAR" : "yok"}`);
+      }
       if (ban) {
         stopBanEnforcement();
         await signOut().catch(() => {});
@@ -334,6 +384,8 @@ export const useApp = create<AppState>((set, get) => ({
       set({ banChecked: true });
     }
     return false;
+    })().finally(() => { banKontrolUcusta = null; });
+    return banKontrolUcusta;
   },
 
   loadProfile: async () => {
