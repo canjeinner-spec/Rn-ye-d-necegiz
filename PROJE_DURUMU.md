@@ -579,7 +579,32 @@ DM/profil hediyesi bayrakla kapatılıp Faz 4'te gerçek) o dosyanın başında.
     kategorisi değil, oda TEMASI tutuyor (`official/club/lounge/night/fire`,
     `SceneKind`). Uydurulmadı; istenirse önce şemaya alan eklenmeli.
 
-- **CİHAZDA DOĞRULANACAKLAR (14 commit birikti):**
+- **GİRİŞ EFEKTİ HATASI (3 Eylül gece) — DÜZELDİ, İKİ CİHAZLA DOĞRULANDI.**
+  Belirti: kendi giriş efektini görüyorsun, karşı taraf görmüyor (iki
+  platform). Üç katmanlı kök sebep, üçü de Metro logundan kanıtla bulundu:
+  1. `0837d39` — kanal `ack` olmadan kuruluyordu, `send()` sunucuya sormadan
+     "ok" dönüyordu; "duyurdum" bayrağı da send'den ÖNCE set ediliyordu, kanal
+     kopup yeniden kurulunca giriş bir daha duyurulmuyordu. **Yan bulgu:**
+     sohbetin üç denemeli yeniden gönderimi de aynı sebeple bugüne kadar ölü
+     koddu, artık çalışıyor.
+  2. `d9a9bba` — `GirisEfekti`'de `onBitti` effect bağımlılığındaydı, çağıran
+     inline arrow geçtiği için her render'da zamanlayıcı sıfırlanıyordu.
+  3. `2a8786e` — **asıl çözüm:** bitiş zamanlayıcısı `hedef` (onLayout)
+     ölçümüne bağlıydı; ölçüm her efektte 30-40 kez ateşleniyor ve zamanlayıcıyı
+     hep sıfırlıyordu. Kuyruğu ilerletme mount'ta kurulan bağımsız effect'e
+     alındı. Kanıt: `kuyruga eklendi, onceki uzunluk=0` ve `efekt bitti` artık
+     her turda var.
+  4. `62489d1` — geçici teşhis logları kaldırıldı.
+
+  **Takip işleri (logların ortaya çıkardığı, dokunulmadı):**
+  - `GirisEfekti` ölçüm fırtınası: `onLayout` efekt başına 30-40 kez, açılma
+    animasyonu her seferinde yeniden başlıyor. Çalışıyor ama israf.
+  - **`[oda-sayi]` kanalı hasta:** 10 CHANNEL_ERROR + 12 CLOSED. Oda listesi
+    sayaç kanalı sürekli kopup kuruluyor; oda kanalının CLOSED'larını ve
+    `track timed out`ları tetikleyen bu olabilir. **Öncelikli aday.**
+  - Yasak yoklaması 5 sn'de bir dönüyor, 40+ log satırı (1.10 zaten bunu diyor).
+
+- **CİHAZDA DOĞRULANACAKLAR (giriş efekti ✅ doğrulandı, kalan 14 commit bekliyor):**
   1. Basılı his: alt bar, koltuklar, sekmeler, alt gezinme (Android'de dalga).
   2. Boş durumlar: 11 ekran (Sıralama'da şampiyon, kalanında kutu).
   3. Yükleniyor: uygulama açılışı, Rozetlerim, Envanter, Mağaza, Hediye sayfası.
