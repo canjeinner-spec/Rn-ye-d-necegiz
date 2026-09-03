@@ -21,7 +21,7 @@ import { block, getBlockState, unblock } from "@/data/remote/blockRepo";
 import { kusanilanlariGetir } from "@/data/remote/esyaRepo";
 import { getOrCreateConversation, sendMessage } from "@/data/remote/dmRepo";
 import { follow, getFollowState, unfollow } from "@/data/remote/followRepo";
-import { getPublicProfile, type PublicProfile } from "@/data/remote/profileRepo";
+import { getMyProfile, getPublicProfile, type PublicProfile } from "@/data/remote/profileRepo";
 import { getUserRoomCount } from "@/data/remote/roomsRepo";
 import { reportUserById } from "@/data/remote/reportRepo";
 import { getVisitorCount, recordVisit } from "@/data/remote/visitRepo";
@@ -78,9 +78,28 @@ export default function UserProfileScreen() {
    */
   const [cerceve, setCerceve] = useState<string | null>(null);
   useEffect(() => {
-    if (!isSupabaseConfigured || !params.publicId) return;
+    if (!isSupabaseConfigured) return;
     let alive = true;
-    getPublicProfile(params.publicId).then((p) => {
+    /**
+     * KENDİ ÖNİZLEMEM publicId OLMADAN DA ÇALIŞMALI.
+     *
+     * Profil sekmesindeki önizleme düğmesi bağlantıya `publicId`yi ancak
+     * store'da doluysa ekliyor; store'u `loadProfile()` dolduruyor ve o
+     * çağrı Android'de geç bitebiliyor ya da sessizce düşebiliyor
+     * (açılış sırası orada zaten kırılgandı). O durumda bağlantıda publicId
+     * olmuyordu, burası da `!params.publicId` görüp HİÇ YÜKLEMİYORDU:
+     * ekran boş kalıyordu. iPhone'da yükleme zamanında bittiği için
+     * görünmüyordu — kullanıcı "androidde olmadı, iphone'da düzgün" dedi.
+     *
+     * Artık self önizlemede publicId yoksa kendi profilimizden alıyoruz.
+     */
+    const kaynak: Promise<PublicProfile | null> = params.publicId
+      ? getPublicProfile(params.publicId)
+      : self
+        ? getMyProfile().then((me) => (me?.public_id ? getPublicProfile(me.public_id) : null))
+        : Promise.resolve(null);
+
+    kaynak.then((p) => {
       if (!alive) return;
       setProfile(p);
       if (p) {
@@ -102,7 +121,7 @@ export default function UserProfileScreen() {
       }
     }).catch(() => {});
     return () => { alive = false; };
-  }, [params.publicId]);
+  }, [params.publicId, self]);
 
   const toggleFollow = () => {
     if (!profile) { setFollowing((f) => !f); return; } // mock fallback
