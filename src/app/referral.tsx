@@ -12,6 +12,7 @@ import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
+import { Zemin } from "@/theme/Zemin";
 
 const CODE = "ARON-4407";
 
@@ -40,7 +41,7 @@ export default function ReferralScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#0A2A1E", "#08080C"]} deg={170} locations={[0, 0.52]} style={StyleSheet.absoluteFill} />
+      <Zemin />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>

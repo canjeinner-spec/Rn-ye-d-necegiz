@@ -28,6 +28,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
+import { Zemin } from "@/theme/Zemin";
 
 const TABS = ["Son günlerde", "Katıl", "Takip et"];
 
@@ -205,8 +206,7 @@ export default function MyRoomHub() {
     <View style={styles.root}>
       {/* Ekran düz siyahtı ve içindeki kart mor gradyandı — uygulamanın
           geri kalanı siyah-altın. Diğer ekranlarla aynı zemin + altın hale. */}
-      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
-      <Gradient colors={[C.gold + "1A", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
+      <Zemin />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
@@ -288,7 +288,6 @@ export default function MyRoomHub() {
 const styles = StyleSheet.create({
   odaHata: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 10, paddingVertical: 9, paddingHorizontal: 11, borderRadius: 10, backgroundColor: "rgba(245,158,11,.10)", borderWidth: 1, borderColor: "rgba(245,158,11,.32)" },
   root: { flex: 1, backgroundColor: C.bg },
-  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
   iconBtn: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: "rgba(255,255,255,.05)", alignItems: "center", justifyContent: "center" },
   mineCard: { flexDirection: "row", alignItems: "center", gap: 14, padding: 14, borderRadius: 20, marginBottom: 22, overflow: "hidden", backgroundColor: C.gold + "0F", borderWidth: 1, borderColor: C.gold + "3D" },

@@ -44,7 +44,9 @@ export function RoomStats({ room, roomName, roomPhoto, onClose }: { room: Room; 
           <Pressable style={{ flex: 1 }}>
             {/* Blur kaldirildi — ayni sebep (GiftSheet): altindaki gradyanin
                 iki rengi de opak (#0A2230, #0A0810), blur hic gorunmuyordu. */}
-            <Gradient colors={["#0A2230", "#0A0810"]} deg={160} style={StyleSheet.absoluteFill} pointerEvents="none" />
+            {/* Panel tonu standart: eskiden mavi (#0A2230) idi, siyah-altin
+                temada karsiligi yok. GiftSheet ile ayni renk. */}
+            <Gradient colors={["#16121F", "#0B0A11"]} deg={160} style={StyleSheet.absoluteFill} pointerEvents="none" />
             <View style={styles.handle} />
             <View style={styles.header}>
               <Pressable onPress={onClose} style={styles.iconBtn}>

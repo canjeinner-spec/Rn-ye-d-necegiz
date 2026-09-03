@@ -14,6 +14,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { useApp } from "@/store/appStore";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
+import { Zemin } from "@/theme/Zemin";
 
 const R = 52;
 const CIRC = 2 * Math.PI * R;
@@ -57,7 +58,7 @@ export default function LevelScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#241B0A", "#08080C"]} deg={170} locations={[0, 0.52]} style={StyleSheet.absoluteFill} />
+      <Zemin />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>

@@ -67,7 +67,8 @@ export function ContributionView({
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Animated.View entering={SlideInDown.duration(300)} style={styles.sheet}>
           <Pressable style={{ flex: 1 }}>
-            <Gradient colors={["#241B0A", "#0A0810"]} deg={150} style={StyleSheet.absoluteFill} pointerEvents="none" />
+            {/* Panel tonu standart: eskiden kahve (#241B0A) idi. */}
+            <Gradient colors={["#16121F", "#0B0A11"]} deg={150} style={StyleSheet.absoluteFill} pointerEvents="none" />
             <View style={styles.handle} />
             <View style={styles.header}>
               <Pressable onPress={onClose} style={styles.iconBtn}>

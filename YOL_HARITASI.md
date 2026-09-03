@@ -96,7 +96,25 @@ Yapılanların commit listesi ve bilinçli olarak ATLANANLARIN gerekçeleri
 9. **1.9 (C7):** `useCachedResource` yaygınlaştırma (store, inventory, badges, visitors, user-profile, dm-chat); oda sahnesine oda-id bazlı cache seed.
 10. **1.10 (C9):** Selector'süz 12 `useApp()` → alan bazlı (önce `AppOverlays.tsx`, `profile.tsx`); `banPollTimer` değişmedikçe yazmaz.
 11. **1.11 (C8):** KeyboardAware eksik 16 dosya; `paddingBottom:110/120` sabitleri inset tabanlı ortak değere.
-12. **1.12 (A4/A5):** Tema hizalama — standart zemin (`#16121F → #0B0A11 → #08080C` + altın hale): referral, badges, about, updates, diamond-load, level, user-profile, RoomStats, ContributionView + sekme zeminleri. `Kart` bileşeni oluşturulur, yalnız dokunulan ekranlarda kullanılır.
+12. **1.12 (A4/A5) — zemin hizalama ✅, `Kart` bileşeni YAPILMADI:**
+   `src/theme/Zemin.tsx` oluşturuldu, **17 dosya** ona bağlandı.
+   • **Sekiz ekran kendi tonunu uydurmuştu:** referral yeşil (#0A2A1E),
+     badges mor (#1B1430), about mor (#241B3A), updates turkuaz (#0E2A2A),
+     diamond-load turkuaz (#0C1E22), level kahve (#241B0A), RoomStats mavi
+     (#0A2230), ContributionView kahve. Siyah-altın temada hiçbirinin
+     karşılığı yok; ekranlar arasında gezerken zemin rengi değişiyordu.
+   • `about` ve `updates` KÖK zeminlerinde de farklı siyah kullanıyordu
+     (#0B0712, #0A0F14) — gradyan bitince altından o çıkıyordu. `C.bg`'ye
+     alındı.
+   • **Kopya bitti:** aynı iki satır (gradyan + altın hale) on ekranda
+     tekrarlanıyordu. Asıl mesele buydu — renkler tek yerde olmadıkça bir
+     sonraki ekran yine kendi tonunu uydururdu. On dosyadan boşta kalan
+     `aura` stilleri de silindi. `withdraw` iki zemin çiziyordu, ikisi de
+     geçti.
+   • **Kapsam dışı bırakılanlar:** `banner-detay.tsx` ve `banners.ts`
+     renkleri banner TÜRÜNE göre veri odaklı vurgu (duyuru/etkinlik),
+     sayfa zemini değil — değiştirmek banner kimliğini bozardı.
+   • `Kart` bileşeni HENÜZ YOK; plandaki ikinci yarı duruyor.
 13. **1.13 (A2):** Sahte başarılar kaldırılır — `withdraw.tsx` ve `diamond-load.tsx` yalanı yerine geçici dürüst durum (Faz 4'te gerçeğe bağlanana kadar); `features.ts` `profileGift`/`dmGift` → `false`.
 
 **Plana SONRADAN eklenenler (3 Eylül, kullanıcı isteğiyle).** Üçü de Faz 1'in

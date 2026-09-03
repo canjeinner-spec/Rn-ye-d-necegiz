@@ -7,7 +7,7 @@ import { Txt } from "@/components/Txt";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { C } from "@/theme/colors";
-import { Gradient } from "@/theme/Gradient";
+import { Zemin } from "@/theme/Zemin";
 
 type Status = "gelistiriliyor" | "yakinda" | "planlaniyor";
 const ST: Record<Status, { t: string; c: string }> = {
@@ -32,7 +32,7 @@ export default function UpdatesScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#0E2A2A", "#0A0F14"]} deg={180} locations={[0, 0.5]} style={StyleSheet.absoluteFill} />
+      <Zemin />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
@@ -80,7 +80,7 @@ export default function UpdatesScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0A0F14" },
+  root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,.3)", borderWidth: 1, borderColor: C.line, alignItems: "center", justifyContent: "center" },
   heroImg: { width: "100%", aspectRatio: 1731 / 909, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.12)" },

@@ -8,6 +8,7 @@ import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
+import { Zemin } from "@/theme/Zemin";
 
 /** Ekip bilgisi — gerçek sayıyı buradan güncelleyebilirsin. */
 const TEAM_SIZE = 3;
@@ -29,7 +30,7 @@ export default function AboutScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#241B3A", "#0B0712"]} deg={180} locations={[0, 0.5]} style={StyleSheet.absoluteFill} />
+      <Zemin />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
@@ -101,7 +102,7 @@ export default function AboutScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0B0712" },
+  root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,.3)", borderWidth: 1, borderColor: C.line, alignItems: "center", justifyContent: "center" },
   hero: { alignItems: "center", paddingVertical: 26, borderRadius: 24, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: "rgba(255,255,255,.03)" },

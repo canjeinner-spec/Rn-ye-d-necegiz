@@ -20,6 +20,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
+import { Zemin } from "@/theme/Zemin";
 
 /**
  * Rozet koleksiyonu — kazanılanlar renkli, kazanılmayanlar soluk ve
@@ -159,7 +160,7 @@ export default function BadgesScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#1B1430", "#08080C"]} deg={180} locations={[0, 0.5]} style={StyleSheet.absoluteFill} />
+      <Zemin />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => { haptic.light(); router.back(); }} style={styles.iconBtn}>

@@ -10,6 +10,7 @@ import { Icon } from "@/icons/Icon";
 import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
+import { Zemin } from "@/theme/Zemin";
 
 const DIA = "#22D3EE";
 
@@ -23,7 +24,7 @@ export default function DiamondLoad() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={["#0C1E22", "#08080C"]} deg={170} locations={[0, 0.55]} style={StyleSheet.absoluteFill} />
+      <Zemin />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
