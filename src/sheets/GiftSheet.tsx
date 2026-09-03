@@ -84,7 +84,13 @@ export function GiftSheet({
 
   const secili = liste.find((g) => g.kod === sel) || null;
   const adet = ADETLER[adetIx];
-  const tutar = secili ? secili.fiyat * adet : 0;
+  /**
+   * "Herkese" (hedef 0) ALICI BAŞINA ücretlendiriliyor — sunucu da öyle
+   * yapıyor (081). Burada çarpmazsak kullanıcı 100 altın görüp 300 ödüyordu.
+   * Odada kimse yoksa çarpan 1 kalır; sunucu zaten "kimse yok" diye reddeder.
+   */
+  const carpan = hedef === 0 ? Math.max(1, recipients.length) : 1;
+  const tutar = secili ? secili.fiyat * adet * carpan : 0;
   const yetersiz = altin != null && tutar > altin;
   const kimeAd = hedef === 0 ? "Herkese" : recipients[hedef - 1]?.name || "Herkese";
 

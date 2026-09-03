@@ -37,7 +37,7 @@ import { MicQueueSheet } from "@/sheets/MicQueueSheet";
 import { RoomPanel } from "@/sheets/RoomPanel";
 import { RoomStats } from "@/sheets/RoomStats";
 import { type Gift, TIER_RING } from "@/data/gifts";
-import { hediyeGonder } from "@/data/remote/hediyeRepo";
+import { hediyeGonder, hediyeGonderHerkese } from "@/data/remote/hediyeRepo";
 import { reportRoom } from "@/data/remote/reportRepo";
 import { addXp } from "@/data/remote/xpRepo";
 import { odaSahibi, type OdaSahibi, amIBannedFromRoom, banRoomUser, banRoomUserByPublicId, getMyMicBan, getRoomMembers, getRoomMessages, koltugaOtur, koltukKilitle, koltukMicAyarla, koltuklariDinle, koltuklariGetir, koltuktanIndir, koltuktanKalk, type KoltukSatiri, micSirasiGetir, micSirasindanCik, micSirasinaGir, micSirasiniDinle, micSirasiOnayla, odadanAyril, odaKalpAtisi, odaKatilimcilariGetir, odaKatilimcilariniDinle, odayaKatil, type OdaKatilimcisi, logRoomMovement, sendRoomMessage, toScene, ziyaretKaydet, type MicBan } from "@/data/remote/roomsRepo";
@@ -953,18 +953,22 @@ export default function RoomScreen() {
     // Gerçek odada artık gönderemiyorsak DÜRÜSTÇE söylüyoruz. Demo odada
     // (isDbRoom false) gösteri aynen kalıyor, orada para zaten yok.
     if (isDbRoom) {
-      if (aliciId == null) {
-        haptic.warning();
-        toast("Herkese hediye şimdilik gönderilemiyor — bir kişi seç.");
-        return;
-      }
       if (!hediyeDbId) {
         haptic.warning();
         toast("Hediye katalogu yüklenemedi, tekrar dene.");
         return;
       }
       try {
-        await hediyeGonder(hediyeDbId, qty, aliciId, dbId ?? null);
+        if (aliciId == null) {
+          // "Herkese" (GiftSheet varsayılanı). 081'e kadar bu dal sunucuya
+          // HİÇ gelmiyordu — hediye bedava gidiyor, yasak da kontrol
+          // edilmiyordu. Artık odadaki herkese tek işlemde gidiyor.
+          if (dbId == null) { toast("Oda bilgisi yok."); return; }
+          const s = await hediyeGonderHerkese(hediyeDbId, qty, dbId);
+          toast(`${s.aliciSayisi} kişiye gönderildi`);
+        } else {
+          await hediyeGonder(hediyeDbId, qty, aliciId, dbId ?? null);
+        }
       } catch (e) {
         haptic.warning();
         toast((e as Error)?.message || "Hediye gönderilemedi");

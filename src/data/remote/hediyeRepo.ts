@@ -137,6 +137,38 @@ export async function hediyeGonder(
   };
 }
 
+/**
+ * "Herkese" hediye — odadaki HERKESE tek işlemde (081).
+ *
+ * Eskiden bu seçenek sunucuya HİÇ gelmiyordu: alıcı uid'i üretilmediği için
+ * `room.tsx` RPC'yi atlıyor, yalnız animasyon oynuyordu. Yani varsayılan
+ * seçenekle gönderilen her hediye bedavaydı.
+ *
+ * Ücret alıcı BAŞINA; altın yetmezse sunucu tamamını geri alır.
+ */
+export async function hediyeGonderHerkese(
+  hediyeDbId: number,
+  adet: number,
+  odaId: number,
+): Promise<{ aliciSayisi: number; toplam: number; altin: number }> {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("hediye_gonder_herkese", {
+    p_hediye_id: hediyeDbId,
+    p_miktar: adet,
+    p_oda_id: odaId,
+  });
+  if (error) {
+    if (yokSay(error)) throw new Error("Herkese gönderim henüz açılmadı (081 çalıştırılmamış).");
+    throw error;
+  }
+  const r = (Array.isArray(data) ? data[0] : data) as Record<string, number> | undefined;
+  return {
+    aliciSayisi: Number(r?.alici_sayisi ?? 0),
+    toplam: Number(r?.toplam ?? 0),
+    altin: Number(r?.altin ?? 0),
+  };
+}
+
 /** Gerçek bakiyelerim (kullanicilar üzerindeki cache kolonları). */
 export async function bakiyem(): Promise<Bakiyem | null> {
   const sb = requireSupabase();
