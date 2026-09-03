@@ -98,6 +98,15 @@ export const GIFT_SCENES: Record<string, GiftScene> = {
   _legendary: { sound: LEGENDARY_SOUND, duration: 3600 },
 };
 
+/**
+ * Butun hediye sesleri, tekrarsiz. Oda acilirken `sesleriOnYukle` bunu
+ * kullanip oynaticilari onceden kuruyor — Android yuklenmemis oynaticida
+ * sesin basini yiyor, ilk hediyede o beklemeyi yasamayalim diye.
+ */
+export const TUM_SESLER: readonly number[] = Array.from(
+  new Set(Object.values(GIFT_SCENES).map((s) => s.sound).filter((s): s is number => typeof s === "number")),
+);
+
 export const sceneFor = (id: string): GiftScene => GIFT_SCENES[id] ?? GIFT_SCENES._legendary;
 
 /** Bu hediyenin Lottie'si var mı? JSON'u AYRIŞTIRMAZ. */

@@ -110,18 +110,30 @@ function suzulme(bas, son, sure, atak, sonum) {
 /** Yumusak kirpma: tepeleri sert kesmeden sicaklik verir. */
 const yumusakKirp = (v) => Math.tanh(v * 1.15);
 
+/**
+ * Basa eklenen sessizlik — EMNIYET PAYI.
+ *
+ * Android yuklenmemis bir oynaticiya play() denince hazirlanma suresinin
+ * sesini kaciriyor. Istemci tarafi artik oynaticilari onceden yukluyor
+ * (src/lib/hediyeSesi.ts) ama cihaza gore birkac milisaniye yine kayabilir.
+ * Bastaki bu bosluk, kaybin asil vurusa degil susmaya denk gelmesini
+ * sagliyor. 120 ms gozle fark edilmez, efekt zaten oynuyor.
+ */
+const ONSES_SUSKU = 0.12;
+
 function bitir(x) {
   let tepe = 0;
   for (let i = 0; i < x.length; i++) tepe = Math.max(tepe, Math.abs(x[i]));
   const olcek = tepe > 0 ? 0.89 / tepe : 1;
-  const sonuc = new Float32Array(x.length);
+  const bosluk = Math.floor(ONSES_SUSKU * HZ);
+  const sonuc = new Float32Array(x.length + bosluk);
   // Bas ve sonda 6 ms silinme: hoparlorde "tik" sesini onler.
   const kenar = Math.floor(0.006 * HZ);
   for (let i = 0; i < x.length; i++) {
     let g = 1;
     if (i < kenar) g = i / kenar;
     else if (i > x.length - kenar) g = (x.length - i) / kenar;
-    sonuc[i] = yumusakKirp(x[i] * olcek) * g;
+    sonuc[bosluk + i] = yumusakKirp(x[i] * olcek) * g;
   }
   return sonuc;
 }

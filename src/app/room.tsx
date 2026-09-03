@@ -31,8 +31,9 @@ import { Sheet } from "@/components/Sheet";
 import { Touch } from "@/components/Touch";
 import { Txt } from "@/components/Txt";
 import { ContributionView } from "@/sheets/ContributionView";
-import { sceneFor } from "@/gifts/bigGifts";
+import { sceneFor, TUM_SESLER } from "@/gifts/bigGifts";
 import { giftPng } from "@/gifts/giftPng";
+import { sesleriOnYukle } from "@/lib/hediyeSesi";
 import { GiftSheet } from "@/sheets/GiftSheet";
 import { ProfileCard, type ProfileCardUser } from "@/sheets/ProfileCard";
 import { MicQueueSheet } from "@/sheets/MicQueueSheet";
@@ -911,6 +912,11 @@ export default function RoomScreen() {
   const [reportDetail, setReportDetail] = useState("");
   const [reportDone, setReportDone] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
+  // Hediye seslerini oda acilirken hazirla. Android yuklenmemis bir
+  // oynaticiya play() denince sesin basini yiyor; ilk hediyede o beklemeyi
+  // yasamamak icin oynaticilar onceden kuruluyor.
+  useEffect(() => { sesleriOnYukle(TUM_SESLER); }, []);
+
   const [giftFx, setGiftFx] = useState<(Gift & { qty: number }) | null>(null);
   // `sender` EKLENDİ: efekt artık odadaki herkeste oynuyor, "Sen" sabiti
   // karşı tarafta yanlış oluyordu — kimin gönderdiği yayınla geliyor.
