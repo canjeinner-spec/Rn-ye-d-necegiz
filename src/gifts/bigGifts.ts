@@ -28,7 +28,8 @@ import type { ComponentProps } from "react";
  *    salt boyutuna bakılarak ağır sayıldı ve emojiye düştü; oysa 30 katmanı
  *    var ve tek bir desteklenmeyen özelliği yok — çizmesi ucuz, maliyeti
  *    yalnız bir kerelik ayrıştırma. Karar katman sayısına ve efekt/blend
- *    mode/matte yüküne bakar. Şu an tek ağır dosya zafer.
+ *    mode/matte yüküne bakar. Şu an ağır işaretli dosya YOK — tek örnek
+ *    olan zafer katalogdan çıkarıldı (086).
  *
  * SES: `sound` alanı `require(...)` ile bir ses dosyası bekliyor. Yeni ses
  * eklemek için dosyayı `assets/gifts/` içine koyup buraya bağlamak yeterli —
@@ -76,17 +77,9 @@ export const GIFT_SCENES: Record<string, GiftScene> = {
   // 959 KB ama 30 katman ve sıfır özel özellik: çizmesi ucuz, ağır DEĞİL.
   tavsan: { anim: () => require("../anim/gifts/tavsan.json"), duration: 2000 },              // 959 KB
 
-  // ── ağır: yalnız tam ekran efekt + büyük önizleme ────────────────────────
-
-  /**
-   * EN AĞIR VARLIK — 4.6 MB, 1440x1024, 10.67 sn, 60 fps, 334 katman.
-   * Anim.tsx'teki 100 KB sınırının 46 katı; JS bundle'ı tek başına
-   * ~6.6 MB'dan ~10 MB'a çıkardı. Efsanevi kademede tek gösteri parçası
-   * olarak kabul edildi. BUNDAN SONRAKİ büyük hediyeler pakete gömülmemeli —
-   * `hediyeler.animasyon_url` kolonu ve Lottie'nin {uri} kaynağı bunun için
-   * var, Storage'dan gelmeli.
-   */
-  zafer: { anim: () => require("../anim/gifts/zafer.json"), duration: 10670, sound: LEGENDARY_SOUND, agir: true },
+  // Şu an ağır işaretli hediye YOK. Bayrak ve `kucukKaynak` bilerek duruyor:
+  // zafer (4.6 MB, 334 katman) tam olarak bunun için eklenmişti ve kaldırıldı;
+  // mekanizma dursun ki bir dahaki ağır dosyada aynı acı yaşanmasın.
 
   // Efsanevi hediyeler için varsayılan (Lottie'si olmayan).
   _legendary: { sound: LEGENDARY_SOUND, duration: 3600 },
