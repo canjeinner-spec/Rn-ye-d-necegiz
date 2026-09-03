@@ -27,27 +27,56 @@ export PATH="/c/Program Files/nodejs:/c/Program Files/Git/cmd:$PATH"
 
 [ -x "$CF" ] || { echo "HATA: cloudflared yok: $CF"; exit 1; }
 
-echo "[1/5] Eski Metro ve bu projenin tuneli kapatiliyor..."
-# SADECE bu projenin surecleri; baska projelerin tuneline dokunma.
+# --- Tunel KORUNUR, yalniz Metro yeniden baslatilir ---------------------
+# Tunel http://localhost:8081'e bakiyor. Metro ayni portta yeniden
+# baslayinca tunel calismaya devam eder; adresi degistirmenin hicbir
+# sebebi yok. Ilk surum her seferinde tuneli de olduruyordu ve adres
+# degisiyordu: telefondaki kayitli adres olu kaliyor, Cloudflare
+# "Error 1016 / origin DNS" (HTTP 530) donuyordu. Bir kez yasandi.
+# --tunel-yenile ile bilerek yeni adres alinabilir.
+YENILE=0
+for a in "$@"; do [ "$a" = "--tunel-yenile" ] && YENILE=1; done
+
+echo "[1/5] Eski Metro kapatiliyor..."
 powershell.exe -NoProfile -Command "
   Get-CimInstance Win32_Process |
-    Where-Object { \$_.CommandLine -like '*expo/bin/cli*start*' -or
-                   (\$_.Name -eq 'cloudflared.exe' -and \$_.CommandLine -like '*Rn-ye-d-necegiz*') } |
+    Where-Object { \$_.CommandLine -like '*expo/bin/cli*start*' } |
     ForEach-Object { taskkill /PID \$_.ProcessId /T /F 2>&1 | Out-Null }
 " >/dev/null 2>&1
+if [ "$YENILE" = "1" ]; then
+  echo "      --tunel-yenile: bu projenin tuneli de kapatiliyor"
+  powershell.exe -NoProfile -Command "
+    Get-CimInstance Win32_Process |
+      Where-Object { \$_.Name -eq 'cloudflared.exe' -and \$_.CommandLine -like '*Rn-ye-d-necegiz*' } |
+      ForEach-Object { taskkill /PID \$_.ProcessId /T /F 2>&1 | Out-Null }
+  " >/dev/null 2>&1
+fi
 sleep 2
 
-echo "[2/5] Tunel aciliyor..."
-rm -f "$TUNEL_LOG"
-( cd "$KOK" && nohup "$CF" tunnel --url http://localhost:8081 --no-autoupdate > "$TUNEL_LOG" 2>&1 & )
+# Bu projenin tuneli hala ayaktaysa YENIDEN KURMA — adres korunsun.
+ADRES=""
+TUNEL_VAR=$(powershell.exe -NoProfile -Command "
+  @(Get-CimInstance Win32_Process | Where-Object { \$_.Name -eq 'cloudflared.exe' -and \$_.CommandLine -like '*Rn-ye-d-necegiz*' }).Count
+" 2>/dev/null | tr -d '\r ')
+MEVCUT="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$TUNEL_LOG" 2>/dev/null | head -1)"
+if [ "${TUNEL_VAR:-0}" -ge 1 ] && [ -n "$MEVCUT" ]; then
+  echo "[2/5] Mevcut tunel KORUNUYOR — adres degismiyor."
+  ADRES="$MEVCUT"
+else
+  echo "[2/5] Tunel aciliyor..."
+  rm -f "$TUNEL_LOG"
+  ( cd "$KOK" && nohup "$CF" tunnel --url http://localhost:8081 --no-autoupdate > "$TUNEL_LOG" 2>&1 & )
+fi
 # NOT: bu bekleme dongulerinde GECIKME sart. Ilk surumde yoktu; 60 tekrar
 # milisaniyede tukeniyor ve "adres alinamadi" diye pes ediliyordu — tunel
 # aslinda ayaktaydi, yalnizca adresini henuz basmamisti.
-ADRES=""
-for _ in $(seq 1 60); do
-  ADRES="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$TUNEL_LOG" 2>/dev/null | head -1)"
-  [ -n "$ADRES" ] && break
-  sleep 1
+while [ -z "$ADRES" ]; do
+  for _ in $(seq 1 60); do
+    ADRES="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$TUNEL_LOG" 2>/dev/null | head -1)"
+    [ -n "$ADRES" ] && break
+    sleep 1
+  done
+  break
 done
 [ -n "$ADRES" ] || { echo "HATA: tunel adresi alinamadi, bkz $TUNEL_LOG"; exit 1; }
 echo "      $ADRES"

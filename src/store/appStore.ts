@@ -67,7 +67,12 @@ type AppState = {
   // İlk yasak kontrolü tamamlandı mı? Oturum varken FALSE ise içerik gösterilmez
   // (opak örtü) — yasaklı kullanıcı bir an bile oda listesini görmesin diye.
   banChecked: boolean;
-  enforceAccountBan: () => Promise<boolean>;
+  /**
+   * @param zorla Uçuştaki çağrıya bağlanma, YENİ bir kontrol başlat.
+   *   Oturum değişimi ve ön plana dönüşte şart: takılı kalmış bir istek
+   *   yenisini engellememeli (birleştirmenin açtığı delik buydu).
+   */
+  enforceAccountBan: (zorla?: boolean) => Promise<boolean>;
   clearHesapYasak: () => void;
 
   userName: string;
@@ -304,7 +309,7 @@ export const useApp = create<AppState>((set, get) => ({
         // Yasak kontrolü profili BEKLEMEZ: örtüyü kaldıran tek şey bu, o
         // yüzden ilk sırada ve paralel koşar. Eskiden `await loadProfile()`
         // arkasında kaldığı için soğuk açılışta örtü uzun süre kalıyordu.
-        get().enforceAccountBan();
+        get().enforceAccountBan(true); // oturum değişti → taze kontrol
         await get().loadProfile();
         getMyRoom().then((r) => { if (r) set({ myRoom: r }); }).catch(() => {});
       } else {
@@ -321,7 +326,7 @@ export const useApp = create<AppState>((set, get) => ({
       RNAppState.addEventListener("change", (s) => {
         if (s === "active") {
           // Ön plana dönüş: önce bir kez kontrol, sonra yoklamayı geri kur.
-          if (get().session) get().enforceAccountBan();
+          if (get().session) get().enforceAccountBan(true); // arkaplandan döndük
           banYoklamaKur();
         } else {
           // Arkaplanda ağa çıkmanın anlamı yok; zamanlayıcı duruyor.
@@ -334,12 +339,17 @@ export const useApp = create<AppState>((set, get) => ({
   hesapYasak: null,
   banChecked: false,
   clearHesapYasak: () => set({ hesapYasak: null }),
-  enforceAccountBan: async () => {
+  enforceAccountBan: async (zorla = false) => {
     // AYNI ANDA TEK ÇAĞRI. Bu fonksiyonu dört yer tetikliyor: önyükleme,
     // onAuthChange (Supabase aynı kullanıcı için INITIAL_SESSION ve
     // TOKEN_REFRESHED'i tekrar tekrar yayıyor), AppState ve yoklama.
     // Birleştirmeyince aynı RPC üst üste ağa çıkıyordu.
-    if (banKontrolUcusta) return banKontrolUcusta;
+    //
+    // AMA `zorla` ile atlanabilir: takılı kalmış bir istek YENİSİNİ
+    // ENGELLEMEMELİ. Birleştirme ilk hâlinde bunu yapıyordu — arkaplanda
+    // asılı kalan bir kontrol, oturum değişiminde açılan örtünün
+    // kalkmasını süresiz erteleyebiliyordu.
+    if (banKontrolUcusta && !zorla) return banKontrolUcusta;
     banKontrolUcusta = (async () => {
     try {
       // Bu çağrı örtüyü kaldıran tek şey; askıda kalırsa uygulama açılışta

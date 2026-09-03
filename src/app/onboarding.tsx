@@ -111,19 +111,44 @@ export default function Onboarding() {
   const adHata = adDokunuldu && rName.trim().length > 0 && !adSonuc.ok ? adSonuc.hata : null;
   const regValid = adSonuc.ok && !!rGender;
 
+  /**
+   * Uygulamaya giriş — PROFİLİ BEKLEMEZ.
+   *
+   * ESKİ HATA: `await loadProfile()` navigasyonun ÖNÜNDEYDİ ve
+   * `getMyProfile()` zaman aşımsız. Ağ takıldığında (bu projede sık:
+   * tek oturumda 45 "Network request failed") bu await hiç dönmüyor,
+   * `setGirisYapildi` ve `router.replace` HİÇ ÇALIŞMIYORDU. Kullanıcı
+   * Google hesabını seçtikten sonra onboarding ekranında asılı kalıyor,
+   * uygulamayı öldürüp açınca önyükleme oturumu buluyor ve AuthGate
+   * içeri alıyordu — "hesabı seçiyorum takılıyor, kapatıp açınca direkt
+   * hesaba atıyor" belirtisinin tamamı buydu.
+   *
+   * Önyükleme yolu bu dersi zaten almıştı ("HIZLI BOOTSTRAP: oturum belli
+   * olur olmaz uygulamayı aç, profil arkada koşsun"); Google yolu almamıştı.
+   * Profil arkada yükleniyor; eksikse AuthGate zaten onboarding'e geri
+   * yönlendiriyor (`profilEksik === true`).
+   */
   const enterApp = async () => {
-    await loadProfile();
     setGirisYapildi(true);
     router.replace("/");
+    loadProfile().catch((e) => console.warn("[auth] profil arkada yuklenemedi:", e?.message || e));
   };
 
   // Auth sonrası: profil hâlâ stub (user_1234567) ise profil tamamlamaya
   // yönlendir (özellikle Google girişinde register adımı atlanmıştı), değilse gir.
   const proceedAfterAuth = async () => {
-    const profile = await getMyProfile().catch((e) => {
-      console.log("[auth] getMyProfile HATA:", e?.message || e);
-      return null;
-    });
+    // Profil okuması ZAMAN AŞIMIYLA yarışıyor. Bu çağrı yalnızca "register
+    // adımı gerekli mi?" sorusunu yanıtlıyor; ağ takılırsa kullanıcıyı
+    // giriş ekranında bekletmenin anlamı yok. Süre dolarsa uygulamaya
+    // girilir, profil arkada yüklenir ve eksikse AuthGate onboarding'e
+    // geri yönlendirir. (Önyüklemedeki `getSession` yarışıyla aynı desen.)
+    const profile = await Promise.race([
+      getMyProfile().catch((e) => {
+        console.log("[auth] getMyProfile HATA:", e?.message || e);
+        return null;
+      }),
+      new Promise<null>((r) => setTimeout(() => { console.log("[auth] getMyProfile zaman asimi"); r(null); }, 6000)),
+    ]);
     console.log("[auth] profil:", profile ? `id=${profile.id} ad=${profile.kullanici_adi}` : "YOK (null)");
     if (profile && /^user_\d+$/.test(profile.kullanici_adi || "")) {
       console.log("[auth] -> register adimi (profil tamamlanmamis)");
