@@ -1,4 +1,3 @@
-import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Animated, { SlideInDown } from "react-native-reanimated";
@@ -43,7 +42,8 @@ export function RoomStats({ room, roomName, roomPhoto, onClose }: { room: Room; 
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Animated.View entering={SlideInDown.duration(300)} style={styles.sheet}>
           <Pressable style={{ flex: 1 }}>
-            <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+            {/* Blur kaldirildi — ayni sebep (GiftSheet): altindaki gradyanin
+                iki rengi de opak (#0A2230, #0A0810), blur hic gorunmuyordu. */}
             <Gradient colors={["#0A2230", "#0A0810"]} deg={160} style={StyleSheet.absoluteFill} pointerEvents="none" />
             <View style={styles.handle} />
             <View style={styles.header}>

@@ -1,4 +1,3 @@
-import { BlurView } from "expo-blur";
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Animated, { FadeIn, FadeOut, SlideInDown } from "react-native-reanimated";
@@ -96,6 +95,14 @@ export function GiftSheet({
     return { sekmeler: GIFT_TABS, liste: yerel };
   }, [veri, tab]);
 
+  /**
+   * Karo başına Gift nesnesi BİR KEZ üretiliyor. Eskiden render içinde
+   * `giftYap(k)` çağrılıyordu: her render yeni nesne, yani `GiftIcon`
+   * memo'su hiç tutmaz ve tek dokunuşta altı Lottie görünümü birden
+   * yeniden render edilirdi. Gecikme hissinin kaynağı buydu.
+   */
+  const karolar = useMemo(() => liste.map((k) => ({ k, g: giftYap(k) })), [liste]);
+
   const secili = liste.find((g) => g.kod === sel) || null;
   const adet = ADETLER[adetIx];
   /**
@@ -113,7 +120,13 @@ export function GiftSheet({
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Animated.View entering={SlideInDown.duration(280)} style={styles.sheet}>
           <Pressable>
-            <BlurView intensity={26} tint="dark" style={StyleSheet.absoluteFill} />
+            {/* BLUR KALDIRILDI: hemen altindaki gradyanin iki rengi de OPAK
+                (#16121F, #0B0A11), yani blur ciziliyor ama tek pikseli
+                gorunmuyordu — saf maliyet. expo-blur her karede yeniden
+                orneklem yapiyor; sayfa her acilista ve her dokunusta bunu
+                bedavaya oduyordu. Alfali gradyanlarin altindaki blur katmanlari
+                (BottomNav, CamZemin, modal basliklari) GERCEKTEN gorunuyor,
+                onlara dokunulmadi. */}
             <Gradient colors={["#16121F", "#0B0A11"]} deg={170} style={StyleSheet.absoluteFill} pointerEvents="none" />
             <Gradient colors={[C.gold + "1A", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
 
@@ -153,11 +166,19 @@ export function GiftSheet({
               ))}
             </ScrollView>
 
-            <ScrollView style={{ maxHeight: 300 }} contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
+            {/* YÜKSEKLİK SABİT, `maxHeight` DEĞİL. Sebebi ölçüldü: yüklenirken
+                `Yukleniyor`un 200 ms parlama koruması hiçbir şey çizmiyor, yani
+                bu alan 0 yükseklikte kalıyordu. `SlideInDown` (280 ms) tam o
+                sırada ölçüm alıp animasyonu kuruyor; veri gelince içerik
+                büyüyor ama transform eski ölçüye göre kalıyor ve sayfanın alt
+                kısmı ekran dışında kalıyordu ("yarım açılıyor"). Bir hediyeye
+                dokununca yeniden yerleşim olduğu için düzeliyordu. Sabit
+                yükseklikle ölçü ilk kareden itibaren doğru. */}
+            <ScrollView style={{ height: 300 }} contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
               {veri === null && isSupabaseConfigured ? (
                 <Yukleniyor dolgu={26} boyut={96} yazi="Hediyeler yükleniyor" style={{ width: "100%" }} />
               ) : (
-                liste.map((k) => {
+                karolar.map(({ k, g }) => {
                   const on = sel === k.kod;
                   return (
                     <Pressable
@@ -167,7 +188,7 @@ export function GiftSheet({
                       // Seçim tek işaretle anlatılıyor — yumuşak zemin.
                       style={[styles.hucre, on && styles.hucreSecili]}
                     >
-                      <GiftIcon gift={giftYap(k)} size={58} oynat={on} />
+                      <GiftIcon gift={g} size={58} oynat={on} />
                       <Txt weight="bold" size={9.5} color={on ? "#fff" : C.text} numberOfLines={1} align="center" style={{ marginTop: 5, maxWidth: 72 }}>
                         {k.ad}
                       </Txt>

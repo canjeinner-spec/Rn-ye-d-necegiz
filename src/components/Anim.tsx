@@ -1,5 +1,5 @@
 import LottieView from "lottie-react-native";
-import { type ComponentProps } from "react";
+import { memo, type ComponentProps } from "react";
 import { View, type StyleProp, type ViewStyle } from "react-native";
 
 /**
@@ -20,6 +20,11 @@ import { View, type StyleProp, type ViewStyle } from "react-native";
  *     çizim döngüsü var; sohbet satırına konursa 1.3'te kazandığımız her şey
  *     geri gider.
  *   • Oda ekranının içine koyma — zaten en ağır ekran, üstüne Agora gelecek.
+ *
+ * MEMO: her Lottie bir native görünüm. Ebeveyn her render ettiğinde
+ * hepsi yeniden render ediliyordu — hediye kutusunda tek dokunuş 6 native
+ * görünümü birden tazeliyor ve gecikme hissi veriyordu. Props sığ eşitse
+ * artık dokunulmuyor.
  */
 
 type LottieKaynak = ComponentProps<typeof LottieView>["source"];
@@ -45,7 +50,7 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-export function Anim({ kaynak, boyut = 140, dongu = true, hiz = 1, ilerleme, style }: Props) {
+export const Anim = memo(function Anim({ kaynak, boyut = 140, dongu = true, hiz = 1, ilerleme, style }: Props) {
   const durukKare = ilerleme !== undefined;
   return (
     <View style={[{ width: boyut, height: boyut }, style]} pointerEvents="none">
@@ -67,4 +72,4 @@ export function Anim({ kaynak, boyut = 140, dongu = true, hiz = 1, ilerleme, sty
       />
     </View>
   );
-}
+});

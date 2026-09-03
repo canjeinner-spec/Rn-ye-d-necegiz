@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { View } from "react-native";
 
 import { type Gift } from "@/data/gifts";
@@ -22,7 +23,11 @@ import { Txt } from "./Txt";
  * yoksa ızgaradaki her karo kendi çizim döngüsünü çalıştırır.
  * Ağır dosyalarda `kucukKaynak` zaten undefined döner, emojiye düşer.
  */
-export function GiftIcon({ gift, size = 54, oynat = false }: { gift: Gift; size?: number; oynat?: boolean }) {
+// MEMO: ızgarada tek dokunuş yalnız iki karoyu değiştirmeli (bırakılan ve
+// seçilen), altı Lottie görünümünü birden değil. Bunun işe yaraması için
+// `gift` nesnesinin de KARARLI olması gerekiyor — bkz. GiftSheet'teki
+// `karolar` memo'su; orada her render yeni nesne üretiliyordu.
+export const GiftIcon = memo(function GiftIcon({ gift, size = 54, oynat = false }: { gift: Gift; size?: number; oynat?: boolean }) {
   const kaynak = kucukKaynak(gift.id);
   return (
     <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
@@ -34,4 +39,4 @@ export function GiftIcon({ gift, size = 54, oynat = false }: { gift: Gift; size?
       )}
     </View>
   );
-}
+});
