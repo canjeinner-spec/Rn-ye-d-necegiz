@@ -1266,14 +1266,6 @@ export default function RoomScreen() {
       // Kilitler artık presence'ta taşınmıyor — `oda_koltuklari` tablosundan
       // geliyor (068). Sahibin odada olmasına da bağlı değil.
 
-      // TEŞHİS (geçici): presence'ta kim, hangi koltukta, fotoğrafı ne.
-      console.log(
-        "[presence] " +
-          members
-            .map((m) => `${m.uid}:${m.name}:koltuk=${m.koltuk}:mic=${m.mic ? 1 : 0}:foto=${(m.photo || "-").slice(0, 28)}`)
-            .join("  ||  "),
-      );
-
       // GİRİŞ EFEKTİ ARTIK BURADAN DEĞİL — bkz. "giris" broadcast olayı.
       //
       // Eskiden giriş, presence anlık görüntüleri karşılaştırılarak ("bu kişi
@@ -1727,9 +1719,6 @@ export default function RoomScreen() {
     const ch = chanRef.current;
     if (!ch || myDbId == null) { console.log("[presence] YAZILAMADI kanal/uid yok", !!ch, myDbId); return; }
     const k = useApp.getState().kusanili;
-    console.log(
-      `[presence] yaziyorum uid=${myDbId} koltuk=${ustuneYaz?.koltuk !== undefined ? ustuneYaz.koltuk : isMine ? -1 : mySeat} mic=${ustuneYaz?.mic ?? micOn} foto=${(userPhoto || "-").slice(0, 28)}`,
-    );
     await ch
       .track({
         uid: myDbId,
