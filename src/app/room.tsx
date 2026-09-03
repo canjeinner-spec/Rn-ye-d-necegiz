@@ -278,6 +278,7 @@ function ChatRow({
   balonTema,
   onSelfPress,
   onTapUser,
+  onTapHediye,
 }: {
   m: ChatMsg;
   userName: string;
@@ -285,6 +286,8 @@ function ChatRow({
   privileged: boolean;
   /** Gönderenin kuşandığı sohbet balonu teması (056) */
   balonTema?: string | null;
+  /** Sohbetteki hediyeye dokunulunca — kutuyu o hediye seçili açar. */
+  onTapHediye?: (kod: string) => void;
   onSelfPress: () => void;
   onTapUser?: (m: ChatMsg) => void;
 }) {
@@ -345,24 +348,29 @@ function ChatRow({
           // kapliyordu; sohbette dikkat cekmiyordu. Yeni duzen: gorsel
           // buyuk, adet iri ve altin. Hediye adini yazmiyoruz, gorsel
           // zaten soyluyor.
-          <View style={[styles.bubble, styles.hediyeBalonu, balonStil]}>
+          <Pressable
+            onPress={() => { if (m.hediye?.kod) { haptic.light(); onTapHediye?.(m.hediye.kod); } }}
+            style={[styles.bubble, styles.hediyeBalonu, balonStil]}
+          >
+            {/* OLCU ORANI: gorsel rakamin yaklasik iki kati. Ilk denemede
+                gorsel 44, rakam 23 punto idi ve tutarsiz duruyordu —
+                kullanici referansla yan yana koyup gosterdi. */}
             {hediyePng ? (
-              <Image source={hediyePng} style={{ width: 44, height: 44 }} contentFit="contain" transition={0} />
+              <Image source={hediyePng} style={{ width: 64, height: 64 }} contentFit="contain" transition={0} />
             ) : (
-              <Txt size={30}>{m.hediye.emoji}</Txt>
+              <Txt size={44}>{m.hediye.emoji}</Txt>
             )}
-            <View style={{ minWidth: 0, flexShrink: 1 }}>
-              <Txt weight="displayBold" size={23} color={C.gold2} style={styles.hediyeAdet}>×{m.hediye.adet}</Txt>
+            <View style={{ justifyContent: "center", minWidth: 0, flexShrink: 1 }}>
+              <Txt weight="displayBold" size={30} color={C.gold2} style={styles.hediyeAdet}>×{m.hediye.adet}</Txt>
               {/* Alici KALIYOR: odada sekiz koltuk var ve "Herkese" secenegi
-                  de mevcut, kime gittigi gercek bir bilgi. Ama artik
-                  ikincil — kucuk ve sonuk. */}
+                  de mevcut, kime gittigi gercek bir bilgi. Ama ikincil. */}
               {!!m.hediye.kime && (
-                <Txt weight="semibold" size={9.5} color={C.dim} numberOfLines={1} style={{ marginTop: -1 }}>
+                <Txt weight="semibold" size={10} color={C.dim} numberOfLines={1} style={{ marginTop: 1 }}>
                   → {m.hediye.kime}
                 </Txt>
               )}
             </View>
-          </View>
+          </Pressable>
         ) : (
           <View style={[styles.bubble, balonStil]}>
             <Txt weight={balonT ? "semibold" : undefined} size={12.5} color={balonT ? balonT.yazi : "#EDEBF2"} lh={1.4}>
@@ -919,6 +927,16 @@ export default function RoomScreen() {
   const [reportDetail, setReportDetail] = useState("");
   const [reportDone, setReportDone] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
+  /** Hediye kutusu acilirken secili gelecek hediye kodu (sohbetten dokunma). */
+  const [giftSecim, setGiftSecim] = useState<string | null>(null);
+  /**
+   * Sohbetteki hediyeye dokunma: kutuyu O HEDIYE secili aciyor. Ayni hediyeyi
+   * tekrar gondermek isteyen listede aramasin diye.
+   */
+  const hediyeyeDokunuldu = useCallback((kod: string) => {
+    setGiftSecim(kod);
+    setGiftOpen(true);
+  }, []);
   // Hediye seslerini oda acilirken hazirla. Android yuklenmemis bir
   // oynaticiya play() denince sesin basini yiyor; ilk hediyede o beklemeyi
   // yasamamak icin oynaticilar onceden kuruluyor.
@@ -2464,6 +2482,7 @@ export default function RoomScreen() {
                     balonTema={m.myOwn ? kusanili.balon : uyeler?.balon}
                     onSelfPress={openMyCard}
                     onTapUser={openChatUserCard}
+                    onTapHediye={hediyeyeDokunuldu}
                   />
                 );
               })}
@@ -2776,6 +2795,7 @@ export default function RoomScreen() {
             : occupants.map((o) => ({ name: o.name, host: o.host, mod: o.mod }))
         }
         onSend={sendGift}
+        baslangicKod={giftSecim}
         onBakiyeYukle={() => { setGiftOpen(false); router.navigate("/wallet"); }}
       />
 
@@ -3119,7 +3139,7 @@ const styles = StyleSheet.create({
   // İçerik kadar geniş: eskiden alignSelf "stretch" idi, kısa bir hediye adı
   // için bile satır sohbetin tamamını kaplıyordu.
   ayrildiCip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: "rgba(255,255,255,.05)" },
-  hediyeBalonu: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 7, paddingHorizontal: 11 },
+  hediyeBalonu: { flexDirection: "row", alignItems: "center", gap: 13, paddingVertical: 9, paddingHorizontal: 14 },
   // Hafif egim: rakami bir rozet gibi gosteriyor, duz yazidan ayiriyor.
   hediyeAdet: { letterSpacing: 0.5, transform: [{ skewX: "-8deg" }] },
   sysNotice: { borderRadius: 14, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12 },

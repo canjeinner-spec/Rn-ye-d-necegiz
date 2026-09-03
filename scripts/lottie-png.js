@@ -135,7 +135,14 @@ function vektordenPng(j) {
       const j = JSON.parse(fs.readFileSync(girdi, "utf8"));
       const dizi = kareDizisiMi(j);
       j.__oran = oran;
-      const png = dizi ? await kareDizisindenPng(j, oran) : vektordenPng(j);
+      const ham = dizi ? await kareDizisindenPng(j, oran) : vektordenPng(j);
+      // SEFFAF PAYI KIRP. Her Lottie'nin kompozisyonunda farkli miktarda bos
+      // kenar var: gulun etrafinda bol bosluk, kaplaninkinde az. Kirpilmazsa
+      // ayni olcudeki karoda hediyeler FARKLI buyuklukte gorunuyor —
+      // kullanicinin "tutarsiz" dedigi seyin bir parcasi buydu. Kirpip
+      // yeniden olceklemek hepsini kutuyu ayni oranda dolduruyor.
+      const png = await sharp(ham).trim().resize(boyut, boyut, { fit: "inside" })
+        .png({ compressionLevel: 9 }).toBuffer();
       fs.writeFileSync(cikti, png);
       const kb = (n) => (n / 1024).toFixed(0).padStart(5);
       console.log("  " + kod.padEnd(8) + kb(fs.statSync(girdi).size) + " KB json ->" + kb(png.length) +

@@ -42,10 +42,17 @@ export function GiftSheet({
   recipients = [],
   onSend,
   onBakiyeYukle,
+  baslangicKod,
 }: {
   visible: boolean;
   onClose: () => void;
   recipients?: HediyeAlicisi[];
+  /**
+   * Acilirken secili gelecek hediyenin `kod`u. Sohbetteki hediyeye
+   * dokununca kutu bu hediye secili aciliyor — kullanici ayni hediyeyi
+   * tekrar gondermek icin listede aramasin.
+   */
+  baslangicKod?: string | null;
   /** hediyeDbId varsa gönderim GERÇEKTEN yapılır (bakiyeden düşer). */
   onSend: (gift: Gift, qty: number, recipient: string, aliciId?: number, hediyeDbId?: number) => void;
   onBakiyeYukle?: () => void;
@@ -72,6 +79,15 @@ export function GiftSheet({
   useEffect(() => {
     if (tekAlici) setHedef(1);
   }, [tekAlici]);
+
+  /**
+   * Disaridan gelen secim. Yalniz sayfa ACILIRKEN uygulaniyor; `visible`
+   * bagimliliktaki tek tetik, yoksa kullanici baska hediyeye dokundugunda
+   * secim geri ziplardi.
+   */
+  useEffect(() => {
+    if (visible && baslangicKod) setSel(baslangicKod);
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!visible || !isSupabaseConfigured) return;
