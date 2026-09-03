@@ -3,7 +3,7 @@ import { BlurView } from "expo-blur";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { LayoutChangeEvent, Pressable, StyleSheet, View } from "react-native";
+import { LayoutChangeEvent, StyleSheet, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -15,6 +15,7 @@ import { FEATURES } from "@/lib/features";
 import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
+import { Touch } from "./Touch";
 import { Txt } from "./Txt";
 
 // iOS 26+ liquid glass; değilse (Android / eski iOS) BlurView fallback'ine düşer.
@@ -115,7 +116,7 @@ export function BottomNav({ state, navigation }: BottomTabBarProps) {
             };
             const rozet = route.name === "dm" && dmUnread > 0 ? (dmUnread > 99 ? "99+" : String(dmUnread)) : null;
             return (
-              <Pressable key={route.key} onPress={onPress} style={styles.item}>
+              <Touch key={route.key} onPress={onPress} style={styles.item} kucul={false}>
                 <View>
                   <SekmeIkon ic={meta.ic} on={on} />
                   {rozet && (
@@ -127,7 +128,7 @@ export function BottomNav({ state, navigation }: BottomTabBarProps) {
                 <Txt weight={on ? "extrabold" : "bold"} size={9.5} color={on ? C.gold2 : C.dim2} style={{ marginTop: 4 }}>
                   {meta.label}
                 </Txt>
-              </Pressable>
+              </Touch>
             );
           })}
         </View>

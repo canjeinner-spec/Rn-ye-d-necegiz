@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { LayoutChangeEvent, Pressable, StyleSheet, View } from "react-native";
+import { LayoutChangeEvent, StyleSheet, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
+import { Touch } from "./Touch";
 import { Txt } from "./Txt";
 
 /**
@@ -59,18 +60,21 @@ export function Tabs({ items, active, set, pad = 18, fill = false }: TabsProps) 
   return (
     <View style={[styles.wrap, { paddingHorizontal: pad, gap: fill ? 0 : 22 }]}>
       {items.map((t, i) => (
-        <Pressable
+        <Touch
           key={t}
           onLayout={olc(i)}
           onPress={() => { if (i !== active) { haptic.select(); set(i); } }}
           style={fill ? styles.tabFill : styles.tab}
+          // Sekmede küçülme YOK: alt çizgi `onLayout` ölçümüne bağlı ve
+          // sekmelerin zıpladığı his native değil. Sönme + dalga yeterli.
+          kucul={false}
         >
           {/* Pasif sekmeler de biraz kalın: "semibold" fazla siliktı,
               "bold" seçili olanla yarışmadan okunur kalıyor. */}
           <Txt weight={i === active ? "extrabold" : "bold"} size={fill ? 13 : 13} color={i === active ? C.gold : C.dim}>
             {t}
           </Txt>
-        </Pressable>
+        </Touch>
       ))}
 
       {olcum[active] && <Animated.View style={[styles.cizgi, cizgiStil]} pointerEvents="none" />}
