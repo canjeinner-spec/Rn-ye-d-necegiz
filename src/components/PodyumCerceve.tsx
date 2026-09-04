@@ -10,28 +10,34 @@ import { C } from "@/theme/colors";
 /**
  * Podyumdaki dereceli avatar — çerçeve + içine oturan fotoğraf/kapak.
  *
- * ÖLÇÜ ÇERÇEVEDEN DEĞİL AVATARDAN VERİLİYOR (`capi`).
+ * ÖLÇÜ ÇERÇEVE GENİŞLİĞİNDEN VERİLİYOR (`genislik`), açıklık ondan türüyor.
  *
- * Önce çerçevenin TUVAL genişliği veriliyordu ve podyum tutarsız görünüyordu:
- * altın tuvalinde uzun bir taç var, gümüşünkinde yok, bronzda defne çelengi —
- * aynı tuval genişliğinde üçünün açıklık çapı bambaşka çıkıyor. Göz ise tacı
- * değil AVATARI kıyaslıyor. Artık çağıran "avatar şu kadar olsun" diyor, tuval
- * genişliği ölçülen `capOran`dan geriye hesaplanıyor.
+ * İki tur denendi. Önce tuval genişliği veriliyordu ve ESKİ sette podyum
+ * tutarsız çıkıyordu: o setin açıklık oranları birbirinden uzaktı (.548/.550/
+ * .589), aynı tuval genişliğinde üçüncünün avatarı ikincininkinden büyük
+ * görünüyordu. Sonra avatar çapı verildi; bu sefer DAİRE ve KARE setler farklı
+ * kompozisyona oturdu — kare armaların açıklığı tuvalin daha küçük bir bölümü
+ * (%27.8'e karşı %31.7), aynı avatar çapı kare çerçeveyi 173 punto genişliğe
+ * çıkarıyordu (dairede 151) ve odalar sekmesi sıkışık görünüyordu.
+ *
+ * Yeni sette üç açıklık oranı birbirine yakın olduğu için genişlikten ölçmek
+ * her iki sorunu da çözüyor: sekmeler arası kompozisyon birebir aynı, set
+ * içinde avatarlar dereceye göre sıralı kalıyor.
  *
  * Avatar çerçevenin ARKASINA çiziliyor, çerçeve üstüne biniyor: iç kenar
  * fotoğrafın kenarını kapatıyor, "yapıştırılmış" görünmüyor.
  */
 export function PodyumCerceve({
   kod,
-  capi,
+  genislik,
   ad,
   foto,
   bos,
   icerik,
 }: {
   kod: CerceveKod;
-  /** İstenen avatar/kapak ölçüsü (punto). Çerçeve buna göre ölçekleniyor. */
-  capi: number;
+  /** Çerçevenin genişliği (punto). Açıklık ölçülen orandan türüyor. */
+  genislik: number;
   ad: string;
   foto?: string;
   /** O derece henüz kimseye ait değil — sönük çerçeve, boş madalyon. */
@@ -42,8 +48,9 @@ export function PodyumCerceve({
   const olcu = CERCEVE_OLCU[kod];
   const gorsel = cerceveGorsel(kod);
   const kare = kareMi(kod);
-  const genislik = capi / olcu.capOran;
   const yukseklik = genislik / olcu.enBoy;
+  /** Açıklığın gerçek ölçüsü — fotoğraf/kapak buna oturuyor. */
+  const capi = genislik * olcu.capOran;
 
   /**
    * FOTOĞRAF AÇIKLIKTAN BİRAZ BÜYÜK ÇİZİLİYOR.

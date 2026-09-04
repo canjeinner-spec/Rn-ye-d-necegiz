@@ -196,8 +196,10 @@ function Podyum({ ogeler, vurgu, tur = "kisi" }: { ogeler: (PodyumOge | undefine
    *
    * Yeni çerçeveler ARMA: kanatlar ve kurdele yüzeyin çoğunu kaplıyor, açıklık
    * tuvalin yalnız ~%32'si (eskisi ~%55). Aynı avatar çapını istemek çerçeveyi
-   * iki katına çıkarıyordu, o yüzden çaplar küçüldü: 48 / 39 / 38. Bunlar
-   * çerçeveyi sırasıyla ~150 ve ~120 punto genişliğe getiriyor; üçü toplamda
+   * iki katına çıkarıyordu. Ölçü artık ÇERÇEVE GENİŞLİĞİNDEN veriliyor
+   * (150 / 119 / 119) ki daire ve kare setler birebir aynı kompozisyona
+   * otursun — kare armalar aynı avatar çapında daha geniş çiziliyordu ve
+   * odalar sekmesi sıkışık görünüyordu. Üçü toplamda
    * ekrandan biraz taşıp komşusuna hafifçe biniyor — referanstaki kenetli
    * kompozisyon da böyle.
    *
@@ -205,14 +207,14 @@ function Podyum({ ogeler, vurgu, tur = "kisi" }: { ogeler: (PodyumOge | undefine
    * Önceki 26/46 farkı yeterince okunmuyordu, üçü yan yana duruyor gibiydi.
    */
   const dizilim = [
-    { oge: ogeler[1], derece: 2, cap: 39, ust: 50 },
-    { oge: ogeler[0], derece: 1, cap: 48, ust: 0 },
-    { oge: ogeler[2], derece: 3, cap: 38, ust: 62 },
+    { oge: ogeler[1], derece: 2, genislik: 119, ust: 50 },
+    { oge: ogeler[0], derece: 1, genislik: 150, ust: 0 },
+    { oge: ogeler[2], derece: 3, genislik: 119, ust: 62 },
   ];
   return (
     <View style={styles.sahne}>
       <View style={styles.podyum}>
-        {dizilim.map(({ oge, derece, cap, ust }) => (
+        {dizilim.map(({ oge, derece, genislik, ust }) => (
           <Pressable
             key={derece}
             disabled={!oge}
@@ -221,7 +223,7 @@ function Podyum({ ogeler, vurgu, tur = "kisi" }: { ogeler: (PodyumOge | undefine
           >
             <PodyumCerceve
               kod={dereceCercevesi(derece, tur)}
-              capi={cap}
+              genislik={genislik}
               ad={oge?.ad ?? ""}
               foto={oge?.foto}
               icerik={oge?.icerik}
