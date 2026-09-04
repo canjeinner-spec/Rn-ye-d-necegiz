@@ -184,7 +184,7 @@ export default function AgencyPanelScreen() {
                   ))}
                 </View>
 
-                <Pressable onPress={() => { haptic.light(); router.navigate("/withdraw"); }} style={styles.cekSarma}>
+                <Pressable onPress={() => { router.navigate("/withdraw"); }} style={styles.cekSarma}>
                   <Gradient colors={[C.gold2, "#C8922B"]} deg={90} style={styles.cekBtn}>
                     <Icon name="bank" size={15} color="#241A05" />
                     <Txt weight="extrabold" size={13} color="#241A05">Para Çek</Txt>

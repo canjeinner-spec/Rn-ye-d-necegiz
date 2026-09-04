@@ -109,7 +109,7 @@ export default function InventoryScreen() {
             <Icon name="back" size={16} color={C.text} />
           </Pressable>
           <Txt weight="displayBold" size={16} color="#fff" style={{ flex: 1 }}>Eşyalarım</Txt>
-          <Pressable onPress={() => { haptic.light(); router.navigate("/store"); }} style={styles.magazaBtn}>
+          <Pressable onPress={() => { router.navigate("/store"); }} style={styles.magazaBtn}>
             <Icon name="bank" size={13} color={C.gold2} />
             <Txt weight="bold" size={11.5} color={C.gold2}>Mağaza</Txt>
           </Pressable>
@@ -158,7 +158,7 @@ export default function InventoryScreen() {
           ) : liste.length === 0 ? (
             <BosDurum anim={BOS_KUTU} dolgu={30} animBoyut={130} alt={BOS_METIN[tip]}>
               {/* Uygulamadaki tek "boş durumdan aksiyona" yolu — korunuyor. */}
-              <Pressable onPress={() => { haptic.light(); router.navigate("/store"); }} style={styles.bosBtnSarma}>
+              <Pressable onPress={() => { router.navigate("/store"); }} style={styles.bosBtnSarma}>
                 <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.bosBtn}>
                   <Txt weight="extrabold" size={12.5} color="#241A05">Mağazaya git</Txt>
                 </Gradient>
@@ -210,7 +210,7 @@ export default function InventoryScreen() {
 
                     {sure.bitti ? (
                       <Pressable
-                        onPress={() => { haptic.light(); router.navigate("/store"); }}
+                        onPress={() => { router.navigate("/store"); }}
                         style={{ width: "100%", marginTop: 12, borderRadius: 12, overflow: "hidden" }}
                       >
                         <View style={[styles.actBtn, { backgroundColor: C.kontrol, borderWidth: 1, borderColor: C.line }]}>

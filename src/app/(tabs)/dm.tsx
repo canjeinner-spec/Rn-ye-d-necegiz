@@ -123,7 +123,7 @@ export default function DmTab() {
       <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
         <View style={styles.header}>
           <Txt weight="displayBold" size={21} color="#fff">Mesajlar</Txt>
-          <Pressable onPress={() => { haptic.light(); router.navigate("/user-search"); }} style={styles.iconBtn}>
+          <Pressable onPress={() => { router.navigate("/user-search"); }} style={styles.iconBtn}>
             <Icon name="userAdd" size={18} color={C.text} />
           </Pressable>
         </View>

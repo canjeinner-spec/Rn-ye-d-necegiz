@@ -47,8 +47,8 @@ export default function AdminRoomReportScreen() {
   }, [odaId, sikayetId]);
   useEffect(() => { load(); }, [load]);
 
-  const openUser = (uid: number) => { haptic.light(); router.navigate(`/admin-user-edit?userId=${uid}`); };
-  const openEdit = () => { haptic.light(); router.navigate(`/admin-room-edit?odaId=${odaId}`); };
+  const openUser = (uid: number) => { router.navigate(`/admin-user-edit?userId=${uid}`); };
+  const openEdit = () => { router.navigate(`/admin-room-edit?odaId=${odaId}`); };
 
   const markReviewed = () => {
     if (!report) return;
@@ -117,7 +117,7 @@ export default function AdminRoomReportScreen() {
                 {/* Moderasyon eylemleri — rapordan çıkmadan yapılabilsin.
                     Önceden odaya uyarı göndermenin buradan bir yolu yoktu. */}
                 <View style={{ flexDirection: "row", gap: 9, marginTop: 13 }}>
-                  <Pressable onPress={() => { haptic.light(); router.navigate(`/admin-mesaj?tip=oda&odaId=${odaId}`); }} style={[styles.modBtn, { backgroundColor: `${C.gold}16`, borderColor: `${C.gold}4D` }]}>
+                  <Pressable onPress={() => { router.navigate(`/admin-mesaj?tip=oda&odaId=${odaId}`); }} style={[styles.modBtn, { backgroundColor: `${C.gold}16`, borderColor: `${C.gold}4D` }]}>
                     <Icon name="mega" size={14} color={C.gold2} />
                     <Txt weight="extrabold" size={12} color={C.gold2}>Odaya Uyarı</Txt>
                   </Pressable>

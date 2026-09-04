@@ -10,7 +10,6 @@ import { listBanners, type Banner as DBBanner } from "@/data/remote/announceRepo
 import { useCachedResource } from "@/lib/cache";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { Icon } from "@/icons/Icon";
-import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
@@ -161,7 +160,6 @@ export function EventBanners() {
   }, [items.length]);
 
   const onPress = (item: DisplayBanner) => {
-    haptic.light();
     if (item._detail) { router.navigate(`/banner-detay?id=${item._detail.id}` as never); return; }
     router.navigate((item.route ?? `/event?id=${item.id}`) as never);
   };

@@ -256,10 +256,10 @@ export default function AdminUserEdit() {
               )}
               {/* Ara "kullanıcı özeti" ekranı kaldırıldı; oradaki iki eylem
                   başlığa taşındı ki kaybolmasın. */}
-              <Pressable onPress={() => { haptic.light(); router.navigate(`/admin-mesaj?tip=kisi&userId=${d.id}`); }} hitSlop={6} style={styles.iconBtn}>
+              <Pressable onPress={() => { router.navigate(`/admin-mesaj?tip=kisi&userId=${d.id}`); }} hitSlop={6} style={styles.iconBtn}>
                 <Icon name="mega" size={15} color={C.gold2} />
               </Pressable>
-              <Pressable onPress={() => { haptic.light(); router.navigate(`/user-profile?publicId=${encodeURIComponent(d.publicId)}&name=${encodeURIComponent(d.name)}`); }} hitSlop={6} style={styles.iconBtn}>
+              <Pressable onPress={() => { router.navigate(`/user-profile?publicId=${encodeURIComponent(d.publicId)}&name=${encodeURIComponent(d.name)}`); }} hitSlop={6} style={styles.iconBtn}>
                 <Icon name="user" size={15} color={C.text} />
               </Pressable>
             </>

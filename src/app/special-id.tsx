@@ -304,7 +304,7 @@ export default function SpecialIdScreen() {
                   <KapsulBolumu />
                 </View>
 
-                <Pressable onPress={() => { haptic.light(); router.navigate("/diamond-load"); }} style={{ marginTop: 14, borderRadius: 16, overflow: "hidden" }}>
+                <Pressable onPress={() => { router.navigate("/diamond-load"); }} style={{ marginTop: 14, borderRadius: 16, overflow: "hidden" }}>
                   <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={styles.uploadBtn}>
                     <Txt weight="extrabold" size={13.5} color="#3A2A05">Yükleme Yap</Txt>
                   </Gradient>

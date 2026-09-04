@@ -5,7 +5,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Txt } from "@/components/Txt";
 import { Icon } from "@/icons/Icon";
 import { type IconName } from "@/icons/paths";
-import { haptic } from "@/lib/haptics";
 import { C } from "@/theme/colors";
 import { Gradient } from "@/theme/Gradient";
 
@@ -36,7 +35,7 @@ export default function AdminDuyuru() {
             Kime ulaşmak istediğini seç. Her biri ayrı, sade bir sayfada açılır.
           </Txt>
           {HUBS.map((h) => (
-            <Pressable key={h.route} onPress={() => { haptic.light(); router.navigate(h.route as never); }} style={styles.row}>
+            <Pressable key={h.route} onPress={() => { router.navigate(h.route as never); }} style={styles.row}>
               <View style={[styles.rowIcon, { backgroundColor: h.c + "1A", borderColor: h.c + "44" }]}>
                 <Icon name={h.ic} size={19} color={h.c} />
               </View>

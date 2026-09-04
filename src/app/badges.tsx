@@ -170,7 +170,7 @@ export default function BadgesScreen() {
       <Zemin />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={styles.header}>
-          <Pressable onPress={() => { haptic.light(); router.back(); }} style={styles.iconBtn}>
+          <Pressable onPress={() => { router.back(); }} style={styles.iconBtn}>
             <Icon name="back" size={16} color={C.text} />
           </Pressable>
           <Txt weight="displayBold" size={16} color="#fff">Rozetlerim</Txt>

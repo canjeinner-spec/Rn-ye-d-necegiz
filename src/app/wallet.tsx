@@ -199,11 +199,11 @@ export default function WalletScreen() {
               </View>
 
               <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
-                <Quick label="Elmas Yükle" tint="#22D3EE" onPress={() => { haptic.light(); router.navigate("/diamond-load"); }}>
+                <Quick label="Elmas Yükle" tint="#22D3EE" onPress={() => { router.navigate("/diamond-load"); }}>
                   <DiamondBadge size={20} />
                 </Quick>
                 {isStreamer && (
-                  <Quick icon="bank" label="Para Çek" tint="#6EE7B7" onPress={() => { haptic.light(); router.navigate("/withdraw"); }} />
+                  <Quick icon="bank" label="Para Çek" tint="#6EE7B7" onPress={() => { router.navigate("/withdraw"); }} />
                 )}
                 <Quick icon="clipboard" label="Faturalar" tint={C.gold2} onPress={() => { haptic.light(); setStub("Faturalar"); }} />
               </View>

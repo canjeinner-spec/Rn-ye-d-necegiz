@@ -146,7 +146,6 @@ export default function FeedScreen() {
   const isDb = (id: number) => id >= FEED_ID_OFFSET && isSupabaseConfigured && useApp.getState().session;
 
   const goProfile = (publicId: string | undefined, name: string, mine?: boolean) => {
-    haptic.light();
     if (mine) { router.navigate("/profile"); return; }
     const q = publicId ? `publicId=${encodeURIComponent(publicId)}&` : "";
     router.navigate(`/user-profile?${q}name=${encodeURIComponent(name)}`);
@@ -203,7 +202,6 @@ export default function FeedScreen() {
   };
   /** Yorumlar artik gonderi sayfasinda; kart yalniz oraya goturuyor. */
   const gonderiyeGit = (id: number) => {
-    haptic.light();
     router.navigate(`/gonderi?id=${id}`);
   };
   const joinRoom = (id: string) => {
@@ -258,7 +256,7 @@ export default function FeedScreen() {
           <View style={styles.header}>
             <View style={{ width: 34 }} />
             <Txt weight="displayBold" size={17} color="#fff" style={{ letterSpacing: 0.5 }}>Akış</Txt>
-            <Pressable onPress={() => { haptic.light(); router.navigate("/notifications"); }} style={styles.iconBtn}>
+            <Pressable onPress={() => { router.navigate("/notifications"); }} style={styles.iconBtn}>
               <Icon name="bell" size={18} color={C.text} />
               {notifUnread > 0 && (
                 <View style={styles.bellBadge}>

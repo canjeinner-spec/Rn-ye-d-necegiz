@@ -109,7 +109,7 @@ export default function StoreScreen() {
               {altin == null ? "—" : altin.toLocaleString("tr-TR")}
             </Txt>
           </View>
-          <Pressable onPress={() => { haptic.light(); router.navigate("/inventory"); }} style={styles.iconBtn}>
+          <Pressable onPress={() => { router.navigate("/inventory"); }} style={styles.iconBtn}>
             <Icon name="ticket" size={15} color={C.gold2} />
           </Pressable>
         </View>

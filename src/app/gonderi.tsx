@@ -86,7 +86,6 @@ export default function GonderiScreen() {
   );
 
   const goProfile = (publicId: string | undefined, name: string, mine?: boolean) => {
-    haptic.light();
     if (mine) { router.navigate("/profile"); return; }
     const q = publicId ? `publicId=${encodeURIComponent(publicId)}&` : "";
     router.navigate(`/user-profile?${q}name=${encodeURIComponent(name)}`);

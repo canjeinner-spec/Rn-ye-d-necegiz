@@ -96,7 +96,6 @@ export default function AdminBannerEdit() {
       } else {
         await createBanner(baslik, aciklama.trim() || undefined, foto || undefined, 0, sablon, icerik);
       }
-      haptic.light();
       router.back();
     } catch (e) { flash((e as Error)?.message || "Kaydedilemedi"); }
     finally { setBusy(false); }

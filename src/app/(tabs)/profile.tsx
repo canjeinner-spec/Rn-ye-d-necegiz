@@ -101,7 +101,7 @@ export default function ProfileTab() {
   const [couponOpen, setCouponOpen] = useState(false);
   const [info, setInfo] = useState<InfoMode | null>(null);
 
-  const goMyRoom = () => { haptic.light(); router.navigate("/my-room"); };
+  const goMyRoom = () => { router.navigate("/my-room"); };
   const openSheet = (fn: () => void) => () => { haptic.light(); fn(); };
 
   const pickAvatar = async () => {
@@ -121,32 +121,32 @@ export default function ProfileTab() {
   };
 
   const tiles: { type: TileType; lbl: string; onPress: () => void }[] = [
-    { type: "tasks", lbl: "Görevler", onPress: () => { haptic.light(); router.navigate("/tasks"); } },
-    ...(FEATURES.store ? [{ type: "store" as TileType, lbl: "Mağaza", onPress: () => { haptic.light(); router.navigate("/store"); } }] : []),
-    ...(FEATURES.inventory ? [{ type: "items" as TileType, lbl: "Eşyalarım", onPress: () => { haptic.light(); router.navigate("/inventory"); } }] : []),
-    { type: "level", lbl: "Level", onPress: () => { haptic.light(); router.navigate("/level"); } },
+    { type: "tasks", lbl: "Görevler", onPress: () => { router.navigate("/tasks"); } },
+    ...(FEATURES.store ? [{ type: "store" as TileType, lbl: "Mağaza", onPress: () => { router.navigate("/store"); } }] : []),
+    ...(FEATURES.inventory ? [{ type: "items" as TileType, lbl: "Eşyalarım", onPress: () => { router.navigate("/inventory"); } }] : []),
+    { type: "level", lbl: "Level", onPress: () => { router.navigate("/level"); } },
   ];
 
   const menu: MenuItem[] = [
     // Yalnızca yetkili hesaplar (developer / super_admin) görür
-    ...(role !== "user" ? [{ ic: "gear" as IconName, g1: "#F5CE6E", g2: "#B45309", t: "Yönetim", s: "Raporlar ve kullanıcı işlemleri", onPress: () => { haptic.light(); router.navigate("/admin"); } }] : []),
+    ...(role !== "user" ? [{ ic: "gear" as IconName, g1: "#F5CE6E", g2: "#B45309", t: "Yönetim", s: "Raporlar ve kullanıcı işlemleri", onPress: () => { router.navigate("/admin"); } }] : []),
     { ic: "mic", g1: "#C8A24A", g2: "#7A5A16", t: "Odam", s: "Kendi sesli sohbet odanı aç", onPress: goMyRoom },
-    ...(FEATURES.vip ? [{ ic: "crown" as IconName, g1: "#F5CE6E", g2: "#B45309", t: "Aron VIP", s: "Özel ayrıcalıkların kilidini aç", onPress: () => { haptic.light(); router.navigate("/vip"); } }] : []),
+    ...(FEATURES.vip ? [{ ic: "crown" as IconName, g1: "#F5CE6E", g2: "#B45309", t: "Aron VIP", s: "Özel ayrıcalıkların kilidini aç", onPress: () => { router.navigate("/vip"); } }] : []),
     // Yayıncı Paneli `isStreamer` ile kapalıydı; o bayrak DB'den HİÇ
     // gelmiyor (kullanicilar tablosunda yayıncı kolonu yok), store'da sabit
     // false duruyordu — yani giriş kimseye görünmüyordu. Bayrak gelene kadar
     // girişi herkese açıyoruz.
-    ...(FEATURES.streamerPanel ? [{ ic: "mic" as IconName, g1: "#F5CE6E", g2: "#B45309", t: "Yayıncı Paneli", s: "Kazancını ve ajansını yönet", onPress: () => { haptic.light(); router.navigate("/agency-panel"); } }] : []),
-    ...(FEATURES.giftHistory ? [{ ic: "gift" as IconName, g1: "#EC4899", g2: "#BE185D", t: "Hediye Geçmişi", s: "Gönderdiğin & aldığın hediyeler", onPress: () => { haptic.light(); router.navigate("/gift-history"); } }] : []),
-    { ic: "userAdd", g1: "#34D399", g2: "#0F6B4B", t: "Arkadaşını Davet Et", s: "Davet et, beraber elmas kazanın", onPress: () => { haptic.light(); router.navigate("/referral"); } },
-    { ic: "trophy", g1: "#F5CE6E", g2: "#8A5E12", t: "Rozetlerim", s: rozetOzet, onPress: () => { haptic.light(); router.navigate("/badges"); } },
-    { ic: "idcard", g1: "#F5CE6E", g2: "#B45309", t: "Özel ID", s: "Prestijli kısa ID'leri keşfet", onPress: () => { haptic.light(); router.navigate("/special-id"); } },
+    ...(FEATURES.streamerPanel ? [{ ic: "mic" as IconName, g1: "#F5CE6E", g2: "#B45309", t: "Yayıncı Paneli", s: "Kazancını ve ajansını yönet", onPress: () => { router.navigate("/agency-panel"); } }] : []),
+    ...(FEATURES.giftHistory ? [{ ic: "gift" as IconName, g1: "#EC4899", g2: "#BE185D", t: "Hediye Geçmişi", s: "Gönderdiğin & aldığın hediyeler", onPress: () => { router.navigate("/gift-history"); } }] : []),
+    { ic: "userAdd", g1: "#34D399", g2: "#0F6B4B", t: "Arkadaşını Davet Et", s: "Davet et, beraber elmas kazanın", onPress: () => { router.navigate("/referral"); } },
+    { ic: "trophy", g1: "#F5CE6E", g2: "#8A5E12", t: "Rozetlerim", s: rozetOzet, onPress: () => { router.navigate("/badges"); } },
+    { ic: "idcard", g1: "#F5CE6E", g2: "#B45309", t: "Özel ID", s: "Prestijli kısa ID'leri keşfet", onPress: () => { router.navigate("/special-id"); } },
     ...(FEATURES.giftCoupon ? [{ ic: "ticket" as IconName, g1: "#06B6D4", g2: "#0891B2", t: "Hediye Kuponu Gir", s: "Kodunu gir, ödülünü al", onPress: openSheet(() => setCouponOpen(true)) }] : []),
   ];
 
   const settings: MenuItem[] = [
-    { ic: "chat", g1: "#5B6474", g2: "#333A46", t: "Müşteri Hizmetleri & SSS", onPress: () => { haptic.light(); router.navigate("/support"); } },
-    { ic: "shield", g1: "#5B6474", g2: "#333A46", t: "Hesap & Güvenlik", onPress: () => { haptic.light(); router.navigate("/security"); } },
+    { ic: "chat", g1: "#5B6474", g2: "#333A46", t: "Müşteri Hizmetleri & SSS", onPress: () => { router.navigate("/support"); } },
+    { ic: "shield", g1: "#5B6474", g2: "#333A46", t: "Hesap & Güvenlik", onPress: () => { router.navigate("/security"); } },
   ];
 
   const renderMenu = (items: MenuItem[]) => (
@@ -221,7 +221,7 @@ export default function ProfileTab() {
             </View>
             {/* Kendi profilini herkese göründüğü gibi (public) önizle */}
             <Pressable
-              onPress={() => { haptic.light(); router.navigate(`/user-profile?self=1${publicId ? `&publicId=${encodeURIComponent(publicId)}` : ""}&name=${encodeURIComponent(userName)}`); }}
+              onPress={() => { router.navigate(`/user-profile?self=1${publicId ? `&publicId=${encodeURIComponent(publicId)}` : ""}&name=${encodeURIComponent(userName)}`); }}
               hitSlop={10}
               style={{ alignSelf: "center", paddingLeft: 4 }}
             >
@@ -243,7 +243,7 @@ export default function ProfileTab() {
 
           {/* Beta Tester hakkı: kapsül kimliğini henüz almadıysa yönlendir (alınca kaybolur) */}
           {betaTester && !ozelId && (
-            <Pressable onPress={() => { haptic.light(); router.navigate("/special-id"); }} style={styles.kapsulHatirlat}>
+            <Pressable onPress={() => { router.navigate("/special-id"); }} style={styles.kapsulHatirlat}>
               <View style={styles.kapsulIkon}>
                 <Icon name="idcard" size={14} color={C.gold2} />
               </View>
@@ -258,7 +258,7 @@ export default function ProfileTab() {
 
           {/* Sayaçlar boşlukta duruyordu; artık ayırıcılı tek cam şerit. */}
           <View style={styles.statStrip}>
-            {([["Ziyaretçi", visitorCount != null ? String(visitorCount) : "—", () => { haptic.light(); router.navigate("/visitors"); }], ["Takip", followCounts ? String(followCounts.following) : "—", undefined], ["Takipçi", followCounts ? String(followCounts.followers) : "—", undefined]] as const).map(([l, v, fn], i) => (
+            {([["Ziyaretçi", visitorCount != null ? String(visitorCount) : "—", () => { router.navigate("/visitors"); }], ["Takip", followCounts ? String(followCounts.following) : "—", undefined], ["Takipçi", followCounts ? String(followCounts.followers) : "—", undefined]] as const).map(([l, v, fn], i) => (
               <View key={l} style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
                 <Pressable onPress={fn} style={{ flex: 1, alignItems: "center", paddingVertical: 12 }}>
                   <Txt weight="displayBold" size={17} color={C.text}>{v}</Txt>
@@ -278,7 +278,7 @@ export default function ProfileTab() {
             ))}
           </View>
 
-          <Pressable onPress={() => { haptic.light(); router.navigate("/wallet"); }} style={styles.wallet}>
+          <Pressable onPress={() => { router.navigate("/wallet"); }} style={styles.wallet}>
             <Gradient colors={[C.gold + "16", "transparent"]} deg={120} style={StyleSheet.absoluteFill} pointerEvents="none" />
             <View style={styles.walletIcon}>
               <Icon name="wallet" size={17} color={C.gold2} />

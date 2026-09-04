@@ -81,7 +81,7 @@ export default function SupportScreen() {
   };
 
   const onAction = (a: Action) => {
-    if (a.type === "route" && a.route) { haptic.light(); router.navigate(a.route as never); }
+    if (a.type === "route" && a.route) { router.navigate(a.route as never); }
     else if (a.type === "agent") toAgent();
   };
 

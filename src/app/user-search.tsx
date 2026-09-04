@@ -60,7 +60,6 @@ export default function UserSearchScreen() {
   };
 
   const openProfile = (u: PublicProfile) => {
-    haptic.light();
     router.navigate(`/user-profile?publicId=${encodeURIComponent(u.public_id)}&name=${encodeURIComponent(u.kullanici_adi)}`);
   };
 

@@ -53,9 +53,8 @@ export default function AdminScreen() {
     return () => clearTimeout(t);
   }, [q]);
 
-  const openUser = (userId: number) => { haptic.light(); router.navigate(`/admin-user-edit?userId=${userId}`); };
+  const openUser = (userId: number) => { router.navigate(`/admin-user-edit?userId=${userId}`); };
   const openRoomReport = (r: ReportRow) => {
-    haptic.light();
     router.navigate(`/admin-room-report?odaId=${r.hedefOdaId}${Number.isFinite(r.id) ? `&sikayetId=${r.id}` : ""}`);
   };
 
@@ -99,7 +98,7 @@ export default function AdminScreen() {
               </View>
             </View>
 
-            <Pressable onPress={() => { haptic.light(); router.navigate("/admin-duyuru"); }} style={styles.launchRow}>
+            <Pressable onPress={() => { router.navigate("/admin-duyuru"); }} style={styles.launchRow}>
               <View style={[styles.rowIcon, { backgroundColor: `${C.gold}1A`, borderWidth: 1, borderColor: `${C.gold}3D` }]}><Icon name="mega" size={16} color={C.gold} /></View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Txt weight="extrabold" size={13} color={C.text}>Duyuru & Banner</Txt>
