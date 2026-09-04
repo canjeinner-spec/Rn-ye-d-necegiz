@@ -23,6 +23,8 @@ import {
   type Periyot, type SiraKisi, type SiraOda,
 } from "@/data/remote/siralamaRepo";
 import { levelTierBadge } from "@/data/badges";
+// GEÇİCİ: liste dolu görünsün diye 4-30 arası sahte kayıt. Silinecek.
+import { mockKisiEkle, mockOdaEkle } from "@/data/mockSiralama";
 import { ROOMS, type Room } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { useCachedResource } from "@/lib/cache";
@@ -414,6 +416,12 @@ export default function RankTab() {
     .sort((a, b) => b.online - a.online)
     .slice(0, 20);
 
+  // GEÇİCİ MOCK — kapalı betada liste boş kalıyor, uzun listenin görünümü
+  // ölçülemiyordu.  silinince bu üç satır da gider.
+  const zenginListe = mockKisiEkle(zengin);
+  const cazipListe = mockKisiEkle(cazip);
+  const odaListe = mockOdaEkle(hediyeliOdalar);
+
   const kalan = kalanSure(bitis);
   const periyotAdi = PERIYOTLAR.find((p) => p.kod === periyot)?.ad ?? "";
 
@@ -507,7 +515,7 @@ export default function RankTab() {
           {/* ---- Zenginlik: en çok hediye gönderenler ---- */}
           {tab === 0 && (
             <KisiListesi
-              veri={zengin}
+              veri={zenginListe}
               bas={kisiyeGit}
               vurgu={vurgu}
               bos={<Bos baslik="Bu dönemde hediye gönderilmedi" alt="Zenginlik sıralaması gönderilen hediyelerin toplam değerine göre hesaplanır." />}
@@ -517,7 +525,7 @@ export default function RankTab() {
           {/* ---- Cazibe: en çok hediye alanlar ---- */}
           {tab === 1 && (
             <KisiListesi
-              veri={cazip}
+              veri={cazipListe}
               bas={kisiyeGit}
               vurgu={vurgu}
               bos={<Bos baslik="Bu dönemde hediye alınmadı" alt="Cazibe sıralaması alınan hediyelerden kalan kazanca göre hesaplanır." />}
@@ -526,10 +534,10 @@ export default function RankTab() {
 
           {/* ---- Odalar: hediye hacmine göre; hiç hediye yoksa kalabalığa göre ---- */}
           {tab === 2 && (
-            hediyeliOdalar.length > 0 ? (
+            odaListe.length > 0 ? (
               <>
                 <Podyum
-                  ogeler={hediyeliOdalar.slice(0, 3).map((o) => ({
+                  ogeler={odaListe.slice(0, 3).map((o) => ({
                     ad: o.ad,
                     puan: o.puan,
                     altYazi: o.sahip || "—",
@@ -543,8 +551,8 @@ export default function RankTab() {
                   tur="oda"
                 />
                 <Panel>
-                  {hediyeliOdalar.length > 3 ? (
-                    hediyeliOdalar.slice(3).map((o) => (
+                  {odaListe.length > 3 ? (
+                    odaListe.slice(3).map((o) => (
                       <Pressable
                         key={o.odaId}
                         onPress={() => {
@@ -642,9 +650,9 @@ export default function RankTab() {
         </ScrollView>
         </View>
 
-        {tab <= 1 && (tab === 0 ? zengin : cazip).length > 0 && (
+        {tab <= 1 && (tab === 0 ? zenginListe : cazipListe).length > 0 && (
           <BenimSiram
-            liste={tab === 0 ? zengin : cazip}
+            liste={tab === 0 ? zenginListe : cazipListe}
             publicId={benimPublicId}
             ad={benimAd}
             foto={benimFoto || undefined}
