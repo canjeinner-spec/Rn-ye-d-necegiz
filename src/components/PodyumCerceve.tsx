@@ -2,7 +2,9 @@ import { Image } from "expo-image";
 import { View } from "react-native";
 
 import { Portrait } from "@/components/Portrait";
+import { Icon } from "@/icons/Icon";
 import { CERCEVE_OLCU, cerceveGorsel, type CerceveKod } from "@/podium/cerceve";
+import { C } from "@/theme/colors";
 
 /**
  * Podyumdaki dereceli avatar — kanatlı çerçeve + içine oturan fotoğraf.
@@ -22,11 +24,14 @@ export function PodyumCerceve({
   genislik,
   ad,
   foto,
+  bos,
 }: {
   kod: CerceveKod;
   genislik: number;
   ad: string;
   foto?: string;
+  /** O derece henüz kimseye ait değil — sönük çerçeve, boş madalyon. */
+  bos?: boolean;
 }) {
   const olcu = CERCEVE_OLCU[kod];
   const yukseklik = genislik / olcu.enBoy;
@@ -43,14 +48,31 @@ export function PodyumCerceve({
           height: cap,
         }}
       >
-        {/* Halka YOK: çerçevenin kendi halkası zaten var, ikisi üst üste
-            binince kalın bir çerçeve içinde ince bir çerçeve görünüyordu. */}
-        <Portrait name={ad} photo={foto} size={cap} ring="transparent" />
+        {bos ? (
+          <View
+            style={{
+              width: cap,
+              height: cap,
+              borderRadius: cap / 2,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(255,255,255,.045)",
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,.10)",
+            }}
+          >
+            <Icon name="user" size={cap * 0.36} color={C.dim2} />
+          </View>
+        ) : (
+          // Halka YOK: çerçevenin kendi halkası zaten var, ikisi üst üste
+          // binince kalın bir çerçeve içinde ince bir çerçeve görünüyordu.
+          <Portrait name={ad} photo={foto} size={cap} ring="transparent" />
+        )}
       </View>
 
       <Image
         source={cerceveGorsel(kod)}
-        style={{ width: genislik, height: yukseklik }}
+        style={{ width: genislik, height: yukseklik, opacity: bos ? 0.42 : 1 }}
         contentFit="contain"
         // Çerçeveler sabit varlık; her açılışta yeniden çözülmesin.
         cachePolicy="memory-disk"

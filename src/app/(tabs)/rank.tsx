@@ -96,9 +96,17 @@ function Satir({ n, children }: { n: number; children: React.ReactNode }) {
  * avatarın çerçeve içindeki yeri ÖLÇÜLEN orandan geliyor, göz kararı değil.
  */
 function Podyum({ ilk3, seviye, bas }: { ilk3: SiraKisi[]; seviye: Record<number, number>; bas: (k: SiraKisi) => void }) {
-  if (ilk3.length < 3) return null;
+  /**
+   * PODYUM ÜÇ KİŞİ OLMADAN DA ÇİZİLİYOR.
+   *
+   * Önce `ilk3.length < 3` şartı vardı: iki kullanıcılı kapalı betada podyum
+   * HİÇ görünmüyordu, sahne de görünmüyordu, birinci ile ikinci düz liste
+   * satırına düşüyordu. Boş kürsü göstermek hem sahneyi ortaya çıkarıyor hem
+   * de doğru mesajı veriyor: o koltuk boş, kapılabilir.
+   */
+  if (ilk3.length === 0) return null;
   // Birinci ortada ve büyük; ikinci solda, üçüncü sağda ve aşağıda.
-  const dizilim = [
+  const dizilim: { kisi?: SiraKisi; derece: number; genislik: number; ust: number }[] = [
     { kisi: ilk3[1], derece: 2, genislik: 104, ust: 34 },
     { kisi: ilk3[0], derece: 1, genislik: 134, ust: 0 },
     { kisi: ilk3[2], derece: 3, genislik: 104, ust: 34 },
@@ -112,13 +120,13 @@ function Podyum({ ilk3, seviye, bas }: { ilk3: SiraKisi[]; seviye: Record<number
 
       <View style={styles.podyum}>
         {dizilim.map(({ kisi, derece, genislik, ust }) => (
-          <Pressable key={kisi.uid} onPress={() => bas(kisi)} style={{ alignItems: "center", marginTop: ust }}>
-            <PodyumCerceve kod={DERECE_CERCEVE[derece]} genislik={genislik} ad={kisi.ad} foto={kisi.foto} />
-            <View style={[styles.dereceMadalyon, { borderColor: MADALYA[derece] + "AA" }]}>
-              <Txt weight="displayBold" size={12} color={MADALYA[derece]}>{derece}</Txt>
+          <Pressable key={derece} disabled={!kisi} onPress={() => kisi && bas(kisi)} style={{ alignItems: "center", marginTop: ust }}>
+            <PodyumCerceve kod={DERECE_CERCEVE[derece]} genislik={genislik} ad={kisi?.ad ?? ""} foto={kisi?.foto} bos={!kisi} />
+            <View style={[styles.dereceMadalyon, { borderColor: (kisi ? MADALYA[derece] : "#FFFFFF") + (kisi ? "AA" : "22") }]}>
+              <Txt weight="displayBold" size={12} color={kisi ? MADALYA[derece] : C.dim2}>{derece}</Txt>
             </View>
-            <Txt weight="extrabold" size={derece === 1 ? 13 : 11.5} color="#fff" numberOfLines={1} style={{ marginTop: 7, maxWidth: genislik + 14 }}>
-              {kisi.ad}
+            <Txt weight="extrabold" size={derece === 1 ? 13 : 11.5} color={kisi ? "#fff" : C.dim} numberOfLines={1} style={{ marginTop: 7, maxWidth: genislik + 14 }}>
+              {kisi ? kisi.ad : "Boş"}
             </Txt>
             {/*
               KİMLİK YIĞINI — referanstaki podyumda adın altında rütbe ve
@@ -127,13 +135,19 @@ function Podyum({ ilk3, seviye, bas }: { ilk3: SiraKisi[]; seviye: Record<number
               geliyor. Rozetler `pointerEvents="none"` içinde: kendi bilgi
               kartlarını açıp podyum dokunuşunu yutmasınlar.
             */}
-            <View style={styles.kimlikSatiri} pointerEvents="none">
-              <PngBadge name={levelTierBadge(seviye[kisi.uid] ?? 1)} size={derece === 1 ? 20 : 17} info={false} />
-              <EquippedBadge kod={kisi.rozet} size={derece === 1 ? 20 : 17} />
-            </View>
-            <View style={{ marginTop: 5 }}>
-              <Puan icon="coin" value={kisalt(kisi.puan)} guclu={derece === 1} />
-            </View>
+            {kisi ? (
+              <>
+                <View style={styles.kimlikSatiri} pointerEvents="none">
+                  <PngBadge name={levelTierBadge(seviye[kisi.uid] ?? 1)} size={derece === 1 ? 20 : 17} info={false} />
+                  <EquippedBadge kod={kisi.rozet} size={derece === 1 ? 20 : 17} />
+                </View>
+                <View style={{ marginTop: 5 }}>
+                  <Puan icon="coin" value={kisalt(kisi.puan)} guclu={derece === 1} />
+                </View>
+              </>
+            ) : (
+              <Txt weight="semibold" size={10} color={C.dim2} style={{ marginTop: 6 }}>Sıra sende</Txt>
+            )}
           </Pressable>
         ))}
       </View>
@@ -159,13 +173,15 @@ function KisiListesi({ veri, bos, bas }: { veri: SiraKisi[]; bos: React.ReactNod
   const { data: seviye = {} } = useCachedResource<Record<number, number>>(
     `sira:seviye:${ilk3.map((k) => k.uid).join("-")}`,
     () => seviyeler(ilk3.map((k) => k.uid)),
-    { enabled: isSupabaseConfigured && ilk3.length === 3 },
+    { enabled: isSupabaseConfigured && ilk3.length > 0 },
   );
   if (veri.length === 0) return <>{bos}</>;
   return (
     <>
       <Podyum ilk3={ilk3} seviye={seviye} bas={bas} />
-      {veri.slice(veri.length >= 3 ? 3 : 0).map((k) => (
+      {/* İlk üç podyumda; liste dördüncüden başlıyor (podyum artık az kişiyle
+          de çizildiği için burada tekrar etmemeleri gerekiyor). */}
+      {veri.slice(3).map((k) => (
         <Pressable key={k.uid} onPress={() => bas(k)}>
           <Satir n={k.sira}>
             <Portrait name={k.ad} photo={k.foto} size={42} />
