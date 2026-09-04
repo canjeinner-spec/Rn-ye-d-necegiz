@@ -66,7 +66,20 @@ function kisalt(n: number): string {
 /* ── Ortak parçalar ──────────────────────────────────────────────────────── */
 
 /** Puan hapı — sağ uçta, para birimi rozetiyle. */
-function Puan({ icon, value, guclu, renk = C.gold }: { icon: "coin" | "diamond"; value: string; guclu?: boolean; renk?: string }) {
+/**
+ * Puan hapı.  kipinde zemin ve kenarlık yok, yalnız renkli yazı +
+ * para rozeti — referans listede değerler böyle duruyor; her satırda dolgulu
+ * hap olunca liste ağırlaşıyordu.
+ */
+function Puan({ icon, value, guclu, sade, renk = C.gold }: { icon: "coin" | "diamond"; value: string; guclu?: boolean; sade?: boolean; renk?: string }) {
+  if (sade) {
+    return (
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+        {icon === "coin" ? <CoinBadge size={14} /> : <DiamondBadge size={14} />}
+        <Txt weight="extrabold" size={13.5} color={renk}>{value}</Txt>
+      </View>
+    );
+  }
   return (
     <View style={[styles.puan, guclu && { backgroundColor: renk + "24", borderColor: renk + "66" }]}>
       {icon === "coin" ? <CoinBadge size={13} /> : <DiamondBadge size={13} />}
@@ -81,7 +94,7 @@ function Sira({ n }: { n: number }) {
   if (!renk) {
     return (
       <View style={styles.siraYuva}>
-        <Txt weight="extrabold" size={12.5} color={C.dim2}>{n}</Txt>
+        <Txt weight="extrabold" size={14} color={C.dim2}>{n}</Txt>
       </View>
     );
   }
@@ -108,9 +121,9 @@ function OdaGorsel({ kapak, sahne }: { kapak?: string; sahne?: React.ComponentPr
   );
 }
 
-function OdaKapak(p: { kapak?: string; sahne?: React.ComponentProps<typeof Scene>["kind"] }) {
+function OdaKapak({ boyut = 42, ...p }: { kapak?: string; sahne?: React.ComponentProps<typeof Scene>["kind"]; boyut?: number }) {
   return (
-    <View style={styles.odaKapak}>
+    <View style={[styles.odaKapak, { width: boyut, height: boyut, borderRadius: boyut * 0.28 }]}>
       <OdaGorsel {...p} />
     </View>
   );
@@ -291,14 +304,18 @@ function Bos({ baslik, alt }: { baslik: string; alt: string }) {
 function KisiListesi({ veri, bos, vurgu, bas }: { veri: SiraKisi[]; bos: React.ReactNode; vurgu: string; bas: (k: SiraKisi) => void }) {
   const ilk3 = veri.slice(0, 3);
   /**
-   * Podyumdaki üç kişinin seviyesi. Sıralama RPC'si seviye döndürmüyor;
-   * üç kişilik tek sorgu, RPC'ye kolon eklemekten (migration) ucuz.
-   * Anahtar uid'lerden kuruluyor ki dönem/sekme değişince yeniden çekilsin.
+   * Seviyeler — PODYUM VE LİSTE İÇİN BİRLİKTE.
+   *
+   * Sıralama RPC'si seviye döndürmüyor. Önce yalnız podyumdaki üç kişi için
+   * çekiliyordu; liste satırlarında rütbe rozeti olmayınca satırlar iki
+   * farklı yükseklikte çıkıyordu (rozeti olan / olmayan) ve liste düzensiz
+   * görünüyordu. Artık görünen ilk 30 kişi için tek `in(...)` sorgusu.
    */
+  const gorunen = veri.slice(0, 30);
   const { data: seviye = {} } = useCachedResource<Record<number, number>>(
-    `sira:seviye:${ilk3.map((k) => k.uid).join("-")}`,
-    () => seviyeler(ilk3.map((k) => k.uid)),
-    { enabled: isSupabaseConfigured && ilk3.length > 0 },
+    `sira:seviye:${gorunen.map((k) => k.uid).join("-")}`,
+    () => seviyeler(gorunen.map((k) => k.uid)),
+    { enabled: isSupabaseConfigured && gorunen.length > 0 },
   );
   if (veri.length === 0) return <>{bos}</>;
   const ogeler = ilk3.map((k) => ({
@@ -320,12 +337,21 @@ function KisiListesi({ veri, bos, vurgu, bas }: { veri: SiraKisi[]; bos: React.R
           veri.slice(3).map((k) => (
             <Pressable key={k.uid} onPress={() => bas(k)}>
               <Satir n={k.sira}>
-                <Portrait name={k.ad} photo={k.foto} size={42} />
+                <Portrait name={k.ad} photo={k.foto} size={48} />
+                {/*
+                  İKİ SATIRLIK KİMLİK — referanstaki ritim: üstte ad, altında
+                  rozet şeridi. Rozet şeridi HER satırda var (en azından rütbe
+                  rozeti); yoksa satır yükseklikleri değişiyor ve liste
+                  düzensiz görünüyordu.
+                */}
                 <View style={styles.satirKimlik} pointerEvents="box-none">
-                  <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{k.ad}</Txt>
-                  <View pointerEvents="none"><EquippedBadge kod={k.rozet} size={18} /></View>
+                  <Txt weight="extrabold" size={14.5} color={C.text} numberOfLines={1}>{k.ad}</Txt>
+                  <View style={styles.satirRozet} pointerEvents="none">
+                    <PngBadge name={levelTierBadge(seviye[k.uid] ?? 1)} size={19} info={false} />
+                    <EquippedBadge kod={k.rozet} size={19} />
+                  </View>
                 </View>
-                <Puan icon="coin" value={kisalt(k.puan)} />
+                <Puan icon="coin" value={kisalt(k.puan)} renk={vurgu} sade />
               </Satir>
             </Pressable>
           ))
@@ -561,15 +587,15 @@ export default function RankTab() {
                         }}
                       >
                         <Satir n={o.sira}>
-                          <OdaKapak kapak={o.kapak} />
+                          <OdaKapak kapak={o.kapak} boyut={48} />
                           <View style={{ flex: 1, minWidth: 0 }}>
-                            <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{o.ad}</Txt>
+                            <Txt weight="extrabold" size={14.5} color={C.text} numberOfLines={1}>{o.ad}</Txt>
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
                               <Icon name="crown" size={10} color={C.gold + "AA"} />
                               <Txt weight="semibold" size={10} color={C.dim} numberOfLines={1}>{o.sahip || "—"}</Txt>
                             </View>
                           </View>
-                          <Puan icon="coin" value={kisalt(o.puan)} />
+                          <Puan icon="coin" value={kisalt(o.puan)} renk={vurgu} sade />
                         </Satir>
                       </Pressable>
                     ))
@@ -605,9 +631,9 @@ export default function RankTab() {
                     kalabalik.slice(3).map((r, i) => (
                       <Pressable key={r.id} onPress={() => girOdaya(r)}>
                         <Satir n={i + 4}>
-                          <OdaKapak kapak={r.photo} sahne={r.scene} />
+                          <OdaKapak kapak={r.photo} sahne={r.scene} boyut={48} />
                           <View style={{ flex: 1, minWidth: 0 }}>
-                            <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{r.name}</Txt>
+                            <Txt weight="extrabold" size={14.5} color={C.text} numberOfLines={1}>{r.name}</Txt>
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
                               <Icon name="crown" size={10} color={C.gold + "AA"} />
                               <Txt weight="semibold" size={10} color={C.dim} numberOfLines={1}>{r.host}</Txt>
@@ -696,7 +722,8 @@ const styles = StyleSheet.create({
   podyumAd: { marginTop: 7, maxWidth: "96%" },
   podyumAlt: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 5, maxWidth: "96%" },
   kimlikSatiri: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 },
-  satirKimlik: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 },
+  satirKimlik: { flex: 1, minWidth: 0, gap: 5 },
+  satirRozet: { flexDirection: "row", alignItems: "center", gap: 5 },
   benimCubuk: {
     position: "absolute", left: 12, right: 12, flexDirection: "row", alignItems: "center", gap: 10,
     paddingVertical: 9, paddingHorizontal: 12, borderRadius: 18, overflow: "hidden",
@@ -709,9 +736,11 @@ const styles = StyleSheet.create({
   },
 
   // Satırın kendi zemini YOK: zemin artık panelin. Ayrım ince çizgiyle.
+  // Satır yüksekliği SABİT: rozeti olan ve olmayan satırlar farklı boyda
+  // çıkınca liste düzensiz görünüyordu. Referansta da satırlar eşit ve ferah.
   satir: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    paddingVertical: 12, paddingHorizontal: 4,
+    minHeight: 74, paddingVertical: 11, paddingHorizontal: 4,
     borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.06)", overflow: "hidden",
   },
   panel: {
@@ -720,7 +749,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(9,8,13,.92)", borderTopWidth: 1, borderColor: "rgba(255,255,255,.08)",
     flexGrow: 1,
   },
-  siraYuva: { width: 26, alignItems: "center", justifyContent: "center" },
+  siraYuva: { width: 28, alignItems: "center", justifyContent: "center" },
   siraMadalya: { height: 26, borderRadius: 13, borderWidth: 1 },
 
   puan: {
