@@ -1,8 +1,11 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { Layout } from "react-native-reanimated";
+
+import BOS_KUTU from "@/anim/bos-kutu.json";
+import { BosDurum } from "@/components/BosDurum";
 
 import { KeyboardAware } from "@/components/KeyboardAware";
 import { AuthorityTag } from "@/components/AuthorityTag";
@@ -15,6 +18,7 @@ import { Txt } from "@/components/Txt";
 import { FEED_SEED, SCOPE_LABEL, type FeedPost, type FeedScope } from "@/data/feed";
 import { createPost, deletePost, editPost, FEED_ID_OFFSET, likePost, listPosts, setPinned, unlikePost } from "@/data/remote/feedRepo";
 import { deleteAnyPost } from "@/data/remote/adminRepo";
+import { takipEttiklerim } from "@/data/remote/followRepo";
 import { getUnreadCount } from "@/data/remote/notifRepo";
 import { getCached, setCached } from "@/lib/cache";
 import { ROOMS } from "@/data/seed";
@@ -56,6 +60,8 @@ export default function FeedScreen() {
     return cached && cached.length ? [...cached, ...FEED_SEED] : FEED_SEED;
   });
   const [notifUnread, setNotifUnread] = useState(0);
+  /** Takip ettigim kullanici id'leri — ucuncu sekmenin suzgeci. */
+  const [takip, setTakip] = useState<Set<number>>(new Set());
 
   // Bildirim çanı için okunmamış sayısı (ekrana her gelişte)
   useFocusEffect(
@@ -63,6 +69,7 @@ export default function FeedScreen() {
       if (!isSupabaseConfigured) return;
       let alive = true;
       getUnreadCount().then((c) => { if (alive) setNotifUnread(c); }).catch(() => {});
+      takipEttiklerim().then((ids) => { if (alive) setTakip(new Set(ids)); }).catch(() => {});
       return () => { alive = false; };
     }, []),
   );
@@ -190,6 +197,38 @@ export default function FeedScreen() {
   };
 
   const totalComments = (p: UserPost) => p.comments.reduce((s, c) => s + 1 + c.replies.length, 0);
+
+  /**
+   * SEKMELER ARTIK GERÇEKTEN SÜZÜYOR.
+   *
+   * Öncesinde iki sekme vardı ("Akış" / "Takip Edilen") ama `tab` hiçbir
+   * yerde okunmuyordu: sekmeye basmak listeyi değiştirmiyor, yalnız altın
+   * çizgi kayıyordu. Sahte başarı sınıfına giriyor (aynısı 1.13'te para
+   * ekranlarında temizlenmişti), o yüzden üç sekme de veriye bağlandı.
+   *
+   * Yeni   — repodan geldiği sıra: sabitlenenler üstte, sonra yeniden eskiye.
+   * Gündem — etkileşime göre: beğeni x3 + yorum x2. Etkileşimi olmayan
+   *          gönderiler ve sistem kartları burada YOK; "öne çıkan" boş kart
+   *          demek değil. Sıralama şimdilik istemcide, çekilen son 50
+   *          gönderi üzerinde; akış büyüyünce sunucuya RPC olarak taşınacak.
+   * Takip  — yalnız takip ettiklerimin gönderileri. Mock seed kartlarının
+   *          yazar kimliği yok, o yüzden burada görünmezler; doğrusu da bu.
+   */
+  const gorunen = useMemo(() => {
+    if (tab === 1) {
+      return posts
+        .filter((p): p is UserPost => p.type === "user" && (p.likes > 0 || p.comments.length > 0))
+        .map((p) => ({ p, puan: p.likes * 3 + totalComments(p) * 2 }))
+        .sort((a, b) => b.puan - a.puan)
+        .map((x) => x.p);
+    }
+    if (tab === 2) {
+      return posts.filter((p): p is UserPost => p.type === "user" && p.authorId != null && takip.has(p.authorId));
+    }
+    return posts;
+    // totalComments saf bir yardımcı, her render aynı sonucu veriyor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posts, tab, takip]);
   const sharePost = (p: UserPost) => {
     haptic.light();
     Share.share({ message: p.body }).catch(() => {});
@@ -212,7 +251,7 @@ export default function FeedScreen() {
             </Pressable>
           </View>
 
-          <Tabs items={["Akış", "Takip Edilen"]} active={tab} set={setTab} />
+          <Tabs items={["Yeni", "Gündem", "Takip Edilen"]} active={tab} set={setTab} />
 
           <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: altPayi }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
             {/* Composer */}
@@ -246,7 +285,14 @@ export default function FeedScreen() {
               </View>
             )}
 
-            {posts.map((p) =>
+            {gorunen.length === 0 && tab === 1 && (
+              <BosDurum anim={BOS_KUTU} baslik="Gündem boş" alt="Henüz beğeni ya da yorum alan bir paylaşım yok. İlk sen başlat." />
+            )}
+            {gorunen.length === 0 && tab === 2 && (
+              <BosDurum anim={BOS_KUTU} baslik="Takip ettiklerin sessiz" alt="Takip ettiğin kimse henüz paylaşım yapmamış. Yeni sekmesinden birilerini keşfet." />
+            )}
+
+            {gorunen.map((p) =>
               p.type === "system" ? (
                 <View key={p.id} style={styles.postCard}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>

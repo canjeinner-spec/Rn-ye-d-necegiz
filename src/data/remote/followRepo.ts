@@ -28,6 +28,21 @@ export async function getFollowState(targetUserId: number): Promise<{ followers:
   return { ...counts, isFollowing: mine };
 }
 
+/**
+ * Takip ettiğim kullanıcıların id'leri — akıştaki "Takip Edilen" sekmesi.
+ *
+ * Sayaç değil liste gerekiyor: sekme gönderileri yazar id'sine göre süzüyor.
+ * Oturum yoksa boş dizi dönüyor, sekme de boş durumunu gösteriyor.
+ */
+export async function takipEttiklerim(): Promise<number[]> {
+  const sb = requireSupabase();
+  const me = await getMyProfile();
+  if (!me) return [];
+  const { data, error } = await sb.from(T).select("takip_edilen_id").eq("takip_eden_id", me.id);
+  if (error) throw error;
+  return ((data as { takip_edilen_id: number }[]) ?? []).map((r) => r.takip_edilen_id);
+}
+
 /** Takip et (kendi adına; zaten takipliyse yutulur). */
 export async function follow(targetUserId: number): Promise<void> {
   const sb = requireSupabase();

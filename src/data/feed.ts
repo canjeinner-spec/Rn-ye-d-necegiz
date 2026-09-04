@@ -22,6 +22,12 @@ export type FeedPost =
       type: "user";
       who: string;
       publicId?: string; // gönderi sahibinin public_id'si (DB gönderilerinde) → profile git
+      /**
+       * Gönderi sahibinin sayısal kullanıcı id'si (DB gönderilerinde).
+       * "Takip Edilen" sekmesi bununla süzüyor: takip tablosu sayısal id
+       * tutuyor, `publicId` ile eşleştirmek fazladan bir sorgu demekti.
+       */
+      authorId?: number;
       photo?: string; // gönderi sahibinin avatarı
       lv: number;
       vip: boolean;
