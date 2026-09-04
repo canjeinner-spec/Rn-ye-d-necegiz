@@ -2,9 +2,11 @@ import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
+import { EquippedBadge } from "@/components/EquippedBadge";
+import { PngBadge } from "@/components/PngBadge";
 import { PodyumCerceve } from "@/components/PodyumCerceve";
 import { Portrait } from "@/components/Portrait";
 import { Scene } from "@/components/Scene";
@@ -16,9 +18,10 @@ import { Txt } from "@/components/Txt";
 import SAMPIYON from "@/anim/sampiyon.json";
 import { listRooms } from "@/data/remote/roomsRepo";
 import {
-  PERIYOTLAR, cazibe, donemBitis, kalanSure, odalar as odaSiralamasi, zenginlik,
+  PERIYOTLAR, cazibe, donemBitis, kalanSure, odalar as odaSiralamasi, seviyeler, zenginlik,
   type Periyot, type SiraKisi, type SiraOda,
 } from "@/data/remote/siralamaRepo";
+import { levelTierBadge } from "@/data/badges";
 import { ROOMS, type Room } from "@/data/seed";
 import { Icon } from "@/icons/Icon";
 import { useCachedResource } from "@/lib/cache";
@@ -27,7 +30,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { useApp } from "@/store/appStore";
 import { DERECE_CERCEVE, SAHNE } from "@/podium/cerceve";
 import { C } from "@/theme/colors";
-import { useIcerikAltPayi } from "@/theme/olculer";
+import { ALT_NAV_YUKSEKLIK, useIcerikAltPayi } from "@/theme/olculer";
 import { Gradient } from "@/theme/Gradient";
 
 /** Derece renkleri — altın / gümüş / bronz. */
@@ -92,7 +95,7 @@ function Satir({ n, children }: { n: number; children: React.ReactNode }) {
  * Çerçeveler üretilen sayfadan kesildi (`scripts/cerceve-hazirla.js`) ve
  * avatarın çerçeve içindeki yeri ÖLÇÜLEN orandan geliyor, göz kararı değil.
  */
-function Podyum({ ilk3, bas }: { ilk3: SiraKisi[]; bas: (k: SiraKisi) => void }) {
+function Podyum({ ilk3, seviye, bas }: { ilk3: SiraKisi[]; seviye: Record<number, number>; bas: (k: SiraKisi) => void }) {
   if (ilk3.length < 3) return null;
   // Birinci ortada ve büyük; ikinci solda, üçüncü sağda ve aşağıda.
   const dizilim = [
@@ -117,6 +120,17 @@ function Podyum({ ilk3, bas }: { ilk3: SiraKisi[]; bas: (k: SiraKisi) => void })
             <Txt weight="extrabold" size={derece === 1 ? 13 : 11.5} color="#fff" numberOfLines={1} style={{ marginTop: 7, maxWidth: genislik + 14 }}>
               {kisi.ad}
             </Txt>
+            {/*
+              KİMLİK YIĞINI — referanstaki podyumda adın altında rütbe ve
+              rozetler var; bizde yalnız ad ve puan vardı. Rozet sanatı zaten
+              elimizde (assets/badges), kuşanılan rozet de sıralama verisiyle
+              geliyor. Rozetler `pointerEvents="none"` içinde: kendi bilgi
+              kartlarını açıp podyum dokunuşunu yutmasınlar.
+            */}
+            <View style={styles.kimlikSatiri} pointerEvents="none">
+              <PngBadge name={levelTierBadge(seviye[kisi.uid] ?? 1)} size={derece === 1 ? 20 : 17} info={false} />
+              <EquippedBadge kod={kisi.rozet} size={derece === 1 ? 20 : 17} />
+            </View>
             <View style={{ marginTop: 5 }}>
               <Puan icon="coin" value={kisalt(kisi.puan)} guclu={derece === 1} />
             </View>
@@ -136,20 +150,69 @@ function Bos({ baslik, alt }: { baslik: string; alt: string }) {
 
 /** Kişi sıralaması — podyum + liste, ortak gövde (Zenginlik ve Cazibe aynı). */
 function KisiListesi({ veri, bos, bas }: { veri: SiraKisi[]; bos: React.ReactNode; bas: (k: SiraKisi) => void }) {
+  const ilk3 = veri.slice(0, 3);
+  /**
+   * Podyumdaki üç kişinin seviyesi. Sıralama RPC'si seviye döndürmüyor;
+   * üç kişilik tek sorgu, RPC'ye kolon eklemekten (migration) ucuz.
+   * Anahtar uid'lerden kuruluyor ki dönem/sekme değişince yeniden çekilsin.
+   */
+  const { data: seviye = {} } = useCachedResource<Record<number, number>>(
+    `sira:seviye:${ilk3.map((k) => k.uid).join("-")}`,
+    () => seviyeler(ilk3.map((k) => k.uid)),
+    { enabled: isSupabaseConfigured && ilk3.length === 3 },
+  );
   if (veri.length === 0) return <>{bos}</>;
   return (
     <>
-      <Podyum ilk3={veri.slice(0, 3)} bas={bas} />
+      <Podyum ilk3={ilk3} seviye={seviye} bas={bas} />
       {veri.slice(veri.length >= 3 ? 3 : 0).map((k) => (
         <Pressable key={k.uid} onPress={() => bas(k)}>
           <Satir n={k.sira}>
             <Portrait name={k.ad} photo={k.foto} size={42} />
-            <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1} style={{ flex: 1 }}>{k.ad}</Txt>
+            <View style={styles.satirKimlik} pointerEvents="box-none">
+              <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{k.ad}</Txt>
+              <View pointerEvents="none"><EquippedBadge kod={k.rozet} size={18} /></View>
+            </View>
             <Puan icon="coin" value={kisalt(k.puan)} />
           </Satir>
         </Pressable>
       ))}
     </>
+  );
+}
+
+/**
+ * Sabit "benim sıram" çubuğu — listenin altında, alt navigasyonun üstünde.
+ *
+ * Referans uygulamalarda bu çubuk her zaman ekranda: kullanıcı kaçıncı
+ * olduğunu görmek için 50 satır kaydırmıyor. Bizde hiç yoktu.
+ *
+ * Eşleştirme `publicId` ile: mağazadaki sayısal kullanıcı id'si istemcide
+ * tutulmuyor ama public id tutuluyor ve sıralama satırları da onu taşıyor.
+ * Listede yoksa sıra yerine tire ve dürüst bir açıklama gösteriliyor —
+ * uydurma bir sıra numarası değil.
+ */
+function BenimSiram({ liste, publicId, ad, foto, alt }: {
+  liste: SiraKisi[];
+  publicId: string | null;
+  ad: string;
+  foto?: string;
+  alt: number;
+}) {
+  const ben = publicId ? liste.find((k) => k.publicId === publicId) : undefined;
+  return (
+    <View style={[styles.benimCubuk, { bottom: alt }]}>
+      <Gradient colors={[C.gold + "1F", "transparent"]} deg={110} style={StyleSheet.absoluteFill} pointerEvents="none" />
+      <View style={styles.benimSira}>
+        <Txt weight="displayBold" size={12.5} color={ben ? C.gold2 : C.dim2}>{ben ? ben.sira : "—"}</Txt>
+      </View>
+      <Portrait name={ad} photo={foto} size={34} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Txt weight="extrabold" size={12.5} color="#fff" numberOfLines={1}>{ad}</Txt>
+        {!ben && <Txt size={10} color={C.dim} numberOfLines={1} style={{ marginTop: 1 }}>Bu dönemde listeye girmedin</Txt>}
+      </View>
+      <Puan icon="coin" value={kisalt(ben?.puan ?? 0)} guclu={!!ben} />
+    </View>
   );
 }
 
@@ -160,6 +223,10 @@ export default function RankTab() {
   const altPayi = useIcerikAltPayi();
   const router = useRouter();
   const odayaGirDene = useApp((s) => s.odayaGirDene);
+  const benimPublicId = useApp((s) => s.publicId);
+  const benimAd = useApp((s) => s.userName);
+  const benimFoto = useApp((s) => s.userPhoto);
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState(0);
   const [periyot, setPeriyot] = useState<Periyot>("hafta");
 
@@ -239,7 +306,9 @@ export default function RankTab() {
           </View>
         )}
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: altPayi }} showsVerticalScrollIndicator={false}>
+        {/* Kişi sekmelerinde alta sabit çubuk biniyor; son satır onun altında
+            kalmasın diye içerik payı çubuk kadar artıyor. */}
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: altPayi + (tab <= 1 ? 62 : 0) }} showsVerticalScrollIndicator={false}>
           {/* ---- Zenginlik: en çok hediye gönderenler ---- */}
           {tab === 0 && (
             <KisiListesi
@@ -339,6 +408,16 @@ export default function RankTab() {
             />
           )}
         </ScrollView>
+
+        {tab <= 1 && (tab === 0 ? zengin : cazip).length > 0 && (
+          <BenimSiram
+            liste={tab === 0 ? zengin : cazip}
+            publicId={benimPublicId}
+            ad={benimAd}
+            foto={benimFoto || undefined}
+            alt={ALT_NAV_YUKSEKLIK + insets.bottom}
+          />
+        )}
       </SafeAreaView>
     </View>
   );
@@ -353,12 +432,15 @@ const styles = StyleSheet.create({
     backgroundColor: C.gold + "14", borderWidth: 1, borderColor: C.gold + "3D",
   },
 
-  periyotSatiri: { flexDirection: "row", gap: 7, paddingHorizontal: 16, paddingTop: 12 },
-  periyotHap: {
-    paddingVertical: 5.5, paddingHorizontal: 12, borderRadius: 999,
-    backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
+  // Dönem hapları referanstaki gibi TEK KAPSÜL içinde. Ayrı ayrı çerçeveli
+  // haplar sekme şeridiyle yarışıyordu; kapsül ikisini ayırıyor.
+  periyotSatiri: {
+    flexDirection: "row", alignSelf: "center", gap: 3, marginTop: 12, padding: 3,
+    borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,.10)",
+    backgroundColor: "rgba(255,255,255,.04)",
   },
-  periyotHapAktif: { backgroundColor: C.gold + "1F", borderColor: C.gold + "5C" },
+  periyotHap: { paddingVertical: 6, paddingHorizontal: 15, borderRadius: 999, borderWidth: 1, borderColor: "transparent" },
+  periyotHapAktif: { backgroundColor: C.gold + "24", borderColor: C.gold + "5C" },
 
   notHap: {
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
@@ -371,6 +453,14 @@ const styles = StyleSheet.create({
   sahne: { marginHorizontal: -16, marginTop: -10, marginBottom: 14, paddingTop: 14, paddingBottom: 18, overflow: "hidden" },
   sahneEtek: { position: "absolute", left: 0, right: 0, bottom: 0, height: 96 },
   podyum: { flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: 4, paddingHorizontal: 8 },
+  kimlikSatiri: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 },
+  satirKimlik: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 },
+  benimCubuk: {
+    position: "absolute", left: 12, right: 12, flexDirection: "row", alignItems: "center", gap: 10,
+    paddingVertical: 9, paddingHorizontal: 12, borderRadius: 18, overflow: "hidden",
+    borderWidth: 1, borderColor: C.gold + "44", backgroundColor: "rgba(13,11,17,.97)",
+  },
+  benimSira: { width: 22, alignItems: "center" },
   dereceMadalyon: {
     marginTop: -13, width: 26, height: 26, borderRadius: 13, borderWidth: 1.5,
     alignItems: "center", justifyContent: "center", backgroundColor: "rgba(8,8,12,.88)",

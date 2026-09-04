@@ -99,6 +99,23 @@ export async function odalar(periyot: Periyot = "hafta", limit = 50): Promise<Si
 }
 
 /** Dönemin bitişi (epoch ms). "Tüm zaman" için null. */
+/**
+ * Verilen kullanıcıların seviyeleri — podyumdaki rütbe rozeti için.
+ *
+ * Sıralama RPC'leri seviye döndürmüyor; podyumda yalnız üç kişi olduğu için
+ * tek `in(...)` sorgusu yeterli. RPC'ye kolon eklemek migration demekti ve
+ * kazancı bu üç rozetle sınırlı.
+ */
+export async function seviyeler(uids: number[]): Promise<Record<number, number>> {
+  if (uids.length === 0) return {};
+  const sb = requireSupabase();
+  const { data, error } = await sb.from("profiller").select("id, seviye_id").in("id", uids);
+  if (error) throw error;
+  const harita: Record<number, number> = {};
+  for (const r of (data as { id: number; seviye_id: number | null }[]) ?? []) harita[r.id] = r.seviye_id ?? 1;
+  return harita;
+}
+
 export async function donemBitis(periyot: Periyot = "hafta"): Promise<number | null> {
   const sb = requireSupabase();
   const { data, error } = await sb.rpc("siralama_donem_bitis", { p_periyot: periyot });
