@@ -112,12 +112,9 @@ function Podyum({ ilk3, seviye, bas }: { ilk3: SiraKisi[]; seviye: Record<number
     { kisi: ilk3[2], derece: 3, genislik: 104, ust: 34 },
   ];
   return (
+    // Salon görseli artık SAYFANIN arkasında (sekme şeridinin altından en
+    // alta kadar); podyum yalnız kendi yerleşimini yönetiyor.
     <View style={styles.sahne}>
-      <Image source={SAHNE} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
-      {/* Sahnenin alt kenarı listeye karışsın; görselin kesildiği yer
-          düz bir çizgi olarak görünmesin. */}
-      <Gradient colors={["transparent", C.bg]} deg={180} style={styles.sahneEtek} pointerEvents="none" />
-
       <View style={styles.podyum}>
         {dizilim.map(({ kisi, derece, genislik, ust }) => (
           <Pressable key={derece} disabled={!kisi} onPress={() => kisi && bas(kisi)} style={{ alignItems: "center", marginTop: ust }}>
@@ -302,6 +299,29 @@ export default function RankTab() {
 
         <Tabs items={["Zenginlik", "Cazibe", "Odalar", "Ajanslar", "Yayıncılar"]} active={tab} set={setTab} pad={14} />
 
+        {/*
+          SALON ARKAPLANI TÜM SAYFADA.
+
+          Önce yalnız podyumun arkasındaydı ve görselin boş üst kısmı
+          ekranda duruyordu, altındaki liste ise düz siyah zemindeydi —
+          sahne bitince ekran ikiye bölünüyordu. Referans uygulamalarda
+          arkaplan sayfanın tamamını kaplıyor, liste onun üstünde duruyor.
+
+          Sarmalayıcı sekme şeridinden SONRA başlıyor, yani görsel tam da
+          şeridin altındaki çizgiden itibaren görünüyor. Perde gradyanı
+          aşağı indikçe koyulaşıyor: podyum aydınlık kalıyor, liste
+          satırlarının altı okunaklı oluyor.
+        */}
+        <View style={{ flex: 1 }}>
+          <Image source={SAHNE} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
+          <Gradient
+            colors={["rgba(8,8,12,.28)", "rgba(8,8,12,.82)", "rgba(8,8,12,.96)"]}
+            deg={180}
+            locations={[0, 0.55, 1]}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+
         {/* Dönem seçici — ilk üç sekme dönemli, ajans/yayıncı henüz değil. */}
         {tab <= 2 && (
           <View style={styles.periyotSatiri}>
@@ -424,6 +444,7 @@ export default function RankTab() {
             />
           )}
         </ScrollView>
+        </View>
 
         {tab <= 1 && (tab === 0 ? zengin : cazip).length > 0 && (
           <BenimSiram
@@ -464,10 +485,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
   },
 
-  // Sahne listeye göre TAŞIYOR: kaydırma alanının 16 punto yan dolgusundan
-  // negatif kenar boşluğuyla çıkıyor ki salon görseli ekranı baştan başa kessin.
-  sahne: { marginHorizontal: -16, marginTop: -10, marginBottom: 14, paddingTop: 14, paddingBottom: 18, overflow: "hidden" },
-  sahneEtek: { position: "absolute", left: 0, right: 0, bottom: 0, height: 96 },
+  sahne: { marginBottom: 12, paddingTop: 6, paddingBottom: 8 },
   podyum: { flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: 4, paddingHorizontal: 8 },
   kimlikSatiri: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 },
   satirKimlik: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 },
@@ -484,7 +502,9 @@ const styles = StyleSheet.create({
 
   satir: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
+    // Zemin artık salon görselinin üstünde: `C.kart` (%4 beyaz) fotoğrafın
+    // üstünde okunmuyordu, satır koyu ve yarı saydam bir yüzeye alındı.
+    backgroundColor: "rgba(12,11,16,.72)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
     borderRadius: 16, paddingVertical: 11, paddingHorizontal: 13, marginBottom: 9, overflow: "hidden",
   },
   siraYuva: { width: 26, alignItems: "center", justifyContent: "center" },

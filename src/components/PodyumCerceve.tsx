@@ -37,15 +37,34 @@ export function PodyumCerceve({
   const yukseklik = genislik / olcu.enBoy;
   const cap = genislik * olcu.capOran;
 
+  /**
+   * FOTOĞRAF AÇIKLIKTAN BİRAZ BÜYÜK ÇİZİLİYOR.
+   *
+   * İlk halinde fotoğraf tam açıklık çapındaydı ve arada koyu bir halka
+   * kalıyordu ("oturmuyor gibi"). Ölçüldü, iki sebebi vardı:
+   *
+   *   1. `Portrait` verilen boyutun içine 2 punto kenarlık çiziyor; yani
+   *      fotoğrafın gerçek çapı boyut − 4 oluyor. O yüzden +4 ekleniyor.
+   *   2. Açıklığın kenarı 1-2 piksellik yumuşak geçişle bitiyor ve fotoğraf
+   *      ile halka arasında kıl payı bir çizgi kalıyor.
+   *
+   * %6 taşma fotoğrafı halkanın ALTINA sokuyor — çerçeveler zaten böyle
+   * çalışmak üzere çizilmiş. Halkanın kalınlığı taşmanın kat kat üstünde,
+   * yani fotoğrafın dışarı sızma ihtimali yok.
+   */
+  const fotoBoyut = cap * 1.06 + 4;
+
   return (
     <View style={{ width: genislik, height: yukseklik }}>
       <View
         style={{
           position: "absolute",
-          left: olcu.merkezX * genislik - cap / 2,
-          top: olcu.merkezY * yukseklik - cap / 2,
-          width: cap,
-          height: cap,
+          left: olcu.merkezX * genislik - fotoBoyut / 2,
+          top: olcu.merkezY * yukseklik - fotoBoyut / 2,
+          width: fotoBoyut,
+          height: fotoBoyut,
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
         {bos ? (
@@ -66,7 +85,7 @@ export function PodyumCerceve({
         ) : (
           // Halka YOK: çerçevenin kendi halkası zaten var, ikisi üst üste
           // binince kalın bir çerçeve içinde ince bir çerçeve görünüyordu.
-          <Portrait name={ad} photo={foto} size={cap} ring="transparent" />
+          <Portrait name={ad} photo={foto} size={fotoBoyut} ring="transparent" />
         )}
       </View>
 
