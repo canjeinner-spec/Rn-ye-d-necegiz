@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
@@ -36,6 +37,23 @@ import { Gradient } from "@/theme/Gradient";
 /** Derece renkleri — altın / gümüş / bronz. */
 const MADALYA: Record<number, string> = { 1: "#F5CE6E", 2: "#C7CCD6", 3: "#C9803B" };
 
+/**
+ * HER SEKMENİN KENDİ RENGİ.
+ *
+ * Referans uygulamada sekme değişince sayfanın tonu da değişiyor —
+ * kullanıcının tarifiyle "üstte lamba değişir gibi". Tek altın tonunda beş
+ * sekme birbirinden ayrılmıyordu.
+ *
+ * Renkler siyah-altın temaya göre seçildi; MOR ve PEMBE bilerek YOK
+ * (kullanıcı kararı, uygulamanın kimliği değil).
+ *   Zenginlik  altın      — para
+ *   Cazibe     yakut      — hediye taşlarının rengi
+ *   Odalar     turkuaz    — canlı yayın/oda
+ *   Ajanslar   bakır      — üçüncülük madalyasıyla aynı aile
+ *   Yayıncılar çelik mavi — diğer dördünden en uzak ton
+ */
+const SEKME_RENK = ["#E8B341", "#C8324B", "#17A398", "#C9803B", "#3B82F6"];
+
 /** 1.240 → "1.240", 1.240.000 → "1,2M" (satır dar, sayı taşmasın). */
 function kisalt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(".", ",")}M`;
@@ -46,11 +64,11 @@ function kisalt(n: number): string {
 /* ── Ortak parçalar ──────────────────────────────────────────────────────── */
 
 /** Puan hapı — sağ uçta, para birimi rozetiyle. */
-function Puan({ icon, value, guclu }: { icon: "coin" | "diamond"; value: string; guclu?: boolean }) {
+function Puan({ icon, value, guclu, renk = C.gold }: { icon: "coin" | "diamond"; value: string; guclu?: boolean; renk?: string }) {
   return (
-    <View style={[styles.puan, guclu && { backgroundColor: C.gold + "1F", borderColor: C.gold + "5C" }]}>
+    <View style={[styles.puan, guclu && { backgroundColor: renk + "24", borderColor: renk + "66" }]}>
       {icon === "coin" ? <CoinBadge size={13} /> : <DiamondBadge size={13} />}
-      <Txt weight="extrabold" size={11.5} color={guclu ? C.gold2 : C.text}>{value}</Txt>
+      <Txt weight="extrabold" size={11.5} color={guclu ? renk : C.text}>{value}</Txt>
     </View>
   );
 }
@@ -95,7 +113,7 @@ function Satir({ n, children }: { n: number; children: React.ReactNode }) {
  * Çerçeveler üretilen sayfadan kesildi (`scripts/cerceve-hazirla.js`) ve
  * avatarın çerçeve içindeki yeri ÖLÇÜLEN orandan geliyor, göz kararı değil.
  */
-function Podyum({ ilk3, seviye, bas }: { ilk3: SiraKisi[]; seviye: Record<number, number>; bas: (k: SiraKisi) => void }) {
+function Podyum({ ilk3, seviye, vurgu, bas }: { ilk3: SiraKisi[]; seviye: Record<number, number>; vurgu: string; bas: (k: SiraKisi) => void }) {
   /**
    * PODYUM ÜÇ KİŞİ OLMADAN DA ÇİZİLİYOR.
    *
@@ -139,7 +157,7 @@ function Podyum({ ilk3, seviye, bas }: { ilk3: SiraKisi[]; seviye: Record<number
                   <EquippedBadge kod={kisi.rozet} size={derece === 1 ? 20 : 17} />
                 </View>
                 <View style={{ marginTop: 5 }}>
-                  <Puan icon="coin" value={kisalt(kisi.puan)} guclu={derece === 1} />
+                  <Puan icon="coin" value={kisalt(kisi.puan)} guclu={derece === 1} renk={vurgu} />
                 </View>
               </>
             ) : (
@@ -160,7 +178,7 @@ function Bos({ baslik, alt }: { baslik: string; alt: string }) {
 }
 
 /** Kişi sıralaması — podyum + liste, ortak gövde (Zenginlik ve Cazibe aynı). */
-function KisiListesi({ veri, bos, bas }: { veri: SiraKisi[]; bos: React.ReactNode; bas: (k: SiraKisi) => void }) {
+function KisiListesi({ veri, bos, vurgu, bas }: { veri: SiraKisi[]; bos: React.ReactNode; vurgu: string; bas: (k: SiraKisi) => void }) {
   const ilk3 = veri.slice(0, 3);
   /**
    * Podyumdaki üç kişinin seviyesi. Sıralama RPC'si seviye döndürmüyor;
@@ -175,7 +193,7 @@ function KisiListesi({ veri, bos, bas }: { veri: SiraKisi[]; bos: React.ReactNod
   if (veri.length === 0) return <>{bos}</>;
   return (
     <>
-      <Podyum ilk3={ilk3} seviye={seviye} bas={bas} />
+      <Podyum ilk3={ilk3} seviye={seviye} vurgu={vurgu} bas={bas} />
       {/* İlk üç podyumda; liste dördüncüden başlıyor (podyum artık az kişiyle
           de çizildiği için burada tekrar etmemeleri gerekiyor). */}
       {veri.slice(3).map((k) => (
@@ -205,26 +223,27 @@ function KisiListesi({ veri, bos, bas }: { veri: SiraKisi[]; bos: React.ReactNod
  * Listede yoksa sıra yerine tire ve dürüst bir açıklama gösteriliyor —
  * uydurma bir sıra numarası değil.
  */
-function BenimSiram({ liste, publicId, ad, foto, alt }: {
+function BenimSiram({ liste, publicId, ad, foto, vurgu, alt }: {
   liste: SiraKisi[];
   publicId: string | null;
   ad: string;
   foto?: string;
+  vurgu: string;
   alt: number;
 }) {
   const ben = publicId ? liste.find((k) => k.publicId === publicId) : undefined;
   return (
-    <View style={[styles.benimCubuk, { bottom: alt }]}>
-      <Gradient colors={[C.gold + "1F", "transparent"]} deg={110} style={StyleSheet.absoluteFill} pointerEvents="none" />
+    <View style={[styles.benimCubuk, { bottom: alt, borderColor: vurgu + "55" }]}>
+      <Gradient colors={[vurgu + "26", "transparent"]} deg={110} style={StyleSheet.absoluteFill} pointerEvents="none" />
       <View style={styles.benimSira}>
-        <Txt weight="displayBold" size={12.5} color={ben ? C.gold2 : C.dim2}>{ben ? ben.sira : "—"}</Txt>
+        <Txt weight="displayBold" size={12.5} color={ben ? vurgu : C.dim2}>{ben ? ben.sira : "—"}</Txt>
       </View>
       <Portrait name={ad} photo={foto} size={34} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Txt weight="extrabold" size={12.5} color="#fff" numberOfLines={1}>{ad}</Txt>
         {!ben && <Txt size={10} color={C.dim} numberOfLines={1} style={{ marginTop: 1 }}>Bu dönemde listeye girmedin</Txt>}
       </View>
-      <Puan icon="coin" value={kisalt(ben?.puan ?? 0)} guclu={!!ben} />
+      <Puan icon="coin" value={kisalt(ben?.puan ?? 0)} guclu={!!ben} renk={vurgu} />
     </View>
   );
 }
@@ -242,6 +261,8 @@ export default function RankTab() {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState(0);
   const [periyot, setPeriyot] = useState<Periyot>("hafta");
+  /** Aktif sekmenin rengi — sayfanın tonunu bu belirliyor. */
+  const vurgu = SEKME_RENK[tab] ?? C.gold;
 
   const acik = isSupabaseConfigured;
 
@@ -281,51 +302,60 @@ export default function RankTab() {
 
   return (
     <View style={styles.root}>
-      {/* Diğer ekranlarla aynı siyah-altın zemin; burası düz siyahtı. */}
-      <Gradient colors={["#16121F", "#0B0A11", "#08080C"]} deg={175} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
-      <Gradient colors={[C.gold + "1F", "transparent"]} deg={180} style={styles.aura} pointerEvents="none" />
+      {/*
+        SALON GÖRSELİ SAYFANIN TAMAMINDA — başlık ve sekme şeridi DAHİL.
+
+        Önce yalnız podyumun arkasındaydı, sonra sekme şeridinin altına
+        alındı; ikisinde de görselin bittiği yerde ekran ikiye bölünüyordu.
+        Referansta arkaplan en tepeden başlıyor, başlık da onun üstünde
+        duruyor. Görsel artık kökte: üstünde perde gradyanı (başlık ve liste
+        okunaklı kalsın), onun üstünde sekme rengi perdesi.
+      */}
+      <Image source={SAHNE} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
+      <Gradient
+        colors={["rgba(8,8,12,.58)", "rgba(8,8,12,.10)", "rgba(8,8,12,.46)", "rgba(8,8,12,.88)"]}
+        deg={180}
+        locations={[0, 0.17, 0.58, 1]}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      {/*
+        SEKME RENGİ SAHNEYE VURUYOR. `key={tab}` ile her geçişte yeni perde
+        sönerek giriyor, eskisi sönerek çıkıyor; ikisi üst üste bindiği için
+        renk geçişi ani değil, lambanın rengi değişiyormuş gibi oluyor. Aynı
+        salon beş sekmede beş farklı ışıkta görünüyor, ayrı arkaplan üretmeye
+        gerek kalmıyor.
+      */}
+      <Animated.View
+        key={tab}
+        entering={FadeIn.duration(420)}
+        exiting={FadeOut.duration(300)}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      >
+        <Gradient colors={[vurgu + "4D", vurgu + "14", "transparent"]} deg={180} locations={[0, 0.42, 1]} style={StyleSheet.absoluteFill} />
+      </Animated.View>
 
       <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
         <View style={{ alignItems: "center", paddingTop: 8, paddingBottom: 10 }}>
           <Txt weight="displayBold" size={18} color="#fff" style={{ letterSpacing: 0.5 }}>Sıralama</Txt>
           {/* Sayaç sunucudan geliyor; "Haftalık · 2g 14s kaldı" sabit yazıydı. */}
           {kalan && (
-            <View style={styles.sureHap}>
-              <Icon name="cal" size={11} color={C.gold2} />
-              <Txt weight="bold" size={10} color={C.gold2}>{periyotAdi} · {kalan}</Txt>
+            <View style={[styles.sureHap, { backgroundColor: vurgu + "1A", borderColor: vurgu + "4D" }]}>
+              <Icon name="cal" size={11} color={vurgu} />
+              <Txt weight="bold" size={10} color={vurgu}>{periyotAdi} · {kalan}</Txt>
             </View>
           )}
         </View>
 
-        <Tabs items={["Zenginlik", "Cazibe", "Odalar", "Ajanslar", "Yayıncılar"]} active={tab} set={setTab} pad={14} />
+        <Tabs items={["Zenginlik", "Cazibe", "Odalar", "Ajanslar", "Yayıncılar"]} active={tab} set={setTab} pad={14} renk={vurgu} />
 
         {/*
-          SALON ARKAPLANI TÜM SAYFADA.
+          Gövde sarmalayıcısı: arkaplan artık kökte, burada yalnız yerleşim
+          var (dönem hapları + kaydırılan liste).
 
-          Önce yalnız podyumun arkasındaydı ve görselin boş üst kısmı
-          ekranda duruyordu, altındaki liste ise düz siyah zemindeydi —
-          sahne bitince ekran ikiye bölünüyordu. Referans uygulamalarda
-          arkaplan sayfanın tamamını kaplıyor, liste onun üstünde duruyor.
-
-          Görsel DİKEY üretildi: üst %40 aydınlık merdiven (podyum oraya
-          oturuyor), altı karanlığa gömülüyor. Perde bu yüzden hafif -- görsel
-          zaten kendi kendine kararıyor, üstüne kalın perde koymak zemindeki
-          altın yansımaları öldürüyordu.
-
-          Sarmalayıcı sekme şeridinden SONRA başlıyor, yani görsel tam da
-          şeridin altındaki çizgiden itibaren görünüyor. Perde gradyanı
-          aşağı indikçe koyulaşıyor: podyum aydınlık kalıyor, liste
-          satırlarının altı okunaklı oluyor.
         */}
         <View style={{ flex: 1 }}>
-          <Image source={SAHNE} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
-          <Gradient
-            colors={["rgba(8,8,12,.06)", "rgba(8,8,12,.42)", "rgba(8,8,12,.78)"]}
-            deg={180}
-            locations={[0, 0.55, 1]}
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
-          />
 
         {/* Dönem seçici — ilk üç sekme dönemli, ajans/yayıncı henüz değil. */}
         {tab <= 2 && (
@@ -336,9 +366,9 @@ export default function RankTab() {
                 <Pressable
                   key={p.kod}
                   onPress={() => { haptic.light(); setPeriyot(p.kod); }}
-                  style={[styles.periyotHap, secili && styles.periyotHapAktif]}
+                  style={[styles.periyotHap, secili && { backgroundColor: vurgu + "2E", borderColor: vurgu + "70" }]}
                 >
-                  <Txt weight={secili ? "extrabold" : "semibold"} size={10.5} color={secili ? C.gold2 : C.dim}>
+                  <Txt weight={secili ? "extrabold" : "semibold"} size={10.5} color={secili ? vurgu : C.dim}>
                     {p.ad}
                   </Txt>
                 </Pressable>
@@ -355,6 +385,7 @@ export default function RankTab() {
             <KisiListesi
               veri={zengin}
               bas={kisiyeGit}
+              vurgu={vurgu}
               bos={<Bos baslik="Bu dönemde hediye gönderilmedi" alt="Zenginlik sıralaması gönderilen hediyelerin toplam değerine göre hesaplanır." />}
             />
           )}
@@ -364,6 +395,7 @@ export default function RankTab() {
             <KisiListesi
               veri={cazip}
               bas={kisiyeGit}
+              vurgu={vurgu}
               bos={<Bos baslik="Bu dönemde hediye alınmadı" alt="Cazibe sıralaması alınan hediyelerden kalan kazanca göre hesaplanır." />}
             />
           )}
@@ -392,7 +424,7 @@ export default function RankTab() {
                         <Txt weight="semibold" size={10} color={C.dim} numberOfLines={1}>{o.sahip || "—"}</Txt>
                       </View>
                     </View>
-                    <Puan icon="coin" value={kisalt(o.puan)} guclu={o.sira === 1} />
+                    <Puan icon="coin" value={kisalt(o.puan)} guclu={o.sira === 1} renk={vurgu} />
                   </Satir>
                 </Pressable>
               ))
@@ -457,6 +489,7 @@ export default function RankTab() {
             publicId={benimPublicId}
             ad={benimAd}
             foto={benimFoto || undefined}
+            vurgu={vurgu}
             alt={ALT_NAV_YUKSEKLIK + insets.bottom}
           />
         )}
@@ -467,7 +500,6 @@ export default function RankTab() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  aura: { position: "absolute", top: 0, left: 0, right: 0, height: 250 },
   sureHap: {
     flexDirection: "row", alignItems: "center", gap: 5, marginTop: 6,
     paddingVertical: 4, paddingHorizontal: 11, borderRadius: 999,
@@ -482,7 +514,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,.04)",
   },
   periyotHap: { paddingVertical: 6, paddingHorizontal: 15, borderRadius: 999, borderWidth: 1, borderColor: "transparent" },
-  periyotHapAktif: { backgroundColor: C.gold + "24", borderColor: C.gold + "5C" },
 
   notHap: {
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",

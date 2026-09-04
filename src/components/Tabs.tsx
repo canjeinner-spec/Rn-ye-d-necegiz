@@ -23,11 +23,16 @@ type TabsProps = {
   pad?: number;
   /** Sekmeler eşit genişlikte yayılsın (2-3 sekmelik ekranlar için) */
   fill?: boolean;
+  /**
+   * Aktif sekmenin rengi. Varsayılan altın; sıralama ekranı her sekmeye kendi
+   * rengini veriyor (sekme değişince sayfanın tonu da değişiyor).
+   */
+  renk?: string;
 };
 
 const BAR = 34; // fill modunda ortalanmış çizginin genişliği
 
-export function Tabs({ items, active, set, pad = 18, fill = false }: TabsProps) {
+export function Tabs({ items, active, set, pad = 18, fill = false, renk = C.gold }: TabsProps) {
   // Her sekmenin ölçüsü — çizgi buna göre konumlanır.
   const [olcum, setOlcum] = useState<{ x: number; w: number }[]>([]);
   const x = useSharedValue(0);
@@ -71,13 +76,13 @@ export function Tabs({ items, active, set, pad = 18, fill = false }: TabsProps) 
         >
           {/* Pasif sekmeler de biraz kalın: "semibold" fazla siliktı,
               "bold" seçili olanla yarışmadan okunur kalıyor. */}
-          <Txt weight={i === active ? "extrabold" : "bold"} size={fill ? 13 : 13} color={i === active ? C.gold : C.dim}>
+          <Txt weight={i === active ? "extrabold" : "bold"} size={fill ? 13 : 13} color={i === active ? renk : C.dim}>
             {t}
           </Txt>
         </Touch>
       ))}
 
-      {olcum[active] && <Animated.View style={[styles.cizgi, cizgiStil]} pointerEvents="none" />}
+      {olcum[active] && <Animated.View style={[styles.cizgi, { backgroundColor: renk }, cizgiStil]} pointerEvents="none" />}
     </View>
   );
 }
