@@ -29,7 +29,7 @@ import { useCachedResource } from "@/lib/cache";
 import { haptic } from "@/lib/haptics";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { useApp } from "@/store/appStore";
-import { DERECE_CERCEVE, SAHNE } from "@/podium/cerceve";
+import { CERCEVEDE_RAKAM, dereceCercevesi, SAHNE } from "@/podium/cerceve";
 import { C } from "@/theme/colors";
 import { ALT_NAV_YUKSEKLIK, useIcerikAltPayi } from "@/theme/olculer";
 import { Gradient } from "@/theme/Gradient";
@@ -189,12 +189,25 @@ type PodyumOge = {
  * Boş dereceler sönük çerçeveyle duruyor ("Boş / Sıra sende"): kapalı
  * betada üç kişi yok, podyumu hiç çizmemek sahneyi de yok ediyordu.
  */
-function Podyum({ ogeler, vurgu }: { ogeler: (PodyumOge | undefined)[]; vurgu: string }) {
+function Podyum({ ogeler, vurgu, tur = "kisi" }: { ogeler: (PodyumOge | undefined)[]; vurgu: string; tur?: "kisi" | "oda" }) {
   if (!ogeler[0]) return null;
+  /**
+   * PİRAMİT + YENİ ARMALARIN ORANI.
+   *
+   * Yeni çerçeveler ARMA: kanatlar ve kurdele yüzeyin çoğunu kaplıyor, açıklık
+   * tuvalin yalnız ~%32'si (eskisi ~%55). Aynı avatar çapını istemek çerçeveyi
+   * iki katına çıkarıyordu, o yüzden çaplar küçüldü: 48 / 39 / 38. Bunlar
+   * çerçeveyi sırasıyla ~150 ve ~120 punto genişliğe getiriyor; üçü toplamda
+   * ekrandan biraz taşıp komşusuna hafifçe biniyor — referanstaki kenetli
+   * kompozisyon da böyle.
+   *
+   * ÜÇGEN: birinci tepede, ikinci ve üçüncü belirgin biçimde AŞAĞIDA (50/62).
+   * Önceki 26/46 farkı yeterince okunmuyordu, üçü yan yana duruyor gibiydi.
+   */
   const dizilim = [
-    { oge: ogeler[1], derece: 2, cap: 62, ust: 26 },
-    { oge: ogeler[0], derece: 1, cap: 84, ust: 0 },
-    { oge: ogeler[2], derece: 3, cap: 60, ust: 46 },
+    { oge: ogeler[1], derece: 2, cap: 39, ust: 50 },
+    { oge: ogeler[0], derece: 1, cap: 48, ust: 0 },
+    { oge: ogeler[2], derece: 3, cap: 38, ust: 62 },
   ];
   return (
     <View style={styles.sahne}>
@@ -207,16 +220,20 @@ function Podyum({ ogeler, vurgu }: { ogeler: (PodyumOge | undefined)[]; vurgu: s
             style={[styles.podyumSutun, { marginTop: ust, zIndex: derece === 1 ? 2 : 1 }]}
           >
             <PodyumCerceve
-              kod={DERECE_CERCEVE[derece]}
+              kod={dereceCercevesi(derece, tur)}
               capi={cap}
               ad={oge?.ad ?? ""}
               foto={oge?.foto}
               icerik={oge?.icerik}
               bos={!oge}
             />
-            <View style={[styles.dereceMadalyon, { borderColor: (oge ? MADALYA[derece] : "#FFFFFF") + (oge ? "AA" : "22") }]}>
-              <Txt weight="displayBold" size={12} color={oge ? MADALYA[derece] : C.dim2}>{derece}</Txt>
-            </View>
+            {/* Rakam çerçevenin sanatına kabartıldığında ekran kendi madalyonunu
+                çizmiyor — referansta da rakam çerçevenin parçası. */}
+            {!CERCEVEDE_RAKAM && (
+              <View style={[styles.dereceMadalyon, { borderColor: (oge ? MADALYA[derece] : "#FFFFFF") + (oge ? "AA" : "22") }]}>
+                <Txt weight="displayBold" size={12} color={oge ? MADALYA[derece] : C.dim2}>{derece}</Txt>
+              </View>
+            )}
             <Txt weight="extrabold" size={derece === 1 ? 13 : 11.5} color={oge ? "#fff" : C.dim} numberOfLines={1} style={styles.podyumAd}>
               {oge ? oge.ad : "Boş"}
             </Txt>
@@ -521,6 +538,7 @@ export default function RankTab() {
                     },
                   }))}
                   vurgu={vurgu}
+                  tur="oda"
                 />
                 <Panel>
                   {hediyeliOdalar.length > 3 ? (
@@ -570,6 +588,7 @@ export default function RankTab() {
                     bas: () => girOdaya(r),
                   }))}
                   vurgu={vurgu}
+                  tur="oda"
                 />
                 <Panel>
                   {kalabalik.length > 3 ? (

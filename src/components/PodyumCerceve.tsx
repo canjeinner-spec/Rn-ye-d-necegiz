@@ -4,23 +4,22 @@ import { View } from "react-native";
 
 import { Portrait } from "@/components/Portrait";
 import { Icon } from "@/icons/Icon";
-import { CERCEVE_OLCU, cerceveGorsel, type CerceveKod } from "@/podium/cerceve";
+import { CERCEVE_OLCU, cerceveGorsel, kareMi, type CerceveKod } from "@/podium/cerceve";
 import { C } from "@/theme/colors";
 
 /**
- * Podyumdaki dereceli avatar — kanatlı çerçeve + içine oturan fotoğraf.
+ * Podyumdaki dereceli avatar — çerçeve + içine oturan fotoğraf/kapak.
  *
  * ÖLÇÜ ÇERÇEVEDEN DEĞİL AVATARDAN VERİLİYOR (`capi`).
  *
  * Önce çerçevenin TUVAL genişliği veriliyordu ve podyum tutarsız görünüyordu:
- * altın tuvalinde uzun bir taç var, gümüşünkinde yok, bronz ise defne çelengi.
- * Aynı tuval genişliğinde üçünün halka çapı bambaşka çıkıyor — göz ise tacı
- * değil AVATARI kıyaslıyor. Artık çağıran "avatar şu kadar olsun" diyor,
- * tuval genişliği ölçülen `capOran`dan geriye hesaplanıyor. Böylece birinci
- * gerçekten büyük, ikinci ile üçüncü birbirine eşit görünüyor.
+ * altın tuvalinde uzun bir taç var, gümüşünkinde yok, bronzda defne çelengi —
+ * aynı tuval genişliğinde üçünün açıklık çapı bambaşka çıkıyor. Göz ise tacı
+ * değil AVATARI kıyaslıyor. Artık çağıran "avatar şu kadar olsun" diyor, tuval
+ * genişliği ölçülen `capOran`dan geriye hesaplanıyor.
  *
- * Avatar çerçevenin ARKASINA çiziliyor, çerçeve üstüne biniyor: halkanın iç
- * kenarı fotoğrafın kenarını kapatıyor, "yapıştırılmış" görünmüyor.
+ * Avatar çerçevenin ARKASINA çiziliyor, çerçeve üstüne biniyor: iç kenar
+ * fotoğrafın kenarını kapatıyor, "yapıştırılmış" görünmüyor.
  */
 export function PodyumCerceve({
   kod,
@@ -31,7 +30,7 @@ export function PodyumCerceve({
   icerik,
 }: {
   kod: CerceveKod;
-  /** İstenen avatar çapı (punto). Çerçeve buna göre ölçekleniyor. */
+  /** İstenen avatar/kapak ölçüsü (punto). Çerçeve buna göre ölçekleniyor. */
   capi: number;
   ad: string;
   foto?: string;
@@ -41,24 +40,26 @@ export function PodyumCerceve({
   icerik?: ReactNode;
 }) {
   const olcu = CERCEVE_OLCU[kod];
+  const gorsel = cerceveGorsel(kod);
+  const kare = kareMi(kod);
   const genislik = capi / olcu.capOran;
   const yukseklik = genislik / olcu.enBoy;
 
   /**
    * FOTOĞRAF AÇIKLIKTAN BİRAZ BÜYÜK ÇİZİLİYOR.
    *
-   * İlk halinde fotoğraf tam açıklık çapındaydı ve arada koyu bir halka
+   * İlk halinde fotoğraf tam açıklık ölçüsündeydi ve arada koyu bir halka
    * kalıyordu ("oturmuyor gibi"). Ölçüldü, iki sebebi vardı:
-   *
-   *   1. `Portrait` verilen boyutun içine 2 punto kenarlık çiziyor; yani
-   *      fotoğrafın gerçek çapı boyut − 4 oluyor. O yüzden +4 ekleniyor.
-   *   2. Açıklığın kenarı 1-2 piksellik yumuşak geçişle bitiyor ve fotoğraf
-   *      ile halka arasında kıl payı bir çizgi kalıyor.
-   *
-   * %6 taşma fotoğrafı halkanın ALTINA sokuyor — çerçeveler zaten böyle
-   * çalışmak üzere çizilmiş.
+   *   1. `Portrait` verilen boyutun İÇİNE 2 punto kenarlık çiziyor; fotoğrafın
+   *      gerçek çapı boyut − 4 oluyordu. O yüzden +4 ekleniyor.
+   *   2. Açıklığın kenarı 1-2 piksellik yumuşak geçişle bitiyor, arada kıl payı
+   *      bir çizgi kalıyordu.
+   * %6 taşma fotoğrafı çerçevenin ALTINA sokuyor — çerçeveler böyle çalışmak
+   * üzere çizilmiş.
    */
   const fotoBoyut = capi * 1.06 + 4;
+  /** Kare açıklıkta köşe yuvarlaklığı; dairede tam yarıçap. */
+  const kose = kare ? fotoBoyut * 0.16 : fotoBoyut / 2;
 
   return (
     <View style={{ width: genislik, height: yukseklik }}>
@@ -78,7 +79,7 @@ export function PodyumCerceve({
             style={{
               width: capi,
               height: capi,
-              borderRadius: capi / 2,
+              borderRadius: kare ? capi * 0.16 : capi / 2,
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: "rgba(255,255,255,.045)",
@@ -86,11 +87,19 @@ export function PodyumCerceve({
               borderColor: "rgba(255,255,255,.10)",
             }}
           >
-            <Icon name="user" size={capi * 0.36} color={C.dim2} />
+            <Icon name={kare ? "home" : "user"} size={capi * 0.36} color={C.dim2} />
           </View>
         ) : icerik ? (
-          <View style={{ width: fotoBoyut, height: fotoBoyut, borderRadius: fotoBoyut / 2, overflow: "hidden" }}>
+          <View style={{ width: fotoBoyut, height: fotoBoyut, borderRadius: kose, overflow: "hidden" }}>
             {icerik}
+          </View>
+        ) : kare ? (
+          // Kare açıklıkta `Portrait` (dairesel) kullanılamıyor; fotoğraf
+          // doğrudan yuvarlatılmış kareye kırpılıyor.
+          <View style={{ width: fotoBoyut, height: fotoBoyut, borderRadius: kose, overflow: "hidden", backgroundColor: C.kart }}>
+            {!!foto && (
+              <Image source={{ uri: foto }} style={{ width: "100%", height: "100%" }} contentFit="cover" cachePolicy="memory-disk" transition={160} />
+            )}
           </View>
         ) : (
           // Halka YOK: çerçevenin kendi halkası zaten var, ikisi üst üste
@@ -99,15 +108,17 @@ export function PodyumCerceve({
         )}
       </View>
 
-      <Image
-        source={cerceveGorsel(kod)}
-        style={{ width: genislik, height: yukseklik, opacity: bos ? 0.42 : 1 }}
-        contentFit="contain"
-        // Çerçeveler sabit varlık; her açılışta yeniden çözülmesin.
-        cachePolicy="memory-disk"
-        transition={0}
-        pointerEvents="none"
-      />
+      {gorsel && (
+        <Image
+          source={gorsel}
+          style={{ width: genislik, height: yukseklik, opacity: bos ? 0.42 : 1 }}
+          contentFit="contain"
+          // Çerçeveler sabit varlık; her açılışta yeniden çözülmesin.
+          cachePolicy="memory-disk"
+          transition={0}
+          pointerEvents="none"
+        />
+      )}
     </View>
   );
 }
