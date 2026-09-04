@@ -18,7 +18,7 @@ import { Txt } from "@/components/Txt";
 import { FEED_SEED, SCOPE_LABEL, type FeedPost, type FeedScope } from "@/data/feed";
 import { createPost, deletePost, editPost, FEED_ID_OFFSET, likePost, listPosts, setPinned, unlikePost } from "@/data/remote/feedRepo";
 import { deleteAnyPost } from "@/data/remote/adminRepo";
-import { takipEttiklerim } from "@/data/remote/followRepo";
+import { follow, takipEttiklerim } from "@/data/remote/followRepo";
 import { getUnreadCount } from "@/data/remote/notifRepo";
 import { getCached, setCached } from "@/lib/cache";
 import { ROOMS } from "@/data/seed";
@@ -184,6 +184,23 @@ export default function FeedScreen() {
     if (isDb(id)) setPinned(id - FEED_ID_OFFSET, willPin).catch(() => {});
   };
   const setScope = (id: number, sc: FeedScope) => { mapUser(id, (x) => ({ ...x, scope: sc })); setScopePost(null); };
+  /**
+   * Karttan takip et.
+   *
+   * Takip listesi zaten üçüncü sekmenin süzgeci için tutuluyor; düğme onu
+   * iyimser güncelliyor, böylece "Takip et" basar basmaz kayboluyor ve
+   * gönderi aynı anda Takip sekmesine düşüyor. İstek düşerse geri alınıyor.
+   */
+  const takipEt = async (uid: number) => {
+    haptic.light();
+    setTakip((prev) => new Set(prev).add(uid));
+    try {
+      await follow(uid);
+    } catch {
+      setTakip((prev) => { const y = new Set(prev); y.delete(uid); return y; });
+      note("Takip edilemedi");
+    }
+  };
   /** Yorumlar artik gonderi sayfasinda; kart yalniz oraya goturuyor. */
   const gonderiyeGit = (id: number) => {
     haptic.light();
@@ -340,6 +357,11 @@ export default function FeedScreen() {
                         </View>
                       </View>
                     </Pressable>
+                    {!p.mine && p.authorId != null && !takip.has(p.authorId) && (
+                      <Pressable onPress={() => takipEt(p.authorId as number)} style={styles.takipCip}>
+                        <Txt weight="extrabold" size={11} color={C.gold2}>Takip et</Txt>
+                      </Pressable>
+                    )}
                     {(p.mine || privileged) && (
                       <Pressable onPress={() => setMenuPost(p)} style={{ padding: 6 }}>
                         <Icon name="dots" size={18} color={C.dim2} />
@@ -385,18 +407,24 @@ export default function FeedScreen() {
                     </Pressable>
                   )}
 
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 }}>
-                    <Pressable onPress={() => toggleLike(p.id)} style={[styles.actionChip, liked[p.id] && { backgroundColor: "#FB718514", borderColor: "#FB718544" }]}>
-                      <Icon name="heart" size={15} color={liked[p.id] ? "#FB7185" : C.dim} fill={liked[p.id] ? "#FB7185" : "none"} />
-                      <Txt weight="bold" size={11.5} color={liked[p.id] ? "#FB7185" : C.dim}>{p.likes}</Txt>
-                    </Pressable>
-                    <Pressable onPress={() => gonderiyeGit(p.id)} style={styles.actionChip}>
-                      <Icon name="chat" size={15} color={C.dim} />
-                      <Txt weight="bold" size={11.5} color={C.dim}>{totalComments(p)}</Txt>
+                  {/*
+                    AKSIYON SATIRI KIYASLANDI: uc dolgu cip yerine ayrac +
+                    cizgi ikon. Cipler kartin icinde ucuncu bir yuzey katmani
+                    aciyordu (kart / oda karti / cip) ve sayilar okunmuyordu.
+                    Duzen referanstaki gibi: paylas solda, sayaclar sagda.
+                  */}
+                  <View style={styles.aksiyonSatiri}>
+                    <Pressable onPress={() => sharePost(p)} hitSlop={10} style={styles.aksiyon}>
+                      <Icon name="share" size={16} color={C.dim} />
                     </Pressable>
                     <View style={{ flex: 1 }} />
-                    <Pressable onPress={() => sharePost(p)} style={styles.actionChip}>
-                      <Icon name="share" size={15} color={C.dim} />
+                    <Pressable onPress={() => gonderiyeGit(p.id)} hitSlop={10} style={styles.aksiyon}>
+                      <Icon name="chat" size={16} color={C.dim} />
+                      <Txt weight="bold" size={12} color={C.dim}>{totalComments(p)}</Txt>
+                    </Pressable>
+                    <Pressable onPress={() => toggleLike(p.id)} hitSlop={10} style={styles.aksiyon}>
+                      <Icon name="heart" size={16} color={liked[p.id] ? "#FB7185" : C.dim} fill={liked[p.id] ? "#FB7185" : "none"} />
+                      <Txt weight="bold" size={12} color={liked[p.id] ? "#FB7185" : C.dim}>{p.likes}</Txt>
                     </Pressable>
                   </View>
 
@@ -497,7 +525,9 @@ const styles = StyleSheet.create({
   roomCard: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12, padding: 12, borderRadius: 16, backgroundColor: "rgba(124,58,237,.1)", borderWidth: 1, borderColor: "rgba(255,255,255,.16)" },
   roomThumb: { width: 46, height: 46, borderRadius: 13, overflow: "hidden" },
   joinChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 8, paddingHorizontal: 13, borderRadius: 999, backgroundColor: C.gold + "1F", borderWidth: 1, borderColor: C.gold + "44" },
-  actionChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
+  takipCip: { paddingVertical: 6, paddingHorizontal: 13, borderRadius: 999, borderWidth: 1, borderColor: C.gold + "55", backgroundColor: C.gold + "12" },
+  aksiyonSatiri: { flexDirection: "row", alignItems: "center", gap: 18, marginTop: 12, paddingTop: 11, borderTopWidth: 1, borderTopColor: C.line },
+  aksiyon: { flexDirection: "row", alignItems: "center", gap: 6 },
   toast: { position: "absolute", alignSelf: "center", bottom: 104, backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: C.gold + "55", paddingVertical: 11, paddingHorizontal: 18, borderRadius: 999 },
   menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 4 },
   scopeRow: { flexDirection: "row", alignItems: "center", gap: 13, padding: 14, borderRadius: 16, marginBottom: 10, borderWidth: 1 },
