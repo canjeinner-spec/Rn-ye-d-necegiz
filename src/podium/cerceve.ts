@@ -18,9 +18,9 @@ export type CerceveOlcu = { merkezX: number; merkezY: number; capOran: number; e
 
 /* URETILEN-BLOK-BASI */
 export const CERCEVE_OLCU: Record<CerceveKod, CerceveOlcu> = {
-  altin: { merkezX: 0.4952, merkezY: 0.5517, capOran: 0.4429, enBoy: 0.8463 },
-  gumus: { merkezX: 0.5011, merkezY: 0.5373, capOran: 0.4966, enBoy: 0.8745 },
-  bronz: { merkezX: 0.5, merkezY: 0.5444, capOran: 0.5608, enBoy: 0.8808 },
+  altin: { merkezX: 0.4989, merkezY: 0.5577, capOran: 0.5483, enBoy: 0.8577 },
+  gumus: { merkezX: 0.4979, merkezY: 0.5047, capOran: 0.5503, enBoy: 0.8983 },
+  bronz: { merkezX: 0.4989, merkezY: 0.4755, capOran: 0.5892, enBoy: 1.0021 },
 };
 /* URETILEN-BLOK-SONU */
 
