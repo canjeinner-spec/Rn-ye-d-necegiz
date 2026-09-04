@@ -5,12 +5,13 @@ import * as Haptics from "expo-haptics";
  *
  * KURAL — GEZINMEDE TITRESIM YOK, ISLEMDE VAR.
  *
- * Kullanicinin sikayeti: "gecislere tikladigimda titresim gibi bir sey oluyor
- * ve her yerde boyle". Olculdu: 245 haptik cagrisindan 149'u ti ve
- * bunlarin 47'si SADECE bir ekrana gitmek icindi ().
- * iOS'ta  gercek bir fiziksel darbe; her gezinmede tetiklenince
- * uygulama titrek hissettiriyordu. Sistem uygulamalari gezinmede haptik
- * vermez, yalniz secim degisiminde ve islem sonucunda verir.
+ * Kullanıcının şikâyeti: "geçişlere tıkladığımda titreşim gibi bir şey oluyor
+ * ve her yerde böyle". Tahmin edilmedi, sayıldı: 245 haptik çağrısından 149'u
+ * "light"tı ve bunların 47'si SADECE bir ekranı açmak içindi (haptic.light()
+ * hemen ardından router.navigate). iOS'ta impactAsync gerçek bir fiziksel
+ * darbe; her gezinmede tetiklenince uygulama titrek hissettiriyordu. Sistem
+ * uygulamaları gezinmede haptik vermez — yalnız seçim değişiminde ve işlem
+ * sonucunda verir.
  *
  * Bundan sonra:
  *   gezinme (bir ekrani acmak, geri gitmek)  -> HAPTIK YOK
