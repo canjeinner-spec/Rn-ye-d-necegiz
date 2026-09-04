@@ -90,6 +90,39 @@ function Sira({ n }: { n: number }) {
   );
 }
 
+/**
+ * Oda kapağı — DAİRE DEĞİL, yuvarlatılmış KARE.
+ *
+ * Aynı listede iki biçim vardı: fotoğrafı olan oda `Portrait`ten geçtiği için
+ * DAİRE, fotoğrafı olmayan oda `Scene` kutusundan geçtiği için KARE
+ * çıkıyordu. Oda kapakları kare üretiliyor (kırpma da kareye göre) ve
+ * referans uygulamalarda da kare gösteriliyor; ikisi de kareye alındı.
+ */
+function OdaKapak({ kapak, sahne }: { kapak?: string; sahne?: React.ComponentProps<typeof Scene>["kind"] }) {
+  return (
+    <View style={styles.odaKapak}>
+      {kapak ? (
+        <Image source={{ uri: kapak }} style={{ width: "100%", height: "100%" }} contentFit="cover" cachePolicy="memory-disk" transition={160} />
+      ) : (
+        <Scene kind={sahne ?? "lounge"} />
+      )}
+    </View>
+  );
+}
+
+/**
+ * Liste paneli — sahnenin üstünde duran tek yüzey.
+ *
+ * ÖNCESİ: her satır ayrı bir karttı (kendi zemini, kendi kenarlığı, aralarında
+ * boşluk). Salon görselinin üstünde bu, on tane yüzen kutu demekti. Referans
+ * uygulamada liste TEK panel: sahne biter, panel başlar, satırlar ince
+ * çizgilerle ayrılır. Panel aşağı doğru uzuyor ki sayfanın sonu boş görselle
+ * bitmesin.
+ */
+function Panel({ children }: { children: React.ReactNode }) {
+  return <View style={styles.panel}>{children}</View>;
+}
+
 /** Liste satırı — ilk üç altın kenarlı ve hafif parıltılı. */
 function Satir({ n, children }: { n: number; children: React.ReactNode }) {
   const renk = MADALYA[n];
@@ -124,10 +157,14 @@ function Podyum({ ilk3, seviye, vurgu, bas }: { ilk3: SiraKisi[]; seviye: Record
    */
   if (ilk3.length === 0) return null;
   // Birinci ortada ve büyük; ikinci solda, üçüncü sağda ve aşağıda.
+  // BASAMAK. Üçü aynı hizadayken podyum düz bir sıra gibi duruyordu; ikinci
+  // ile üçüncü de aynı yükseklikteydi. Artık gerçek kürsü gibi: birinci
+  // ortada ve en üstte, ikinci solda bir basamak aşağıda, üçüncü sağda bir
+  // basamak daha aşağıda.
   const dizilim: { kisi?: SiraKisi; derece: number; genislik: number; ust: number }[] = [
-    { kisi: ilk3[1], derece: 2, genislik: 104, ust: 34 },
+    { kisi: ilk3[1], derece: 2, genislik: 104, ust: 26 },
     { kisi: ilk3[0], derece: 1, genislik: 134, ust: 0 },
-    { kisi: ilk3[2], derece: 3, genislik: 104, ust: 34 },
+    { kisi: ilk3[2], derece: 3, genislik: 100, ust: 48 },
   ];
   return (
     // Salon görseli artık SAYFANIN arkasında (sekme şeridinin altından en
@@ -195,7 +232,10 @@ function KisiListesi({ veri, bos, vurgu, bas }: { veri: SiraKisi[]; bos: React.R
     <>
       <Podyum ilk3={ilk3} seviye={seviye} vurgu={vurgu} bas={bas} />
       {/* İlk üç podyumda; liste dördüncüden başlıyor (podyum artık az kişiyle
-          de çizildiği için burada tekrar etmemeleri gerekiyor). */}
+          de çizildiği için burada tekrar etmemeleri gerekiyor). Dördüncü yoksa
+          panel de çizilmiyor; boş bir kutu sahnenin altına yapışmasın. */}
+      {veri.length > 3 && (
+      <Panel>
       {veri.slice(3).map((k) => (
         <Pressable key={k.uid} onPress={() => bas(k)}>
           <Satir n={k.sira}>
@@ -208,6 +248,8 @@ function KisiListesi({ veri, bos, vurgu, bas }: { veri: SiraKisi[]; bos: React.R
           </Satir>
         </Pressable>
       ))}
+      </Panel>
+      )}
     </>
   );
 }
@@ -403,7 +445,7 @@ export default function RankTab() {
           {/* ---- Odalar: hediye hacmine göre; hiç hediye yoksa kalabalığa göre ---- */}
           {tab === 2 && (
             hediyeliOdalar.length > 0 ? (
-              hediyeliOdalar.map((o) => (
+              <Panel>{hediyeliOdalar.map((o) => (
                 <Pressable
                   key={o.odaId}
                   onPress={() => {
@@ -412,11 +454,7 @@ export default function RankTab() {
                   }}
                 >
                   <Satir n={o.sira}>
-                    <View style={styles.odaKapak}>
-                      {o.kapak
-                        ? <Portrait name={o.ad} size={42} photo={o.kapak} />
-                        : <View style={styles.odaSahne}><Scene kind="lounge" /></View>}
-                    </View>
+                    <OdaKapak kapak={o.kapak} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{o.ad}</Txt>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
@@ -427,7 +465,7 @@ export default function RankTab() {
                     <Puan icon="coin" value={kisalt(o.puan)} guclu={o.sira === 1} renk={vurgu} />
                   </Satir>
                 </Pressable>
-              ))
+              ))}</Panel>
             ) : kalabalik.length === 0 ? (
               <Bos baslik="Şu an açık oda yok" alt="Odalar aldıkları hediyelere göre sıralanır; henüz hediye dönmediyse en kalabalıklar gösterilir." />
             ) : (
@@ -436,14 +474,10 @@ export default function RankTab() {
                   <Icon name="user" size={11} color={C.dim} />
                   <Txt weight="semibold" size={10} color={C.dim}>Bu dönemde hediye dönmedi — en kalabalık odalar</Txt>
                 </View>
-                {kalabalik.map((r, i) => (
+                <Panel>{kalabalik.map((r, i) => (
                   <Pressable key={r.id} onPress={() => girOdaya(r)}>
                     <Satir n={i + 1}>
-                      <View style={styles.odaKapak}>
-                        {r.photo
-                          ? <Portrait name={r.name} size={42} photo={r.photo} />
-                          : <View style={styles.odaSahne}><Scene kind={r.scene} /></View>}
-                      </View>
+                      <OdaKapak kapak={r.photo} sahne={r.scene} />
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{r.name}</Txt>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
@@ -457,7 +491,7 @@ export default function RankTab() {
                       </View>
                     </Satir>
                   </Pressable>
-                ))}
+                ))}</Panel>
               </>
             )
           )}
@@ -536,12 +570,17 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center", backgroundColor: "rgba(8,8,12,.88)",
   },
 
+  // Satırın kendi zemini YOK: zemin artık panelin. Ayrım ince çizgiyle.
   satir: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    // Zemin artık salon görselinin üstünde: `C.kart` (%4 beyaz) fotoğrafın
-    // üstünde okunmuyordu, satır koyu ve yarı saydam bir yüzeye alındı.
-    backgroundColor: "rgba(12,11,16,.72)", borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
-    borderRadius: 16, paddingVertical: 11, paddingHorizontal: 13, marginBottom: 9, overflow: "hidden",
+    paddingVertical: 12, paddingHorizontal: 4,
+    borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.06)", overflow: "hidden",
+  },
+  panel: {
+    marginHorizontal: -16, marginTop: 6, paddingHorizontal: 16, paddingTop: 2, paddingBottom: 10,
+    borderTopLeftRadius: 26, borderTopRightRadius: 26,
+    backgroundColor: "rgba(9,8,13,.92)", borderTopWidth: 1, borderColor: "rgba(255,255,255,.08)",
+    minHeight: 220,
   },
   siraYuva: { width: 26, alignItems: "center", justifyContent: "center" },
   siraMadalya: { height: 26, borderRadius: 13, borderWidth: 1 },
@@ -556,7 +595,6 @@ const styles = StyleSheet.create({
     paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999,
     backgroundColor: C.green + "1A", borderWidth: 1, borderColor: C.green + "44",
   },
-  odaKapak: { width: 42, height: 42 },
-  odaSahne: { width: 42, height: 42, borderRadius: 13, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
+  odaKapak: { width: 42, height: 42, borderRadius: 13, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,.10)" },
 
 });
