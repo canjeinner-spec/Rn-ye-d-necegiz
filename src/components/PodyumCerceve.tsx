@@ -1,4 +1,5 @@
 import { Image } from "expo-image";
+import { type ReactNode } from "react";
 import { View } from "react-native";
 
 import { Portrait } from "@/components/Portrait";
@@ -9,33 +10,39 @@ import { C } from "@/theme/colors";
 /**
  * Podyumdaki dereceli avatar — kanatlı çerçeve + içine oturan fotoğraf.
  *
+ * ÖLÇÜ ÇERÇEVEDEN DEĞİL AVATARDAN VERİLİYOR (`capi`).
+ *
+ * Önce çerçevenin TUVAL genişliği veriliyordu ve podyum tutarsız görünüyordu:
+ * altın tuvalinde uzun bir taç var, gümüşünkinde yok, bronz ise defne çelengi.
+ * Aynı tuval genişliğinde üçünün halka çapı bambaşka çıkıyor — göz ise tacı
+ * değil AVATARI kıyaslıyor. Artık çağıran "avatar şu kadar olsun" diyor,
+ * tuval genişliği ölçülen `capOran`dan geriye hesaplanıyor. Böylece birinci
+ * gerçekten büyük, ikinci ile üçüncü birbirine eşit görünüyor.
+ *
  * Avatar çerçevenin ARKASINA çiziliyor, çerçeve üstüne biniyor: halkanın iç
  * kenarı fotoğrafın kenarını kapatıyor, "yapıştırılmış" görünmüyor.
- *
- * Konum göz kararı DEĞİL: `cerceve.ts`teki oranlar görselin içindeki dairesel
- * açıklıktan ölçüldü (`scripts/cerceve-hazirla.js`). Çerçeve değişirse betik
- * yeniden çalışır, kod aynı kalır.
- *
- * `genislik` çerçevenin genişliği; yükseklik en/boy oranından geliyor. Kanatlar
- * yatayda geniş olduğu için podyum hücresinin genişliğini bu belirlemeli.
  */
 export function PodyumCerceve({
   kod,
-  genislik,
+  capi,
   ad,
   foto,
   bos,
+  icerik,
 }: {
   kod: CerceveKod;
-  genislik: number;
+  /** İstenen avatar çapı (punto). Çerçeve buna göre ölçekleniyor. */
+  capi: number;
   ad: string;
   foto?: string;
   /** O derece henüz kimseye ait değil — sönük çerçeve, boş madalyon. */
   bos?: boolean;
+  /** Avatar yerine çizilecek şey (oda kapağı gibi). Yoksa `Portrait`. */
+  icerik?: ReactNode;
 }) {
   const olcu = CERCEVE_OLCU[kod];
+  const genislik = capi / olcu.capOran;
   const yukseklik = genislik / olcu.enBoy;
-  const cap = genislik * olcu.capOran;
 
   /**
    * FOTOĞRAF AÇIKLIKTAN BİRAZ BÜYÜK ÇİZİLİYOR.
@@ -49,10 +56,9 @@ export function PodyumCerceve({
    *      ile halka arasında kıl payı bir çizgi kalıyor.
    *
    * %6 taşma fotoğrafı halkanın ALTINA sokuyor — çerçeveler zaten böyle
-   * çalışmak üzere çizilmiş. Halkanın kalınlığı taşmanın kat kat üstünde,
-   * yani fotoğrafın dışarı sızma ihtimali yok.
+   * çalışmak üzere çizilmiş.
    */
-  const fotoBoyut = cap * 1.06 + 4;
+  const fotoBoyut = capi * 1.06 + 4;
 
   return (
     <View style={{ width: genislik, height: yukseklik }}>
@@ -70,9 +76,9 @@ export function PodyumCerceve({
         {bos ? (
           <View
             style={{
-              width: cap,
-              height: cap,
-              borderRadius: cap / 2,
+              width: capi,
+              height: capi,
+              borderRadius: capi / 2,
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: "rgba(255,255,255,.045)",
@@ -80,7 +86,11 @@ export function PodyumCerceve({
               borderColor: "rgba(255,255,255,.10)",
             }}
           >
-            <Icon name="user" size={cap * 0.36} color={C.dim2} />
+            <Icon name="user" size={capi * 0.36} color={C.dim2} />
+          </View>
+        ) : icerik ? (
+          <View style={{ width: fotoBoyut, height: fotoBoyut, borderRadius: fotoBoyut / 2, overflow: "hidden" }}>
+            {icerik}
           </View>
         ) : (
           // Halka YOK: çerçevenin kendi halkası zaten var, ikisi üst üste

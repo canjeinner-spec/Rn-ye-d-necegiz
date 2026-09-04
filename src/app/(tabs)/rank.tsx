@@ -98,18 +98,21 @@ function Sira({ n }: { n: number }) {
  * çıkıyordu. Oda kapakları kare üretiliyor (kırpma da kareye göre) ve
  * referans uygulamalarda da kare gösteriliyor; ikisi de kareye alındı.
  */
-function OdaKapak({ kapak, sahne }: { kapak?: string; sahne?: React.ComponentProps<typeof Scene>["kind"] }) {
-  return (
-    <View style={styles.odaKapak}>
-      {kapak ? (
-        <Image source={{ uri: kapak }} style={{ width: "100%", height: "100%" }} contentFit="cover" cachePolicy="memory-disk" transition={160} />
-      ) : (
-        <Scene kind={sahne ?? "lounge"} />
-      )}
-    </View>
+function OdaGorsel({ kapak, sahne }: { kapak?: string; sahne?: React.ComponentProps<typeof Scene>["kind"] }) {
+  return kapak ? (
+    <Image source={{ uri: kapak }} style={{ width: "100%", height: "100%" }} contentFit="cover" cachePolicy="memory-disk" transition={160} />
+  ) : (
+    <Scene kind={sahne ?? "lounge"} />
   );
 }
 
+function OdaKapak(p: { kapak?: string; sahne?: React.ComponentProps<typeof Scene>["kind"] }) {
+  return (
+    <View style={styles.odaKapak}>
+      <OdaGorsel {...p} />
+    </View>
+  );
+}
 /**
  * Liste paneli — sahnenin üstünde duran tek yüzey.
  *
@@ -146,55 +149,104 @@ function Satir({ n, children }: { n: number; children: React.ReactNode }) {
  * Çerçeveler üretilen sayfadan kesildi (`scripts/cerceve-hazirla.js`) ve
  * avatarın çerçeve içindeki yeri ÖLÇÜLEN orandan geliyor, göz kararı değil.
  */
-function Podyum({ ilk3, seviye, vurgu, bas }: { ilk3: SiraKisi[]; seviye: Record<number, number>; vurgu: string; bas: (k: SiraKisi) => void }) {
-  /**
-   * PODYUM ÜÇ KİŞİ OLMADAN DA ÇİZİLİYOR.
-   *
-   * Önce `ilk3.length < 3` şartı vardı: iki kullanıcılı kapalı betada podyum
-   * HİÇ görünmüyordu, sahne de görünmüyordu, birinci ile ikinci düz liste
-   * satırına düşüyordu. Boş kürsü göstermek hem sahneyi ortaya çıkarıyor hem
-   * de doğru mesajı veriyor: o koltuk boş, kapılabilir.
-   */
-  if (ilk3.length === 0) return null;
-  // Birinci ortada ve büyük; ikinci solda, üçüncü sağda ve aşağıda.
-  // BASAMAK. Üçü aynı hizadayken podyum düz bir sıra gibi duruyordu; ikinci
-  // ile üçüncü de aynı yükseklikteydi. Artık gerçek kürsü gibi: birinci
-  // ortada ve en üstte, ikinci solda bir basamak aşağıda, üçüncü sağda bir
-  // basamak daha aşağıda.
-  const dizilim: { kisi?: SiraKisi; derece: number; genislik: number; ust: number }[] = [
-    { kisi: ilk3[1], derece: 2, genislik: 104, ust: 26 },
-    { kisi: ilk3[0], derece: 1, genislik: 134, ust: 0 },
-    { kisi: ilk3[2], derece: 3, genislik: 100, ust: 48 },
+/** Podyumda gösterilecek tek kayıt — kişi de oda da buna çevriliyor. */
+type PodyumOge = {
+  ad: string;
+  foto?: string;
+  puan: number;
+  /** Kişide seviye rütbesi. */
+  seviye?: number;
+  /** Kişide kuşanılan rozet. */
+  rozet?: string;
+  /** Odada sahibinin adı — rozet satırının yerine geçiyor. */
+  altYazi?: string;
+  /** Puan hapı yerine kişi sayacı — kalabalık odalar listesinde puan yok. */
+  kisiSayaci?: boolean;
+  /** Avatarın yerine çizilecek şey (oda kapağı). */
+  icerik?: React.ReactNode;
+  bas: () => void;
+};
+
+/**
+ * Podyum — ilk üç, kanatlı çerçevelerle.
+ *
+ * ÖLÇÜ AVATARDAN VERİLİYOR, ÇERÇEVEDEN DEĞİL. Önce her çerçeveye tuval
+ * genişliği veriliyordu (134/104/100) ve podyum tutarsız görünüyordu: altının
+ * tuvalinde uzun bir taç, gümüşünkinde yok, bronzda defne çelengi var — aynı
+ * tuval genişliğinde üçünün HALKA çapı bambaşka çıkıyor. Göz ise tacı değil
+ * avatarı kıyaslıyor. Artık istenen avatar çapı veriliyor (84 / 62 / 60) ve
+ * tuval genişliğini `PodyumCerceve` ölçülen orandan hesaplıyor.
+ *
+ * SÜTUNLAR EŞİT (`flex: 1`). Önce her sütun kendi çerçevesi kadar genişti,
+ * o yüzden aralar rastgele duruyordu — birinci ile ikinci bitişik, üçüncü
+ * uzakta. Birincinin çerçevesi sütunundan geniş olduğu için komşularının
+ * üstüne hafifçe biniyor; referans podyumda da kompozisyon böyle kenetli.
+ * `zIndex` ile birinci en üstte kalıyor.
+ *
+ * BASAMAK: birinci ortada ve en üstte, ikinci solda bir basamak aşağıda,
+ * üçüncü sağda bir basamak daha aşağıda.
+ *
+ * Boş dereceler sönük çerçeveyle duruyor ("Boş / Sıra sende"): kapalı
+ * betada üç kişi yok, podyumu hiç çizmemek sahneyi de yok ediyordu.
+ */
+function Podyum({ ogeler, vurgu }: { ogeler: (PodyumOge | undefined)[]; vurgu: string }) {
+  if (!ogeler[0]) return null;
+  const dizilim = [
+    { oge: ogeler[1], derece: 2, cap: 62, ust: 26 },
+    { oge: ogeler[0], derece: 1, cap: 84, ust: 0 },
+    { oge: ogeler[2], derece: 3, cap: 60, ust: 46 },
   ];
   return (
-    // Salon görseli artık SAYFANIN arkasında (sekme şeridinin altından en
-    // alta kadar); podyum yalnız kendi yerleşimini yönetiyor.
     <View style={styles.sahne}>
       <View style={styles.podyum}>
-        {dizilim.map(({ kisi, derece, genislik, ust }) => (
-          <Pressable key={derece} disabled={!kisi} onPress={() => kisi && bas(kisi)} style={{ alignItems: "center", marginTop: ust }}>
-            <PodyumCerceve kod={DERECE_CERCEVE[derece]} genislik={genislik} ad={kisi?.ad ?? ""} foto={kisi?.foto} bos={!kisi} />
-            <View style={[styles.dereceMadalyon, { borderColor: (kisi ? MADALYA[derece] : "#FFFFFF") + (kisi ? "AA" : "22") }]}>
-              <Txt weight="displayBold" size={12} color={kisi ? MADALYA[derece] : C.dim2}>{derece}</Txt>
+        {dizilim.map(({ oge, derece, cap, ust }) => (
+          <Pressable
+            key={derece}
+            disabled={!oge}
+            onPress={() => oge?.bas()}
+            style={[styles.podyumSutun, { marginTop: ust, zIndex: derece === 1 ? 2 : 1 }]}
+          >
+            <PodyumCerceve
+              kod={DERECE_CERCEVE[derece]}
+              capi={cap}
+              ad={oge?.ad ?? ""}
+              foto={oge?.foto}
+              icerik={oge?.icerik}
+              bos={!oge}
+            />
+            <View style={[styles.dereceMadalyon, { borderColor: (oge ? MADALYA[derece] : "#FFFFFF") + (oge ? "AA" : "22") }]}>
+              <Txt weight="displayBold" size={12} color={oge ? MADALYA[derece] : C.dim2}>{derece}</Txt>
             </View>
-            <Txt weight="extrabold" size={derece === 1 ? 13 : 11.5} color={kisi ? "#fff" : C.dim} numberOfLines={1} style={{ marginTop: 7, maxWidth: genislik + 14 }}>
-              {kisi ? kisi.ad : "Boş"}
+            <Txt weight="extrabold" size={derece === 1 ? 13 : 11.5} color={oge ? "#fff" : C.dim} numberOfLines={1} style={styles.podyumAd}>
+              {oge ? oge.ad : "Boş"}
             </Txt>
-            {/*
-              KİMLİK YIĞINI — referanstaki podyumda adın altında rütbe ve
-              rozetler var; bizde yalnız ad ve puan vardı. Rozet sanatı zaten
-              elimizde (assets/badges), kuşanılan rozet de sıralama verisiyle
-              geliyor. Rozetler `pointerEvents="none"` içinde: kendi bilgi
-              kartlarını açıp podyum dokunuşunu yutmasınlar.
-            */}
-            {kisi ? (
+            {oge ? (
               <>
-                <View style={styles.kimlikSatiri} pointerEvents="none">
-                  <PngBadge name={levelTierBadge(seviye[kisi.uid] ?? 1)} size={derece === 1 ? 20 : 17} info={false} />
-                  <EquippedBadge kod={kisi.rozet} size={derece === 1 ? 20 : 17} />
-                </View>
+                {/* Kişide rütbe + kuşanılan rozet, odada sahibinin adı.
+                    Rozetler pointerEvents="none" içinde: kendi bilgi
+                    kartlarını açıp podyum dokunuşunu yutmasınlar. */}
+                {oge.altYazi ? (
+                  <View style={styles.podyumAlt}>
+                    <Icon name="crown" size={10} color={C.gold + "AA"} />
+                    <Txt weight="semibold" size={10} color={C.dim} numberOfLines={1}>{oge.altYazi}</Txt>
+                  </View>
+                ) : (
+                  <View style={styles.kimlikSatiri} pointerEvents="none">
+                    <PngBadge name={levelTierBadge(oge.seviye ?? 1)} size={derece === 1 ? 20 : 17} info={false} />
+                    <EquippedBadge kod={oge.rozet} size={derece === 1 ? 20 : 17} />
+                  </View>
+                )}
                 <View style={{ marginTop: 5 }}>
-                  <Puan icon="coin" value={kisalt(kisi.puan)} guclu={derece === 1} renk={vurgu} />
+                  {/* Kalabalık listesinde sayı ALTIN DEĞİL kişi sayısı; altın hapıyla
+                      göstermek yanlış bilgi olurdu. */}
+                  {oge.kisiSayaci ? (
+                    <View style={styles.kisiHap}>
+                      <Icon name="user" size={11} color="#6EE7B7" />
+                      <Txt weight="extrabold" size={11.5} color="#6EE7B7">{oge.puan}</Txt>
+                    </View>
+                  ) : (
+                    <Puan icon="coin" value={kisalt(oge.puan)} guclu={derece === 1} renk={vurgu} />
+                  )}
                 </View>
               </>
             ) : (
@@ -228,28 +280,40 @@ function KisiListesi({ veri, bos, vurgu, bas }: { veri: SiraKisi[]; bos: React.R
     { enabled: isSupabaseConfigured && ilk3.length > 0 },
   );
   if (veri.length === 0) return <>{bos}</>;
+  const ogeler = ilk3.map((k) => ({
+    ad: k.ad,
+    foto: k.foto,
+    puan: k.puan,
+    seviye: seviye[k.uid],
+    rozet: k.rozet,
+    bas: () => bas(k),
+  }));
   return (
     <>
-      <Podyum ilk3={ilk3} seviye={seviye} vurgu={vurgu} bas={bas} />
-      {/* İlk üç podyumda; liste dördüncüden başlıyor (podyum artık az kişiyle
-          de çizildiği için burada tekrar etmemeleri gerekiyor). Dördüncü yoksa
-          panel de çizilmiyor; boş bir kutu sahnenin altına yapışmasın. */}
-      {veri.length > 3 && (
+      <Podyum ogeler={ogeler} vurgu={vurgu} />
+      {/* İlk üç podyumda; liste dördüncüden başlıyor. Panel dördüncü yokken
+          de çiziliyor: sayfanın alt yarısı boş görselle kalmasın, orada ne
+          olacağı da yazsın. */}
       <Panel>
-      {veri.slice(3).map((k) => (
-        <Pressable key={k.uid} onPress={() => bas(k)}>
-          <Satir n={k.sira}>
-            <Portrait name={k.ad} photo={k.foto} size={42} />
-            <View style={styles.satirKimlik} pointerEvents="box-none">
-              <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{k.ad}</Txt>
-              <View pointerEvents="none"><EquippedBadge kod={k.rozet} size={18} /></View>
-            </View>
-            <Puan icon="coin" value={kisalt(k.puan)} />
-          </Satir>
-        </Pressable>
-      ))}
+        {veri.length > 3 ? (
+          veri.slice(3).map((k) => (
+            <Pressable key={k.uid} onPress={() => bas(k)}>
+              <Satir n={k.sira}>
+                <Portrait name={k.ad} photo={k.foto} size={42} />
+                <View style={styles.satirKimlik} pointerEvents="box-none">
+                  <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1} style={{ flexShrink: 1 }}>{k.ad}</Txt>
+                  <View pointerEvents="none"><EquippedBadge kod={k.rozet} size={18} /></View>
+                </View>
+                <Puan icon="coin" value={kisalt(k.puan)} />
+              </Satir>
+            </Pressable>
+          ))
+        ) : (
+          <Txt size={11.5} color={C.dim2} align="center" style={{ paddingVertical: 22 }}>
+            Dördüncü sıradan itibaren burada listelenir
+          </Txt>
+        )}
       </Panel>
-      )}
     </>
   );
 }
@@ -260,10 +324,9 @@ function KisiListesi({ veri, bos, vurgu, bas }: { veri: SiraKisi[]; bos: React.R
  * Referans uygulamalarda bu çubuk her zaman ekranda: kullanıcı kaçıncı
  * olduğunu görmek için 50 satır kaydırmıyor. Bizde hiç yoktu.
  *
- * Eşleştirme `publicId` ile: mağazadaki sayısal kullanıcı id'si istemcide
- * tutulmuyor ama public id tutuluyor ve sıralama satırları da onu taşıyor.
- * Listede yoksa sıra yerine tire ve dürüst bir açıklama gösteriliyor —
- * uydurma bir sıra numarası değil.
+ * Eşleştirme `publicId` ile: sayısal kullanıcı id'si istemcide tutulmuyor ama
+ * public id tutuluyor ve sıralama satırları da onu taşıyor. Listede yoksa sıra
+ * yerine tire ve dürüst bir açıklama gösteriliyor — uydurma sıra numarası yok.
  */
 function BenimSiram({ liste, publicId, ad, foto, vurgu, alt }: {
   liste: SiraKisi[];
@@ -445,27 +508,50 @@ export default function RankTab() {
           {/* ---- Odalar: hediye hacmine göre; hiç hediye yoksa kalabalığa göre ---- */}
           {tab === 2 && (
             hediyeliOdalar.length > 0 ? (
-              <Panel>{hediyeliOdalar.map((o) => (
-                <Pressable
-                  key={o.odaId}
-                  onPress={() => {
-                    const r = dbRooms.find((d) => d.dbId === o.odaId);
-                    if (r) girOdaya(r);
-                  }}
-                >
-                  <Satir n={o.sira}>
-                    <OdaKapak kapak={o.kapak} />
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{o.ad}</Txt>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
-                        <Icon name="crown" size={10} color={C.gold + "AA"} />
-                        <Txt weight="semibold" size={10} color={C.dim} numberOfLines={1}>{o.sahip || "—"}</Txt>
-                      </View>
-                    </View>
-                    <Puan icon="coin" value={kisalt(o.puan)} guclu={o.sira === 1} renk={vurgu} />
-                  </Satir>
-                </Pressable>
-              ))}</Panel>
+              <>
+                <Podyum
+                  ogeler={hediyeliOdalar.slice(0, 3).map((o) => ({
+                    ad: o.ad,
+                    puan: o.puan,
+                    altYazi: o.sahip || "—",
+                    icerik: <OdaGorsel kapak={o.kapak} sahne="lounge" />,
+                    bas: () => {
+                      const r = dbRooms.find((d) => d.dbId === o.odaId);
+                      if (r) girOdaya(r);
+                    },
+                  }))}
+                  vurgu={vurgu}
+                />
+                <Panel>
+                  {hediyeliOdalar.length > 3 ? (
+                    hediyeliOdalar.slice(3).map((o) => (
+                      <Pressable
+                        key={o.odaId}
+                        onPress={() => {
+                          const r = dbRooms.find((d) => d.dbId === o.odaId);
+                          if (r) girOdaya(r);
+                        }}
+                      >
+                        <Satir n={o.sira}>
+                          <OdaKapak kapak={o.kapak} />
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{o.ad}</Txt>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
+                              <Icon name="crown" size={10} color={C.gold + "AA"} />
+                              <Txt weight="semibold" size={10} color={C.dim} numberOfLines={1}>{o.sahip || "—"}</Txt>
+                            </View>
+                          </View>
+                          <Puan icon="coin" value={kisalt(o.puan)} />
+                        </Satir>
+                      </Pressable>
+                    ))
+                  ) : (
+                    <Txt size={11.5} color={C.dim2} align="center" style={{ paddingVertical: 22 }}>
+                      Dördüncü sıradan itibaren burada listelenir
+                    </Txt>
+                  )}
+                </Panel>
+              </>
             ) : kalabalik.length === 0 ? (
               <Bos baslik="Şu an açık oda yok" alt="Odalar aldıkları hediyelere göre sıralanır; henüz hediye dönmediyse en kalabalıklar gösterilir." />
             ) : (
@@ -474,28 +560,46 @@ export default function RankTab() {
                   <Icon name="user" size={11} color={C.dim} />
                   <Txt weight="semibold" size={10} color={C.dim}>Bu dönemde hediye dönmedi — en kalabalık odalar</Txt>
                 </View>
-                <Panel>{kalabalik.map((r, i) => (
-                  <Pressable key={r.id} onPress={() => girOdaya(r)}>
-                    <Satir n={i + 1}>
-                      <OdaKapak kapak={r.photo} sahne={r.scene} />
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{r.name}</Txt>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
-                          <Icon name="crown" size={10} color={C.gold + "AA"} />
-                          <Txt weight="semibold" size={10} color={C.dim} numberOfLines={1}>{r.host}</Txt>
-                        </View>
-                      </View>
-                      <View style={styles.kisiHap}>
-                        <Icon name="user" size={11} color="#6EE7B7" />
-                        <Txt weight="extrabold" size={11.5} color="#6EE7B7">{r.online}</Txt>
-                      </View>
-                    </Satir>
-                  </Pressable>
-                ))}</Panel>
+                <Podyum
+                  ogeler={kalabalik.slice(0, 3).map((r) => ({
+                    ad: r.name,
+                    puan: r.online,
+                    kisiSayaci: true,
+                    altYazi: r.host,
+                    icerik: <OdaGorsel kapak={r.photo} sahne={r.scene} />,
+                    bas: () => girOdaya(r),
+                  }))}
+                  vurgu={vurgu}
+                />
+                <Panel>
+                  {kalabalik.length > 3 ? (
+                    kalabalik.slice(3).map((r, i) => (
+                      <Pressable key={r.id} onPress={() => girOdaya(r)}>
+                        <Satir n={i + 4}>
+                          <OdaKapak kapak={r.photo} sahne={r.scene} />
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Txt weight="extrabold" size={13} color={C.text} numberOfLines={1}>{r.name}</Txt>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
+                              <Icon name="crown" size={10} color={C.gold + "AA"} />
+                              <Txt weight="semibold" size={10} color={C.dim} numberOfLines={1}>{r.host}</Txt>
+                            </View>
+                          </View>
+                          <View style={styles.kisiHap}>
+                            <Icon name="user" size={11} color="#6EE7B7" />
+                            <Txt weight="extrabold" size={11.5} color="#6EE7B7">{r.online}</Txt>
+                          </View>
+                        </Satir>
+                      </Pressable>
+                    ))
+                  ) : (
+                    <Txt size={11.5} color={C.dim2} align="center" style={{ paddingVertical: 22 }}>
+                      Dördüncü sıradan itibaren burada listelenir
+                    </Txt>
+                  )}
+                </Panel>
               </>
             )
           )}
-
           {/* ---- Ajanslar ----
                Burada uydurma ajans listesi vardı (AGENCY_RANKS): gerçek
                kullanıcıya sahte şampiyon göstermek yanlış. Ajans tabloları
@@ -556,7 +660,12 @@ const styles = StyleSheet.create({
   },
 
   sahne: { marginBottom: 12, paddingTop: 6, paddingBottom: 8 },
-  podyum: { flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: 4, paddingHorizontal: 8 },
+  podyum: { flexDirection: "row", alignItems: "flex-start", paddingHorizontal: 2 },
+  // Sütunlar eşit üçte bir; birincinin çerçevesi sütunundan geniş olduğu için
+  // komşularının üstüne hafifçe biniyor (referans podyumdaki kenetli düzen).
+  podyumSutun: { flex: 1, alignItems: "center", minWidth: 0 },
+  podyumAd: { marginTop: 7, maxWidth: "96%" },
+  podyumAlt: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 5, maxWidth: "96%" },
   kimlikSatiri: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 },
   satirKimlik: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 },
   benimCubuk: {
@@ -580,7 +689,7 @@ const styles = StyleSheet.create({
     marginHorizontal: -16, marginTop: 6, paddingHorizontal: 16, paddingTop: 2, paddingBottom: 10,
     borderTopLeftRadius: 26, borderTopRightRadius: 26,
     backgroundColor: "rgba(9,8,13,.92)", borderTopWidth: 1, borderColor: "rgba(255,255,255,.08)",
-    minHeight: 220,
+    flexGrow: 1,
   },
   siraYuva: { width: 26, alignItems: "center", justifyContent: "center" },
   siraMadalya: { height: 26, borderRadius: 13, borderWidth: 1 },
