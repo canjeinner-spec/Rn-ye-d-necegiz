@@ -121,6 +121,8 @@ export function GiftSheet({
 
   const secili = liste.find((g) => g.kod === sel) || null;
   const adet = ADETLER[adetIx];
+  /** Katalog daha gelmedi (Supabase yoksa hiç gelmeyecek, yerel sabit kalır). */
+  const yukleniyor = veri === null && isSupabaseConfigured;
   /**
    * "Herkese" (hedef 0) ALICI BAŞINA ücretlendiriliyor — sunucu da öyle
    * yapıyor (081). Burada çarpmazsak kullanıcı 100 altın görüp 300 ödüyordu.
@@ -148,13 +150,35 @@ export function GiftSheet({
 
             <View style={styles.tutamac} />
 
+            {/*
+              TEK ALICI YAN YANA, DİK DEĞİL.
+
+              DM ve profilde alıcı tek kişi. Çoklu düzen (avatarın ALTINDA ad,
+              48 genişlikte sütun) oda için doğru — orada yan yana on kişi
+              kaydırılıyor. Tek kişide aynı düzen ekranın soluna sıkışmış küçük
+              bir sütun bırakıyor, sağındaki bütün satır boş kalıyordu.
+              Kullanıcının kıyas verdiği uygulamada da başlık yan yana: avatar
+              + ad, tek satır.
+
+              Tek alıcıda seçim zaten örtük (`hedef` 1'e sabitleniyor), o yüzden
+              burada dokunulacak bir şey ve seçim işareti yok — hale de yok,
+              yalnız sade altın halka.
+            */}
+            {tekAlici ? (
+              <View style={styles.kimeTek}>
+                <Portrait name={recipients[0].name} size={36} photo={recipients[0].photo} ring={C.gold} />
+                <Txt weight="extrabold" size={14.5} color={C.text} numberOfLines={1} style={{ flex: 1 }}>
+                  {recipients[0].name}
+                </Txt>
+              </View>
+            ) : (
             <View style={styles.kimeSatiri}>
-              {!tekAlici && (
-                <Pressable onPress={() => { haptic.select(); setHedef(0); }} style={[styles.tumu, hedef === 0 ? { borderColor: C.gold, backgroundColor: C.gold + "1F" } : { borderColor: "rgba(255,255,255,.12)" }]}>
-                  <Icon name="users" size={14} color={hedef === 0 ? C.gold2 : C.dim} />
-                  <Txt weight="extrabold" size={11.5} color={hedef === 0 ? C.gold2 : C.dim}>Tümü</Txt>
-                </Pressable>
-              )}
+              {/* Bu dal yalnız çok alıcılı bağlamda (oda) çiziliyor, o yüzden
+                  "Tümü" çipinin ayrıca `tekAlici` kontrolü yok. */}
+              <Pressable onPress={() => { haptic.select(); setHedef(0); }} style={[styles.tumu, hedef === 0 ? { borderColor: C.gold, backgroundColor: C.gold + "1F" } : { borderColor: "rgba(255,255,255,.12)" }]}>
+                <Icon name="users" size={14} color={hedef === 0 ? C.gold2 : C.dim} />
+                <Txt weight="extrabold" size={11.5} color={hedef === 0 ? C.gold2 : C.dim}>Tümü</Txt>
+              </Pressable>
 
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 6 }}>
                 {recipients.map((r, i) => {
@@ -179,15 +203,29 @@ export function GiftSheet({
                 })}
               </ScrollView>
             </View>
+            )}
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
-              {sekmeler.map((t, i) => (
-                <Pressable key={t} onPress={() => { haptic.select(); setTab(i); setSel(null); }} style={{ paddingVertical: 11 }}>
-                  <Txt weight={i === tab ? "extrabold" : "semibold"} size={12.5} color={i === tab ? C.gold2 : C.dim}>{t}</Txt>
-                  {i === tab && <View style={styles.tabCizgi} />}
-                </Pressable>
-              ))}
-            </ScrollView>
+            {/*
+              TEK SEKME VARSA ŞERİT HİÇ ÇİZİLMİYOR.
+
+              Katalogda bugün tek kategori var; şerit "Hediye" yazan tek bir
+              sekme ve altında bir çizgi gösteriyordu — seçilecek bir şey yokken
+              45 punto boşluk. Yüklenirken de gizli, çünkü o sırada YEREL sabite
+              (çok kategorili) düşülüyor: şerit önce görünüp veri gelince
+              kaybolsa sayfa açılış animasyonunun ortasında zıplardı.
+              Supabase yapılandırılmamışsa yerel katalog kalıcı olur ve
+              sekmeler gerçekten gerekir; koşul o durumu bozmuyor.
+            */}
+            {!yukleniyor && sekmeler.length > 1 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+                {sekmeler.map((t, i) => (
+                  <Pressable key={t} onPress={() => { haptic.select(); setTab(i); setSel(null); }} style={{ paddingVertical: 11 }}>
+                    <Txt weight={i === tab ? "extrabold" : "semibold"} size={12.5} color={i === tab ? C.gold2 : C.dim}>{t}</Txt>
+                    {i === tab && <View style={styles.tabCizgi} />}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
 
             {/* YÜKSEKLİK SABİT, `maxHeight` DEĞİL. Sebebi ölçüldü: yüklenirken
                 `Yukleniyor`un 200 ms parlama koruması hiçbir şey çizmiyor, yani
@@ -196,9 +234,15 @@ export function GiftSheet({
                 büyüyor ama transform eski ölçüye göre kalıyor ve sayfanın alt
                 kısmı ekran dışında kalıyordu ("yarım açılıyor"). Bir hediyeye
                 dokununca yeniden yerleşim olduğu için düzeliyordu. Sabit
-                yükseklikle ölçü ilk kareden itibaren doğru. */}
-            <ScrollView style={{ height: 300 }} contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
-              {veri === null && isSupabaseConfigured ? (
+                yükseklikle ölçü ilk kareden itibaren doğru.
+
+                300 → 272: yedi hediye iki satır demek ve iki satır 268 punto
+                tutuyor. 300'de altta bir satırın yarısı kadar ölü alan
+                kalıyordu — kullanıcının "fazla boşluklu" dediği yerlerden
+                biri. Sayı yine SABİT, yani yukarıdaki ölçüm sorunu geri
+                gelmiyor; katalog büyürse ızgara kayar. */}
+            <ScrollView style={{ height: 272 }} contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
+              {yukleniyor ? (
                 <Yukleniyor dolgu={26} boyut={96} yazi="Hediyeler yükleniyor" style={{ width: "100%" }} />
               ) : (
                 karolar.map(({ k, g }) => {
@@ -211,11 +255,23 @@ export function GiftSheet({
                       // Seçim tek işaretle anlatılıyor — yumuşak zemin.
                       style={[styles.hucre, on && styles.hucreSecili]}
                     >
-                      <GiftIcon gift={g} size={58} />
-                      <Txt weight="bold" size={9.5} color={on ? "#fff" : C.text} numberOfLines={1} align="center" style={{ marginTop: 5, maxWidth: 72 }}>
-                        {k.ad}
-                      </Txt>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 }}>
+                      <GiftIcon gift={g} size={62} />
+                      {/*
+                        AD ARTIK KESİLMİYOR VE SATIRLARI KAYDIRMIYOR.
+
+                        Tek satırdı ve "Kükreyen Kaplan" karoya sığmadığı için
+                        "Kükreyen Kap…" çıkıyordu. İki satıra çıkarıldı; ama
+                        yükseklik SABİTLENMEZSE iki satırlık ad kendi karosunu
+                        uzatır ve o karonun fiyatı komşularından aşağı kayar —
+                        satır içi hizasızlığın kaynağı tam bu olurdu. Kutu her
+                        karoda 26 punto, ad ortalanıyor.
+                      */}
+                      <View style={{ height: 26, justifyContent: "center", marginTop: 4 }}>
+                        <Txt weight="bold" size={10} color={on ? "#fff" : C.text} numberOfLines={2} align="center">
+                          {k.ad}
+                        </Txt>
+                      </View>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
                         <CoinBadge size={10} />
                         <Txt weight="extrabold" size={9.5} color={C.gold2}>{k.fiyat.toLocaleString("tr-TR")}</Txt>
                       </View>
@@ -295,21 +351,32 @@ const styles = StyleSheet.create({
   },
   aura: { position: "absolute", top: 0, left: 0, right: 0, height: 160 },
   tutamac: { alignSelf: "center", width: 38, height: 4, borderRadius: 4, backgroundColor: "rgba(255,255,255,.28)", marginTop: 9 },
-  kimeSatiri: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12 },
+  kimeSatiri: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 },
+  kimeTek: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12 },
   tumu: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 9, paddingHorizontal: 13, borderRadius: 999, borderWidth: 1 },
-  // Kenarlik kaldirildi (cift halka); yalniz bosluk birakiyor.
-  kisi: { borderRadius: 999, padding: 3 },
+  // Kenarlik kaldirildi (cift halka); yalniz bosluk birakiyor. Bosluk 3 → 5:
+  // `Portrait`in halesi artik cizilen bir disk ve avatarin disina tasiyor,
+  // komsu avatarin altinda kalmasin.
+  kisi: { borderRadius: 999, padding: 5 },
   tabs: { gap: 18, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,.07)" },
   tabCizgi: { position: "absolute", left: 0, right: 0, bottom: -1, height: 2.5, borderRadius: 4, backgroundColor: C.gold },
-  grid: { flexDirection: "row", flexWrap: "wrap", padding: 12, gap: 6 },
-  hucre: { width: "23%", alignItems: "center", paddingVertical: 10, borderRadius: 14 },
+  grid: { flexDirection: "row", flexWrap: "wrap", padding: 10, gap: 8 },
+  hucre: { width: "23%", alignItems: "center", paddingVertical: 8, borderRadius: 16 },
   hucreSecili: { backgroundColor: C.kartUst },
   adetKutu: { position: "absolute", right: 100, bottom: 74, flexDirection: "row", gap: 6, padding: 6, borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: "rgba(16,15,22,.97)" },
   adetSecim: { paddingVertical: 8, paddingHorizontal: 11, borderRadius: 11, borderWidth: 1, borderColor: "transparent" },
   alt: { flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,.07)" },
-  bakiye: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 7, paddingLeft: 11, paddingRight: 6, borderRadius: 999, borderWidth: 1, borderColor: C.gold + "38", backgroundColor: C.gold + "12" },
-  arti: { width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: C.gold2 },
-  adetCip: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: C.kontrol },
-  gonder: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 20 },
+  /**
+   * ALT BARIN ÜÇ DENETİMİ AYNI YÜKSEKLİKTE (40).
+   *
+   * Ölçülünce üçü de farklı çıktı: bakiye hapı ~32, adet çipi ~39, Gönder ~42.
+   * Yan yana duran üç düğmenin üçü de farklı boyda olunca satır "düzensiz"
+   * görünüyordu — kullanıcının şikâyeti buydu. Dolgu yerine sabit yükseklik
+   * verildi ki yazı boyu değişse de hiza bozulmasın.
+   */
+  bakiye: { flexDirection: "row", alignItems: "center", gap: 6, height: 40, paddingLeft: 12, paddingRight: 6, borderRadius: 999, borderWidth: 1, borderColor: C.gold + "38", backgroundColor: C.gold + "12" },
+  arti: { width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: C.gold2 },
+  adetCip: { flexDirection: "row", alignItems: "center", gap: 5, height: 40, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,.12)", backgroundColor: C.kontrol },
+  gonder: { flexDirection: "row", alignItems: "center", gap: 8, height: 40, paddingHorizontal: 22 },
   tutar: { flexDirection: "row", alignItems: "center", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: "rgba(255,255,255,.35)" },
 });
