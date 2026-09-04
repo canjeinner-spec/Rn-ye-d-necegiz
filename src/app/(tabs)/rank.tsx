@@ -1,9 +1,11 @@
 import { useRouter } from "expo-router";
+import { Image } from "expo-image";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CoinBadge, DiamondBadge } from "@/components/Coins";
+import { PodyumCerceve } from "@/components/PodyumCerceve";
 import { Portrait } from "@/components/Portrait";
 import { Scene } from "@/components/Scene";
 import { Tabs } from "@/components/Tabs";
@@ -23,6 +25,7 @@ import { useCachedResource } from "@/lib/cache";
 import { haptic } from "@/lib/haptics";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { useApp } from "@/store/appStore";
+import { DERECE_CERCEVE, SAHNE } from "@/podium/cerceve";
 import { C } from "@/theme/colors";
 import { useIcerikAltPayi } from "@/theme/olculer";
 import { Gradient } from "@/theme/Gradient";
@@ -79,51 +82,47 @@ function Satir({ n, children }: { n: number; children: React.ReactNode }) {
 }
 
 /**
- * Podyum — ilk üç.
+ * Podyum — ilk üç, kanatlı çerçevelerle.
  *
- * Eskiden kaidesi 62×38 / 48×24'lük minik gradyan dikdörtgenlerdi; podyumdan
- * çok yer tutucuya benziyordu. Artık gerçek yükseklik farkı, madalya renginde
- * kaide, birincide taç ve ışık var.
+ * ÖNCESİ: madalya renginde halka + taç ikonu + gradyan kaide. Podyumdan çok
+ * yer tutucu gibi duruyordu. Referans uygulamalarda podyum bir SAHNE: salon
+ * arkaplanı, kanatlı çerçeve, altında derece madalyonu. Kullanıcının istediği
+ * "yarışmak için hırslandıran" his büyük ölçüde bu görsel ağırlıktan geliyor.
+ *
+ * Çerçeveler üretilen sayfadan kesildi (`scripts/cerceve-hazirla.js`) ve
+ * avatarın çerçeve içindeki yeri ÖLÇÜLEN orandan geliyor, göz kararı değil.
  */
 function Podyum({ ilk3, bas }: { ilk3: SiraKisi[]; bas: (k: SiraKisi) => void }) {
   if (ilk3.length < 3) return null;
+  // Birinci ortada ve büyük; ikinci solda, üçüncü sağda ve aşağıda.
   const dizilim = [
-    { kisi: ilk3[1], derece: 2, yukseklik: 52, avatar: 58 },
-    { kisi: ilk3[0], derece: 1, yukseklik: 76, avatar: 76 },
-    { kisi: ilk3[2], derece: 3, yukseklik: 38, avatar: 58 },
+    { kisi: ilk3[1], derece: 2, genislik: 104, ust: 34 },
+    { kisi: ilk3[0], derece: 1, genislik: 134, ust: 0 },
+    { kisi: ilk3[2], derece: 3, genislik: 104, ust: 34 },
   ];
   return (
-    <View style={styles.podyum}>
-      {dizilim.map(({ kisi, derece, yukseklik, avatar }) => {
-        const renk = MADALYA[derece];
-        const birinci = derece === 1;
-        return (
-          <Pressable key={kisi.uid} onPress={() => bas(kisi)} style={{ flex: 1, alignItems: "center" }}>
-            {birinci && (
-              <View style={styles.tac}>
-                <Icon name="crown" size={19} sw={2} color={C.gold2} />
-              </View>
-            )}
-            <View>
-              {birinci && <View style={styles.tacIsik} pointerEvents="none" />}
-              <Portrait name={kisi.ad} photo={kisi.foto} size={avatar} ring={renk} glow={birinci} frameBorder="#0B0A11" />
+    <View style={styles.sahne}>
+      <Image source={SAHNE} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
+      {/* Sahnenin alt kenarı listeye karışsın; görselin kesildiği yer
+          düz bir çizgi olarak görünmesin. */}
+      <Gradient colors={["transparent", C.bg]} deg={180} style={styles.sahneEtek} pointerEvents="none" />
+
+      <View style={styles.podyum}>
+        {dizilim.map(({ kisi, derece, genislik, ust }) => (
+          <Pressable key={kisi.uid} onPress={() => bas(kisi)} style={{ alignItems: "center", marginTop: ust }}>
+            <PodyumCerceve kod={DERECE_CERCEVE[derece]} genislik={genislik} ad={kisi.ad} foto={kisi.foto} />
+            <View style={[styles.dereceMadalyon, { borderColor: MADALYA[derece] + "AA" }]}>
+              <Txt weight="displayBold" size={12} color={MADALYA[derece]}>{derece}</Txt>
             </View>
-            <Txt weight="extrabold" size={birinci ? 13 : 11.5} color="#fff" numberOfLines={1} style={{ marginTop: 8, maxWidth: "100%" }}>
+            <Txt weight="extrabold" size={derece === 1 ? 13 : 11.5} color="#fff" numberOfLines={1} style={{ marginTop: 7, maxWidth: genislik + 14 }}>
               {kisi.ad}
             </Txt>
-            <View style={{ marginTop: 6 }}>
-              <Puan icon="coin" value={kisalt(kisi.puan)} guclu={birinci} />
-            </View>
-
-            {/* Kaide */}
-            <View style={[styles.kaide, { height: yukseklik, borderColor: renk + "55" }]}>
-              <Gradient colors={[renk + "3D", renk + "0A"]} deg={180} style={StyleSheet.absoluteFill} />
-              <View style={[styles.kaideParilti, { backgroundColor: renk + "99" }]} pointerEvents="none" />
-              <Txt weight="displayBold" size={birinci ? 22 : 18} color={renk}>{derece}</Txt>
+            <View style={{ marginTop: 5 }}>
+              <Puan icon="coin" value={kisalt(kisi.puan)} guclu={derece === 1} />
             </View>
           </Pressable>
-        );
-      })}
+        ))}
+      </View>
     </View>
   );
 }
@@ -367,20 +366,15 @@ const styles = StyleSheet.create({
     backgroundColor: C.kontrol, borderWidth: 1, borderColor: "rgba(255,255,255,.09)",
   },
 
-  podyum: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 8, paddingTop: 22, paddingBottom: 22 },
-  tac: { marginBottom: 4 },
-  tacIsik: {
-    position: "absolute", top: -10, left: -10, right: -10, bottom: -10, borderRadius: 60,
-    backgroundColor: C.gold + "1F",
-    shadowColor: C.gold, shadowOpacity: 0.9, shadowRadius: 22, shadowOffset: { width: 0, height: 0 }, elevation: 10,
+  // Sahne listeye göre TAŞIYOR: kaydırma alanının 16 punto yan dolgusundan
+  // negatif kenar boşluğuyla çıkıyor ki salon görseli ekranı baştan başa kessin.
+  sahne: { marginHorizontal: -16, marginTop: -10, marginBottom: 14, paddingTop: 14, paddingBottom: 18, overflow: "hidden" },
+  sahneEtek: { position: "absolute", left: 0, right: 0, bottom: 0, height: 96 },
+  podyum: { flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: 4, paddingHorizontal: 8 },
+  dereceMadalyon: {
+    marginTop: -13, width: 26, height: 26, borderRadius: 13, borderWidth: 1.5,
+    alignItems: "center", justifyContent: "center", backgroundColor: "rgba(8,8,12,.88)",
   },
-  kaide: {
-    alignSelf: "stretch", marginTop: 10, marginHorizontal: 4,
-    borderTopLeftRadius: 12, borderTopRightRadius: 12,
-    borderWidth: 1, borderBottomWidth: 0, overflow: "hidden",
-    alignItems: "center", justifyContent: "center",
-  },
-  kaideParilti: { position: "absolute", top: 0, left: 12, right: 12, height: 1.5 },
 
   satir: {
     flexDirection: "row", alignItems: "center", gap: 12,
