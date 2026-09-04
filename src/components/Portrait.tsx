@@ -55,47 +55,60 @@ export function Portrait({
   // "yüklendi" durumu silüeti gizli tutar.
   useEffect(() => { setYuklendi(false); setImgOk(true); }, [src]);
 
+  /**
+   * PARLAKLIK ARTIK GÖLGE DEĞİL, ÇİZİLEN BİR HALE.
+   *
+   * Önce `shadow*` + `elevation` vardı ve parlaklık KARE çıkıyordu. Sebep
+   * platform farkı değil, gölgenin nereden üretildiği: iOS gölgeyi katmanın
+   * alfasından, Android outline'dan çıkarıyor; arka planı olmayan bir
+   * görünümde ikisi de bounds DİKDÖRTGENİNE düşüyor. Görünüme arka plan
+   * vermek denendi (yalnız Android için) ama kullanıcı iPhone'da hâlâ
+   * "karemsi parlaklık" gördü — yani gölge yolu iki platformda da
+   * öngörülemez.
+   *
+   * Gölge tamamen bırakıldı. Hale artık avatarın arkasına çizilen saydam bir
+   * DAİRE: `borderRadius` daireyi garanti ediyor, tahmine bırakılan bir şey
+   * yok, iki platformda birebir aynı. Halka değil disk olduğu için "çift
+   * halka" da olmuyor.
+   */
+  const hale = Math.max(3, Math.round(size * 0.085));
+  /**
+   * Hale rengi HEX olmak zorunda: `ring` bazı çağrı yerlerinde
+   * `rgba(255,255,255,.16)` gibi geliyor ve ona alfa eklemek geçersiz renk
+   * üretir (RN sessizce çizmez). HEX değilse altına düşülüyor.
+   */
+  const haleRengi = (ring && /^#[0-9a-fA-F]{6}$/.test(ring) ? ring : C.gold) + "2E";
+
   return (
     <View style={{ width: size, height: size }}>
+      {glow && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            left: -hale,
+            right: -hale,
+            top: -hale,
+            bottom: -hale,
+            borderRadius: (size + hale * 2) / 2,
+            backgroundColor: haleRengi,
+          }}
+        />
+      )}
+
       {/* Halka ve kırpma AYRI katmanlarda.
           Tek View'de `borderWidth` + `overflow:"hidden"` birlikte kullanılınca
           çocuk, dış yarıçapa göre kırpılıyor; foto köşelerden halkanın altına
           taşıp avatar "tam oturmamış" görünüyordu. Dıştaki View yalnız halkayı
           çiziyor, içteki View iç yarıçapla kırpıyor. */}
       <View
-        style={[
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            borderWidth: 2,
-            borderColor: ringColor,
-          },
-          /**
-           * PARLAKLIK ANDROID'DE KARE ÇIKIYORDU.
-           *
-           * `elevation` gölgesini Android görünümün OUTLINE'ından üretiyor;
-           * görünümün arka planı yoksa outline dikdörtgen bounds olur ve
-           * yuvarlak avatarın etrafında karemsi bir hale görünür. iOS'ta
-           * `shadow*` doğrudan `borderRadius`u izlediği için sorun yok —
-           * kullanıcı bunu "karemsi ama avatar yuvarlak" diye tarif etti.
-           *
-           * Çözüm arka plan vermek: aynı `borderRadius` ile birlikte outline
-           * daire oluyor. Renk `frameBorder` (varsayılan sayfa zemini), yani
-           * görünümde bir değişiklik yapmıyor — fotoğraf ve silüet zaten
-           * üstünü tamamen kapatıyor.
-           */
-          glow
-            ? {
-                backgroundColor: frameBorder,
-                shadowColor: ring || C.gold,
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.55,
-                shadowRadius: 8,
-                elevation: 6,
-              }
-            : null,
-        ]}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: 2,
+          borderColor: ringColor,
+        }}
       >
         <View style={{ flex: 1, borderRadius: (size - 4) / 2, overflow: "hidden" }}>
         {/* Taban silüet — fotoğraf yüklenene kadar. Yüklendiyse tamamen
