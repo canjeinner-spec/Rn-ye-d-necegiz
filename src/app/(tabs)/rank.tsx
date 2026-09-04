@@ -307,6 +307,11 @@ export default function RankTab() {
           sahne bitince ekran ikiye bölünüyordu. Referans uygulamalarda
           arkaplan sayfanın tamamını kaplıyor, liste onun üstünde duruyor.
 
+          Görsel DİKEY üretildi: üst %40 aydınlık merdiven (podyum oraya
+          oturuyor), altı karanlığa gömülüyor. Perde bu yüzden hafif -- görsel
+          zaten kendi kendine kararıyor, üstüne kalın perde koymak zemindeki
+          altın yansımaları öldürüyordu.
+
           Sarmalayıcı sekme şeridinden SONRA başlıyor, yani görsel tam da
           şeridin altındaki çizgiden itibaren görünüyor. Perde gradyanı
           aşağı indikçe koyulaşıyor: podyum aydınlık kalıyor, liste
@@ -315,7 +320,7 @@ export default function RankTab() {
         <View style={{ flex: 1 }}>
           <Image source={SAHNE} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
           <Gradient
-            colors={["rgba(8,8,12,.28)", "rgba(8,8,12,.82)", "rgba(8,8,12,.96)"]}
+            colors={["rgba(8,8,12,.06)", "rgba(8,8,12,.42)", "rgba(8,8,12,.78)"]}
             deg={180}
             locations={[0, 0.55, 1]}
             style={StyleSheet.absoluteFill}

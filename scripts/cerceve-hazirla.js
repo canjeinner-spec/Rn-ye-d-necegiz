@@ -34,7 +34,7 @@ const KOK = path.join(__dirname, "..");
 const CIKTI_KLASOR = path.join(KOK, "assets", "podium");
 const OLCU_DOSYA = path.join(KOK, "src", "podium", "cerceve.ts");
 const HEDEF_GENISLIK = 520; // 3x ekranda ~170pt çerçeve için fazlasıyla yeter
-const SAHNE_GENISLIK = 1200;
+const SAHNE_GENISLIK = 1080; // dikey sahnede buyutme yok (withoutEnlargement)
 const SIRA = ["gumus", "altin", "bronz"]; // sayfadaki soldan sağa dizilim
 
 /** Boş piksel: şeffaf ya da (alfasız sayfa gelirse) neredeyse siyah. */
@@ -225,7 +225,7 @@ function sahneHazirla(dosya) {
   if (sharp) {
     const hedef = path.join(CIKTI_KLASOR, "sahne.jpg");
     return sharp(dosya)
-      .resize({ width: SAHNE_GENISLIK })
+      .resize({ width: SAHNE_GENISLIK, withoutEnlargement: true })
       .jpeg({ quality: 82, mozjpeg: true })
       .toFile(hedef)
       .then(() => console.log(`sahne.jpg yazildi — ${(fs.statSync(hedef).size / 1024).toFixed(0)} KB`));
