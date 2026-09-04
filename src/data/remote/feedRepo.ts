@@ -72,6 +72,37 @@ async function fetchAuthors(ids: number[]): Promise<Map<number, Author>> {
 
 type YorumRow = { id: number; gonderi_id: number; kullanici_id: number; ust_yorum_id: number | null; icerik: string; olusturulma_tarihi: string };
 
+const YORUM_COLS = "id, gonderi_id, kullanici_id, ust_yorum_id, icerik, olusturulma_tarihi";
+
+/**
+ * Düz yorum satırlarını gönderi başına ağaca çevirir (üst-seviye + yanıtlar).
+ *
+ * Hem akış listesi hem tek gönderi sayfası aynı ağacı kuruyor; iki kopya
+ * kalırsa biri düzeltilip diğeri unutulur (bu projede daha önce oldu).
+ * Satırların TARİHE GÖRE ARTAN sırada gelmesi gerekiyor: yanıt, üst yorumdan
+ * sonra işlenmezse bağlanacağı yorum haritada olmaz ve sessizce düşer.
+ */
+function yorumAgaci(rows: YorumRow[], authors: Map<number, Author>, myId: number | null): Map<number, FeedComment[]> {
+  const nameOf = (uid: number) => authors.get(uid)?.kullanici_adi || "Kullanıcı";
+  const pidOf = (uid: number) => authors.get(uid)?.public_id;
+  const photoOf = (uid: number) => authors.get(uid)?.profil_resmi || undefined;
+
+  const byPost = new Map<number, FeedComment[]>();
+  const byCid = new Map<number, FeedComment>();
+  for (const c of rows.filter((c) => c.ust_yorum_id == null)) {
+    const fc: FeedComment = { cid: c.id, who: nameOf(c.kullanici_id), publicId: pidOf(c.kullanici_id), photo: photoOf(c.kullanici_id), text: c.icerik, mine: myId === c.kullanici_id, replies: [] };
+    byCid.set(c.id, fc);
+    const arr = byPost.get(c.gonderi_id) ?? [];
+    arr.push(fc);
+    byPost.set(c.gonderi_id, arr);
+  }
+  for (const r of rows.filter((c) => c.ust_yorum_id != null)) {
+    const parent = byCid.get(r.ust_yorum_id as number);
+    if (parent) parent.replies.push({ cid: r.id, who: nameOf(r.kullanici_id), publicId: pidOf(r.kullanici_id), photo: photoOf(r.kullanici_id), text: r.icerik, mine: myId === r.kullanici_id });
+  }
+  return byPost;
+}
+
 export type FeedResult = { posts: FeedPost[]; likedIds: number[] };
 
 /** Akış gönderileri (yeniden eskiye) + üst-seviye yorumlar + benim beğenilerim. */
@@ -108,28 +139,41 @@ export async function listPosts(limit = 50): Promise<FeedResult> {
 
   // Yazar adları: gönderi + yorum yazarları birlikte.
   const authors = await fetchAuthors([...rows.map((r) => r.kullanici_id), ...allComments.map((c) => c.kullanici_id)]);
-  const nameOf = (uid: number) => authors.get(uid)?.kullanici_adi || "Kullanıcı";
-  const pidOf = (uid: number) => authors.get(uid)?.public_id;
-  const photoOf = (uid: number) => authors.get(uid)?.profil_resmi || undefined;
-
-  // Üst-seviye yorumları gönderiye göre grupla; yanıtları üst yoruma ekle.
-  const byPost = new Map<number, FeedComment[]>();
-  const byCid = new Map<number, FeedComment>();
-  for (const c of allComments.filter((c) => c.ust_yorum_id == null)) {
-    const fc: FeedComment = { cid: c.id, who: nameOf(c.kullanici_id), publicId: pidOf(c.kullanici_id), photo: photoOf(c.kullanici_id), text: c.icerik, mine: me?.id === c.kullanici_id, replies: [] };
-    byCid.set(c.id, fc);
-    const arr = byPost.get(c.gonderi_id) ?? [];
-    arr.push(fc);
-    byPost.set(c.gonderi_id, arr);
-  }
-  for (const r of allComments.filter((c) => c.ust_yorum_id != null)) {
-    const parent = byCid.get(r.ust_yorum_id as number);
-    if (parent) parent.replies.push({ cid: r.id, who: nameOf(r.kullanici_id), publicId: pidOf(r.kullanici_id), photo: photoOf(r.kullanici_id), text: r.icerik, mine: me?.id === r.kullanici_id });
-  }
+  const byPost = yorumAgaci(allComments, authors, me?.id ?? null);
 
   const posts = rows.map((r) => mapPost(r, authors.get(r.kullanici_id), me?.id ?? null, byPost.get(r.id) ?? []));
   const likedIds = rows.filter((r) => myLikes.has(r.id)).map((r) => FEED_ID_OFFSET + r.id);
   return { posts, likedIds };
+}
+
+/**
+ * TEK gönderi + yorumları + benim beğenim — gönderi sayfası için.
+ *
+ * Sayfa listeden gelen kopyayı anında çiziyor (cache-first), bu çağrı onun
+ * üstüne taze veriyi koyuyor: listedeki kopya kaç saniye/dakika önce
+ * alındıysa yorum sayısı o kadar bayat. Gönderi silinmişse RLS boş döndürür
+ * ve `null` dönüyoruz — sayfa "bulunamadı" diyebilsin.
+ */
+export async function getPost(postDbId: number): Promise<{ post: FeedPost; liked: boolean } | null> {
+  const sb = requireSupabase();
+  const [{ data, error }, me] = await Promise.all([
+    sb.from("gonderiler").select(SELECT_COLS).eq("id", postDbId).maybeSingle(),
+    getMyProfile().catch(() => null),
+  ]);
+  if (error) throw error;
+  if (!data) return null;
+  const row = data as GonderiRow;
+
+  const [commentsRes, likeRes] = await Promise.all([
+    sb.from("gonderi_yorumlari").select(YORUM_COLS).eq("gonderi_id", postDbId).order("olusturulma_tarihi", { ascending: true }),
+    me
+      ? sb.from("gonderi_begeniler").select("gonderi_id").eq("kullanici_id", me.id).eq("gonderi_id", postDbId).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const yorumlar = (commentsRes.data as YorumRow[]) ?? [];
+  const authors = await fetchAuthors([row.kullanici_id, ...yorumlar.map((c) => c.kullanici_id)]);
+  const comments = yorumAgaci(yorumlar, authors, me?.id ?? null).get(postDbId) ?? [];
+  return { post: mapPost(row, authors.get(row.kullanici_id), me?.id ?? null, comments), liked: !!likeRes.data };
 }
 
 /** Gönderiyi beğen (kendi adına; zaten beğenildiyse yutulur). */

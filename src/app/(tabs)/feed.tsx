@@ -2,7 +2,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { Pressable, ScrollView, Share, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Animated, { FadeIn, FadeOut, Layout } from "react-native-reanimated";
+import Animated, { Layout } from "react-native-reanimated";
 
 import { KeyboardAware } from "@/components/KeyboardAware";
 import { AuthorityTag } from "@/components/AuthorityTag";
@@ -13,7 +13,7 @@ import { Sheet } from "@/components/Sheet";
 import { Tabs } from "@/components/Tabs";
 import { Txt } from "@/components/Txt";
 import { FEED_SEED, SCOPE_LABEL, type FeedPost, type FeedScope } from "@/data/feed";
-import { addComment as addCommentDb, addReply as addReplyDb, createPost, deleteComment, deletePost, editPost, FEED_ID_OFFSET, likePost, listPosts, setPinned, unlikePost } from "@/data/remote/feedRepo";
+import { createPost, deletePost, editPost, FEED_ID_OFFSET, likePost, listPosts, setPinned, unlikePost } from "@/data/remote/feedRepo";
 import { deleteAnyPost } from "@/data/remote/adminRepo";
 import { getUnreadCount } from "@/data/remote/notifRepo";
 import { getCached, setCached } from "@/lib/cache";
@@ -34,16 +34,6 @@ function ScopeLine({ scope, size = 12 }: { scope: FeedScope; size?: number }) {
       <Icon path={SCOPE_LABEL[scope].ic} size={size} color={C.dim2} />
       <Txt weight="semibold" size={10} color={C.dim2}>{SCOPE_LABEL[scope].t}</Txt>
     </View>
-  );
-}
-
-function SendBtn({ disabled, onPress, size = 34 }: { disabled: boolean; onPress: () => void; size?: number }) {
-  return (
-    <Pressable onPress={onPress} disabled={disabled} style={{ width: size, height: size, borderRadius: size / 2, overflow: "hidden", opacity: disabled ? 0.4 : 1 }}>
-      <Gradient colors={[C.gold2, "#C8922B"]} deg={135} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <Icon name="send" size={size * 0.44} color="#241A05" />
-      </Gradient>
-    </Pressable>
   );
 }
 
@@ -94,14 +84,10 @@ export default function FeedScreen() {
     }, []),
   );
   const [liked, setLiked] = useState<Record<number, boolean>>({});
-  const [openCmt, setOpenCmt] = useState<number | null>(null);
-  const [cmtText, setCmtText] = useState("");
   const [menuPost, setMenuPost] = useState<UserPost | null>(null);
   const [scopePost, setScopePost] = useState<number | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
-  const [replyTo, setReplyTo] = useState<{ pid: number; ci: number } | null>(null);
-  const [replyText, setReplyText] = useState("");
   const [toast, setToast] = useState("");
   const nextId = useRef(100);
 
@@ -191,38 +177,10 @@ export default function FeedScreen() {
     if (isDb(id)) setPinned(id - FEED_ID_OFFSET, willPin).catch(() => {});
   };
   const setScope = (id: number, sc: FeedScope) => { mapUser(id, (x) => ({ ...x, scope: sc })); setScopePost(null); };
-  const addComment = async (id: number) => {
-    const t = cmtText.trim();
-    if (!t) return;
-    mapUser(id, (x) => ({ ...x, comments: [...x.comments, { who: userName, text: t, mine: true, replies: [] }] }));
-    setCmtText("");
-    if (id >= FEED_ID_OFFSET && isSupabaseConfigured && useApp.getState().session) {
-      try { await addCommentDb(id - FEED_ID_OFFSET, t); } catch { note("Yorum gönderilemedi"); }
-    }
-  };
-  const delComment = (id: number, ci: number) => {
-    const post = posts.find((x) => x.type === "user" && x.id === id);
-    const cid = post && post.type === "user" ? post.comments[ci]?.cid : undefined;
-    mapUser(id, (x) => ({ ...x, comments: x.comments.filter((_, j) => j !== ci) }));
-    if (isDb(id) && cid != null) deleteComment(cid).catch(() => note("Silinemedi"));
-  };
-  const delReply = (id: number, ci: number, ri: number) => {
-    const post = posts.find((x) => x.type === "user" && x.id === id);
-    const rid = post && post.type === "user" ? post.comments[ci]?.replies[ri]?.cid : undefined;
-    mapUser(id, (x) => ({ ...x, comments: x.comments.map((c, j) => (j === ci ? { ...c, replies: c.replies.filter((_, k) => k !== ri) } : c)) }));
-    if (isDb(id) && rid != null) deleteComment(rid).catch(() => note("Silinemedi"));
-  };
-  const addReply = async (pid: number, ci: number) => {
-    const t = replyText.trim();
-    if (!t) return;
-    const post = posts.find((x) => x.type === "user" && x.id === pid);
-    const parentCid = post && post.type === "user" ? post.comments[ci]?.cid : undefined;
-    mapUser(pid, (x) => ({ ...x, comments: x.comments.map((c, j) => (j === ci ? { ...c, replies: [...c.replies, { who: userName, text: t, mine: true }] } : c)) }));
-    setReplyText("");
-    setReplyTo(null);
-    if (isDb(pid) && parentCid != null) {
-      try { await addReplyDb(parentCid, pid - FEED_ID_OFFSET, t); } catch { note("Yanıt gönderilemedi"); }
-    }
+  /** Yorumlar artik gonderi sayfasinda; kart yalniz oraya goturuyor. */
+  const gonderiyeGit = (id: number) => {
+    haptic.light();
+    router.navigate(`/gonderi?id=${id}`);
   };
   const joinRoom = (id: string) => {
     const r = ROOMS.find((x) => x.id === id);
@@ -358,7 +316,7 @@ export default function FeedScreen() {
                       </View>
                     </View>
                   ) : (
-                    <Pressable onPress={() => setOpenCmt(openCmt === p.id ? null : p.id)}>
+                    <Pressable onPress={() => gonderiyeGit(p.id)}>
                       <Txt size={13} color={C.text} lh={1.55} style={{ marginTop: 11 }}>{p.body}</Txt>
                     </Pressable>
                   )}
@@ -386,9 +344,9 @@ export default function FeedScreen() {
                       <Icon name="heart" size={15} color={liked[p.id] ? "#FB7185" : C.dim} fill={liked[p.id] ? "#FB7185" : "none"} />
                       <Txt weight="bold" size={11.5} color={liked[p.id] ? "#FB7185" : C.dim}>{p.likes}</Txt>
                     </Pressable>
-                    <Pressable onPress={() => setOpenCmt(openCmt === p.id ? null : p.id)} style={[styles.actionChip, openCmt === p.id && { backgroundColor: C.gold + "14", borderColor: C.gold + "44" }]}>
-                      <Icon name="chat" size={15} color={openCmt === p.id ? C.gold2 : C.dim} />
-                      <Txt weight="bold" size={11.5} color={openCmt === p.id ? C.gold2 : C.dim}>{totalComments(p)}</Txt>
+                    <Pressable onPress={() => gonderiyeGit(p.id)} style={styles.actionChip}>
+                      <Icon name="chat" size={15} color={C.dim} />
+                      <Txt weight="bold" size={11.5} color={C.dim}>{totalComments(p)}</Txt>
                     </Pressable>
                     <View style={{ flex: 1 }} />
                     <Pressable onPress={() => sharePost(p)} style={styles.actionChip}>
@@ -396,70 +354,6 @@ export default function FeedScreen() {
                     </Pressable>
                   </View>
 
-                  {openCmt === p.id && (
-                    <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)} style={styles.comments}>
-                      {p.comments.map((c, ci) => (
-                        <View key={ci} style={{ marginTop: ci ? 12 : 0 }}>
-                          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 9 }}>
-                            <Pressable onPress={() => goProfile(c.publicId, c.who, c.mine)}>
-                              <Portrait name={c.who} size={28} photo={c.mine ? userPhoto || undefined : c.photo} />
-                            </Pressable>
-                            <View style={{ flex: 1, minWidth: 0 }}>
-                              <View style={styles.cmtBubble}>
-                                <Txt weight="extrabold" size={11.5} color={c.mine ? C.gold2 : C.text} onPress={() => goProfile(c.publicId, c.who, c.mine)}>{c.mine ? userName : c.who}</Txt>
-                                <Txt size={12} color={C.text} lh={1.4} style={{ marginTop: 1 }}>{c.text}</Txt>
-                              </View>
-                              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 5, paddingLeft: 12 }}>
-                                <Pressable onPress={() => { setReplyTo(replyTo && replyTo.pid === p.id && replyTo.ci === ci ? null : { pid: p.id, ci }); setReplyText(""); }} style={styles.cmtActionBtn}>
-                                  <Txt weight="bold" size={10} color={C.dim2}>Yanıtla</Txt>
-                                </Pressable>
-                                {(c.mine || p.mine) && (
-                                  <Pressable onPress={() => delComment(p.id, ci)} style={styles.cmtActionBtn}>
-                                    <Txt weight="bold" size={10} color={C.dim2}>Sil</Txt>
-                                  </Pressable>
-                                )}
-                              </View>
-                            </View>
-                          </View>
-                          {c.replies.map((r, ri) => (
-                            <View key={ri} style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 8, paddingLeft: 30 }}>
-                              <Pressable onPress={() => goProfile(r.publicId, r.who, r.mine)}>
-                                <Portrait name={r.who} size={24} photo={r.mine ? userPhoto || undefined : r.photo} />
-                              </Pressable>
-                              <View style={{ flex: 1, minWidth: 0 }}>
-                                <View style={styles.cmtBubble}>
-                                  <Txt weight="extrabold" size={11} color={r.mine ? C.gold2 : C.text} onPress={() => goProfile(r.publicId, r.who, r.mine)}>{r.mine ? userName : r.who}</Txt>
-                                  <Txt size={11.5} color={C.text} lh={1.4} style={{ marginTop: 1 }}>{r.text}</Txt>
-                                </View>
-                                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 5, paddingLeft: 12 }}>
-                                  <Pressable onPress={() => { setReplyTo({ pid: p.id, ci }); setReplyText(`@${r.mine ? userName : r.who} `); }} hitSlop={6} style={styles.cmtActionBtn}>
-                                    <Txt weight="bold" size={10} color={C.dim2}>Yanıtla</Txt>
-                                  </Pressable>
-                                  {(r.mine || p.mine) && (
-                                    <Pressable onPress={() => delReply(p.id, ci, ri)} hitSlop={6} style={styles.cmtActionBtn}>
-                                      <Txt weight="bold" size={10} color={C.dim2}>Sil</Txt>
-                                    </Pressable>
-                                  )}
-                                </View>
-                              </View>
-                            </View>
-                          ))}
-                          {replyTo && replyTo.pid === p.id && replyTo.ci === ci && (
-                            <Animated.View entering={FadeIn.duration(150)} style={[styles.composeBar, { marginTop: 8, marginLeft: 30 }]}>
-                              <Portrait name="Sen" size={22} photo={userPhoto || undefined} />
-                              <TextInput value={replyText} onChangeText={setReplyText} autoFocus placeholder={`${c.who} kişisine yanıt…`} placeholderTextColor={C.dim2} style={styles.replyInput} />
-                              <SendBtn disabled={!replyText.trim()} onPress={() => addReply(p.id, ci)} size={28} />
-                            </Animated.View>
-                          )}
-                        </View>
-                      ))}
-                      <View style={[styles.composeBar, { marginTop: p.comments.length ? 14 : 0 }]}>
-                        <Portrait name="Sen" size={26} photo={userPhoto || undefined} />
-                        <TextInput value={cmtText} onChangeText={setCmtText} placeholder="Yorum yaz…" placeholderTextColor={C.dim2} style={styles.cmtInput} />
-                        <SendBtn disabled={!cmtText.trim()} onPress={() => addComment(p.id)} size={32} />
-                      </View>
-                    </Animated.View>
-                  )}
                 </Animated.View>
               )
             )}
@@ -558,12 +452,6 @@ const styles = StyleSheet.create({
   roomThumb: { width: 46, height: 46, borderRadius: 13, overflow: "hidden" },
   joinChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 8, paddingHorizontal: 13, borderRadius: 999, backgroundColor: C.gold + "1F", borderWidth: 1, borderColor: C.gold + "44" },
   actionChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999, backgroundColor: C.kart, borderWidth: 1, borderColor: "rgba(255,255,255,.08)" },
-  comments: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.line },
-  cmtBubble: { alignSelf: "flex-start", maxWidth: "100%", backgroundColor: C.kontrol, borderRadius: 14, borderTopLeftRadius: 4, paddingVertical: 7, paddingHorizontal: 12 },
-  cmtActionBtn: { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, backgroundColor: C.kart },
-  composeBar: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.kart, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 6 },
-  cmtInput: { flex: 1, color: C.text, fontSize: 12, fontFamily: "PlusJakartaSans_500Medium", paddingHorizontal: 2 },
-  replyInput: { flex: 1, color: C.text, fontSize: 11.5, fontFamily: "PlusJakartaSans_500Medium", paddingHorizontal: 2 },
   toast: { position: "absolute", alignSelf: "center", bottom: 104, backgroundColor: "rgba(15,13,21,.95)", borderWidth: 1, borderColor: C.gold + "55", paddingVertical: 11, paddingHorizontal: 18, borderRadius: 999 },
   menuItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 4 },
   scopeRow: { flexDirection: "row", alignItems: "center", gap: 13, padding: 14, borderRadius: 16, marginBottom: 10, borderWidth: 1 },
